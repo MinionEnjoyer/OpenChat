@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/web/public/logo.png" alt="OpenChat" width="120" height="120" />
+</p>
+
 # OpenChat
 
 A self-hosted, communication platform: real-time text, and voice/video calls. Built to **integrate** an
