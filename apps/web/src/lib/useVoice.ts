@@ -92,7 +92,19 @@ export function useVoice() {
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
           if (track.kind === Track.Kind.Audio) track.detach().forEach((el) => el.remove());
         });
-      await room.connect(url, token);
+      // Boot the user out if the connection can't establish within 30s (dead media path,
+      // unreachable SFU, etc.) instead of hanging on "Connecting…" forever.
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          room.connect(url, token),
+          new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Voice connection timed out after 30s')), 30_000);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
       const prefs = getAudioPrefs();
       await room.localParticipant.setMicrophoneEnabled(
         true,
@@ -102,8 +114,11 @@ export function useVoice() {
       setChannelId(chId);
       snapshot(room);
     } catch (e) {
+      if (roomRef.current) { try { await roomRef.current.disconnect(); } catch { /* ignore */ } }
       roomRef.current = null;
       setChannelId(null);
+      setParticipants([]);
+      cleanupAudio();
       throw e;
     } finally {
       setConnecting(false);
