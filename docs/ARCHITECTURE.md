@@ -31,7 +31,7 @@ The following principles govern all architectural decisions:
 2.  **Type Safety End-to-End:** Shared TypeScript interfaces between Frontend and Backend reduce integration bugs and simplify API contracts.
 3.  **Stateless Compute, Stateful Data:** Application servers (API/WS) must be horizontally scalable and stateless. All session state, presence data, and real-time fan-out are delegated to Redis. Database holds persistent domain entities.
 4.  **Security by Default:** Authentication is handled exclusively via OIDC with PKCE. File access is mediated through Share’s permission model. WebSocket connections require signed tickets. CSP and CORS are strictly configured.
-5.  **Observability First:** Structured JSON logging, Prometheus metrics, and distributed tracing hooks are embedded in the core framework to integrate seamlessly with the existing homelab monitoring stack (Prometheus/Grafana/Loki).
+5.  **Observability First:** Structured JSON logging, Prometheus metrics, and distributed tracing hooks are embedded in the core framework to integrate seamlessly with the existing monitoring stack (Prometheus/Grafana/Loki).
 
 ---
 
@@ -876,7 +876,7 @@ The architecture supports screen sharing in **Phase 2** without backend changes:
 1.  **LiveKit Capability**: LiveKit SFU natively supports video tracks from `getDisplayMedia()`.
 2.  **Client Implementation**: Add a "Share Screen" button that invokes the browser API. The resulting track is published to the same room.
 3.  **Permissions**: Backend token generation logic can be extended to grant `canPublish` for video tracks if needed, or simply rely on default permissions.
-4.  **Bandwidth Management**: LiveKit's Simulcast/SVC (Scalable Video Coding) will automatically adjust quality based on network conditions, which is critical for self-hosted homelab networks with variable upload speeds.
+4.  **Bandwidth Management**: LiveKit's Simulcast/SVC (Scalable Video Coding) will automatically adjust quality based on network conditions, which is critical for self-hosted networks with variable upload speeds.
 
 ### 2.6 Deployment Configuration (LiveKit)
 
@@ -898,7 +898,7 @@ services:
       - ./livekit/config.yaml:/etc/livekit-server.yaml
 ```
 
-*   **Firewall**: The existing Nginx Proxy Manager (NPM) must be configured to forward UDP traffic on port `7881` to the LiveKit container. This is a critical requirement for WebRTC NAT traversal in this specific homelab setup. If NPM cannot handle UDP, we may need a dedicated Caddy or Traefik instance for the voice subdomain, but per pinned decisions, we attempt NPM first.
+*   **Firewall**: The existing Nginx Proxy Manager (NPM) must be configured to forward UDP traffic on port `7881` to the LiveKit container. This is a critical requirement for WebRTC NAT traversal in this specific setup. If NPM cannot handle UDP, we may need a dedicated Caddy or Traefik instance for the voice subdomain, but per pinned decisions, we attempt NPM first.
 
 ---
 
@@ -1762,12 +1762,12 @@ Security is defense-in-depth, leveraging existing infrastructure where possible 
 
 ## 4. Backup & Disaster Recovery
 
-We leverage the existing homelab backup infrastructure to minimize operational overhead.
+We leverage the existing backup infrastructure to minimize operational overhead.
 
 ### Strategy
 1.  **PostgreSQL**:
     *   **WAL Archiving**: Enabled in `postgresql.conf` (`archive_mode = on`, `archive_command`). WAL files are streamed to a dedicated archive directory or S3-compatible storage managed by the existing backup script.
-    *   **Logical Dumps**: `pg_dump` runs nightly via a cron job (managed by the host's existing backup agent) and stores the dump in `/srv/nas/backups/chat/postgres/`.
+    *   **Logical Dumps**: `pg_dump` runs nightly via a cron job (managed by the host's existing backup agent) and stores the dump in `/backups/openchat/postgres/`.
 2.  **Redis**:
     *   Redis persistence (`appendonly yes`) is enabled.
     *   Since Redis data is largely ephemeral or derivable from Postgres, we rely on RDB snapshots for crash recovery but do not perform full logical dumps of Redis to NAS unless critical state (like active voice sessions) requires it. For V1, crashing and losing transient cache/queue data is acceptable if the queue can be reprocessed.
@@ -1811,7 +1811,7 @@ Create a dedicated "Chat Platform" dashboard in Grafana with panels for:
 4.  **Database Performance**: Query time, Connection count, Cache hit ratio (Redis).
 
 ### Alerts
-Configure Grafana Alerting rules to send notifications to the existing homelab alert channel (e.g., Matrix/Email):
+Configure Grafana Alerting rules to send notifications to the existing alert channel (e.g., Matrix/Email):
 *   `High Error Rate`: >5% of requests return 5xx over 5 minutes.
 *   `Service Down`: Any chat service container is not healthy for >2 minutes.
 *   `Database Connection Exhaustion`: PostgreSQL connections >90% of max.
@@ -2002,7 +2002,7 @@ Testing is layered, prioritizing speed and isolation for unit tests, with target
 ### Load Testing (k6)
 *   **Target**: Simulate 1,000 concurrent WebSocket users and 500 messages/second.
 *   **Metrics**: CPU/Memory usage on the host, Redis memory fragmentation ratio, Postgres connection pool saturation.
-*   **Goal**: Ensure the single-node deployment can handle peak homelab usage without degradation.
+*   **Goal**: Ensure the single-node deployment can handle peak usage without degradation.
 
 ---
 

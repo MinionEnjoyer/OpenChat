@@ -5,8 +5,7 @@ local config file — **`.env`** — which is never committed.
 
 ## Prerequisites
 
-You need these services reachable (the reference deployment uses a self-hosted homelab; any
-equivalents work):
+You need these services reachable (use your own instances — any equivalents work):
 
 | Need | What it provides | Config keys |
 |---|---|---|
