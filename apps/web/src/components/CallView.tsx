@@ -2,6 +2,7 @@ import type { VoiceParticipant, } from '../lib/useVoice';
 import type { WatchPartyState } from '../lib/types';
 import { Avatar } from './Avatar';
 import { WatchPartyPlayer } from './WatchPartyPlayer';
+import { Icon } from './Icon';
 
 export function CallView({
   channelName,
@@ -62,7 +63,7 @@ export function CallView({
                       </div>
                       <div style={{ fontSize: 13, color: nameColor, fontWeight: speaking ? 700 : 400, transition: 'color 0.12s', display: 'flex', alignItems: 'center', gap: 4, maxWidth: 96, overflow: 'hidden' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sp.isMe ? 'You' : sp.name}</span>
-                        {!sp.micOn && <span title="Muted">🔇</span>}
+                        {!sp.micOn && <Icon name="mute" size={14} alt="Muted" />}
                       </div>
                     </div>
                   );
@@ -71,8 +72,8 @@ export function CallView({
             )}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
               <button onClick={onToggleMute}
-                style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, background: muted ? 'var(--danger)' : 'var(--input-bg)', color: muted ? '#fff' : 'var(--text)' }}>
-                {muted ? '🔇 Unmute' : '🎙 Mute'}
+                style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, background: muted ? 'var(--danger)' : 'var(--input-bg)', color: muted ? '#fff' : 'var(--text)' }}>
+                <Icon name={muted ? 'mute' : 'unmute'} size={17} /> {muted ? 'Unmute' : 'Mute'}
               </button>
               {!party && (
                 <button onClick={onStartWatch}
@@ -81,8 +82,8 @@ export function CallView({
                 </button>
               )}
               <button onClick={onLeave}
-                style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, background: 'var(--danger)', color: '#fff' }}>
-                Disconnect
+                style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--danger)', color: '#fff' }}>
+                <Icon name="disconnect" size={17} /> Disconnect
               </button>
             </div>
           </>

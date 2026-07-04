@@ -21,6 +21,7 @@ import { CreateChannelModal } from './components/CreateChannelModal';
 import { WatchPartyPicker } from './components/WatchPartyPicker';
 import { EmojiPicker } from './components/EmojiPicker';
 import { MessageEmbeds, isSingleEmbedUrl, setShareHost } from './components/MessageEmbeds';
+import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
@@ -918,11 +919,11 @@ export default function App() {
                 )}
                 {canManageServer(activeServer.myPermissions) && (
                   <button onClick={() => setServerSettingsOpen(true)} title="Server Settings"
-                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>⚙️</button>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="settings" size={17} alt="Server settings" /></button>
                 )}
                 {!isServerOwner && (
                   <button onClick={() => handleLeaveServer(activeServer.id)} title="Leave Server"
-                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>🚪</button>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="leaveserver" size={16} alt="Leave server" /></button>
                 )}
               </div>
             )}
@@ -931,8 +932,8 @@ export default function App() {
             {homeView ? (
               <>
                 <div onClick={() => { setDmTitle(''); useStore.getState().set({ activeChannelId: null }); }}
-                  style={{ padding: '8px', borderRadius: 4, cursor: 'pointer', fontWeight: 600, color: showFriends ? 'var(--text-strong)' : 'var(--muted)', background: showFriends ? 'var(--hover)' : 'transparent' }}>
-                  👥 Friends
+                  style={{ padding: '8px', borderRadius: 4, cursor: 'pointer', fontWeight: 600, color: showFriends ? 'var(--text-strong)' : 'var(--muted)', background: showFriends ? 'var(--hover)' : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Icon name="friends" size={18} /> Friends
                 </div>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', padding: '14px 8px 6px' }}>
                   Direct Messages
@@ -971,11 +972,11 @@ export default function App() {
                 <div style={{ color: 'var(--muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{voiceChName}</div>
               </div>
               <button onClick={voice.toggleMute} title={voice.muted ? 'Unmute' : 'Mute'}
-                style={{ background: 'none', border: 'none', color: voice.muted ? 'var(--danger)' : 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>
-                {voice.muted ? '🔇' : '🎙'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <Icon name={voice.muted ? 'mute' : 'unmute'} size={18} alt={voice.muted ? 'Unmute' : 'Mute'} />
               </button>
               <button onClick={() => { const id = voice.channelId; voice.leave(); if (id) refreshVoiceMembers(id); }} title="Disconnect"
-                style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>⏻</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="disconnect" size={18} alt="Disconnect" /></button>
             </div>
           )}
           <UserPanel user={withPresence(s.user)} onOpenSettings={() => setSettingsOpen(true)} />
@@ -988,7 +989,7 @@ export default function App() {
           <button className="mobile-only" onClick={() => setNavOpen((v) => !v)}
             style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: 20, cursor: 'pointer' }}>☰</button>
           {!showFriends && <span>{homeView ? '@' : '#'} {headerTitle}</span>}
-          {showFriends && <span>👥 Friends</span>}
+          {showFriends && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="friends" size={20} /> Friends</span>}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             {dmChannel && voice.channelId !== dmChannel.id && (
               <button title="Start voice call" onClick={() => startCall(dmChannel.id)}
@@ -1076,18 +1077,18 @@ export default function App() {
                         <div style={{ borderRadius: '50%', padding: 2, border: `2px solid ${speaking ? 'var(--success)' : 'transparent'}`, transition: 'border-color .12s' }}>
                           <Avatar user={u} size={28} />
                         </div>
-                        {!sp.micOn && <span title="Muted" style={{ fontSize: 11 }}>🔇</span>}
+                        {!sp.micOn && <Icon name="mute" size={13} alt="Muted" />}
                       </div>
                     );
                   })}
                 </div>
                 <button onClick={voice.toggleMute} title={voice.muted ? 'Unmute' : 'Mute'}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, flexShrink: 0, background: voice.muted ? 'var(--danger)' : 'var(--input-bg)', color: voice.muted ? '#fff' : 'var(--text)' }}>
-                  {voice.muted ? '🔇 Unmute' : '🎙 Mute'}
+                  style={{ padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, background: voice.muted ? 'var(--danger)' : 'var(--input-bg)', color: voice.muted ? '#fff' : 'var(--text)' }}>
+                  <Icon name={voice.muted ? 'mute' : 'unmute'} size={15} /> {voice.muted ? 'Unmute' : 'Mute'}
                 </button>
                 <button onClick={() => { const id = voice.channelId; voice.leave(); if (id) refreshVoiceMembers(id); }} title="Leave call"
-                  style={{ padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, flexShrink: 0, background: 'var(--danger)', color: '#fff' }}>
-                  Leave
+                  style={{ padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, background: 'var(--danger)', color: '#fff' }}>
+                  <Icon name="disconnect" size={15} /> Leave
                 </button>
               </div>
             )}
@@ -1110,7 +1111,7 @@ export default function App() {
                         <span style={{ fontWeight: 'bold', color: 'var(--text-strong)' }}>{m.author?.displayName || m.author?.username || 'user'}</span>
                         <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
                         {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>· sending…</span>}
-                        {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)' }}>· failed to send</span>}
+                        {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="error" size={12} /> failed to send</span>}
                         {m.pinned && <span title="Pinned" style={{ fontSize: 11, color: 'var(--muted-2)' }}>· 📌 pinned</span>}
                       </div>
                       {editingId === m.id ? (

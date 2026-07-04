@@ -1,5 +1,6 @@
 import type { User } from '../lib/types';
 import { Avatar } from './Avatar';
+import { Icon } from './Icon';
 
 export function UserPanel({ user, onOpenSettings }: { user: User; onOpenSettings: () => void }) {
   return (
@@ -37,13 +38,14 @@ export function UserPanel({ user, onOpenSettings }: { user: User; onOpenSettings
           border: 'none',
           color: 'var(--muted)',
           cursor: 'pointer',
-          fontSize: 18,
           padding: 4,
           borderRadius: 4,
           flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
-        ⚙️
+        <Icon name="settings" size={20} alt="Settings" />
       </button>
     </div>
   );

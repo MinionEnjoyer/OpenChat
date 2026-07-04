@@ -3,6 +3,7 @@ import type { Notifications, Server } from '../lib/types';
 import * as api from '../lib/api';
 import { acceptFriendRequest, declineFriendRequest } from '../lib/social';
 import { Avatar } from './Avatar';
+import { Icon } from './Icon';
 
 const EMPTY: Notifications = { friendRequests: [], serverInvites: [], count: 0 };
 
@@ -65,9 +66,9 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast 
       <button
         onClick={() => setOpen((v) => !v)}
         title="Notifications"
-        style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: 18, cursor: 'pointer', position: 'relative', lineHeight: 1 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', lineHeight: 1, display: 'flex', alignItems: 'center' }}
       >
-        🔔
+        <Icon name="notify" size={20} alt="Notifications" />
         {data.count > 0 && (
           <span style={{
             position: 'absolute', top: -6, right: -8, background: 'var(--danger)', color: '#fff',
