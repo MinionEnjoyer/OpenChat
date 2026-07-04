@@ -889,7 +889,9 @@ export default function App() {
       <div className="sidebars" onClick={(e) => e.stopPropagation()}>
         {/* server rail */}
         <div style={{ width: 64, background: 'var(--panel-dark)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, paddingBottom: 12, overflowY: 'auto' }}>
-          <button onClick={goHome} title="Home / Friends" style={railBtn(homeView)}>🏠</button>
+          <button onClick={goHome} title="Home / Friends" style={{ ...railBtn(homeView), overflow: 'hidden', padding: 0 }}>
+            <img src="/logo.png" alt="Home" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6, boxSizing: 'border-box', display: 'block' }} />
+          </button>
           <div style={{ width: 32, height: 2, background: 'var(--bg)', borderRadius: 1, margin: '8px 0' }} />
           {railKeys.map((k) => {
             if (k.startsWith('f:')) {
