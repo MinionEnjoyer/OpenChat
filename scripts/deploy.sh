@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pull the latest code and roll it out. Run this ON the deployment host (pupper),
+# Pull the latest code and roll it out. Run this ON the deployment host,
 # from the repo root (e.g. /opt/chat). Local .env + livekit.yaml are never touched
 # by git, so your secrets survive every deploy.
 #

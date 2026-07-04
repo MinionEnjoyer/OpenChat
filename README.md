@@ -1,7 +1,13 @@
 # OpenChat
 
-A self-hosted, communication platform: real-time text, and voice/video calls. Built to **integrate** an existing
-self-hosted stack (Authentik SSO, a Share file service, Jellyfin) rather than reinvent it.
+A self-hosted, communication platform: real-time text, and voice/video calls. Built to **integrate** an
+existing self-hosted stack — an OpenID Connect provider (e.g. Authentik) for SSO,
+**[OpenShare](https://github.com/MinionEnjoyer/OpenShare)** for file uploads & media, and (optionally)
+Jellyfin for watch parties — rather than reinvent them.
+
+> **OpenShare is the companion file service.** Deploy it alongside OpenChat and point
+> `SHARE_BASE_URL` at it to enable image/file attachments, avatars, and inline embeds. OpenChat also
+> runs fine without it (upload UI simply hides). Setup: **[docs/SETUP.md](docs/SETUP.md)**.
 
 Everything environment-specific
 (domains, IPs, keys, passwords) is supplied through a single local config file — see

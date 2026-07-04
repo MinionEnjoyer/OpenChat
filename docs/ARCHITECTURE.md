@@ -193,7 +193,7 @@ This architecture ensures that OpenChat remains lightweight, focused on communic
 
 ## 1. High-Level Architecture
 
-The system is deployed via Docker Compose on `pupper`. It sits behind Nginx Proxy Manager (NPM), which terminates TLS and routes traffic based on hostnames. The backend consists of a NestJS monolith split into logical modules, communicating with PostgreSQL for persistence and Redis for real-time state. LiveKit handles WebRTC media; Authentik handles identity; Share handles files; Jellyfin handles media libraries.
+The system is deployed via Docker Compose on the host. It sits behind Nginx Proxy Manager (NPM), which terminates TLS and routes traffic based on hostnames. The backend consists of a NestJS monolith split into logical modules, communicating with PostgreSQL for persistence and Redis for real-time state. LiveKit handles WebRTC media; Authentik handles identity; Share handles files; Jellyfin handles media libraries.
 
 ```mermaid
 graph TB
@@ -202,7 +202,7 @@ graph TB
         Mobile[Mobile App<br/>Future Phase]
     end
 
-    subgraph "Network Edge (Host: pupper)"
+    subgraph "Network Edge (Host)"
         NPM[Nginx Proxy Manager<br/>TLS Termination & Routing]
     end
 
@@ -702,7 +702,7 @@ This section defines the real-time communication layer for **chat.example.com**.
 1.  **Messaging**: A high-throughput, ordered WebSocket gateway for text, reactions, and presence.
 2.  **Voice**: A WebRTC SFU architecture using LiveKit for low-latency audio.
 
-Both systems are designed to scale horizontally via Redis but operate with minimal operational complexity on the single-node `pupper` deployment.
+Both systems are designed to scale horizontally via Redis but operate with minimal operational complexity on the single-node the host deployment.
 
 ---
 
@@ -1439,11 +1439,11 @@ The backend exposes two distinct interfaces:
 
 ## 1. Deployment Architecture
 
-The deployment targets a single-node Ubuntu 24.04 host (`pupper`) managed via Docker Compose. The architecture leverages the existing Nginx Proxy Manager (NPM) for TLS termination and reverse proxying, ensuring no new WAN ports are opened on the edge relay.
+The deployment targets a single-node Ubuntu 24.04 host managed via Docker Compose. The architecture leverages the existing Nginx Proxy Manager (NPM) for TLS termination and reverse proxying, ensuring no new WAN ports are opened on the edge relay.
 
 ### Traffic Flow
 1.  **Client**: Browser connects to `https://chat.example.com`.
-2.  **Ingress**: Request hits the edge relay, forwarded to `pupper`'s internal IP.
+2.  **Ingress**: Request hits the edge relay, forwarded to the host's internal IP.
 3.  **Nginx Proxy Manager (NPM)**: Terminates TLS/SSL. Routes HTTP traffic to the Chat Backend and WebSocket upgrades to the WS Gateway based on path (`/api`, `/ws`).
 4.  **Chat Services**:
     *   **Backend API**: Handles REST requests, OIDC validation, and business logic.
@@ -1465,7 +1465,7 @@ graph TB
         Edge[Edge Relay]
     end
 
-    subgraph "Host: pupper (Ubuntu 24.04)"
+    subgraph "Host (Ubuntu 24.04)"
         NPM[Nginx Proxy Manager<br/>TLS Termination & Routing]
         
         subgraph "Docker Compose Stack (/opt/chat/)"
@@ -1739,7 +1739,7 @@ Security is defense-in-depth, leveraging existing infrastructure where possible 
 *   **Logout**: Synchronized via Authentik's back-channel logout. When a user logs out of Authentik, it sends a notification to the Backend, which invalidates the corresponding Redis session and forces WS disconnection.
 
 ### Network & Transport Security
-*   **TLS Termination**: Handled by Nginx Proxy Manager (NPM). All traffic between Browser and NPM is encrypted via Let's Encrypt certificates. Internal Docker network traffic (`chat-net`) is unencrypted but isolated from the host network namespace, preventing sniffing from other containers on `pupper`.
+*   **TLS Termination**: Handled by Nginx Proxy Manager (NPM). All traffic between Browser and NPM is encrypted via Let's Encrypt certificates. Internal Docker network traffic (`chat-net`) is unencrypted but isolated from the host network namespace, preventing sniffing from other containers on the host.
 *   **CORS**: Strictly configured in NestJS to allow only `https://chat.example.com` and `https://auth.example.com`.
 *   **CSRF Protection**: Since we use `httpOnly` cookies for session management, CSRF is mitigated by the browser's same-origin policy. However, state-changing API endpoints should still validate the Origin header or use a custom header (e.g., `X-Chat-Token`) that is set via JavaScript and not sent automatically by browsers on cross-site requests.
 *   **CSP**: The Frontend serves strict Content Security Policy headers to prevent XSS. Inline scripts are disabled; all assets are loaded from trusted CDNs or self-hosted sources.
@@ -1789,18 +1789,18 @@ We leverage the existing homelab backup infrastructure to minimize operational o
 
 ## 5. Monitoring & Observability
 
-We reuse the existing Prometheus/Grafana/Loki stack on `pupper`. No new agents are deployed; we expose standard endpoints.
+We reuse the existing Prometheus/Grafana/Loki stack on the host. No new agents are deployed; we expose standard endpoints.
 
 ### Metrics (Prometheus)
 *   **NestJS Health**: Expose `/metrics` using a NestJS metrics module (e.g., `prom-client`).
     *   Key Metrics: HTTP request duration, status codes, active WebSocket connections, Redis connection pool size, database query latency.
 *   **LiveKit Metrics**: LiveKit exposes Prometheus-compatible metrics at `/metrics`. Configure Prometheus to scrape this endpoint directly or via NPM if needed.
-*   **Node Exporter**: Already running on `pupper` for host-level metrics (CPU, RAM, Disk I/O).
+*   **Node Exporter**: Already running on the host for host-level metrics (CPU, RAM, Disk I/O).
 
 ### Logs (Loki)
 *   **Structured Logging**: All services output JSON logs to stdout/stderr.
     *   Format: `{ "timestamp": "...", "level": "info", "service": "api", "message": "...", "reqId": "..." }`.
-*   **Promtail**: The existing Promtail agent on `pupper` is configured with a new job to tail Docker container logs for the `chat-*` containers.
+*   **Promtail**: The existing Promtail agent on the host is configured with a new job to tail Docker container logs for the `chat-*` containers.
     *   Labels: `job="chat-api"`, `container_name="chat-api"`, etc.
 
 ### Dashboards (Grafana)
@@ -1889,7 +1889,7 @@ chat.example.com/
 │
 ├── .github/workflows/          # CI/CD Pipelines
 │   ├── ci.yml                  # Lint, Test, Build on PR
-│   └── cd.yml                  # Deploy to pupper on main merge
+│   └── cd.yml                  # Deploy to the host on main merge
 │
 ├── turbo.json                  # Turborepo configuration
 ├── package.json                # Root workspace definitions
@@ -1900,7 +1900,7 @@ chat.example.com/
 ### Rationale
 *   **`apps/api` & `apps/web`**: Strict separation of concerns. The API is a stateless NestJS service; the Web app is a static SPA served by Nginx (or the same container). This allows independent scaling if needed later.
 *   **`packages/shared-types`**: Eliminates "prop drilling" type mismatches. Zod schemas here ensure that the backend validates incoming JSON against the same contracts the frontend expects, reducing validation bugs.
-*   **`infra/`**: Keeps operational scripts and container definitions close to code, ensuring reproducibility on `pupper`.
+*   **`infra/`**: Keeps operational scripts and container definitions close to code, ensuring reproducibility on the host.
 
 ---
 
@@ -2001,14 +2001,14 @@ Testing is layered, prioritizing speed and isolation for unit tests, with target
 
 ### Load Testing (k6)
 *   **Target**: Simulate 1,000 concurrent WebSocket users and 500 messages/second.
-*   **Metrics**: CPU/Memory usage on `pupper`, Redis memory fragmentation ratio, Postgres connection pool saturation.
+*   **Metrics**: CPU/Memory usage on the host, Redis memory fragmentation ratio, Postgres connection pool saturation.
 *   **Goal**: Ensure the single-node deployment can handle peak homelab usage without degradation.
 
 ---
 
 ## 5. CI/CD Recommendations
 
-Pipeline runs on GitHub Actions (or self-hosted runner if available) and deploys to `pupper` via SSH or Docker Compose pull.
+Pipeline runs on GitHub Actions (or self-hosted runner if available) and deploys to the host via SSH or Docker Compose pull.
 
 ### CI Pipeline (`ci.yml`)
 1.  **Install**: `pnpm install --frozen-lockfile`.
@@ -2022,8 +2022,8 @@ Triggered on merge to `main`.
 
 1.  **Login**: Authenticate with Docker Hub/GitHub Container Registry.
 2.  **Build & Push**: Build images with Git SHA tag and `latest` tag.
-3.  **Deploy to Pupper**:
-    *   SSH into `pupper`.
+3.  **Deploy to the host**:
+    *   SSH into the host.
     *   Pull new images: `docker compose pull`.
     *   Run migrations: `docker compose run --rm api npx prisma migrate deploy`.
     *   Restart services: `docker compose up -d`.
@@ -2036,7 +2036,7 @@ Triggered on merge to `main`.
 
 ### Backup Integration
 *   **Pre-deploy Hook**: Before rolling restarts, trigger a quick PostgreSQL snapshot if the deployment involves schema changes.
-*   **Nightly Backups**: The existing cron job on `pupper` (`/opt/chat/scripts/backup.sh`) runs independently of CI/CD, ensuring data safety regardless of deployment status.
+*   **Nightly Backups**: The existing cron job on the host (`/opt/chat/scripts/backup.sh`) runs independently of CI/CD, ensuring data safety regardless of deployment status.
 
 
 ---
@@ -2057,7 +2057,7 @@ The development strategy follows a "Core First" approach: establish identity, me
 | **M3: Real-Time Messaging** | • Message creation, editing, deletion (soft delete).<br>• WebSocket event bus for `MESSAGE_CREATED`, `MESSAGE_UPDATED`.<br>• Infinite scroll history via REST pagination + WS updates.<br>• Rich Markdown rendering with syntax highlighting. | • Functional chat window.<br>• Real-time message sync across tabs/devices.<br>• Read receipts (cursor-based). |
 | **M4: Share Integration** | • Upload flow: Client requests presigned URL or direct upload to `share.example.com` API.<br>• Attachment component in chat input.<br>• Preview component: Embeds Share’s viewer via iframe or API fetch for metadata/thumbnails. | • Drag-and-drop file upload.<br>• File attachments appear as rich previews in chat.<br>• Permission checks delegated to Share API responses. |
 | **M5: Voice (LiveKit)** | • LiveKit server deployment.<br>• Backend token minting service (`/voice/join`).<br>• Frontend WebRTC client connecting to LiveKit SFU.<br>• Push-to-talk and VAD implementation. | • Join voice channel.<br>• Audio streaming between clients.<br>• Mute/Deafen controls. |
-| **M6: Polish & MVP Launch** | • Threads (nested conversations).<br>• Reactions and Mentions.<br>• Typing indicators.<br>• Basic mobile responsiveness.<br>• Docker Compose production config on `pupper`. | • V1 Release Candidate.<br>• Internal testing with existing Authentik users. |
+| **M6: Polish & MVP Launch** | • Threads (nested conversations).<br>• Reactions and Mentions.<br>• Typing indicators.<br>• Basic mobile responsiveness.<br>• Docker Compose production config on the host. | • V1 Release Candidate.<br>• Internal testing with existing Authentik users. |
 
 ### Phase 2: Deep Ecosystem Integration
 **Objective:** Enhance user engagement through Jellyfin watch parties and advanced notification systems.
@@ -2083,7 +2083,7 @@ The development strategy follows a "Core First" approach: establish identity, me
 
 | Risk Category | Risk Description | Impact | Probability | Mitigation Strategy |
 | :--- | :--- | :--- | :--- | :--- |
-| **Operational** | Single-node bottleneck on `pupper` (CPU/RAM) for DB, Redis, LiveKit, and App. | High | Medium | • Use efficient codecs in LiveKit.<br>• Tune PostgreSQL connection pooling (`PgBouncer` if needed).<br>• Monitor resource usage; scale horizontally only when metrics dictate.<br>• Ensure SSD storage for Postgres/Redis persistence. |
+| **Operational** | Single-node bottleneck on the host (CPU/RAM) for DB, Redis, LiveKit, and App. | High | Medium | • Use efficient codecs in LiveKit.<br>• Tune PostgreSQL connection pooling (`PgBouncer` if needed).<br>• Monitor resource usage; scale horizontally only when metrics dictate.<br>• Ensure SSD storage for Postgres/Redis persistence. |
 | **Integration** | `share.example.com` API latency or downtime affects Chat UX. | High | Low | • Implement aggressive client-side caching (TanStack Query).<br>• Show placeholder thumbnails while fetching metadata.<br>• Graceful degradation: allow message sending even if file preview fails, retry later.<br>• Use signed URLs to reduce direct dependency on Share for viewing. |
 | **Integration** | Jellyfin API changes or permission mismatches break Watch Parties. | Medium | Low | • Abstract Jellyfin client behind a service interface.<br>• Regular integration tests against staging Jellyfin instance.<br>• Fallback to manual playback sync if API fails. |
 | **Technical** | LiveKit SFU CPU usage spikes during high-concurrency voice calls. | High | Medium | • Configure LiveKit resource limits per room.<br>• Implement adaptive bitrate streaming (handled by LiveKit).<br>• Limit max participants per voice channel in MVP. |
@@ -2114,7 +2114,7 @@ The development strategy follows a "Core First" approach: establish identity, me
 *   **Metrics:** `Prometheus` client (`prom-client`).
 
 ### Infrastructure & DevOps
-*   **Containerization:** `Docker Compose` (local/dev/prod orchestration on `pupper`).
+*   **Containerization:** `Docker Compose` (local/dev/prod orchestration on the host).
 *   **Reverse Proxy:** Existing `Nginx Proxy Manager`.
 *   **Monitoring:** Existing `Prometheus`, `Grafana`, `Loki`, `Promtail`.
 *   **Backups:** `pg_dump`, `restic` (if used for NAS backups), or existing backup scripts.

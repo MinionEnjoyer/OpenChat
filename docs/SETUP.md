@@ -14,7 +14,7 @@ equivalents work):
 | **PostgreSQL** | created automatically by compose | `POSTGRES_*` |
 | **Redis** | created automatically by compose | `REDIS_URL` |
 | **Authentik (or any OIDC provider)** | login / SSO | `OIDC_*` |
-| **A Share-compatible file service** | uploads, avatars, previews | `SHARE_*` |
+| **[OpenShare](https://github.com/MinionEnjoyer/OpenShare)** *(optional)* | file/image uploads, avatars, previews | `SHARE_*` |
 | **Jellyfin** *(optional)* | watch parties | `JELLYFIN_*` |
 | **A public IP / edge** | LiveKit media reachability | `LIVEKIT_NODE_IP` |
 | **Giphy API key** *(optional)* | GIF picker | `GIPHY_API_KEY` |
@@ -25,6 +25,12 @@ equivalents work):
 - **Authentik:** create an OAuth2/OpenID *Provider* + *Application* named `chat`. Set the
   redirect URI to `https://<your-chat-domain>/api/auth/callback`. Copy the client ID/secret
   into `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`, and the issuer into `OIDC_ISSUER`.
+- **OpenShare (file backend):** deploy [OpenShare](https://github.com/MinionEnjoyer/OpenShare)
+  (its README has full steps), then in **OpenChat's** `.env` set `SHARE_BASE_URL` to OpenShare's
+  public URL. In **OpenShare's** `.env`, add your OpenChat origin (e.g. `https://<your-chat-domain>`)
+  to `ALLOWED_ORIGINS` so credentialed uploads are accepted. Point both apps at the *same* OIDC
+  provider so a logged-in user is authorized to both. Leave `SHARE_*` blank to run OpenChat without
+  uploads.
 - **Reverse proxy:** point `chat.<domain>` → the web container's host port (`WEB_PORT`, default
   `8810`), and `livekit.<domain>` → the LiveKit signaling port `7880` (WebSocket upgrade
   enabled). Forward LiveKit media to the host: **UDP 50000** and **TCP 7881**.
