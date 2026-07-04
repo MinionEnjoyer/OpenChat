@@ -102,6 +102,25 @@ export class MessagesController {
     return this.messages.setPinned(messageId, user.id, body.pinned);
   }
 
+  @Post('channels/:id/polls')
+  createPoll(
+    @Param('id') channelId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      question: z.string().min(1).max(300),
+      options: z.array(z.string().min(1).max(100)).min(2).max(10),
+      multiple: z.boolean().optional(),
+      durationMinutes: z.number().int().positive().max(10080).nullable().optional(),
+    }))) body: { question: string; options: string[]; multiple?: boolean; durationMinutes?: number | null },
+  ) {
+    return this.messages.createPoll(channelId, user.id, body);
+  }
+
+  @Post('polls/options/:optionId/vote')
+  votePoll(@Param('optionId') optionId: string, @CurrentUser() user: User) {
+    return this.messages.votePollOption(optionId, user.id);
+  }
+
   @Post('channels/:id/read')
   markRead(
     @Param('id') channelId: string,

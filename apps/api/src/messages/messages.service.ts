@@ -26,6 +26,13 @@ const EditMessageSchema = z.object({
   content: z.string(),
 });
 
+const CreatePollSchema = z.object({
+  question: z.string().trim().min(1).max(300),
+  options: z.array(z.string().trim().min(1).max(100)).min(2).max(10),
+  multiple: z.boolean().default(false),
+  durationMinutes: z.number().int().positive().max(10080).nullable().optional(),
+});
+
 export interface MessageWithRelations {
   id: string;
   channelId: string;
@@ -58,7 +65,23 @@ export interface MessageWithRelations {
   }>;
   reactions: Array<{ emoji: string; count: number; userIds: string[] }>;
   replyTo: { id: string; authorName: string; content: string } | null;
+  poll: {
+    id: string;
+    question: string;
+    multiple: boolean;
+    closesAt: string | null;
+    options: Array<{ id: string; text: string; voterIds: string[] }>;
+  } | null;
 }
+
+/** Relations to load whenever a message is serialized (kept in one place). */
+const MESSAGE_INCLUDE = {
+  author: true,
+  attachments: true,
+  reactions: true,
+  replyTo: { include: { author: true } },
+  poll: { include: { options: { include: { votes: true }, orderBy: { position: 'asc' as const } } } },
+} as const;
 
 @Injectable()
 export class MessagesService {
@@ -108,12 +131,7 @@ export class MessagesService {
 
     const messages = await this.prisma.message.findMany({
       where: whereClause,
-      include: {
-        author: true,
-        attachments: true,
-        reactions: true,
-        replyTo: { include: { author: true } },
-      },
+      include: MESSAGE_INCLUDE,
       orderBy: { createdAt: 'desc' },
       take: limit + 1, // Fetch one extra to determine if there are more (optional optimization)
     });
@@ -159,12 +177,7 @@ export class MessagesService {
             },
           },
         },
-        include: {
-          author: true,
-          attachments: true,
-          reactions: true,
-          replyTo: { include: { author: true } },
-        },
+        include: MESSAGE_INCLUDE,
       });
 
       return createdMessage;
@@ -177,6 +190,70 @@ export class MessagesService {
     this.dispatchMentions(channelId, validated.content, userId, message.id).catch(() => {});
 
     return dto;
+  }
+
+  /** Create a poll as a message in the channel. */
+  async createPoll(channelId: string, userId: string, data: unknown) {
+    const v = CreatePollSchema.parse(data);
+    await this.assertChannelAccess(channelId, userId);
+    const closesAt = v.durationMinutes ? new Date(Date.now() + v.durationMinutes * 60_000) : null;
+
+    const message = await this.prisma.message.create({
+      data: {
+        channelId,
+        authorId: userId,
+        content: v.question,
+        poll: {
+          create: {
+            question: v.question,
+            multiple: v.multiple,
+            closesAt,
+            options: { create: v.options.map((text, i) => ({ text, position: i })) },
+          },
+        },
+      },
+      include: MESSAGE_INCLUDE,
+    });
+
+    const dto = this.serializeMessage(message);
+    await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto });
+    return dto;
+  }
+
+  /** Toggle the current user's vote on a poll option; single-choice polls clear prior votes. */
+  async votePollOption(optionId: string, userId: string) {
+    const option = await this.prisma.pollOption.findUnique({
+      where: { id: optionId },
+      include: {
+        poll: {
+          include: {
+            message: { select: { id: true, channelId: true } },
+            options: { select: { id: true } },
+          },
+        },
+      },
+    });
+    if (!option) throw new NotFoundException('Poll option not found');
+    const poll = option.poll;
+    await this.assertChannelAccess(poll.message.channelId, userId);
+    if (poll.closesAt && poll.closesAt.getTime() < Date.now()) {
+      throw new ForbiddenException('This poll is closed');
+    }
+
+    const existing = await this.prisma.pollVote.findUnique({
+      where: { optionId_userId: { optionId, userId } },
+    });
+    if (existing) {
+      await this.prisma.pollVote.delete({ where: { id: existing.id } });
+    } else {
+      if (!poll.multiple) {
+        await this.prisma.pollVote.deleteMany({
+          where: { userId, optionId: { in: poll.options.map((o) => o.id) } },
+        });
+      }
+      await this.prisma.pollVote.create({ data: { optionId, userId } });
+    }
+    return this.publishMessageUpdate(poll.message.id);
   }
 
   /** Parse @user / @everyone / @here from content and ping the mentioned members. */
@@ -262,12 +339,7 @@ export class MessagesService {
         content: validated.content,
         editedAt: new Date(),
       },
-      include: {
-        author: true,
-        attachments: true,
-        reactions: true,
-        replyTo: { include: { author: true } },
-      },
+      include: MESSAGE_INCLUDE,
     });
 
     const dto = this.serializeMessage(updated);
@@ -372,12 +444,7 @@ export class MessagesService {
     await this.assertChannelAccess(channelId, userId);
     const messages = await this.prisma.message.findMany({
       where: { channelId, pinned: true, deletedAt: null },
-      include: {
-        author: true,
-        attachments: true,
-        reactions: true,
-        replyTo: { include: { author: true } },
-      },
+      include: MESSAGE_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
     return messages.map((m) => this.serializeMessage(m));
@@ -434,12 +501,7 @@ export class MessagesService {
   private async publishMessageUpdate(messageId: string): Promise<MessageWithRelations> {
     const fresh = await this.prisma.message.findUniqueOrThrow({
       where: { id: messageId },
-      include: {
-        author: true,
-        attachments: true,
-        reactions: true,
-        replyTo: { include: { author: true } },
-      },
+      include: MESSAGE_INCLUDE,
     });
     const dto = this.serializeMessage(fresh);
     await this.redis.publish('chat:events', { type: 'MESSAGE_UPDATED', message: dto });
@@ -483,6 +545,19 @@ export class MessagesService {
             id: msg.replyTo.id,
             authorName: msg.replyTo.author?.displayName || msg.replyTo.author?.username || 'user',
             content: (msg.replyTo.content || '').slice(0, 120),
+          }
+        : null,
+      poll: msg.poll
+        ? {
+            id: msg.poll.id,
+            question: msg.poll.question,
+            multiple: msg.poll.multiple,
+            closesAt: msg.poll.closesAt ? msg.poll.closesAt.toISOString() : null,
+            options: (msg.poll.options ?? []).map((o: any) => ({
+              id: o.id,
+              text: o.text,
+              voterIds: (o.votes ?? []).map((v: any) => v.userId),
+            })),
           }
         : null,
     };

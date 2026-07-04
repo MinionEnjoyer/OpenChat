@@ -23,6 +23,8 @@ import { EmojiPicker } from './components/EmojiPicker';
 import { MessageEmbeds, isSingleEmbedUrl, setShareHost } from './components/MessageEmbeds';
 import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
+import { PollView } from './components/PollView';
+import { PollModal } from './components/PollModal';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
@@ -620,6 +622,15 @@ export default function App() {
     }
   }
 
+  async function handlePollVote(optionId: string) {
+    try {
+      const updated = await api.votePollOption(optionId);
+      if (updated && (updated as Message).id) useStore.getState().updateMessage(updated as Message);
+    } catch (e) {
+      showToast('Could not record your vote.');
+    }
+  }
+
   async function toggleReaction(messageId: string, emoji: string, mine: boolean) {
     setReactPickerFor(null);
     try {
@@ -1123,7 +1134,7 @@ export default function App() {
                           onBlur={() => setEditingId(null)}
                           style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4, padding: '6px 8px', outline: 'none', marginTop: 2 }} />
                       ) : (
-                        m.content && m.content !== '​' && !isSingleEmbedUrl(m.content) && (
+                        m.content && m.content !== '​' && !m.poll && !isSingleEmbedUrl(m.content) && (
                           <p style={{ margin: '2px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                             {renderContent(m.content)}
                             {m.editedAt && <span style={{ fontSize: 10, color: 'var(--muted-2)', marginLeft: 6 }}>(edited)</span>}
@@ -1135,7 +1146,8 @@ export default function App() {
                           <Attachment key={a.id || a.shareAssetId} attachment={a} shareBaseUrl={s.shareBaseUrl} />
                         ))}
                       </div>
-                      {m.content && m.content !== '​' && <MessageEmbeds content={m.content} />}
+                      {m.poll && <PollView poll={m.poll} meId={s.user!.id} onVote={handlePollVote} />}
+                      {m.content && m.content !== '​' && !m.poll && <MessageEmbeds content={m.content} />}
                       {m.reactions.length > 0 && (
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
                           {m.reactions.map((r) => {
@@ -1362,6 +1374,7 @@ function Composer({
   const [pending, setPending] = useState<Att[]>([]);
   const [emojiAnchor, setEmojiAnchor] = useState<{ x: number; y: number } | null>(null);
   const [gifAnchor, setGifAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [pollOpen, setPollOpen] = useState(false);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1485,6 +1498,10 @@ function Composer({
           placeholder={`Message ${title ?? ''}`}
           enterKeyHint="send"
           style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: 'var(--text)', outline: 'none', fontSize: 15 }} />
+        <button title="Create poll" onClick={() => setPollOpen(true)}
+          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
+          POLL
+        </button>
         <button title="GIF"
           onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setGifAnchor({ x: r.right, y: r.top }); }}
           style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
@@ -1510,6 +1527,12 @@ function Composer({
         <GifPicker anchor={gifAnchor}
           onSelect={(gif) => { setGifAnchor(null); doSend(gif.url, []); }}
           onClose={() => setGifAnchor(null)} />
+      )}
+      {pollOpen && (
+        <PollModal
+          onClose={() => setPollOpen(false)}
+          onCreate={(data) => { setPollOpen(false); if (channelId) api.createPoll(channelId, data).catch(() => {}); }}
+        />
       )}
     </div>
   );

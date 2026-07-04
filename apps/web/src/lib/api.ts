@@ -92,6 +92,12 @@ export const addReaction = (messageId: string, emoji: string) =>
   request<Message>(`/messages/${messageId}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) });
 export const removeReaction = (messageId: string, emoji: string) =>
   request<Message>(`/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, { method: 'DELETE' });
+export const createPoll = (
+  channelId: string,
+  data: { question: string; options: string[]; multiple?: boolean; durationMinutes?: number | null },
+) => request<Message>(`/channels/${channelId}/polls`, { method: 'POST', body: JSON.stringify(data) });
+export const votePollOption = (optionId: string) =>
+  request<Message>(`/polls/options/${optionId}/vote`, { method: 'POST' });
 export const listPins = (channelId: string) =>
   request<Message[]>(`/channels/${channelId}/pins`);
 export const pinMessage = (messageId: string, pinned: boolean) =>

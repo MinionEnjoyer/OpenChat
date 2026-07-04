@@ -51,6 +51,7 @@ model User {
   servers     ServerMember[]
   messages    Message[]
   reactions   Reaction[]
+  pollVotes   PollVote[]
   readStates  ReadState[]
   invites     Invite[]     @relation("InviteInviter")
   voiceSessionsJoined VoiceSession[] @relation("VoiceSessionUser")
@@ -190,6 +191,7 @@ model Message {
 
   attachments MessageAttachment[]
   reactions   Reaction[]
+  poll        Poll?
 
   @@index([channelId, createdAt])
 }
@@ -222,6 +224,43 @@ model Reaction {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
+}
+
+model Poll {
+  id        String    @id @default(uuid())
+  messageId String    @unique
+  question  String
+  multiple  Boolean   @default(false)
+  closesAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  message   Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options   PollOption[]
+}
+
+model PollOption {
+  id       String @id @default(uuid())
+  pollId   String
+  text     String
+  position Int    @default(0)
+
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes    PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id        String   @id @default(uuid())
+  optionId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([optionId])
 }
 
 model ReadState {

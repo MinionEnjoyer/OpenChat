@@ -91,10 +91,25 @@ export interface Message {
   attachments: Attachment[];
   reactions: { emoji: string; count: number; userIds: string[] }[];
   replyTo: { id: string; authorName: string; content: string } | null;
+  poll?: Poll | null;
   // client-only: optimistic-send bookkeeping
   nonce?: string;
   pending?: boolean;
   failed?: boolean;
+}
+
+export interface PollOption {
+  id: string;
+  text: string;
+  voterIds: string[];
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  multiple: boolean;
+  closesAt: string | null;
+  options: PollOption[];
 }
 
 export interface WsTicket {
