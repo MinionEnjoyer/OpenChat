@@ -509,14 +509,14 @@ export default function App() {
 
   // Start / join a call in the current DM (user↔user call).
   function startCall(channelId: string) {
-    voice.join(channelId).then(() => refreshVoiceMembers(channelId)).catch(() => showToast('Could not start the call.'));
+    voice.join(channelId).then(() => refreshVoiceMembers(channelId)).catch((e) => showToast('Call failed: ' + (e?.message || 'could not connect')));
   }
 
   function acceptCall(call: { channelId: string; callerName: string }) {
     if (ringTimer.current) window.clearTimeout(ringTimer.current);
     setIncomingCall(null);
     openDm(call.channelId, call.callerName);
-    voice.join(call.channelId).then(() => refreshVoiceMembers(call.channelId)).catch(() => showToast('Could not join the call.'));
+    voice.join(call.channelId).then(() => refreshVoiceMembers(call.channelId)).catch((e) => showToast('Call failed: ' + (e?.message || 'could not connect')));
   }
 
   // Clicking a voice channel joins it and shows the call view — but the
@@ -528,7 +528,7 @@ export default function App() {
     const serverId = useStore.getState().activeServerId;
     if (serverId) saveView({ type: 'channel', serverId, channelId: ch.id });
     api.watchpartyGet(ch.id).then((p) => setPartyByChannel((prev) => ({ ...prev, [ch.id]: p }))).catch(() => {});
-    voice.join(ch.id).then(() => refreshVoiceMembers(ch.id)).catch(() => alert('Could not join voice.'));
+    voice.join(ch.id).then(() => refreshVoiceMembers(ch.id)).catch((e) => showToast('Voice failed: ' + (e?.message || 'could not connect')));
   }
 
   async function handleDeleteMessage(channelId: string, id: string) {
@@ -1050,9 +1050,10 @@ export default function App() {
             channelName={activeChannel.name}
             connected={voice.channelId === activeChannel.id}
             connecting={voice.connecting}
+            status={voice.status}
             participants={voice.channelId === activeChannel.id ? voice.participants : []}
             muted={voice.muted}
-            onJoin={() => voice.join(activeChannel.id).then(() => refreshVoiceMembers(activeChannel.id)).catch(() => alert('Could not join voice.'))}
+            onJoin={() => voice.join(activeChannel.id).then(() => refreshVoiceMembers(activeChannel.id)).catch((e) => showToast('Voice failed: ' + (e?.message || 'could not connect')))}
             onLeave={() => { const id = voice.channelId; voice.leave(); if (id) refreshVoiceMembers(id); }}
             onToggleMute={voice.toggleMute}
             party={activeParty}

@@ -7,6 +7,7 @@ export function CallView({
   channelName,
   connected,
   connecting,
+  status,
   participants,
   muted,
   onJoin,
@@ -21,6 +22,7 @@ export function CallView({
   channelName: string;
   connected: boolean;
   connecting: boolean;
+  status?: string;
   participants: VoiceParticipant[];
   muted: boolean;
   onJoin: () => void;
@@ -87,7 +89,7 @@ export function CallView({
         ) : (
           <button onClick={onJoin} disabled={connecting}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 15, background: 'var(--success)', color: '#fff' }}>
-            {connecting ? 'Connecting…' : 'Join Voice'}
+            {connecting ? (status ? `Connecting… (${status})` : 'Connecting…') : 'Join Voice'}
           </button>
         )}
       </div>

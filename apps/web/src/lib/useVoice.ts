@@ -22,6 +22,9 @@ export function useVoice() {
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [muted, setMuted] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  // Diagnostics for testing: live connection phase + last failure reason.
+  const [status, setStatus] = useState('');
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const snapshot = useCallback((room: Room) => {
     const all = [room.localParticipant, ...room.remoteParticipants.values()];
@@ -63,21 +66,32 @@ export function useVoice() {
     if (roomRef.current && channelId === chId) return; // already here
     if (roomRef.current) await leave(); // switch rooms
     setConnecting(true);
+    setLastError(null);
+    setStatus('requesting token');
     try {
       const { url, token } = await api.voiceJoin(chId);
+      console.debug('[voice] token ok, connecting to', url);
+      setStatus('connecting');
       const room = new Room({ adaptiveStream: true, dynacast: true });
       roomRef.current = room;
       room
+        .on(RoomEvent.SignalConnected, () => { console.debug('[voice] signal connected (media negotiating…)'); setStatus('negotiating media'); })
+        .on(RoomEvent.ConnectionStateChanged, (s) => { console.debug('[voice] connection state:', s); setStatus(String(s)); })
+        .on(RoomEvent.Reconnecting, () => { console.warn('[voice] reconnecting…'); setStatus('reconnecting'); })
+        .on(RoomEvent.Reconnected, () => { console.debug('[voice] reconnected'); setStatus('connected'); })
+        .on(RoomEvent.MediaDevicesError, (e) => { console.error('[voice] media/device error', e); setLastError('Mic/device error: ' + ((e as any)?.message ?? e)); })
         .on(RoomEvent.ParticipantConnected, () => snapshot(room))
         .on(RoomEvent.ParticipantDisconnected, () => snapshot(room))
         .on(RoomEvent.ActiveSpeakersChanged, () => snapshot(room))
         .on(RoomEvent.TrackMuted, () => snapshot(room))
         .on(RoomEvent.TrackUnmuted, () => snapshot(room))
         .on(RoomEvent.LocalTrackPublished, () => snapshot(room))
-        .on(RoomEvent.Disconnected, () => {
+        .on(RoomEvent.Disconnected, (reason) => {
+          console.debug('[voice] disconnected, reason:', reason);
           roomRef.current = null;
           setChannelId(null);
           setParticipants([]);
+          setStatus('');
           cleanupAudio();
         })
         .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
@@ -112,8 +126,14 @@ export function useVoice() {
       );
       setMuted(false);
       setChannelId(chId);
+      setStatus('connected');
+      console.debug('[voice] connected to', chId);
       snapshot(room);
     } catch (e) {
+      const msg = (e as any)?.message || String(e);
+      console.error('[voice] join failed:', msg, e);
+      setLastError(msg);
+      setStatus('failed');
       if (roomRef.current) { try { await roomRef.current.disconnect(); } catch { /* ignore */ } }
       roomRef.current = null;
       setChannelId(null);
@@ -166,7 +186,7 @@ export function useVoice() {
   useEffect(() => () => { roomRef.current?.disconnect().catch(() => {}); }, []);
 
   return {
-    channelId, participants, muted, connecting, join, leave, toggleMute,
+    channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute,
     audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume },
   };
 }
