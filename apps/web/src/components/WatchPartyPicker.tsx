@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LibraryItem } from '../lib/types';
 import { watchpartySearch } from '../lib/api';
+import { Icon } from './Icon';
 
 function fmtRuntime(ms: number | null): string {
   if (!ms) return '';
@@ -40,7 +41,7 @@ export function WatchPartyPicker({ onPick, onClose }: { onPick: (item: LibraryIt
     >
       <div style={{ background: 'var(--panel)', color: 'var(--text)', borderRadius: 10, width: '100%', maxWidth: 560, height: '80vh', maxHeight: 640, display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-strong)' }}>🎬 Start a Watch Party</h2>
+          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-strong)', display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="watchparty" size={20} /> Start a Watch Party</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
         <div style={{ padding: 16 }}>

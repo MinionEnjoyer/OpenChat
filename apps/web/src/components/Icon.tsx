@@ -5,7 +5,7 @@ export function Icon({
   alt = '',
   style,
 }: {
-  name: 'settings' | 'mute' | 'unmute' | 'disconnect' | 'friends' | 'notify' | 'leaveserver' | 'error';
+  name: 'settings' | 'mute' | 'unmute' | 'disconnect' | 'friends' | 'notify' | 'leaveserver' | 'error' | 'pin' | 'watchparty';
   size?: number;
   alt?: string;
   style?: React.CSSProperties;

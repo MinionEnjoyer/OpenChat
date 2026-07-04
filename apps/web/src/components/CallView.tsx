@@ -77,8 +77,8 @@ export function CallView({
               </button>
               {!party && (
                 <button onClick={onStartWatch}
-                  style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, background: 'var(--accent)', color: 'var(--accent-text)' }}>
-                  🎬 Start Watch Party
+                  style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: 'var(--accent-text)' }}>
+                  <Icon name="watchparty" size={17} /> Start Watch Party
                 </button>
               )}
               <button onClick={onLeave}

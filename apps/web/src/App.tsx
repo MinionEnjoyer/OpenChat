@@ -998,7 +998,7 @@ export default function App() {
             {!showFriends && s.activeChannelId && (
               <button title="Pinned messages"
                 onClick={() => { const next = !pinsOpen; setPinsOpen(next); if (next) loadPins(s.activeChannelId!); }}
-                style={{ background: 'none', border: 'none', color: pinsOpen ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', fontSize: 16 }}>📌</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: pinsOpen ? 1 : 0.7 }}><Icon name="pin" size={17} alt="Pinned messages" /></button>
             )}
             <NotificationHub reloadKey={s.notifyTick}
               onServerJoined={(sv) => {
@@ -1018,7 +1018,7 @@ export default function App() {
           <div style={{ position: 'fixed', top: 52, right: 16, width: 360, maxHeight: 440, overflowY: 'auto', zIndex: 60,
             background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
-              <span>📌 Pinned Messages</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={16} /> Pinned Messages</span>
               <button onClick={() => setPinsOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
             </div>
             {pins.length === 0 ? (
@@ -1173,8 +1173,8 @@ export default function App() {
                         {canPin && (
                           <button title={m.pinned ? 'Unpin message' : 'Pin message'}
                             onClick={() => handlePin(m, !m.pinned)}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: m.pinned ? 'var(--accent)' : 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                            📌
+                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', padding: '2px 5px', display: 'flex', alignItems: 'center', opacity: m.pinned ? 1 : 0.75 }}>
+                            <Icon name="pin" size={13} />
                           </button>
                         )}
                         {canDelete && (
