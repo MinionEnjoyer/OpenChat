@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -92,9 +92,54 @@ export class VoiceService {
     return { success: true };
   }
 
-  /** Who is currently connected to the channel's voice room (per our session tracking). */
+  /** HTTP client for LiveKit's server API (used to read the room's live roster). */
+  private roomClient(): RoomServiceClient | null {
+    const url = this.config.get<string>('LIVEKIT_API_URL');
+    if (!url) return null;
+    return new RoomServiceClient(
+      url,
+      this.config.getOrThrow<string>('LIVEKIT_API_KEY'),
+      this.config.getOrThrow<string>('LIVEKIT_API_SECRET'),
+    );
+  }
+
+  /**
+   * Who is currently connected to the channel's voice room. When the LiveKit API is
+   * configured we use its live roster as the source of truth (and self-heal stale DB
+   * sessions), so ghosts from tab-closes / drops / SFU restarts can't linger. Falls back
+   * to the DB session table if the LiveKit API is unset or unreachable.
+   */
   async participants(channelId: string, userId: string) {
     await this.assertAccess(channelId, userId);
+
+    const client = this.roomClient();
+    if (client) {
+      try {
+        let live: { identity: string }[] = [];
+        try {
+          live = await client.listParticipants(channelId);
+        } catch (err: any) {
+          // "room does not exist" simply means nobody is connected.
+          if (!/not.?found|does not exist/i.test(String(err?.message ?? err))) throw err;
+        }
+        const liveIds = [...new Set(live.map((p) => p.identity))];
+        // Self-heal: close any DB session for someone LiveKit says isn't actually here.
+        await this.prisma.voiceSession.updateMany({
+          where: { channelId, leftAt: null, ...(liveIds.length ? { userId: { notIn: liveIds } } : {}) },
+          data: { leftAt: new Date() },
+        });
+        if (!liveIds.length) return [];
+        const users = await this.prisma.user.findMany({
+          where: { id: { in: liveIds } },
+          select: { id: true, username: true, displayName: true, avatarUrl: true },
+        });
+        const byId = new Map(users.map((u) => [u.id, u]));
+        return liveIds.map((id) => byId.get(id)).filter((u): u is (typeof users)[number] => !!u);
+      } catch {
+        // LiveKit API unreachable — fall through to DB session tracking.
+      }
+    }
+
     const sessions = await this.prisma.voiceSession.findMany({
       where: { channelId, leftAt: null },
       include: { user: true },

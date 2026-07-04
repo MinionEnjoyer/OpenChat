@@ -88,6 +88,9 @@ export function useVoice() {
         .on(RoomEvent.LocalTrackPublished, () => snapshot(room))
         .on(RoomEvent.Disconnected, (reason) => {
           console.debug('[voice] disconnected, reason:', reason);
+          // Close the server-side session on ANY disconnect (drop, SFU restart, kick),
+          // not just an explicit leave — otherwise the user is left as a ghost participant.
+          api.voiceLeave(chId).catch(() => {});
           roomRef.current = null;
           setChannelId(null);
           setParticipants([]);

@@ -25,6 +25,9 @@ const envSchema = z.object({
   LIVEKIT_URL: z.string().min(1),
   LIVEKIT_API_KEY: z.string().min(1),
   LIVEKIT_API_SECRET: z.string().min(1),
+  // HTTP URL of the LiveKit server API (e.g. http://<host>:7880). Optional — used to read
+  // the live voice roster so ghost participants self-heal; falls back to DB tracking if unset.
+  LIVEKIT_API_URL: z.string().url().optional(),
   // GIF search via Giphy. Optional — the GIF picker degrades gracefully if unset.
   GIPHY_API_KEY: z.string().optional(),
 });
