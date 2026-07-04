@@ -1,0 +1,33 @@
+# deps / build
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ── secrets & local config — NEVER commit ──────────────────────────────
+# All personal data (keys, tokens, passwords, IPs) lives in these local files.
+# Only the *.example / *.tmpl templates are tracked.
+.env
+.env.*
+!.env.example
+livekit.yaml
+!livekit.yaml.tmpl
+*.pem
+*.key
+*_rsa
+*.p12
+
+# internal specs / design sources / codegen — kept local, never uploaded
+docs/SPEC.md
+docs/architecture/
+scripts/generate_*.py
+
+# runtime
+*.log
+coverage/
+.DS_Store
+
+# local data
+postgres-data/
+redis-data/

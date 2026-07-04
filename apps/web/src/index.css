@@ -1,0 +1,114 @@
+:root, .theme-dark {
+  color-scheme: dark;
+  --bg: #36393f;
+  --panel: #2f3136;
+  --panel-dark: #202225;
+  --hover: #40444b;
+  --input-bg: #40444b;
+  --accent: #5865F2;
+  --accent-text: #ffffff;
+  --text: #dcddde;
+  --text-strong: #ffffff;
+  --muted: #8e9297;
+  --muted-2: #72767d;
+  --border: #202225;
+  --scrollbar: #202225;
+  --success: #43b581;
+  --danger: #da373c;
+}
+
+.theme-light {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #f2f3f5;
+  --panel-dark: #e3e5e8;
+  --hover: #e0e1e5;
+  --input-bg: #e3e5e8;
+  --accent: #5865F2;
+  --accent-text: #ffffff;
+  --text: #2e3338;
+  --text-strong: #060607;
+  --muted: #5c6773;
+  --muted-2: #6a7480;
+  --border: #d4d7dc;
+  --scrollbar: #c4c9d0;
+  --success: #248046;
+  --danger: #d83c3e;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  overflow: hidden;                 /* the app manages its own scrolling */
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 100dvh follows the mobile viewport as browser chrome / keyboard show and hide,
+   so the composer stays reachable above the on-screen keyboard. */
+#root { height: 100vh; height: 100dvh; width: 100%; }
+
+button, input, textarea { font-family: inherit; }
+
+/* iOS zooms the page in when a focused input's font-size is < 16px; force 16px
+   on touch layouts to keep typing smooth and prevent the jarring auto-zoom. */
+@media (max-width: 768px) {
+  input, textarea, select { font-size: 16px; }
+}
+
+/* --- layout shell --- */
+.app-shell { display: flex; height: 100%; width: 100%; overflow: hidden; position: relative; }
+.sidebars { display: flex; height: 100%; flex-shrink: 0; }
+.main-view { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Skip layout/paint for off-screen messages — big scroll win on long lists / mobile.
+   The intrinsic-size hint keeps the scrollbar stable before a row is rendered. */
+.msg-row { content-visibility: auto; contain-intrinsic-size: auto 56px; }
+
+/* message hover actions */
+.msg-del { opacity: 0; transition: opacity 0.12s ease; }
+.msg-row:hover .msg-del { opacity: 1; }
+@media (hover: none) { .msg-del { opacity: 1; } }
+
+/* jump-to-message highlight (when opening a pinned message) */
+@keyframes msgFlash { 0% { background: var(--accent); } 100% { background: transparent; } }
+.msg-flash { animation: msgFlash 1.4s ease-out; border-radius: 6px; }
+
+/* incoming call prompt: gentle attention pulse */
+@keyframes callPulse { 0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.5); } 50% { box-shadow: 0 8px 32px rgba(67,181,129,0.55); } }
+.call-pop { animation: callPulse 1.6s ease-in-out infinite; }
+
+/* thin scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--scrollbar) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* hide the right member panel on narrower screens */
+@media (max-width: 900px) { .member-panel { display: none; } }
+
+/* --- mobile: sidebars become an off-canvas drawer --- */
+.mobile-only { display: none; }
+@media (max-width: 768px) {
+  .mobile-only { display: inline-flex; }
+  .sidebars {
+    position: absolute; left: 0; top: 0; bottom: 0; z-index: 20;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+  }
+  .app-shell.nav-open .sidebars { transform: translateX(0); }
+  .app-shell.nav-open::after {
+    content: "";
+    position: absolute; inset: 0; z-index: 10;
+    background: rgba(0, 0, 0, 0.5);
+  }
+}

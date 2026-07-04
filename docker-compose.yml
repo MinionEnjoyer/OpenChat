@@ -1,0 +1,94 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chat}
+      POSTGRES_DB: ${POSTGRES_DB:-chat}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [app_net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [app_net]
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: chat-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chat}:${POSTGRES_PASSWORD:-chat}@postgres:5432/${POSTGRES_DB:-chat}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "3001"
+    # Public DNS for the service hosts resolves to the public edge, which the container can't
+    # reach from inside the LAN. Pin them to the LAN host IP (where the reverse proxy lives) so
+    # server-side OIDC discovery / Jellyfin calls work. Set AUTH_HOST/etc + LAN_HOST_IP in .env.
+    extra_hosts:
+      - "${AUTH_HOST:-auth.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+      - "${WATCH_HOST:-watch.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+      - "${SHARE_HOST:-share.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+      - "${CHAT_HOST:-chat.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+    networks: [app_net]
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: chat-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      # The reverse proxy (NPM) forwards the chat domain to this host port. Override with WEB_PORT.
+      - "${WEB_PORT:-8810}:80"
+    networks: [app_net]
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: chat-livekit
+    restart: unless-stopped
+    # Host networking so WebRTC media (UDP range + TCP fallback) isn't behind Docker NAT.
+    network_mode: host
+    command: --config /etc/livekit/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit/livekit.yaml:ro
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.106.0.0/24
+
+volumes:
+  pg_data:
+  redis_data:

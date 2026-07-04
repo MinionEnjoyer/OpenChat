@@ -1,0 +1,14 @@
+# LiveKit server config — TEMPLATE.
+# Do NOT edit livekit.yaml by hand; edit .env and run ./scripts/setup.sh, which
+# renders this file into livekit.yaml with your values (via envsubst). The rendered
+# livekit.yaml is gitignored because it contains the API secret + public IP.
+port: 7880                    # HTTP + WebSocket signaling (proxied as wss://<LIVEKIT_URL>)
+rtc:
+  udp_port: 50000             # single UDP port (mux) — stable through NAT (avoid port ranges)
+  tcp_port: 7881              # WebRTC-over-TCP fallback
+  use_external_ip: false      # advertise node_ip below instead of STUN-detecting
+  node_ip: ${LIVEKIT_NODE_IP} # public IP clients reach for media
+keys:
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+logging:
+  level: info
