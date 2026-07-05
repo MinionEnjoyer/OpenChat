@@ -71,8 +71,8 @@ export async function blockUser(userId: string): Promise<void> {
   await req<void>(`/friends/block/${userId}`, 'POST');
 }
 
-export async function listDms(): Promise<{ id: string; type: string; recipients: User[] }[]> {
-  return req<{ id: string; type: string; recipients: User[] }[]>('/dms');
+export async function listDms(): Promise<{ id: string; type: string; recipients: User[]; lastMessageAt?: string | null }[]> {
+  return req<{ id: string; type: string; recipients: User[]; lastMessageAt?: string | null }[]>('/dms');
 }
 
 export async function openDm(userId: string): Promise<{ id: string; type: string; recipients: User[] }> {

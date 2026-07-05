@@ -13,6 +13,7 @@ export interface DmChannelDto {
   id: string;
   type: 'DM' | 'GROUP_DM';
   recipients: DmUser[];
+  lastMessageAt: string | null;
 }
 
 @Injectable()
@@ -64,6 +65,7 @@ export class DmsService {
         id: existing.id,
         type: 'DM',
         recipients: existing.recipients.map((r) => this.toUserDTO(r.user)),
+        lastMessageAt: null,
       };
     }
 
@@ -82,6 +84,7 @@ export class DmsService {
       id: channel.id,
       type: 'DM',
       recipients: channel.recipients.map((r) => this.toUserDTO(r.user)),
+      lastMessageAt: null,
     };
   }
 
@@ -91,13 +94,27 @@ export class DmsService {
         type: { in: ['DM', 'GROUP_DM'] },
         recipients: { some: { userId } },
       },
-      include: { recipients: { include: { user: true } } },
+      include: {
+        recipients: { include: { user: true } },
+        // Newest non-deleted message drives "recent activity" sorting.
+        messages: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
     });
 
-    return channels.map((channel) => ({
+    const dtos: DmChannelDto[] = channels.map((channel) => ({
       id: channel.id,
       type: channel.type as 'DM' | 'GROUP_DM',
       recipients: channel.recipients.map((r) => this.toUserDTO(r.user)),
+      lastMessageAt: channel.messages[0]?.createdAt.toISOString() ?? null,
     }));
+
+    // Most recent activity first; DMs with no messages fall to the bottom.
+    dtos.sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''));
+    return dtos;
   }
 }

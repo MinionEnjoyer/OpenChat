@@ -156,6 +156,7 @@ export interface DmChannel {
   id: string;
   type: string;
   recipients: User[];
+  lastMessageAt?: string | null;
 }
 
 export interface Notifications {

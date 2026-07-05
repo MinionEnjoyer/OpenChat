@@ -217,6 +217,10 @@ export default function App() {
           if (d.message.channelId !== st.activeChannelId && d.message.authorId !== st.user?.id) {
             st.bumpUnread(d.message.channelId);
           }
+          // Bubble the DM to the top of the list on new activity.
+          if (st.dms.some((dm) => dm.id === d.message.channelId)) {
+            st.set({ dms: st.dms.map((dm) => (dm.id === d.message.channelId ? { ...dm, lastMessageAt: d.message.createdAt } : dm)) });
+          }
         } else if (op === 'message.updated') st.updateMessage(d.message);
         else if (op === 'message.deleted') st.deleteMessage(d.channelId, d.id);
         else if (op === 'watchparty.sync') setPartyByChannel((prev) => ({ ...prev, [d.channelId]: d.state }));
@@ -950,7 +954,7 @@ export default function App() {
                   Direct Messages
                 </div>
                 {s.dms.length === 0 && <div style={{ padding: '4px 8px', fontSize: 13, color: 'var(--muted-2)' }}>No conversations yet.</div>}
-                {s.dms.map((dm) => {
+                {[...s.dms].sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? '')).map((dm) => {
                   const others = dm.recipients.filter((u) => u.id !== s.user!.id);
                   const title = others.map((u) => u.displayName || u.username).join(', ') || 'Direct Message';
                   const active = dm.id === s.activeChannelId;
