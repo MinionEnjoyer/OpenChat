@@ -144,7 +144,9 @@ export default function App() {
   // channelId -> { userId -> expiresAt(ms) }
   const [typing, setTyping] = useState<Record<string, Record<string, number>>>({});
   const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string; content: string } | null>(null);
-  const [pinsOpen, setPinsOpen] = useState(false);
+  // Only one header dropdown (pins / notifications) is open at a time.
+  const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | null>(null);
+  const pinsOpen = openPanel === 'pins';
   const [pins, setPins] = useState<Message[]>([]);
   const [incomingCall, setIncomingCall] = useState<{ channelId: string; callerId: string; callerName: string; callerAvatar: string | null } | null>(null);
   const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
@@ -465,7 +467,7 @@ export default function App() {
   async function selectChannel(channelId: string, title?: string) {
     useStore.getState().set({ activeChannelId: channelId });
     useStore.getState().clearUnread(channelId);
-    setPinsOpen(false);
+    setOpenPanel(null);
     if (title !== undefined) setDmTitle(title);
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -565,7 +567,7 @@ export default function App() {
   }
 
   function jumpToMessage(id: string) {
-    setPinsOpen(false);
+    setOpenPanel(null);
     setTimeout(() => {
       const el = document.getElementById('msg-' + id);
       if (!el) return;
@@ -1012,10 +1014,12 @@ export default function App() {
             )}
             {!showFriends && s.activeChannelId && (
               <button title="Pinned messages"
-                onClick={() => { const next = !pinsOpen; setPinsOpen(next); if (next) loadPins(s.activeChannelId!); }}
+                onClick={() => { const willOpen = !pinsOpen; setOpenPanel(willOpen ? 'pins' : null); if (willOpen) loadPins(s.activeChannelId!); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: pinsOpen ? 1 : 0.7 }}><Icon name="pin" size={17} alt="Pinned messages" /></button>
             )}
             <NotificationHub reloadKey={s.notifyTick}
+              open={openPanel === 'notify'}
+              onOpenChange={(o) => setOpenPanel(o ? 'notify' : null)}
               onServerJoined={(sv) => {
                 const cur = useStore.getState().servers;
                 if (!cur.some((x) => x.id === sv.id)) useStore.getState().set({ servers: [...cur, sv] });
@@ -1030,11 +1034,11 @@ export default function App() {
         </div>
 
         {pinsOpen && !showFriends && (
-          <div style={{ position: 'fixed', top: 52, right: 16, width: 360, maxHeight: 440, overflowY: 'auto', zIndex: 60,
-            background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
+          <div style={{ position: 'fixed', top: 52, right: 16, width: 340, maxHeight: 440, overflowY: 'auto', zIndex: 60,
+            background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}>
+            <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={16} /> Pinned Messages</span>
-              <button onClick={() => setPinsOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
+              <button onClick={() => setOpenPanel(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
             </div>
             {pins.length === 0 ? (
               <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>No pinned messages yet.</div>

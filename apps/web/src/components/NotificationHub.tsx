@@ -7,13 +7,14 @@ import { Icon } from './Icon';
 
 const EMPTY: Notifications = { friendRequests: [], serverInvites: [], count: 0 };
 
-export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast }: {
+export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast, open, onOpenChange }: {
   onServerJoined: (server: Server) => void;
   reloadKey?: number;
   onChanged?: () => void;
   onToast?: (msg: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [data, setData] = useState<Notifications>(EMPTY);
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -36,10 +37,11 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) onOpenChange(false);
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function dropFriendReq(id: string) {
@@ -64,7 +66,7 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => onOpenChange(!open)}
         title="Notifications"
         style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', lineHeight: 1, display: 'flex', alignItems: 'center' }}
       >
@@ -80,12 +82,13 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast 
       </button>
 
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 320, maxHeight: 420, overflowY: 'auto',
-          background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 60, padding: 12,
-        }}>
-          <div style={{ fontWeight: 700, color: 'var(--text-strong)', marginBottom: 10 }}>Notifications</div>
+        <div style={{ position: 'fixed', top: 52, right: 16, width: 340, maxHeight: 440, overflowY: 'auto', zIndex: 60,
+          background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}>
+          <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
+            <span>Notifications</span>
+            <button onClick={() => onOpenChange(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
+          </div>
+          <div style={{ padding: '10px 14px' }}>
 
           {data.count === 0 && <p style={{ color: 'var(--muted)', fontSize: 14, margin: '8px 0' }}>You're all caught up. 🎉</p>}
 
@@ -122,6 +125,7 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast 
               ))}
             </div>
           )}
+          </div>
         </div>
       )}
     </div>
