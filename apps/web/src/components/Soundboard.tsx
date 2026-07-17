@@ -3,6 +3,9 @@ import type { ServerSound } from '../lib/types';
 import * as api from '../lib/api';
 import { uploadToShare } from '../lib/share';
 
+const MAX_SOUND_MB = 5;
+const MAX_SOUND_BYTES = MAX_SOUND_MB * 1024 * 1024;
+
 /** In-call soundboard: click a clip to play it into the voice room; managers can add/remove. */
 export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose }: {
   serverId: string;
@@ -29,11 +32,16 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
+    if (f.size > MAX_SOUND_BYTES) {
+      alert(`That file is ${(f.size / 1024 / 1024).toFixed(1)} MB — sounds must be ${MAX_SOUND_MB} MB or less.`);
+      return;
+    }
     setFile(f);
     if (!name.trim()) setName(f.name.replace(/\.[^.]+$/, '').slice(0, 40));
   }
   async function upload() {
     if (!file || !name.trim() || !shareBaseUrl) return;
+    if (file.size > MAX_SOUND_BYTES) { alert(`Sounds must be ${MAX_SOUND_MB} MB or less.`); return; }
     setUploading(true);
     try {
       const { attachments } = await uploadToShare([file], shareBaseUrl);
@@ -95,11 +103,12 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <input ref={fileRef} type="file" accept="audio/*" hidden onChange={pickFile} />
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <button onClick={() => fileRef.current?.click()}
                     style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
                     {file ? '🎵 ' + file.name.slice(0, 24) : 'Choose audio…'}
                   </button>
+                  <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>Audio, up to {MAX_SOUND_MB} MB</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input style={{ ...input, width: 56, textAlign: 'center' }} value={emoji} maxLength={4} onChange={(e) => setEmoji(e.target.value)} placeholder="🔊" />
