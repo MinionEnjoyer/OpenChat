@@ -25,6 +25,7 @@ import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
 import { PollView } from './components/PollView';
 import { PollModal } from './components/PollModal';
+import { Soundboard } from './components/Soundboard';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
@@ -149,6 +150,7 @@ export default function App() {
   const pinsOpen = openPanel === 'pins';
   const [pins, setPins] = useState<Message[]>([]);
   const [incomingCall, setIncomingCall] = useState<{ channelId: string; callerId: string; callerName: string; callerAvatar: string | null } | null>(null);
+  const [soundboardOpen, setSoundboardOpen] = useState(false);
   const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
   const [reactPickerAnchor, setReactPickerAnchor] = useState<{ x: number; y: number } | null>(null);
   const [draggingChannelId, setDraggingChannelId] = useState<string | null>(null);
@@ -749,19 +751,36 @@ export default function App() {
 
   const renderContent = (text: string): React.ReactNode => {
     const parts: React.ReactNode[] = [];
-    const re = /@([\w.-]+)/g;
+    // Match a URL or an @mention; render URLs as links, valid mentions as highlights.
+    const re = /(https?:\/\/[^\s<]+)|@([\w.-]+)/g;
     let last = 0; let key = 0; let m: RegExpExecArray | null;
     while ((m = re.exec(text)) !== null) {
-      const uname = m[1].toLowerCase();
-      if (!(mentionNames.has(uname) || uname === 'everyone' || uname === 'here')) continue;
-      if (m.index > last) parts.push(text.slice(last, m.index));
-      const self = uname === (s.user?.username || '').toLowerCase() || uname === 'everyone' || uname === 'here';
-      parts.push(
-        <span key={key++} style={{ background: self ? 'var(--accent)' : 'var(--hover)', color: self ? 'var(--accent-text)' : 'var(--accent)', borderRadius: 4, padding: '0 3px', fontWeight: 600 }}>
-          @{m[1]}
-        </span>,
-      );
-      last = m.index + m[0].length;
+      if (m[1]) {
+        // URL — trim trailing punctuation back out of the link.
+        let url = m[1];
+        const trail = url.match(/[.,!?;:)\]}'"]+$/)?.[0] ?? '';
+        if (trail) url = url.slice(0, url.length - trail.length);
+        if (m.index > last) parts.push(text.slice(last, m.index));
+        parts.push(
+          <a key={key++} href={url} target="_blank" rel="noopener noreferrer"
+            style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+            {url}
+          </a>,
+        );
+        if (trail) parts.push(trail);
+        last = m.index + m[0].length;
+      } else {
+        const uname = m[2].toLowerCase();
+        if (!(mentionNames.has(uname) || uname === 'everyone' || uname === 'here')) continue;
+        if (m.index > last) parts.push(text.slice(last, m.index));
+        const self = uname === (s.user?.username || '').toLowerCase() || uname === 'everyone' || uname === 'here';
+        parts.push(
+          <span key={key++} style={{ background: self ? 'var(--accent)' : 'var(--hover)', color: self ? 'var(--accent-text)' : 'var(--accent)', borderRadius: 4, padding: '0 3px', fontWeight: 600 }}>
+            @{m[2]}
+          </span>,
+        );
+        last = m.index + m[0].length;
+      }
     }
     if (last < text.length) parts.push(text.slice(last));
     return parts.length ? parts : text;
@@ -1081,6 +1100,7 @@ export default function App() {
             onStartWatch={() => setWatchPickerOpen(true)}
             onWatchState={(pos, paused) => pushWatchState(activeChannel.id, pos, paused)}
             onStopWatch={() => stopWatchParty(activeChannel.id)}
+            onOpenSoundboard={() => setSoundboardOpen(true)}
           />
         ) : s.activeChannelId ? (
           <>
@@ -1309,6 +1329,16 @@ export default function App() {
 
       {watchPickerOpen && s.activeChannelId && (
         <WatchPartyPicker onPick={startWatchParty} onClose={() => setWatchPickerOpen(false)} />
+      )}
+
+      {soundboardOpen && activeServer && (
+        <Soundboard
+          serverId={activeServer.id}
+          canManage={has(activeServer.myPermissions, Permission.MANAGE_CHANNELS)}
+          shareBaseUrl={s.shareBaseUrl}
+          onPlay={(url) => voice.playSound(url)}
+          onClose={() => setSoundboardOpen(false)}
+        />
       )}
 
       {reactPickerFor && reactPickerAnchor && (

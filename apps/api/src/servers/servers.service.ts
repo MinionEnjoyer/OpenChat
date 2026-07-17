@@ -190,6 +190,34 @@ export class ServersService {
     return this.serializeServer(server, perms);
   }
 
+  // ---- soundboard (per-server sound library) ----
+  async listSounds(serverId: string, userId: string) {
+    await this.get(serverId, userId); // membership check
+    return this.prisma.serverSound.findMany({
+      where: { serverId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true, emoji: true, url: true },
+    });
+  }
+
+  async addSound(serverId: string, userId: string, data: { name: string; url: string; emoji?: string | null }) {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const count = await this.prisma.serverSound.count({ where: { serverId } });
+    if (count >= 50) throw new ForbiddenException('This soundboard is full (50 sounds max).');
+    return this.prisma.serverSound.create({
+      data: { serverId, name: data.name.slice(0, 40), url: data.url, emoji: data.emoji ?? null },
+      select: { id: true, name: true, emoji: true, url: true },
+    });
+  }
+
+  async deleteSound(serverId: string, soundId: string, userId: string) {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const sound = await this.prisma.serverSound.findUnique({ where: { id: soundId }, select: { serverId: true } });
+    if (!sound || sound.serverId !== serverId) throw new NotFoundException('Sound not found');
+    await this.prisma.serverSound.delete({ where: { id: soundId } });
+    return { success: true };
+  }
+
   async listChannels(serverId: string, userId: string): Promise<SerializedChannel[]> {
     // Assert membership first
     await this.get(serverId, userId);

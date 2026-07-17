@@ -19,6 +19,7 @@ export function CallView({
   onStartWatch,
   onWatchState,
   onStopWatch,
+  onOpenSoundboard,
 }: {
   channelName: string;
   connected: boolean;
@@ -34,6 +35,7 @@ export function CallView({
   onStartWatch: () => void;
   onWatchState: (positionMs: number, paused: boolean) => void;
   onStopWatch: () => void;
+  onOpenSoundboard: () => void;
 }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -74,6 +76,10 @@ export function CallView({
               <button onClick={onToggleMute}
                 style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, background: muted ? 'var(--danger)' : 'var(--input-bg)', color: muted ? '#fff' : 'var(--text)' }}>
                 <Icon name={muted ? 'mute' : 'unmute'} size={17} /> {muted ? 'Unmute' : 'Mute'}
+              </button>
+              <button onClick={onOpenSoundboard}
+                style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, background: 'var(--input-bg)', color: 'var(--text)' }}>
+                🔊 Soundboard
               </button>
               {!party && (
                 <button onClick={onStartWatch}

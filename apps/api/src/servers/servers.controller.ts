@@ -71,6 +71,33 @@ export class ServersController {
     return this.servers.deleteServer(id, user.id);
   }
 
+  @Get(':id/sounds')
+  listSounds(@Param('id') serverId: string, @CurrentUser() user: User) {
+    return this.servers.listSounds(serverId, user.id);
+  }
+
+  @Post(':id/sounds')
+  addSound(
+    @Param('id') serverId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      name: z.string().min(1).max(40),
+      url: z.string().url(),
+      emoji: z.string().max(8).nullable().optional(),
+    }))) body: { name: string; url: string; emoji?: string | null },
+  ) {
+    return this.servers.addSound(serverId, user.id, body);
+  }
+
+  @Delete(':id/sounds/:soundId')
+  deleteSound(
+    @Param('id') serverId: string,
+    @Param('soundId') soundId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.deleteSound(serverId, soundId, user.id);
+  }
+
   @Get(':id/channels')
   listChannels(@Param('id') serverId: string, @CurrentUser() user: User) {
     return this.servers.listChannels(serverId, user.id);

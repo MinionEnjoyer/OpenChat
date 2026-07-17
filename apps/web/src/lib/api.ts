@@ -1,4 +1,4 @@
-import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif } from './types';
+import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif, ServerSound } from './types';
 
 const BASE_URL = '/api';
 
@@ -76,6 +76,12 @@ export const reorderChannels = (serverId: string, orderedIds: string[]) =>
   request<{ success: true }>(`/servers/${serverId}/channels/reorder`, { method: 'PATCH', body: JSON.stringify({ orderedIds }) });
 export const leaveServer = (serverId: string) =>
   request<{ success: true }>(`/servers/${serverId}/members/me`, { method: 'DELETE' });
+export const listSounds = (serverId: string) =>
+  request<ServerSound[]>(`/servers/${serverId}/sounds`);
+export const addSound = (serverId: string, data: { name: string; url: string; emoji?: string | null }) =>
+  request<ServerSound>(`/servers/${serverId}/sounds`, { method: 'POST', body: JSON.stringify(data) });
+export const deleteSound = (serverId: string, soundId: string) =>
+  request<{ success: true }>(`/servers/${serverId}/sounds/${soundId}`, { method: 'DELETE' });
 
 export const listMessages = (channelId: string, before?: string) => {
   const params = new URLSearchParams();

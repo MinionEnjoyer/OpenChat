@@ -98,6 +98,13 @@ export interface Message {
   failed?: boolean;
 }
 
+export interface ServerSound {
+  id: string;
+  name: string;
+  emoji: string | null;
+  url: string;
+}
+
 export interface PollOption {
   id: string;
   text: string;

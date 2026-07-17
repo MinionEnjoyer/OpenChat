@@ -99,8 +99,22 @@ model Server {
   invites   Invite[]
   auditLogs AuditLog[]
   serverInvitations ServerInvitation[]
+  sounds    ServerSound[]
 
   @@index([ownerId])
+}
+
+model ServerSound {
+  id        String   @id @default(uuid())
+  serverId  String
+  name      String
+  emoji     String?
+  url       String
+  createdAt DateTime @default(now())
+
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
 }
 
 model ServerMember {

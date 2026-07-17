@@ -18,6 +18,12 @@ export interface VoiceParticipant {
 export function useVoice() {
   const roomRef = useRef<Room | null>(null);
   const audioEls = useRef<HTMLMediaElement[]>([]);
+  // Soundboard: a WebAudio destination published as a separate LiveKit track; sounds are
+  // decoded and played into it (and locally) so everyone in the call hears them.
+  const soundCtxRef = useRef<AudioContext | null>(null);
+  const soundDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const soundTrackRef = useRef<MediaStreamTrack | null>(null);
+  const soundCache = useRef<Map<string, AudioBuffer>>(new Map());
   const [channelId, setChannelId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [muted, setMuted] = useState(false);
@@ -40,6 +46,47 @@ export function useVoice() {
   const cleanupAudio = useCallback(() => {
     for (const el of audioEls.current) el.remove();
     audioEls.current = [];
+    // Tear down the soundboard graph + published track.
+    soundTrackRef.current?.stop();
+    soundTrackRef.current = null;
+    soundDestRef.current = null;
+    soundCtxRef.current?.close().catch(() => {});
+    soundCtxRef.current = null;
+    soundCache.current.clear();
+  }, []);
+
+  /** Play a soundboard clip into the current call (everyone hears it) + locally. */
+  const playSound = useCallback(async (url: string) => {
+    const room = roomRef.current;
+    if (!room) return;
+    // Lazily create the audio graph + publish a dedicated soundboard track.
+    if (!soundCtxRef.current) {
+      const ctx = new AudioContext();
+      const dest = ctx.createMediaStreamDestination();
+      soundCtxRef.current = ctx;
+      soundDestRef.current = dest;
+      const track = dest.stream.getAudioTracks()[0];
+      soundTrackRef.current = track;
+      try {
+        await room.localParticipant.publishTrack(track, { name: 'soundboard', dtx: true, red: false });
+      } catch { /* ignore — publish may already exist */ }
+    }
+    const ctx = soundCtxRef.current;
+    const dest = soundDestRef.current;
+    if (!ctx || !dest) return;
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch { /* ignore */ } }
+    let buf = soundCache.current.get(url);
+    if (!buf) {
+      const res = await fetch(url, { credentials: 'include' });
+      const arr = await res.arrayBuffer();
+      buf = await ctx.decodeAudioData(arr);
+      soundCache.current.set(url, buf);
+    }
+    const node = ctx.createBufferSource();
+    node.buffer = buf;
+    node.connect(dest);            // → published to the room
+    node.connect(ctx.destination); // → local monitor so the clicker hears it too
+    node.start();
   }, []);
 
   // Apply saved output device + volume to a freshly-attached remote audio element.
@@ -189,7 +236,7 @@ export function useVoice() {
   useEffect(() => () => { roomRef.current?.disconnect().catch(() => {}); }, []);
 
   return {
-    channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute,
+    channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
     audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume },
   };
 }
