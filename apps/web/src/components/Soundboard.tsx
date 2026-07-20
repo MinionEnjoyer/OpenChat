@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ServerSound } from '../lib/types';
 import * as api from '../lib/api';
 import { uploadToShare } from '../lib/share';
+import { EmojiPicker } from './EmojiPicker';
 
 const MAX_SOUND_MB = 5;
 const MAX_SOUND_BYTES = MAX_SOUND_MB * 1024 * 1024;
@@ -24,6 +25,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmoji, setEditEmoji] = useState('');
+  const [picker, setPicker] = useState<{ target: 'add' | 'edit'; x: number; y: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pressedOverlay = useRef(false);
 
@@ -113,7 +115,9 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
                     {editing === s.id ? (
                       <div style={{ padding: 8, borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <input style={{ ...input, width: 40, textAlign: 'center', padding: '6px 4px', fontSize: 13 }} value={editEmoji} maxLength={4} onChange={(e) => setEditEmoji(e.target.value)} placeholder="🔊" />
+                          <button type="button" title="Pick emoji"
+                            onClick={(e) => setPicker({ target: 'edit', x: e.clientX, y: e.clientY })}
+                            style={{ ...input, width: 40, textAlign: 'center', padding: '4px 0', fontSize: 18, cursor: 'pointer' }}>{editEmoji || '🔊'}</button>
                           <input style={{ ...input, flex: 1, minWidth: 0, padding: '6px 8px', fontSize: 13 }} value={editName} maxLength={40} autoFocus
                             onChange={(e) => setEditName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(s.id); if (e.key === 'Escape') setEditing(null); }} />
@@ -165,7 +169,9 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
                   <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>Audio, up to {MAX_SOUND_MB} MB</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...input, width: 56, textAlign: 'center' }} value={emoji} maxLength={4} onChange={(e) => setEmoji(e.target.value)} placeholder="🔊" />
+                  <button type="button" title="Pick emoji"
+                    onClick={(e) => setPicker({ target: 'add', x: e.clientX, y: e.clientY })}
+                    style={{ ...input, width: 56, textAlign: 'center', padding: '4px 0', fontSize: 20, cursor: 'pointer' }}>{emoji || '🔊'}</button>
                   <input style={{ ...input, flex: 1 }} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Sound name" />
                   <button onClick={upload} disabled={!file || !name.trim() || uploading}
                     style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: (file && name.trim() && !uploading) ? 'var(--accent)' : 'var(--panel-dark)', color: (file && name.trim() && !uploading) ? 'var(--accent-text)' : 'var(--muted-2)', cursor: (file && name.trim() && !uploading) ? 'pointer' : 'default', fontWeight: 600, flexShrink: 0 }}>
@@ -177,6 +183,14 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
           </div>
         )}
       </div>
+
+      {picker && (
+        <EmojiPicker
+          anchor={{ x: picker.x, y: picker.y }}
+          onSelect={(em) => { if (picker.target === 'add') setEmoji(em); else setEditEmoji(em); setPicker(null); }}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </div>
   );
 }
