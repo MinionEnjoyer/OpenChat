@@ -89,6 +89,19 @@ export class ServersController {
     return this.servers.addSound(serverId, user.id, body);
   }
 
+  @Patch(':id/sounds/:soundId')
+  updateSound(
+    @Param('id') serverId: string,
+    @Param('soundId') soundId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      name: z.string().min(1).max(40).optional(),
+      emoji: z.string().max(8).nullable().optional(),
+    }))) body: { name?: string; emoji?: string | null },
+  ) {
+    return this.servers.updateSound(serverId, soundId, user.id, body);
+  }
+
   @Delete(':id/sounds/:soundId')
   deleteSound(
     @Param('id') serverId: string,

@@ -20,6 +20,10 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmoji, setEditEmoji] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const pressedOverlay = useRef(false);
 
@@ -27,6 +31,19 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
     try { setSounds(await api.listSounds(serverId)); } catch { /* ignore */ } finally { setLoading(false); }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [serverId]);
+
+  const q = search.trim().toLowerCase();
+  const filtered = q ? sounds.filter((s) => s.name.toLowerCase().includes(q)) : sounds;
+
+  function startEdit(s: ServerSound) { setEditing(s.id); setEditName(s.name); setEditEmoji(s.emoji || ''); }
+  async function saveEdit(id: string) {
+    const name = editName.trim();
+    if (!name) return;
+    const emoji = editEmoji.trim() || null;
+    setSounds((prev) => prev.map((s) => (s.id === id ? { ...s, name, emoji } : s)));
+    setEditing(null);
+    try { await api.updateSound(serverId, id, { name, emoji }); } catch { load(); }
+  }
 
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -78,21 +95,58 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
         ) : sounds.length === 0 ? (
           <p style={{ color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 14 }}>No sounds yet{canManage ? ' — add one below.' : '.'}</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
-            {sounds.map((s) => (
-              <div key={s.id} style={{ position: 'relative' }}>
-                <button onClick={() => onPlay(s.url)} title={`Play ${s.name}`}
-                  style={{ width: '100%', padding: '12px 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 20, lineHeight: 1 }}>{s.emoji || '🔊'}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{s.name}</span>
-                </button>
-                {canManage && (
-                  <button onClick={() => remove(s.id)} title="Delete"
-                    style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>×</button>
-                )}
+          <>
+            {sounds.length > 4 && (
+              <input
+                style={{ ...input, width: '100%', boxSizing: 'border-box', marginBottom: 12 }}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search sounds…"
+              />
+            )}
+            {filtered.length === 0 ? (
+              <p style={{ color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 14 }}>No sounds match “{search.trim()}”.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                {filtered.map((s) => (
+                  <div key={s.id} style={{ position: 'relative' }}>
+                    {editing === s.id ? (
+                      <div style={{ padding: 8, borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input style={{ ...input, width: 40, textAlign: 'center', padding: '6px 4px', fontSize: 13 }} value={editEmoji} maxLength={4} onChange={(e) => setEditEmoji(e.target.value)} placeholder="🔊" />
+                          <input style={{ ...input, flex: 1, minWidth: 0, padding: '6px 8px', fontSize: 13 }} value={editName} maxLength={40} autoFocus
+                            onChange={(e) => setEditName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(s.id); if (e.key === 'Escape') setEditing(null); }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => saveEdit(s.id)} disabled={!editName.trim()}
+                            style={{ flex: 1, padding: '5px 0', borderRadius: 5, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Save</button>
+                          <button onClick={() => setEditing(null)}
+                            style={{ flex: 1, padding: '5px 0', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button onClick={() => onPlay(s.url)} title={`Play ${s.name}`}
+                          style={{ width: '100%', padding: '12px 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 20, lineHeight: 1 }}>{s.emoji || '🔊'}</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{s.name}</span>
+                        </button>
+                        {canManage && (
+                          <div style={{ position: 'absolute', top: -6, right: -6, display: 'flex', gap: 4 }}>
+                            <button onClick={() => startEdit(s)} title="Rename / change emoji"
+                              style={{ width: 20, height: 20, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>✎</button>
+                            <button onClick={() => remove(s.id)} title="Delete"
+                              style={{ width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>×</button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {canManage && (

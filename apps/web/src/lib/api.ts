@@ -80,6 +80,8 @@ export const listSounds = (serverId: string) =>
   request<ServerSound[]>(`/servers/${serverId}/sounds`);
 export const addSound = (serverId: string, data: { name: string; url: string; emoji?: string | null }) =>
   request<ServerSound>(`/servers/${serverId}/sounds`, { method: 'POST', body: JSON.stringify(data) });
+export const updateSound = (serverId: string, soundId: string, data: { name?: string; emoji?: string | null }) =>
+  request<ServerSound>(`/servers/${serverId}/sounds/${soundId}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const deleteSound = (serverId: string, soundId: string) =>
   request<{ success: true }>(`/servers/${serverId}/sounds/${soundId}`, { method: 'DELETE' });
 

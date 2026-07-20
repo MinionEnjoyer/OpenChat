@@ -210,6 +210,20 @@ export class ServersService {
     });
   }
 
+  async updateSound(serverId: string, soundId: string, userId: string, data: { name?: string; emoji?: string | null }) {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const sound = await this.prisma.serverSound.findUnique({ where: { id: soundId }, select: { serverId: true } });
+    if (!sound || sound.serverId !== serverId) throw new NotFoundException('Sound not found');
+    const patch: { name?: string; emoji?: string | null } = {};
+    if (data.name !== undefined) patch.name = data.name.slice(0, 40);
+    if (data.emoji !== undefined) patch.emoji = data.emoji;
+    return this.prisma.serverSound.update({
+      where: { id: soundId },
+      data: patch,
+      select: { id: true, name: true, emoji: true, url: true },
+    });
+  }
+
   async deleteSound(serverId: string, soundId: string, userId: string) {
     await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
     const sound = await this.prisma.serverSound.findUnique({ where: { id: soundId }, select: { serverId: true } });
