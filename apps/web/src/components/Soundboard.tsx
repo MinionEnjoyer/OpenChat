@@ -36,6 +36,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
 
   const q = search.trim().toLowerCase();
   const filtered = q ? sounds.filter((s) => s.name.toLowerCase().includes(q)) : sounds;
+  const editSound = editing ? sounds.find((s) => s.id === editing) : null;
 
   function startEdit(s: ServerSound) { setEditing(s.id); setEditName(s.name); setEditEmoji(s.emoji || ''); }
   async function saveEdit(id: string) {
@@ -109,41 +110,20 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
             {filtered.length === 0 ? (
               <p style={{ color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 14 }}>No sounds match “{search.trim()}”.</p>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))', gap: 10 }}>
                 {filtered.map((s) => (
                   <div key={s.id} style={{ position: 'relative' }}>
-                    {editing === s.id ? (
-                      <div style={{ padding: 8, borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--input-bg)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button type="button" title="Pick emoji"
-                            onClick={(e) => setPicker({ target: 'edit', x: e.clientX, y: e.clientY })}
-                            style={{ ...input, width: 40, textAlign: 'center', padding: '4px 0', fontSize: 18, cursor: 'pointer' }}>{editEmoji || '🔊'}</button>
-                          <input style={{ ...input, flex: 1, minWidth: 0, padding: '6px 8px', fontSize: 13 }} value={editName} maxLength={40} autoFocus
-                            onChange={(e) => setEditName(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(s.id); if (e.key === 'Escape') setEditing(null); }} />
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => saveEdit(s.id)} disabled={!editName.trim()}
-                            style={{ flex: 1, padding: '5px 0', borderRadius: 5, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Save</button>
-                          <button onClick={() => setEditing(null)}
-                            style={{ flex: 1, padding: '5px 0', borderRadius: 5, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 12 }}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
+                    <button onClick={() => onPlay(s.url)} title={`Play ${s.name}`}
+                      style={{ width: '100%', padding: '16px 8px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 30, lineHeight: 1 }}>{s.emoji || '🔊'}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{s.name}</span>
+                    </button>
+                    {canManage && (
                       <>
-                        <button onClick={() => onPlay(s.url)} title={`Play ${s.name}`}
-                          style={{ width: '100%', padding: '12px 8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 20, lineHeight: 1 }}>{s.emoji || '🔊'}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{s.name}</span>
-                        </button>
-                        {canManage && (
-                          <div style={{ position: 'absolute', top: -6, right: -6, display: 'flex', gap: 4 }}>
-                            <button onClick={() => startEdit(s)} title="Rename / change emoji"
-                              style={{ width: 20, height: 20, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontSize: 10, lineHeight: 1 }}>✎</button>
-                            <button onClick={() => remove(s.id)} title="Delete"
-                              style={{ width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>×</button>
-                          </div>
-                        )}
+                        <button onClick={() => startEdit(s)} title="Rename / change emoji"
+                          style={{ position: 'absolute', top: -7, left: -7, width: 24, height: 24, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>✎</button>
+                        <button onClick={() => remove(s.id)} title="Delete"
+                          style={{ position: 'absolute', top: -7, right: -7, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>×</button>
                       </>
                     )}
                   </div>
@@ -183,6 +163,44 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
           </div>
         )}
       </div>
+
+      {editSound && (
+        <div
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setEditing(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, padding: 16 }}
+        >
+          <div style={{ background: 'var(--panel)', color: 'var(--text)', borderRadius: 12, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, fontSize: 17, color: 'var(--text-strong)' }}>Edit sound</h3>
+              <button onClick={() => setEditing(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <button type="button" title="Pick emoji"
+                  onClick={(e) => setPicker({ target: 'edit', x: e.clientX, y: e.clientY })}
+                  style={{ width: 76, height: 76, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--input-bg)', cursor: 'pointer', fontSize: 40, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {editEmoji || '🔊'}
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>Emoji</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 6 }}>Name</label>
+                <input style={{ ...input, width: '100%', boxSizing: 'border-box', fontSize: 15, padding: '10px 12px' }} value={editName} maxLength={40} autoFocus
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(editSound.id); if (e.key === 'Escape') setEditing(null); }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEditing(null)}
+                style={{ padding: '9px 18px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 14 }}>Cancel</button>
+              <button onClick={() => saveEdit(editSound.id)} disabled={!editName.trim()}
+                style={{ padding: '9px 20px', borderRadius: 7, border: 'none', background: editName.trim() ? 'var(--accent)' : 'var(--panel-dark)', color: editName.trim() ? 'var(--accent-text)' : 'var(--muted-2)', cursor: editName.trim() ? 'pointer' : 'default', fontSize: 14, fontWeight: 600 }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {picker && (
         <EmojiPicker
