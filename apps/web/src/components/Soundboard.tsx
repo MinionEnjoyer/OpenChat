@@ -121,7 +121,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
                     {canManage && (
                       <>
                         <button onClick={() => startEdit(s)} title="Rename / change emoji"
-                          style={{ position: 'absolute', top: -7, left: -7, width: 24, height: 24, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>✎</button>
+                          style={{ position: 'absolute', bottom: -7, left: -7, width: 24, height: 24, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>✎</button>
                         <button onClick={() => remove(s.id)} title="Delete"
                           style={{ position: 'absolute', top: -7, right: -7, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>×</button>
                       </>
