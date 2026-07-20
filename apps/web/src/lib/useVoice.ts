@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Room, RoomEvent, Track, type RemoteTrack } from 'livekit-client';
+import { Room, RoomEvent, Track, type RemoteTrack, type RemoteTrackPublication } from 'livekit-client';
 import * as api from './api';
 import { getAudioPrefs, saveAudioPrefs, type AudioPrefs } from './audioPrefs';
 
@@ -57,6 +57,7 @@ export function useVoice() {
 
   /** Play a soundboard clip into the current call (everyone hears it) + locally. */
   const playSound = useCallback(async (url: string) => {
+    if (getAudioPrefs().muteSoundboard) return; // soundboard disabled for this user
     const room = roomRef.current;
     if (!room) return;
     // Lazily create the audio graph + publish a dedicated soundboard track.
@@ -144,10 +145,15 @@ export function useVoice() {
           setStatus('');
           cleanupAudio();
         })
-        .on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+        .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
           if (track.kind === Track.Kind.Audio) {
             const el = track.attach();
             el.style.display = 'none';
+            // Tag the soundboard track so it can be silenced independently of voices.
+            if (pub?.trackName === 'soundboard') {
+              (el as HTMLElement).dataset.sb = '1';
+              el.muted = getAudioPrefs().muteSoundboard;
+            }
             document.body.appendChild(el);
             applyOutput(el);
             audioEls.current.push(el);
@@ -230,6 +236,13 @@ export function useVoice() {
     for (const el of audioEls.current) el.volume = v / 100;
   }, []);
 
+  const setMuteSoundboard = useCallback((m: boolean) => {
+    saveAudioPrefs({ muteSoundboard: m });
+    for (const el of audioEls.current) {
+      if ((el as HTMLElement).dataset?.sb === '1') el.muted = m;
+    }
+  }, []);
+
   const getPrefs = useCallback((): AudioPrefs => getAudioPrefs(), []);
 
   // Disconnect if the whole app unmounts.
@@ -237,6 +250,6 @@ export function useVoice() {
 
   return {
     channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
-    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume },
+    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard },
   };
 }

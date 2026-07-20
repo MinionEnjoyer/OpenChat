@@ -2,16 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import type { ServerSound } from '../lib/types';
 import * as api from '../lib/api';
 import { uploadToShare } from '../lib/share';
+import { getAudioPrefs } from '../lib/audioPrefs';
 import { EmojiPicker } from './EmojiPicker';
+import { ToggleSwitch } from './ToggleSwitch';
+import type { AudioControls } from './VoiceSettings';
 
 const MAX_SOUND_MB = 5;
 const MAX_SOUND_BYTES = MAX_SOUND_MB * 1024 * 1024;
 
 /** In-call soundboard: click a clip to play it into the voice room; managers can add/remove. */
-export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose }: {
+export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, onClose }: {
   serverId: string;
   canManage: boolean;
   shareBaseUrl: string;
+  audio: AudioControls;
   onPlay: (url: string) => void;
   onClose: () => void;
 }) {
@@ -26,6 +30,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
   const [editName, setEditName] = useState('');
   const [editEmoji, setEditEmoji] = useState('');
   const [picker, setPicker] = useState<{ target: 'add' | 'edit'; x: number; y: number } | null>(null);
+  const [muteFx, setMuteFx] = useState(getAudioPrefs().muteSoundboard);
   const fileRef = useRef<HTMLInputElement>(null);
   const pressedOverlay = useRef(false);
 
@@ -38,6 +43,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
   const filtered = q ? sounds.filter((s) => s.name.toLowerCase().includes(q)) : sounds;
   const editSound = editing ? sounds.find((s) => s.id === editing) : null;
 
+  function onMuteFx(m: boolean) { setMuteFx(m); audio.setMuteSoundboard(m); }
   function startEdit(s: ServerSound) { setEditing(s.id); setEditName(s.name); setEditEmoji(s.emoji || ''); }
   async function saveEdit(id: string) {
     const name = editName.trim();
@@ -93,6 +99,15 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
 
+        <div style={{ padding: '10px 12px', marginBottom: 16, borderRadius: 8, background: 'var(--input-bg)', border: '1px solid var(--border)' }}>
+          <ToggleSwitch
+            checked={muteFx}
+            onChange={onMuteFx}
+            label="Mute soundboard effects"
+            hint="Silences soundboard sounds and disables playing them."
+          />
+        </div>
+
         {loading ? (
           <p style={{ color: 'var(--muted)', fontSize: 14 }}>Loading…</p>
         ) : sounds.length === 0 ? (
@@ -113,8 +128,8 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, onPlay, onClose 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))', gap: 10 }}>
                 {filtered.map((s) => (
                   <div key={s.id} style={{ position: 'relative' }}>
-                    <button onClick={() => onPlay(s.url)} title={`Play ${s.name}`}
-                      style={{ width: '100%', padding: '16px 8px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <button onClick={() => { if (!muteFx) onPlay(s.url); }} disabled={muteFx} title={muteFx ? 'Soundboard effects are muted' : `Play ${s.name}`}
+                      style={{ width: '100%', padding: '16px 8px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: muteFx ? 'default' : 'pointer', opacity: muteFx ? 0.45 : 1, fontWeight: 600, fontSize: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 30, lineHeight: 1 }}>{s.emoji || '🔊'}</span>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{s.name}</span>
                     </button>

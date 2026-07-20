@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAudioPrefs, type AudioPrefs } from '../lib/audioPrefs';
+import { ToggleSwitch } from './ToggleSwitch';
 
 export interface AudioControls {
   getPrefs: () => AudioPrefs;
   setInputDevice: (id: string) => void;
   setOutputDevice: (id: string) => void;
   setOutputVolume: (v: number) => void;
+  setMuteSoundboard: (m: boolean) => void;
 }
 
 /**
@@ -24,6 +26,7 @@ export function VoiceSettings({ audio, label, input }: {
   const [inputId, setInputId] = useState(initial.inputDeviceId || '');
   const [outputId, setOutputId] = useState(initial.outputDeviceId || '');
   const [volume, setVolume] = useState(initial.outputVolume);
+  const [muteFx, setMuteFx] = useState(initial.muteSoundboard);
   const [permError, setPermError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0);
@@ -95,6 +98,7 @@ export function VoiceSettings({ audio, label, input }: {
   function onInput(id: string) { setInputId(id); audio.setInputDevice(id); }
   function onOutput(id: string) { setOutputId(id); audio.setOutputDevice(id); }
   function onVolume(v: number) { setVolume(v); audio.setOutputVolume(v); }
+  function onMuteFx(m: boolean) { setMuteFx(m); audio.setMuteSoundboard(m); }
 
   const deviceLabel = (d: MediaDeviceInfo, i: number, kind: string) =>
     d.label || `${kind} ${i + 1}`;
@@ -160,6 +164,16 @@ export function VoiceSettings({ audio, label, input }: {
         onChange={(e) => onVolume(Number(e.target.value))}
         style={{ width: '100%', accentColor: 'var(--accent)' }}
       />
+
+      {/* Soundboard */}
+      <div style={{ marginTop: 16 }}>
+        <ToggleSwitch
+          checked={muteFx}
+          onChange={onMuteFx}
+          label="Mute soundboard effects"
+          hint="Silences soundboard sounds and disables playing them."
+        />
+      </div>
     </div>
   );
 }

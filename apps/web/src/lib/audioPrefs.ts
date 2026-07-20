@@ -5,10 +5,11 @@ export interface AudioPrefs {
   inputDeviceId: string | null;
   outputDeviceId: string | null;
   outputVolume: number; // 0–100, applied to remote participant audio elements
+  muteSoundboard: boolean; // when true, soundboard effects are silenced + playing is disabled
 }
 
 const KEY = 'openchat.audioPrefs';
-const DEFAULTS: AudioPrefs = { inputDeviceId: null, outputDeviceId: null, outputVolume: 100 };
+const DEFAULTS: AudioPrefs = { inputDeviceId: null, outputDeviceId: null, outputVolume: 100, muteSoundboard: false };
 
 export function getAudioPrefs(): AudioPrefs {
   try {

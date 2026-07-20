@@ -1336,6 +1336,7 @@ export default function App() {
           serverId={activeServer.id}
           canManage={has(activeServer.myPermissions, Permission.MANAGE_CHANNELS)}
           shareBaseUrl={s.shareBaseUrl}
+          audio={voice.audio}
           onPlay={(url) => voice.playSound(url)}
           onClose={() => setSoundboardOpen(false)}
         />
