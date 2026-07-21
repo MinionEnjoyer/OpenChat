@@ -1,10 +1,12 @@
 import {
-  Controller, Get, Post, Patch, Put, Body, Req, Res, UseGuards, NotFoundException,
+  Controller, Get, Post, Patch, Put, Delete, Param, Body, Req, Res, UseGuards, NotFoundException,
 } from '@nestjs/common';
+import { z } from 'zod';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SessionGuard } from './session.guard';
 import { CurrentUser } from './current-user.decorator';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import type { User } from '@prisma/client';
 
 @Controller('auth')
@@ -108,5 +110,28 @@ export class AuthController {
   @UseGuards(SessionGuard)
   wsTicket(@CurrentUser() user: Omit<User, 'authSub'>) {
     return this.authService.mintWsTicket(user.id);
+  }
+
+  // ---- app tokens (bearer auth for native/desktop clients) ----
+
+  @Get('tokens')
+  @UseGuards(SessionGuard)
+  listTokens(@CurrentUser() user: Omit<User, 'authSub'>) {
+    return this.authService.listTokens(user.id);
+  }
+
+  @Post('tokens')
+  @UseGuards(SessionGuard)
+  createToken(
+    @CurrentUser() user: Omit<User, 'authSub'>,
+    @Body(new ZodValidationPipe(z.object({ name: z.string().trim().min(1).max(60).default('App token') }))) body: { name: string },
+  ) {
+    return this.authService.createToken(user.id, body.name);
+  }
+
+  @Delete('tokens/:id')
+  @UseGuards(SessionGuard)
+  revokeToken(@CurrentUser() user: Omit<User, 'authSub'>, @Param('id') id: string) {
+    return this.authService.revokeToken(user.id, id);
   }
 }

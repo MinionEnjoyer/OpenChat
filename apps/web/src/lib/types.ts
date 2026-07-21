@@ -171,3 +171,18 @@ export interface Notifications {
   serverInvites: ServerInviteNotification[];
   count: number;
 }
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
+export interface CreatedApiToken {
+  id: string;
+  name: string;
+  createdAt: string;
+  token: string; // raw value, returned only once on creation
+}

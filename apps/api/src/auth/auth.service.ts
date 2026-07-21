@@ -1,10 +1,10 @@
 import {
   Injectable, OnModuleInit, UnauthorizedException, BadRequestException,
-  ConflictException, Logger,
+  ConflictException, NotFoundException, Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Issuer, generators, Client } from 'openid-client';
-import { randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt, createHash } from 'crypto';
 import type { Session } from 'express-session';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
@@ -209,5 +209,36 @@ export class AuthService implements OnModuleInit {
     if (!userId) return null;
     await this.redis.del(key);
     return userId;
+  }
+
+  // ---- app tokens (bearer auth for native/desktop clients) ----
+
+  private static hashToken(raw: string): string {
+    return createHash('sha256').update(raw).digest('hex');
+  }
+
+  /** Create a personal app token. The raw value is returned ONCE (only its hash is stored). */
+  async createToken(userId: string, name: string) {
+    const raw = `oc_${randomBytes(30).toString('base64url')}`;
+    const rec = await this.prisma.apiToken.create({
+      data: { userId, name: (name || 'App token').slice(0, 60), tokenHash: AuthService.hashToken(raw) },
+      select: { id: true, name: true, createdAt: true },
+    });
+    return { ...rec, token: raw };
+  }
+
+  listTokens(userId: string) {
+    return this.prisma.apiToken.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, lastUsedAt: true, createdAt: true, expiresAt: true },
+    });
+  }
+
+  async revokeToken(userId: string, id: string) {
+    const t = await this.prisma.apiToken.findUnique({ where: { id }, select: { userId: true } });
+    if (!t || t.userId !== userId) throw new NotFoundException('Token not found');
+    await this.prisma.apiToken.update({ where: { id }, data: { revokedAt: new Date() } });
+    return { success: true };
   }
 }

@@ -1,4 +1,4 @@
-import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif, ServerSound } from './types';
+import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken } from './types';
 
 const BASE_URL = '/api';
 
@@ -118,6 +118,12 @@ export const markRead = (channelId: string, lastReadMessageId: string) =>
     body: JSON.stringify({ lastReadMessageId }),
   });
 export const getWsTicket = () => request<WsTicket>('/auth/ws-ticket');
+
+export const listAppTokens = () => request<ApiToken[]>('/auth/tokens');
+export const createAppToken = (name: string) =>
+  request<CreatedApiToken>('/auth/tokens', { method: 'POST', body: JSON.stringify({ name }) });
+export const revokeAppToken = (id: string) =>
+  request<{ success: true }>(`/auth/tokens/${id}`, { method: 'DELETE' });
 
 export const voiceJoin = (channelId: string) =>
   request<{ url: string; token: string; room: string }>(`/voice/${channelId}/join`, { method: 'POST' });

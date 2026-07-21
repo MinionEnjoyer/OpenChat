@@ -5,6 +5,7 @@ import { updateProfile } from '../lib/api';
 import { uploadToShare } from '../lib/share';
 import { Avatar } from './Avatar';
 import { VoiceSettings, type AudioControls } from './VoiceSettings';
+import { AppTokens } from './AppTokens';
 
 export function SettingsModal({
   user,
@@ -31,7 +32,7 @@ export function SettingsModal({
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'profile' | 'appearance' | 'voice'>('profile');
+  const [tab, setTab] = useState<'profile' | 'appearance' | 'voice' | 'tokens'>('profile');
   const fileRef = useRef<HTMLInputElement>(null);
   const pressedOnOverlay = useRef(false);
 
@@ -163,9 +164,9 @@ export function SettingsModal({
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
-          {([['profile', '👤 Profile'], ['appearance', '🎨 Appearance'], ['voice', '🎙 Voice & Video']] as const).map(([val, lbl]) => (
+          {([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens']] as const).map(([val, lbl]) => (
             <button key={val} onClick={() => setTab(val)}
-              style={{ padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
+              style={{ padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
                 fontWeight: tab === val ? 700 : 500, color: tab === val ? 'var(--text-strong)' : 'var(--muted)',
                 borderBottom: '2px solid ' + (tab === val ? 'var(--accent)' : 'transparent'), marginBottom: -1 }}>
               {lbl}
@@ -184,6 +185,8 @@ export function SettingsModal({
         )}
 
         {tab === 'voice' && <VoiceSettings audio={audio} label={label} input={input} />}
+
+        {tab === 'tokens' && <AppTokens label={label} input={input} />}
 
         {tab === 'profile' && (
           <>

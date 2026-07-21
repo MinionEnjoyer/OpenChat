@@ -63,9 +63,25 @@ model User {
   dmChannels             ChannelRecipient[]
   serverInvitesSent      ServerInvitation[] @relation("ServerInviteInviter")
   serverInvitesReceived  ServerInvitation[] @relation("ServerInviteInvitee")
+  apiTokens              ApiToken[]
 
   @@index([authSub])
   @@index([username])
+}
+
+// Personal bearer tokens for native/desktop clients (only the hash is stored).
+model ApiToken {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model ServerInvitation {
