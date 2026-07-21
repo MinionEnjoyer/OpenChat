@@ -246,12 +246,19 @@ export function useVoice() {
     if (!room) return;
     let tracks: LocalTrack[];
     try {
-      tracks = await createLocalScreenTracks({ audio: true });
+      tracks = await createLocalScreenTracks({
+        audio: true,
+        contentHint: 'detail', // prioritise sharpness (text/UI) over framerate
+        resolution: { width: 2560, height: 1440, frameRate: 30 },
+      });
     } catch {
       return; // user cancelled the picker or capture was denied
     }
     for (const t of tracks) {
-      try { await room.localParticipant.publishTrack(t); } catch { try { t.stop(); } catch { /* ignore */ } continue; }
+      const opts = t.kind === Track.Kind.Video
+        ? { screenShareEncoding: { maxBitrate: 8_000_000, maxFramerate: 30, priority: 'high' as const }, degradationPreference: 'maintain-resolution' as const }
+        : undefined;
+      try { await room.localParticipant.publishTrack(t, opts); } catch { try { t.stop(); } catch { /* ignore */ } continue; }
       screenTracksRef.current.push(t);
       if (t.kind === Track.Kind.Video) {
         const mst = t.mediaStreamTrack;
