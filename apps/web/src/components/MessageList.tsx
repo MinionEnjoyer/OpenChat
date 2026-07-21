@@ -65,7 +65,7 @@ function MessageListInner(props: MessageListProps) {
   }, [messages, channelId]);
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div ref={scrollRef} onScroll={onScroll} className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {loadingOlder && <div style={{ textAlign: 'center', color: 'var(--muted-2)', fontSize: 12, padding: 4 }}>Loading older messages…</div>}
       {messages.length === 0 && <div style={{ color: 'var(--muted-2)', fontStyle: 'italic' }}>No messages yet.</div>}
       {messages.map((m) => (

@@ -107,10 +107,17 @@ button:disabled { cursor: default; }
    The intrinsic-size hint keeps the scrollbar stable before a row is rendered. */
 .msg-row { content-visibility: auto; contain-intrinsic-size: auto 56px; }
 
-/* message hover actions */
+/* message actions: a hover-revealed row on desktop… */
 .msg-del { opacity: 0; transition: opacity 0.12s ease; }
 .msg-row:hover .msg-del { opacity: 1; }
-@media (hover: none) { .msg-del { opacity: 1; } }
+
+/* …collapsed behind a single ⋯ toggle on touch / narrow screens to reclaim space */
+.msg-actions-trigger { display: none; }
+@media (hover: none), (max-width: 768px) {
+  .msg-del { display: none !important; }
+  .msg-actions-trigger { display: inline-flex !important; }
+  .msg-scroll { padding: 10px 8px !important; }
+}
 
 /* jump-to-message highlight (when opening a pinned message) */
 @keyframes msgFlash { 0% { background: var(--accent); } 100% { background: transparent; } }

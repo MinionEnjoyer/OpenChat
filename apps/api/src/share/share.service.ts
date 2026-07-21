@@ -1,7 +1,6 @@
-import { Injectable, HttpException, HttpStatus, NotFoundException, Module } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { UploadsController } from './uploads.controller';
 
 /** One uploaded file's stored reference, in the shape chat attachments use. */
 export interface UploadedAttachment {
@@ -98,10 +97,3 @@ export class ShareService {
     return { attachments, rejected: data.rejected ?? [] };
   }
 }
-
-@Module({
-  controllers: [UploadsController],
-  providers: [ShareService],
-  exports: [ShareService],
-})
-export class ShareModule {}
