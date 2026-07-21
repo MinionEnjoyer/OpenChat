@@ -212,7 +212,7 @@ export function VoiceSettings({ audio, label, input }: {
 
       <label style={{ fontSize: 13, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Framerate</label>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {[30, 60].map((f) => {
+        {[30, 60, 120].map((f) => {
           const active = fps === f;
           return (
             <button key={f} onClick={() => onFps(f)}
@@ -234,7 +234,7 @@ export function VoiceSettings({ audio, label, input }: {
         style={{ width: '100%', accentColor: 'var(--accent)' }}
       />
       <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted-2)' }}>
-        Higher is sharper but uses more upload bandwidth. 60 fps favours motion (games); 30 fps favours sharp text. Applies to your next screen share.
+        Higher is sharper but uses more upload bandwidth. 60/120 fps favour motion (games); 30 fps favours sharp text. 120 fps needs a high-refresh display and browser support, and pairs best with a higher bitrate. Applies to your next screen share.
       </p>
 
       {/* Soundboard */}

@@ -263,7 +263,7 @@ export function useVoice() {
     const room = roomRef.current;
     if (!room) return;
     const prefs = getAudioPrefs();
-    const fps = prefs.screenShareFps >= 60 ? 60 : 30;
+    const fps = prefs.screenShareFps >= 120 ? 120 : prefs.screenShareFps >= 60 ? 60 : 30;
     const RES: Record<string, { width: number; height: number }> = {
       '720': { width: 1280, height: 720 },
       '1080': { width: 1920, height: 1080 },
@@ -355,7 +355,7 @@ export function useVoice() {
     saveAudioPrefs({ screenShareBitrate: Math.max(1, Math.min(50, Math.round(mbps))) });
   }, []);
   const setScreenShareFps = useCallback((fps: number) => {
-    saveAudioPrefs({ screenShareFps: fps >= 60 ? 60 : 30 });
+    saveAudioPrefs({ screenShareFps: fps >= 120 ? 120 : fps >= 60 ? 60 : 30 });
   }, []);
   const setScreenShareResolution = useCallback((res: AudioPrefs['screenShareResolution']) => {
     saveAudioPrefs({ screenShareResolution: res });
