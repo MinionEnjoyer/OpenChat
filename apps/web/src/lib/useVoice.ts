@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Room, RoomEvent, Track, type RemoteTrack, type RemoteTrackPublication } from 'livekit-client';
+import { Room, RoomEvent, Track, createLocalScreenTracks, type RemoteTrack, type RemoteTrackPublication, type RemoteParticipant, type LocalTrack } from 'livekit-client';
 import * as api from './api';
 import { getAudioPrefs, saveAudioPrefs, type AudioPrefs } from './audioPrefs';
 
@@ -9,6 +9,14 @@ export interface VoiceParticipant {
   isMe: boolean;
   speaking: boolean;
   micOn: boolean;
+}
+
+/** A live screen-share video (local preview or a remote participant's share). */
+export interface ScreenShare {
+  id: string;
+  name: string;
+  isMe: boolean;
+  track: MediaStreamTrack;
 }
 
 /**
@@ -24,6 +32,10 @@ export function useVoice() {
   const soundDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const soundTrackRef = useRef<MediaStreamTrack | null>(null);
   const soundCache = useRef<Map<string, AudioBuffer>>(new Map());
+  // Screen sharing: locally-published screen tracks (one per shared surface/monitor).
+  const screenTracksRef = useRef<LocalTrack[]>([]);
+  const [screens, setScreens] = useState<ScreenShare[]>([]);
+  const [sharing, setSharing] = useState(false);
   const [channelId, setChannelId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [muted, setMuted] = useState(false);
@@ -46,6 +58,11 @@ export function useVoice() {
   const cleanupAudio = useCallback(() => {
     for (const el of audioEls.current) el.remove();
     audioEls.current = [];
+    // Stop any active screen shares.
+    for (const t of screenTracksRef.current) { try { t.stop(); } catch { /* ignore */ } }
+    screenTracksRef.current = [];
+    setScreens([]);
+    setSharing(false);
     // Tear down the soundboard graph + published track.
     soundTrackRef.current?.stop();
     soundTrackRef.current = null;
@@ -145,7 +162,7 @@ export function useVoice() {
           setStatus('');
           cleanupAudio();
         })
-        .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
+        .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
           if (track.kind === Track.Kind.Audio) {
             const el = track.attach();
             el.style.display = 'none';
@@ -157,10 +174,15 @@ export function useVoice() {
             document.body.appendChild(el);
             applyOutput(el);
             audioEls.current.push(el);
+          } else if (track.kind === Track.Kind.Video) {
+            // A participant's screen share.
+            const name = participant?.name || participant?.identity || 'Screen';
+            setScreens((prev) => [...prev.filter((s) => s.id !== pub.trackSid), { id: pub.trackSid, name, isMe: false, track: track.mediaStreamTrack }]);
           }
         })
-        .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+        .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
           if (track.kind === Track.Kind.Audio) track.detach().forEach((el) => el.remove());
+          else if (track.kind === Track.Kind.Video) setScreens((prev) => prev.filter((s) => s.id !== pub.trackSid));
         });
       // Boot the user out if the connection can't establish within 30s (dead media path,
       // unreachable SFU, etc.) instead of hanging on "Connecting…" forever.
@@ -200,6 +222,52 @@ export function useVoice() {
       setConnecting(false);
     }
   }, [channelId, leave, snapshot, cleanupAudio]);
+
+  /** Stop every active screen share (unpublish + release the capture). */
+  const stopScreenShare = useCallback(async () => {
+    const room = roomRef.current;
+    const tracks = screenTracksRef.current;
+    screenTracksRef.current = [];
+    for (const t of tracks) {
+      try { if (room) await room.localParticipant.unpublishTrack(t, true); } catch { /* ignore */ }
+      try { t.stop(); } catch { /* ignore */ }
+    }
+    setScreens((prev) => prev.filter((s) => !s.isMe));
+    setSharing(false);
+  }, []);
+
+  /**
+   * Start a screen share. The browser's native picker lets the user choose an
+   * application window, a browser tab, or an entire monitor (incl. tab/system audio).
+   * Calling this again adds another surface — e.g. a second monitor — as its own track.
+   */
+  const startScreenShare = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    let tracks: LocalTrack[];
+    try {
+      tracks = await createLocalScreenTracks({ audio: true });
+    } catch {
+      return; // user cancelled the picker or capture was denied
+    }
+    for (const t of tracks) {
+      try { await room.localParticipant.publishTrack(t); } catch { try { t.stop(); } catch { /* ignore */ } continue; }
+      screenTracksRef.current.push(t);
+      if (t.kind === Track.Kind.Video) {
+        const mst = t.mediaStreamTrack;
+        const id = mst.id;
+        setScreens((prev) => [...prev, { id, name: 'You', isMe: true, track: mst }]);
+        // When the user stops this surface from the browser's own "Stop sharing" bar.
+        mst.addEventListener('ended', () => {
+          screenTracksRef.current = screenTracksRef.current.filter((x) => x !== t);
+          try { room.localParticipant.unpublishTrack(t, true); } catch { /* ignore */ }
+          setScreens((prev) => prev.filter((s) => s.id !== id));
+          if (screenTracksRef.current.length === 0) setSharing(false);
+        }, { once: true });
+      }
+    }
+    setSharing(screenTracksRef.current.length > 0);
+  }, []);
 
   const toggleMute = useCallback(async () => {
     const room = roomRef.current;
@@ -250,6 +318,7 @@ export function useVoice() {
 
   return {
     channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
+    screens, sharing, startScreenShare, stopScreenShare,
     audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard },
   };
 }

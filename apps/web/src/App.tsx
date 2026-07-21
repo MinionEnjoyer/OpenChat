@@ -1101,6 +1101,10 @@ export default function App() {
             onWatchState={(pos, paused) => pushWatchState(activeChannel.id, pos, paused)}
             onStopWatch={() => stopWatchParty(activeChannel.id)}
             onOpenSoundboard={() => setSoundboardOpen(true)}
+            screens={voice.channelId === activeChannel.id ? voice.screens : []}
+            sharing={voice.channelId === activeChannel.id && voice.sharing}
+            onShareScreen={() => voice.startScreenShare()}
+            onStopShare={() => voice.stopScreenShare()}
           />
         ) : s.activeChannelId ? (
           <>

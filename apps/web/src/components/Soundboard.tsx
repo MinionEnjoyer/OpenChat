@@ -31,6 +31,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
   const [editEmoji, setEditEmoji] = useState('');
   const [picker, setPicker] = useState<{ target: 'add' | 'edit'; x: number; y: number } | null>(null);
   const [muteFx, setMuteFx] = useState(getAudioPrefs().muteSoundboard);
+  const [editMode, setEditMode] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const pressedOverlay = useRef(false);
 
@@ -99,13 +100,23 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
 
-        <div style={{ padding: '10px 12px', marginBottom: 16, borderRadius: 8, background: 'var(--input-bg)', border: '1px solid var(--border)' }}>
+        <div style={{ padding: '10px 12px', marginBottom: 16, borderRadius: 8, background: 'var(--input-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <ToggleSwitch
             checked={muteFx}
             onChange={onMuteFx}
             label="Mute soundboard effects"
             hint="Silences soundboard sounds and disables playing them."
           />
+          {canManage && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <ToggleSwitch
+                checked={editMode}
+                onChange={setEditMode}
+                label="Edit sounds"
+                hint="Show rename, emoji, and delete controls (and add new sounds)."
+              />
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -133,7 +144,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
                       <span style={{ fontSize: 30, lineHeight: 1 }}>{s.emoji || '🔊'}</span>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{s.name}</span>
                     </button>
-                    {canManage && (
+                    {canManage && editMode && (
                       <>
                         <button onClick={() => startEdit(s)} title="Rename / change emoji"
                           style={{ position: 'absolute', bottom: -7, left: -7, width: 24, height: 24, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontSize: 12, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>✎</button>
@@ -148,7 +159,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
           </>
         )}
 
-        {canManage && (
+        {canManage && editMode && (
           <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
             <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 8 }}>Add a sound</div>
             {!shareBaseUrl ? (
