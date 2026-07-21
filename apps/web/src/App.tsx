@@ -1174,6 +1174,7 @@ export default function App() {
             onOpenSoundboard={() => setSoundboardOpen(true)}
             screens={voice.channelId === activeChannel.id ? voice.screens : []}
             sharing={voice.channelId === activeChannel.id && voice.sharing}
+            audio={voice.audio}
             onShareScreen={() => voice.startScreenShare()}
             onStopShare={() => voice.stopScreenShare()}
             onStopScreen={(id) => voice.stopScreen(id)}

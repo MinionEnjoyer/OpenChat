@@ -13,6 +13,18 @@ export interface AudioPrefs {
 
 export type ScreenResolution = '720' | '1080' | '1440' | 'native';
 
+/** Live audio/video controls exposed by the voice hook to settings UIs. */
+export interface AudioControls {
+  getPrefs: () => AudioPrefs;
+  setInputDevice: (id: string) => void;
+  setOutputDevice: (id: string) => void;
+  setOutputVolume: (v: number) => void;
+  setMuteSoundboard: (m: boolean) => void;
+  setScreenShareBitrate: (mbps: number) => void;
+  setScreenShareFps: (fps: number) => void;
+  setScreenShareResolution: (res: ScreenResolution) => void;
+}
+
 const KEY = 'openchat.audioPrefs';
 const DEFAULTS: AudioPrefs = {
   inputDeviceId: null, outputDeviceId: null, outputVolume: 100, muteSoundboard: false,

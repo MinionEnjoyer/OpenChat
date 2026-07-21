@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VoiceParticipant, ScreenShare } from '../lib/useVoice';
 import type { WatchPartyState } from '../lib/types';
+import type { AudioControls } from '../lib/audioPrefs';
 import { Avatar } from './Avatar';
 import { WatchPartyPlayer } from './WatchPartyPlayer';
+import { ScreenQualityControls } from './ScreenQualityControls';
 import { Icon } from './Icon';
 
 /** Poll a screen-share track's WebRTC stats for a live "1080p · 58fps · 7.9 Mbps" readout. */
@@ -67,10 +69,19 @@ function HiddenScreen({ share, onShow }: { share: ScreenShare; onShow: () => voi
 }
 
 /** Renders one live screen-share track: click/expand to fullscreen, pop-out (PiP),
- *  optional live stats overlay, and stop (own) / hide (remote) controls. */
-function ScreenTile({ share, showStats, onStop, onHide }: { share: ScreenShare; showStats: boolean; onStop?: (id: string) => void; onHide?: () => void }) {
+ *  optional live stats overlay, an in-player quality panel (own share), and
+ *  stop (own) / hide (remote) controls. */
+function ScreenTile({ share, showStats, audio, onStop, onHide, onReshare }: {
+  share: ScreenShare;
+  showStats: boolean;
+  audio?: AudioControls;
+  onStop?: (id: string) => void;
+  onHide?: () => void;
+  onReshare?: () => void;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
   const stats = useScreenStats(ref, share, showStats);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const pipSupported = typeof document !== 'undefined' && (document as any).pictureInPictureEnabled;
   useEffect(() => {
     const el = ref.current;
@@ -102,6 +113,10 @@ function ScreenTile({ share, showStats, onStop, onHide }: { share: ScreenShare; 
       <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 4 }}>
         <button onClick={(e) => { e.stopPropagation(); expand(); }} title="Fullscreen" style={overlayBtn}>⛶</button>
         {pipSupported && <button onClick={(e) => { e.stopPropagation(); popOut(); }} title="Pop out (Picture-in-Picture)" style={overlayBtn}>⧉</button>}
+        {share.isMe && audio && (
+          <button onClick={(e) => { e.stopPropagation(); setSettingsOpen((v) => !v); }} title="Stream settings"
+            style={{ ...overlayBtn, background: settingsOpen ? 'var(--accent)' : 'rgba(0,0,0,0.55)', color: settingsOpen ? 'var(--accent-text)' : '#fff' }}>⚙</button>
+        )}
       </div>
       {share.isMe && onStop && (
         <button
@@ -118,6 +133,24 @@ function ScreenTile({ share, showStats, onStop, onHide }: { share: ScreenShare; 
           style={{ ...overlayBtn, position: 'absolute', top: 8, right: 8 }}>
           🙈 Hide
         </button>
+      )}
+      {settingsOpen && audio && (
+        <div onClick={(e) => e.stopPropagation()}
+          style={{ position: 'absolute', top: 44, left: 8, width: 280, maxHeight: 'calc(100% - 56px)', overflowY: 'auto', zIndex: 6,
+            background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, color: 'var(--text-strong)', fontSize: 14 }}>Stream Settings</span>
+            <button onClick={() => setSettingsOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
+          </div>
+          <ScreenQualityControls audio={audio} compact />
+          {onReshare && (
+            <button onClick={() => { setSettingsOpen(false); onReshare(); }}
+              style={{ width: '100%', marginTop: 12, padding: '8px 0', borderRadius: 6, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+              Re-share to apply now
+            </button>
+          )}
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--muted-2)' }}>Changes apply to your next share, or re-share to apply immediately (re-picks the source).</p>
+        </div>
       )}
     </div>
   );
@@ -141,6 +174,7 @@ export function CallView({
   onOpenSoundboard,
   screens,
   sharing,
+  audio,
   onShareScreen,
   onStopShare,
   onStopScreen,
@@ -162,6 +196,7 @@ export function CallView({
   onOpenSoundboard: () => void;
   screens: ScreenShare[];
   sharing: boolean;
+  audio: AudioControls;
   onShareScreen: () => void;
   onStopShare: () => void;
   onStopScreen: (id: string) => void;
@@ -212,7 +247,11 @@ export function CallView({
       {screens.map((sh) => (
         !sh.isMe && hidden.has(sh.id)
           ? <HiddenScreen key={sh.id} share={sh} onShow={() => toggleHidden(sh.id)} />
-          : <ScreenTile key={sh.id} share={sh} showStats={showStats} onStop={onStopScreen} onHide={() => toggleHidden(sh.id)} />
+          : <ScreenTile key={sh.id} share={sh} showStats={showStats}
+              audio={sh.isMe ? audio : undefined}
+              onStop={onStopScreen}
+              onHide={() => toggleHidden(sh.id)}
+              onReshare={sh.isMe ? () => { onStopScreen(sh.id); onShareScreen(); } : undefined} />
       ))}
     </div>
   );
