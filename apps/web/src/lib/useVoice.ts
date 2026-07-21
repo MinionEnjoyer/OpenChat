@@ -14,6 +14,7 @@ export interface VoiceParticipant {
 /** A live screen-share video (local preview or a remote participant's share). */
 export interface ScreenShare {
   id: string;
+  identity: string; // owning participant's identity (for correlating to their tile)
   name: string;
   isMe: boolean;
   track: MediaStreamTrack;
@@ -178,7 +179,7 @@ export function useVoice() {
           } else if (track.kind === Track.Kind.Video) {
             // A participant's screen share.
             const name = participant?.name || participant?.identity || 'Screen';
-            setScreens((prev) => [...prev.filter((s) => s.id !== pub.trackSid), { id: pub.trackSid, name, isMe: false, track: track.mediaStreamTrack }]);
+            setScreens((prev) => [...prev.filter((s) => s.id !== pub.trackSid), { id: pub.trackSid, identity: participant?.identity ?? pub.trackSid, name, isMe: false, track: track.mediaStreamTrack }]);
           }
         })
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
@@ -286,7 +287,7 @@ export function useVoice() {
     const mst = video.mediaStreamTrack;
     const id = mst.id;
     screenSurfacesRef.current.push({ id, tracks: published });
-    setScreens((prev) => [...prev, { id, name: 'You', isMe: true, track: mst }]);
+    setScreens((prev) => [...prev, { id, identity: room.localParticipant.identity, name: 'You', isMe: true, track: mst }]);
     setSharing(true);
     // When the user stops this surface from the browser's own "Stop sharing" bar.
     mst.addEventListener('ended', () => { stopScreen(id); }, { once: true });

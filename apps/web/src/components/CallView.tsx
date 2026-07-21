@@ -1,12 +1,26 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { VoiceParticipant, ScreenShare } from '../lib/useVoice';
 import type { WatchPartyState } from '../lib/types';
 import { Avatar } from './Avatar';
 import { WatchPartyPlayer } from './WatchPartyPlayer';
 import { Icon } from './Icon';
 
+/** Placeholder shown in place of a remote screen the viewer has chosen to hide.
+ *  Not rendering the <video> lets adaptiveStream pause the incoming data. */
+function HiddenScreen({ share, onShow }: { share: ScreenShare; onShow: () => void }) {
+  return (
+    <div style={{ background: 'var(--input-bg)', border: '1px solid var(--border)', borderRadius: 10, minHeight: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 16 }}>
+      <div style={{ fontSize: 13, color: 'var(--muted)' }}>🖥️ {share.name}'s screen — hidden</div>
+      <button onClick={onShow}
+        style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
+        View stream
+      </button>
+    </div>
+  );
+}
+
 /** Renders one live screen-share track into a <video>, with click-to-fullscreen. */
-function ScreenTile({ share, onStop }: { share: ScreenShare; onStop?: (id: string) => void }) {
+function ScreenTile({ share, onStop, onHide }: { share: ScreenShare; onStop?: (id: string) => void; onHide?: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -34,6 +48,14 @@ function ScreenTile({ share, onStop }: { share: ScreenShare; onStop?: (id: strin
           title="Stop sharing this screen"
           style={{ position: 'absolute', top: 8, right: 8, padding: '5px 10px', borderRadius: 6, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
           ⏹ Stop
+        </button>
+      )}
+      {!share.isMe && onHide && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onHide(); }}
+          title="Hide this stream"
+          style={{ position: 'absolute', top: 8, right: 8, padding: '5px 10px', borderRadius: 6, border: 'none', background: 'rgba(0,0,0,0.6)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+          🙈 Hide
         </button>
       )}
     </div>
@@ -84,6 +106,13 @@ export function CallView({
   onStopScreen: (id: string) => void;
 }) {
   const myScreenCount = screens.filter((s) => s.isMe).length;
+  const streamingIds = new Set(screens.map((s) => s.identity));
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const toggleHidden = (id: string) => setHidden((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {party && (
@@ -102,7 +131,11 @@ export function CallView({
           <>
             {screens.length > 0 && (
               <div style={{ width: '100%', display: 'grid', gridTemplateColumns: screens.length > 1 ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr', gap: 12 }}>
-                {screens.map((sh) => <ScreenTile key={sh.id} share={sh} onStop={onStopScreen} />)}
+                {screens.map((sh) => (
+                  !sh.isMe && hidden.has(sh.id)
+                    ? <HiddenScreen key={sh.id} share={sh} onShow={() => toggleHidden(sh.id)} />
+                    : <ScreenTile key={sh.id} share={sh} onStop={onStopScreen} onHide={() => toggleHidden(sh.id)} />
+                ))}
               </div>
             )}
             {participants.length > 0 && (
@@ -110,10 +143,17 @@ export function CallView({
                 {participants.map((sp) => {
                   const speaking = sp.speaking && sp.micOn;
                   const nameColor = !sp.micOn ? '#a02c2c' : speaking ? '#ffffff' : 'var(--text)';
+                  const streaming = streamingIds.has(sp.identity);
                   return (
                     <div key={sp.identity} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 96 }}>
-                      <div style={{ borderRadius: '50%', padding: 3, border: `3px solid ${speaking ? 'var(--success)' : 'transparent'}`, transition: 'border-color 0.12s' }}>
+                      <div style={{ position: 'relative', borderRadius: '50%', padding: 3, border: `3px solid ${speaking ? 'var(--success)' : 'transparent'}`, transition: 'border-color 0.12s' }}>
                         <Avatar user={{ username: sp.name, displayName: sp.name, avatarUrl: null }} size={64} />
+                        {streaming && (
+                          <span title="Sharing their screen"
+                            style={{ position: 'absolute', bottom: -3, left: '50%', transform: 'translateX(-50%)', background: '#e02424', color: '#fff', fontSize: 9, fontWeight: 800, letterSpacing: 0.5, padding: '1px 6px', borderRadius: 8, border: '2px solid var(--panel)', whiteSpace: 'nowrap' }}>
+                            ● LIVE
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: 13, color: nameColor, fontWeight: speaking ? 700 : 400, transition: 'color 0.12s', display: 'flex', alignItems: 'center', gap: 4, maxWidth: 96, overflow: 'hidden' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sp.isMe ? 'You' : sp.name}</span>
