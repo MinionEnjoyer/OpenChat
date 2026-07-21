@@ -18,6 +18,7 @@ export interface ScreenShare {
   name: string;
   isMe: boolean;
   track: MediaStreamTrack;
+  getStats?: () => Promise<RTCStatsReport | undefined>; // for the live health overlay
 }
 
 /**
@@ -179,7 +180,8 @@ export function useVoice() {
           } else if (track.kind === Track.Kind.Video) {
             // A participant's screen share.
             const name = participant?.name || participant?.identity || 'Screen';
-            setScreens((prev) => [...prev.filter((s) => s.id !== pub.trackSid), { id: pub.trackSid, identity: participant?.identity ?? pub.trackSid, name, isMe: false, track: track.mediaStreamTrack }]);
+            const getStats = () => (track as any).getRTCStatsReport?.();
+            setScreens((prev) => [...prev.filter((s) => s.id !== pub.trackSid), { id: pub.trackSid, identity: participant?.identity ?? pub.trackSid, name, isMe: false, track: track.mediaStreamTrack, getStats }]);
           }
         })
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, pub: RemoteTrackPublication) => {
@@ -260,21 +262,32 @@ export function useVoice() {
   const startScreenShare = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
+    const prefs = getAudioPrefs();
+    const fps = prefs.screenShareFps >= 60 ? 60 : 30;
+    const RES: Record<string, { width: number; height: number }> = {
+      '720': { width: 1280, height: 720 },
+      '1080': { width: 1920, height: 1080 },
+      '1440': { width: 2560, height: 1440 },
+      native: { width: 3840, height: 2160 }, // effectively uncapped for typical monitors
+    };
+    const res = RES[prefs.screenShareResolution] || RES['1440'];
+    // High framerate → favour motion; otherwise favour sharpness (text/UI).
+    const highFps = fps >= 60;
     let tracks: LocalTrack[];
     try {
       tracks = await createLocalScreenTracks({
         audio: true,
-        contentHint: 'detail', // prioritise sharpness (text/UI) over framerate
-        resolution: { width: 2560, height: 1440, frameRate: 30 },
+        contentHint: highFps ? 'motion' : 'detail',
+        resolution: { width: res.width, height: res.height, frameRate: fps },
       });
     } catch {
       return; // user cancelled the picker or capture was denied
     }
-    const maxBitrate = Math.round(Math.max(1, getAudioPrefs().screenShareBitrate) * 1_000_000);
+    const maxBitrate = Math.round(Math.max(1, prefs.screenShareBitrate) * 1_000_000);
     const published: LocalTrack[] = [];
     for (const t of tracks) {
       const opts = t.kind === Track.Kind.Video
-        ? { screenShareEncoding: { maxBitrate, maxFramerate: 30, priority: 'high' as const }, degradationPreference: 'maintain-resolution' as const }
+        ? { screenShareEncoding: { maxBitrate, maxFramerate: fps, priority: 'high' as const }, degradationPreference: (highFps ? 'maintain-framerate' : 'maintain-resolution') as RTCDegradationPreference }
         : undefined;
       try { await room.localParticipant.publishTrack(t, opts); published.push(t); }
       catch { try { t.stop(); } catch { /* ignore */ } }
@@ -287,8 +300,9 @@ export function useVoice() {
     }
     const mst = video.mediaStreamTrack;
     const id = mst.id;
+    const getStats = () => (video as any).getRTCStatsReport?.();
     screenSurfacesRef.current.push({ id, tracks: published });
-    setScreens((prev) => [...prev, { id, identity: room.localParticipant.identity, name: 'You', isMe: true, track: mst }]);
+    setScreens((prev) => [...prev, { id, identity: room.localParticipant.identity, name: 'You', isMe: true, track: mst, getStats }]);
     setSharing(true);
     // When the user stops this surface from the browser's own "Stop sharing" bar.
     mst.addEventListener('ended', () => { stopScreen(id); }, { once: true });
@@ -336,9 +350,15 @@ export function useVoice() {
     }
   }, []);
 
-  // Persist the screen-share bitrate; applies to the next share you start.
+  // Persist the screen-share quality prefs; applied to the next share you start.
   const setScreenShareBitrate = useCallback((mbps: number) => {
     saveAudioPrefs({ screenShareBitrate: Math.max(1, Math.min(50, Math.round(mbps))) });
+  }, []);
+  const setScreenShareFps = useCallback((fps: number) => {
+    saveAudioPrefs({ screenShareFps: fps >= 60 ? 60 : 30 });
+  }, []);
+  const setScreenShareResolution = useCallback((res: AudioPrefs['screenShareResolution']) => {
+    saveAudioPrefs({ screenShareResolution: res });
   }, []);
 
   const getPrefs = useCallback((): AudioPrefs => getAudioPrefs(), []);
@@ -349,6 +369,6 @@ export function useVoice() {
   return {
     channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
     screens, sharing, startScreenShare, stopScreenShare, stopScreen,
-    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard, setScreenShareBitrate },
+    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard, setScreenShareBitrate, setScreenShareFps, setScreenShareResolution },
   };
 }

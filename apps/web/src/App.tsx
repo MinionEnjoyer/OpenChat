@@ -162,8 +162,13 @@ export default function App() {
   // Server-rail drag/drop: dragKey is a serverId or "f:<folderId>"; dropHint highlights the active target.
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropHint, setDropHint] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const showToast = useCallback((msg: string) => { setToast(msg); window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2800); }, []);
+  const [toast, setToast] = useState<{ msg: string; action?: { label: string; onClick: () => void } } | null>(null);
+  const showToast = useCallback((msg: string, action?: { label: string; onClick: () => void }) => {
+    const t = { msg, action };
+    setToast(t);
+    window.setTimeout(() => setToast((cur) => (cur === t ? null : cur)), action ? 8000 : 2800);
+  }, []);
+  const knownStreams = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     applyTheme(theme);
@@ -586,6 +591,34 @@ export default function App() {
     }, 250);
     return () => clearTimeout(t);
   }, [searchQ, openPanel, s.activeChannelId]);
+
+  // Navigate to wherever the current voice call is shown (its channel / DM).
+  const goToCall = useCallback(() => {
+    const vid = voiceRef.current?.channelId;
+    if (!vid) return;
+    const st = useStore.getState();
+    let owning: string | null = null;
+    for (const [sid, chs] of Object.entries(st.channelsByServer)) {
+      if ((chs as Channel[]).some((c) => c.id === vid)) { owning = sid; break; }
+    }
+    if (owning) { setHomeView(false); st.set({ activeServerId: owning, activeChannelId: vid }); }
+    else { setHomeView(true); st.set({ activeServerId: null, activeChannelId: vid }); }
+    setNavOpen(false);
+  }, []);
+
+  // Notify (with a one-click "Watch") when someone else starts a screen share and
+  // we're not already looking at the call.
+  useEffect(() => {
+    const remote = voice.screens.filter((s) => !s.isMe);
+    const ids = new Set(remote.map((s) => s.id));
+    const viewing = useStore.getState().activeChannelId === voiceRef.current?.channelId;
+    if (!viewing) {
+      for (const sh of remote) {
+        if (!knownStreams.current.has(sh.id)) showToast(`🖥️ ${sh.name} started streaming`, { label: 'Watch', onClick: goToCall });
+      }
+    }
+    knownStreams.current = ids;
+  }, [voice.screens, showToast, goToCall]);
 
   function jumpToMessage(id: string) {
     setOpenPanel(null);
@@ -1242,8 +1275,15 @@ export default function App() {
       {toast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
           background: 'var(--panel-dark)', color: 'var(--text-strong)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '10px 18px', boxShadow: '0 6px 24px rgba(0,0,0,0.4)', fontSize: 14, maxWidth: '90vw' }}>
-          {toast}
+          borderRadius: 8, padding: '10px 18px', boxShadow: '0 6px 24px rgba(0,0,0,0.4)', fontSize: 14, maxWidth: '90vw',
+          display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>{toast.msg}</span>
+          {toast.action && (
+            <button onClick={() => { toast.action!.onClick(); setToast(null); }}
+              style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: 'var(--accent)', color: 'var(--accent-text)', flexShrink: 0 }}>
+              {toast.action.label}
+            </button>
+          )}
         </div>
       )}
 
