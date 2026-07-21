@@ -16,8 +16,11 @@ export class WatchPartyController {
   constructor(private readonly wp: WatchPartyService) {}
 
   @Get('library')
-  search(@Query('q') q: string, @CurrentUser() _user: User) {
-    return this.wp.search(q ?? '');
+  search(
+    @Query(new ZodValidationPipe(z.object({ q: z.string().max(200).default('') }))) query: { q: string },
+    @CurrentUser() _user: User,
+  ) {
+    return this.wp.search(query.q);
   }
 
   @Get('image/:itemId')
