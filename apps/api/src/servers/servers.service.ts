@@ -135,15 +135,7 @@ export class ServersService {
         },
       });
 
-      // Create 'general' TEXT channel in a default Category (or without category if schema allows)
-      // Note: Schema says Channel has categoryId? (optional). 
-      // To be safe and strictly follow "default 'general' TEXT channel", we create it.
-      // If Categories are mandatory for organization, we might need to create one first, 
-      // but the contract implies channelId is optional in ServerMember/Channel relations unless specified.
-      // Channel schema: categoryId->Category? (optional). So we can create without category or assume a default exists.
-      // Let's create it without a category for simplicity as per "default" requirement, 
-      // assuming the UI handles positioning or it goes to top-level.
-      
+      // Seed a default top-level #general text channel.
       await tx.channel.create({
         data: {
           serverId: server.id,

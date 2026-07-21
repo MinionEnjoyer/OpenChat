@@ -15,6 +15,7 @@ import { UserPanel } from './components/UserPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { ServerSettingsModal } from './components/ServerSettingsModal';
 import { NotificationHub } from './components/NotificationHub';
+import { HeaderPanel } from './components/HeaderPanel';
 import { MemberListPanel } from './components/MemberListPanel';
 import { CallView } from './components/CallView';
 import { CreateChannelModal } from './components/CreateChannelModal';
@@ -146,8 +147,11 @@ export default function App() {
   const [typing, setTyping] = useState<Record<string, Record<string, number>>>({});
   const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string; content: string } | null>(null);
   // Only one header dropdown (pins / notifications) is open at a time.
-  const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | null>(null);
+  const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | 'search' | null>(null);
   const pinsOpen = openPanel === 'pins';
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [searchBusy, setSearchBusy] = useState(false);
   const [pins, setPins] = useState<Message[]>([]);
   const [incomingCall, setIncomingCall] = useState<{ channelId: string; callerId: string; callerName: string; callerAvatar: string | null } | null>(null);
   const [soundboardOpen, setSoundboardOpen] = useState(false);
@@ -567,6 +571,21 @@ export default function App() {
       showToast('Could not update pin — you may lack permission.');
     }
   }
+
+  // Debounced text-channel search (runs while the search panel is open).
+  useEffect(() => {
+    if (openPanel !== 'search' || !s.activeChannelId) return;
+    const q = searchQ.trim();
+    if (q.length < 2) { setSearchResults([]); setSearchBusy(false); return; }
+    const chId = s.activeChannelId;
+    setSearchBusy(true);
+    const t = setTimeout(async () => {
+      try { setSearchResults(await api.searchMessages(chId, q)); }
+      catch { setSearchResults([]); }
+      finally { setSearchBusy(false); }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchQ, openPanel, s.activeChannelId]);
 
   function jumpToMessage(id: string) {
     setOpenPanel(null);
@@ -1032,6 +1051,11 @@ export default function App() {
                 style={{ background: 'none', border: 'none', color: 'var(--success)', cursor: 'pointer', fontSize: 17 }}>📞</button>
             )}
             {!showFriends && s.activeChannelId && (
+              <button title="Search messages"
+                onClick={() => { const willOpen = openPanel !== 'search'; setOpenPanel(willOpen ? 'search' : null); if (willOpen) { setSearchQ(''); setSearchResults([]); } }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, opacity: openPanel === 'search' ? 1 : 0.7 }}>🔍</button>
+            )}
+            {!showFriends && s.activeChannelId && (
               <button title="Pinned messages"
                 onClick={() => { const willOpen = !pinsOpen; setOpenPanel(willOpen ? 'pins' : null); if (willOpen) loadPins(s.activeChannelId!); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: pinsOpen ? 1 : 0.7 }}><Icon name="pin" size={17} alt="Pinned messages" /></button>
@@ -1053,12 +1077,7 @@ export default function App() {
         </div>
 
         {pinsOpen && !showFriends && (
-          <div style={{ position: 'fixed', top: 52, right: 16, width: 340, maxHeight: 440, overflowY: 'auto', zIndex: 60,
-            background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}>
-            <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={16} /> Pinned Messages</span>
-              <button onClick={() => setOpenPanel(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
-            </div>
+          <HeaderPanel title={<><Icon name="pin" size={16} /> Pinned Messages</>} onClose={() => setOpenPanel(null)}>
             {pins.length === 0 ? (
               <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>No pinned messages yet.</div>
             ) : pins.map((p) => (
@@ -1079,7 +1098,39 @@ export default function App() {
                 </div>
               </div>
             ))}
-          </div>
+          </HeaderPanel>
+        )}
+
+        {openPanel === 'search' && !showFriends && (
+          <HeaderPanel title={<>🔍 Search</>} onClose={() => setOpenPanel(null)}>
+            <div style={{ padding: 12, borderBottom: '1px solid var(--border)', position: 'sticky', top: 45, background: 'var(--panel)' }}>
+              <input autoFocus value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search this channel…"
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: 14 }} />
+            </div>
+            {searchBusy ? (
+              <div style={{ padding: 20, color: 'var(--muted)', fontSize: 13 }}>Searching…</div>
+            ) : searchQ.trim().length < 2 ? (
+              <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>Type at least 2 characters to search.</div>
+            ) : searchResults.length === 0 ? (
+              <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>No messages match “{searchQ.trim()}”.</div>
+            ) : searchResults.map((m) => (
+              <div key={m.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10 }}>
+                <Avatar user={m.author} size={32} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-strong)', fontSize: 13 }}>{m.author?.displayName || m.author?.username || 'user'}</span>
+                    <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text)', wordBreak: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                    {m.content && m.content !== '​' ? m.content : '(attachment)'}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <button onClick={() => jumpToMessage(m.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}>Jump</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </HeaderPanel>
         )}
 
         {showFriends ? (

@@ -270,10 +270,11 @@ export function useVoice() {
     } catch {
       return; // user cancelled the picker or capture was denied
     }
+    const maxBitrate = Math.round(Math.max(1, getAudioPrefs().screenShareBitrate) * 1_000_000);
     const published: LocalTrack[] = [];
     for (const t of tracks) {
       const opts = t.kind === Track.Kind.Video
-        ? { screenShareEncoding: { maxBitrate: 8_000_000, maxFramerate: 30, priority: 'high' as const }, degradationPreference: 'maintain-resolution' as const }
+        ? { screenShareEncoding: { maxBitrate, maxFramerate: 30, priority: 'high' as const }, degradationPreference: 'maintain-resolution' as const }
         : undefined;
       try { await room.localParticipant.publishTrack(t, opts); published.push(t); }
       catch { try { t.stop(); } catch { /* ignore */ } }
@@ -335,6 +336,11 @@ export function useVoice() {
     }
   }, []);
 
+  // Persist the screen-share bitrate; applies to the next share you start.
+  const setScreenShareBitrate = useCallback((mbps: number) => {
+    saveAudioPrefs({ screenShareBitrate: Math.max(1, Math.min(50, Math.round(mbps))) });
+  }, []);
+
   const getPrefs = useCallback((): AudioPrefs => getAudioPrefs(), []);
 
   // Disconnect if the whole app unmounts.
@@ -343,6 +349,6 @@ export function useVoice() {
   return {
     channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
     screens, sharing, startScreenShare, stopScreenShare, stopScreen,
-    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard },
+    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard, setScreenShareBitrate },
   };
 }

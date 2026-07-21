@@ -90,6 +90,8 @@ export const listMessages = (channelId: string, before?: string) => {
   if (before) params.set('before', before);
   return request<Message[]>(`/channels/${channelId}/messages?${params.toString()}`);
 };
+export const searchMessages = (channelId: string, q: string) =>
+  request<Message[]>(`/channels/${channelId}/messages/search?q=${encodeURIComponent(q)}`);
 export const sendMessage = (channelId: string, data: { content: string; attachments?: unknown[] }) =>
   request<Message>(`/channels/${channelId}/messages`, { method: 'POST', body: JSON.stringify(data) });
 export const updateMessage = (messageId: string, data: { content: string }) =>

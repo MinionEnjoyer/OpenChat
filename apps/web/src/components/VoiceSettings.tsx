@@ -8,6 +8,7 @@ export interface AudioControls {
   setOutputDevice: (id: string) => void;
   setOutputVolume: (v: number) => void;
   setMuteSoundboard: (m: boolean) => void;
+  setScreenShareBitrate: (mbps: number) => void;
 }
 
 /**
@@ -27,6 +28,7 @@ export function VoiceSettings({ audio, label, input }: {
   const [outputId, setOutputId] = useState(initial.outputDeviceId || '');
   const [volume, setVolume] = useState(initial.outputVolume);
   const [muteFx, setMuteFx] = useState(initial.muteSoundboard);
+  const [bitrate, setBitrate] = useState(initial.screenShareBitrate);
   const [permError, setPermError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0);
@@ -99,6 +101,7 @@ export function VoiceSettings({ audio, label, input }: {
   function onOutput(id: string) { setOutputId(id); audio.setOutputDevice(id); }
   function onVolume(v: number) { setVolume(v); audio.setOutputVolume(v); }
   function onMuteFx(m: boolean) { setMuteFx(m); audio.setMuteSoundboard(m); }
+  function onBitrate(v: number) { setBitrate(v); audio.setScreenShareBitrate(v); }
 
   const deviceLabel = (d: MediaDeviceInfo, i: number, kind: string) =>
     d.label || `${kind} ${i + 1}`;
@@ -164,6 +167,19 @@ export function VoiceSettings({ audio, label, input }: {
         onChange={(e) => onVolume(Number(e.target.value))}
         style={{ width: '100%', accentColor: 'var(--accent)' }}
       />
+
+      {/* Screen share bitrate */}
+      <label style={{ fontSize: 13, color: 'var(--muted)', display: 'flex', justifyContent: 'space-between', margin: '16px 0 6px' }}>
+        <span>Screen Share Bitrate</span><span>{bitrate} Mbps</span>
+      </label>
+      <input
+        type="range" min={2} max={50} step={1} value={bitrate}
+        onChange={(e) => onBitrate(Number(e.target.value))}
+        style={{ width: '100%', accentColor: 'var(--accent)' }}
+      />
+      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted-2)' }}>
+        Higher is sharper but uses more upload bandwidth. Applies to your next screen share.
+      </p>
 
       {/* Soundboard */}
       <div style={{ marginTop: 16 }}>

@@ -6,10 +6,11 @@ export interface AudioPrefs {
   outputDeviceId: string | null;
   outputVolume: number; // 0–100, applied to remote participant audio elements
   muteSoundboard: boolean; // when true, soundboard effects are silenced + playing is disabled
+  screenShareBitrate: number; // Mbps cap for outgoing screen-share video
 }
 
 const KEY = 'openchat.audioPrefs';
-const DEFAULTS: AudioPrefs = { inputDeviceId: null, outputDeviceId: null, outputVolume: 100, muteSoundboard: false };
+const DEFAULTS: AudioPrefs = { inputDeviceId: null, outputDeviceId: null, outputVolume: 100, muteSoundboard: false, screenShareBitrate: 12 };
 
 export function getAudioPrefs(): AudioPrefs {
   try {

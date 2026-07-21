@@ -65,6 +65,7 @@ model User {
   serverInvitesReceived  ServerInvitation[] @relation("ServerInviteInvitee")
 
   @@index([authSub])
+  @@index([username])
 }
 
 model ServerInvitation {
