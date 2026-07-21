@@ -47,6 +47,7 @@ interface AppState {
   set: (p: Partial<AppState>) => void;
   setChannels: (serverId: string, channels: Channel[]) => void;
   setMessages: (channelId: string, messages: Message[]) => void;
+  prependMessages: (channelId: string, older: Message[]) => void;
   addMessage: (m: Message) => void;
   updateMessage: (m: Message) => void;
   deleteMessage: (channelId: string, id: string) => void;
@@ -75,6 +76,14 @@ const useStore = create<AppState>((set) => ({
     set((s) => ({ channelsByServer: { ...s.channelsByServer, [serverId]: channels } })),
   setMessages: (channelId, messages) =>
     set((s) => ({ messagesByChannel: { ...s.messagesByChannel, [channelId]: messages } })),
+  prependMessages: (channelId, older) =>
+    set((s) => {
+      const cur = s.messagesByChannel[channelId] || [];
+      const seen = new Set(cur.map((m) => m.id));
+      const fresh = older.filter((m) => !seen.has(m.id));
+      if (fresh.length === 0) return s;
+      return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...fresh, ...cur] } };
+    }),
   addMessage: (m) =>
     set((s) => {
       const cur = s.messagesByChannel[m.channelId] || [];
@@ -125,6 +134,11 @@ const useStore = create<AppState>((set) => ({
 export default function App() {
   const s = useStore();
   const wsRef = useRef<WebSocket | null>(null);
+  const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
+  const [wsDown, setWsDown] = useState(false);
+  const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
   const [homeView, setHomeView] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
   const [dmTitle, setDmTitle] = useState('');
@@ -170,6 +184,13 @@ export default function App() {
   }, []);
   const knownStreams = useRef<Set<string>>(new Set());
 
+  // Track + (re)send channel subscriptions so they survive WebSocket reconnects.
+  const wsSubscribe = useCallback((channelId: string) => {
+    subscribedRef.current.add(channelId);
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId } }));
+  }, []);
+
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
@@ -208,19 +229,42 @@ export default function App() {
 
   useEffect(() => {
     if (!s.user) return;
-    let ws: WebSocket;
-    (async () => {
-      const { ticket } = await api.getWsTicket();
+    let closedByUs = false;
+    let attempt = 0;
+    let reconnectTimer: number | undefined;
+
+    function scheduleReconnect() {
+      if (closedByUs) return;
+      setWsDown(true);
+      attempt += 1;
+      const delay = Math.min(30000, 1000 * 2 ** Math.min(attempt, 5)) + Math.floor(Math.random() * 500);
+      reconnectTimer = window.setTimeout(connect, delay);
+    }
+
+    async function connect() {
+      if (closedByUs) return;
+      let ticket: string;
+      try { ({ ticket } = await api.getWsTicket()); }
+      catch { scheduleReconnect(); return; }
+      if (closedByUs) return;
       const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${window.location.host}/ws?ticket=${ticket}`);
+      const ws = new WebSocket(`${proto}://${window.location.host}/ws?ticket=${ticket}`);
       wsRef.current = ws;
       ws.onopen = () => {
+        attempt = 0;
+        setWsDown(false);
         const st = useStore.getState();
         const status = st.user?.status && st.user.status !== 'OFFLINE' ? st.user.status : 'ONLINE';
         ws.send(JSON.stringify({ op: 'presence.update', d: { status } }));
-        // subscribe to DM channels so we get their messages (for unread + live delivery)
-        for (const dm of st.dms) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: dm.id } }));
+        // Re-subscribe to every tracked channel (DMs + opened server channels).
+        for (const dm of st.dms) subscribedRef.current.add(dm.id);
+        for (const id of subscribedRef.current) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: id } }));
+        // Catch up on anything missed while the socket was down.
+        const active = st.activeChannelId;
+        if (active) api.listMessages(active).then((m) => useStore.getState().setMessages(active, m.reverse())).catch(() => {});
       };
+      ws.onclose = () => { if (wsRef.current === ws) wsRef.current = null; scheduleReconnect(); };
+      ws.onerror = () => { try { ws.close(); } catch { /* onclose handles reconnect */ } };
       ws.onmessage = (ev) => {
         const { op, d } = JSON.parse(ev.data);
         const st = useStore.getState();
@@ -255,17 +299,21 @@ export default function App() {
           setTyping((prev) => ({ ...prev, [d.channelId]: { ...(prev[d.channelId] || {}), [d.userId]: Date.now() + 5000 } }));
         }
       };
-    })();
-    return () => ws?.close();
+    }
+
+    connect();
+    return () => {
+      closedByUs = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      wsRef.current?.close();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.user?.id]);
 
   // Keep DM subscriptions current as the conversation list loads/changes.
   useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    for (const dm of s.dms) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: dm.id } }));
-  }, [s.dms]);
+    for (const dm of s.dms) wsSubscribe(dm.id);
+  }, [s.dms, wsSubscribe]);
 
   // Keep the member panel fresh: on any notify + periodically while a server is open.
   useEffect(() => {
@@ -457,10 +505,7 @@ export default function App() {
     const channels = await api.listChannels(serverId);
     useStore.getState().setChannels(serverId, channels);
     // subscribe to every channel in this server so unread counts track background channels too
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      for (const c of channels) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: c.id } }));
-    }
+    for (const c of channels) wsSubscribe(c.id);
     const first = channels.find((c) => c.type === 'TEXT') || channels[0];
     if (first) selectChannel(first.id);
     // load the member list for the right-hand online panel
@@ -480,12 +525,10 @@ export default function App() {
     useStore.getState().clearUnread(channelId);
     setOpenPanel(null);
     if (title !== undefined) setDmTitle(title);
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      // Stay subscribed to previously-opened channels so their unread counts keep updating.
-      ws.send(JSON.stringify({ op: 'subscribe', d: { channelId } }));
-    }
+    // Stay subscribed to previously-opened channels so their unread counts keep updating.
+    wsSubscribe(channelId);
     const msgs = await api.listMessages(channelId);
+    setHasMoreByChannel((h) => ({ ...h, [channelId]: msgs.length >= 50 }));
     useStore.getState().setMessages(channelId, msgs.reverse());
     setNavOpen(false);
     // remember where we are for refresh-persistence
@@ -619,6 +662,24 @@ export default function App() {
     }
     knownStreams.current = ids;
   }, [voice.screens, showToast, goToCall]);
+
+  // Load a page of older messages (scroll-up history) for the active channel.
+  const loadOlder = useCallback(async () => {
+    if (loadingOlderRef.current) return;
+    const st = useStore.getState();
+    const chId = st.activeChannelId;
+    if (!chId) return;
+    const cur = st.messagesByChannel[chId] || [];
+    if (cur.length === 0) return;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const older = await api.listMessages(chId, cur[0].id);
+      useStore.getState().prependMessages(chId, older.slice().reverse());
+      setHasMoreByChannel((h) => ({ ...h, [chId]: older.length >= 50 }));
+    } catch { /* ignore */ }
+    finally { loadingOlderRef.current = false; setLoadingOlder(false); }
+  }, []);
 
   function jumpToMessage(id: string) {
     setOpenPanel(null);
@@ -1210,6 +1271,10 @@ export default function App() {
             )}
             <MessageList
               messages={messages}
+              channelId={s.activeChannelId}
+              hasMore={!!(s.activeChannelId && hasMoreByChannel[s.activeChannelId])}
+              loadingOlder={loadingOlder}
+              onLoadOlder={loadOlder}
               meId={s.user.id}
               myUsername={s.user.username}
               shareBaseUrl={s.shareBaseUrl}
@@ -1270,6 +1335,13 @@ export default function App() {
             <button onClick={() => { if (ringTimer.current) window.clearTimeout(ringTimer.current); setIncomingCall(null); }}
               style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, background: 'var(--danger)', color: '#fff' }}>Decline</button>
           </div>
+        </div>
+      )}
+
+      {wsDown && (
+        <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 400,
+          background: 'var(--danger)', color: '#fff', fontSize: 12, fontWeight: 600, padding: '4px 16px', borderRadius: '0 0 8px 8px', boxShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
+          Reconnecting…
         </div>
       )}
 
