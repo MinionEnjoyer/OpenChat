@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import type { User, Server, Channel, Message, Attachment as Att, DmChannel, ServerMemberInfo } from './lib/types';
 import * as api from './lib/api';
@@ -7,7 +7,6 @@ import { getConfig } from './lib/share';
 import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
 import { AttachmentPicker } from './components/AttachmentPicker';
-import { Attachment } from './components/Attachment';
 import { Avatar } from './components/Avatar';
 import { FriendsView } from './components/FriendsView';
 import { ServerActions } from './components/ServerActions';
@@ -21,12 +20,12 @@ import { CallView } from './components/CallView';
 import { CreateChannelModal } from './components/CreateChannelModal';
 import { WatchPartyPicker } from './components/WatchPartyPicker';
 import { EmojiPicker } from './components/EmojiPicker';
-import { MessageEmbeds, isSingleEmbedUrl, setShareHost } from './components/MessageEmbeds';
+import { setShareHost } from './components/MessageEmbeds';
 import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
-import { PollView } from './components/PollView';
 import { PollModal } from './components/PollModal';
 import { Soundboard } from './components/Soundboard';
+import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
@@ -133,7 +132,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [serverSettingsOpen, setServerSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const voice = useVoice();
   const voiceRef = useRef(voice);
@@ -149,6 +147,8 @@ export default function App() {
   // Only one header dropdown (pins / notifications) is open at a time.
   const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | 'search' | null>(null);
   const pinsOpen = openPanel === 'pins';
+  const openPanelRef = useRef(openPanel);
+  openPanelRef.current = openPanel;
   const [searchQ, setSearchQ] = useState('');
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
@@ -163,7 +163,7 @@ export default function App() {
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropHint, setDropHint] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  function showToast(msg: string) { setToast(msg); window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2800); }
+  const showToast = useCallback((msg: string) => { setToast(msg); window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2800); }, []);
 
   useEffect(() => {
     applyTheme(theme);
@@ -546,7 +546,7 @@ export default function App() {
     voice.join(ch.id).then(() => refreshVoiceMembers(ch.id)).catch((e) => showToast('Voice failed: ' + (e?.message || 'could not connect')));
   }
 
-  async function handleDeleteMessage(channelId: string, id: string) {
+  const handleDeleteMessage = useCallback(async (channelId: string, id: string) => {
     // optimistic removal; the WS message.deleted event confirms/repeats it
     useStore.getState().deleteMessage(channelId, id);
     try {
@@ -554,23 +554,23 @@ export default function App() {
     } catch (e) {
       console.error('delete failed', e);
     }
-  }
+  }, []);
 
-  async function loadPins(channelId: string) {
+  const loadPins = useCallback(async (channelId: string) => {
     try { setPins(await api.listPins(channelId)); } catch { /* ignore */ }
-  }
+  }, []);
 
-  async function handlePin(m: Message, pinned: boolean) {
+  const handlePin = useCallback(async (m: Message, pinned: boolean) => {
     useStore.getState().updateMessage({ ...m, pinned }); // optimistic; WS message.updated confirms
     try {
       await api.pinMessage(m.id, pinned);
-      if (pinsOpen) loadPins(m.channelId);
+      if (openPanelRef.current === 'pins') loadPins(m.channelId);
       showToast(pinned ? '📌 Message pinned' : 'Unpinned');
     } catch (e) {
       useStore.getState().updateMessage({ ...m, pinned: !pinned });
       showToast('Could not update pin — you may lack permission.');
     }
-  }
+  }, [loadPins, showToast]);
 
   // Debounced text-channel search (runs while the search panel is open).
   useEffect(() => {
@@ -649,16 +649,16 @@ export default function App() {
     }
   }
 
-  async function handlePollVote(optionId: string) {
+  const handlePollVote = useCallback(async (optionId: string) => {
     try {
       const updated = await api.votePollOption(optionId);
       if (updated && (updated as Message).id) useStore.getState().updateMessage(updated as Message);
     } catch (e) {
       showToast('Could not record your vote.');
     }
-  }
+  }, [showToast]);
 
-  async function toggleReaction(messageId: string, emoji: string, mine: boolean) {
+  const toggleReaction = useCallback(async (messageId: string, emoji: string, mine: boolean) => {
     setReactPickerFor(null);
     try {
       // Apply the server's updated message immediately (instant feedback); the WS echo re-confirms.
@@ -667,17 +667,42 @@ export default function App() {
     } catch (e) {
       console.error('reaction failed', e);
     }
-  }
+  }, []);
 
-  async function saveEdit(messageId: string, content: string) {
+  // Stable handlers passed into the memoized message list.
+  const handleReply = useCallback((m: Message) => {
+    setReplyingTo({ id: m.id, authorName: m.author?.displayName || m.author?.username || 'user', content: (m.content === '​' ? '(attachment)' : m.content).slice(0, 120) });
+  }, []);
+  const handleStartEdit = useCallback((m: Message) => setEditingId(m.id), []);
+  const handleSaveEdit = useCallback(async (messageId: string, content: string) => {
+    setEditingId(null);
     const trimmed = content.trim();
     if (!trimmed) return;
-    try {
-      await api.updateMessage(messageId, { content: trimmed });
-    } catch (e) {
-      console.error('edit failed', e);
+    try { await api.updateMessage(messageId, { content: trimmed }); } catch (e) { console.error('edit failed', e); }
+  }, []);
+  const handleCancelEdit = useCallback(() => setEditingId(null), []);
+  const handleOpenReactionPicker = useCallback((messageId: string, anchor: { x: number; y: number }) => {
+    setReactPickerAnchor(anchor);
+    setReactPickerFor(messageId);
+  }, []);
+
+  // Usernames eligible for @mention highlighting in the current conversation.
+  // Memoized (stable ref) so the memoized message list isn't invalidated by
+  // presence/typing/unread churn flowing through the store.
+  const mentionNames = useMemo(() => {
+    const names = new Set<string>();
+    const srv = s.activeServerId ? s.servers.find((x) => x.id === s.activeServerId) : null;
+    if (!homeView && srv) {
+      for (const m of (s.membersByServer[srv.id] || [])) names.add(m.user.username.toLowerCase());
+    } else {
+      const dm = homeView && s.activeChannelId ? s.dms.find((d) => d.id === s.activeChannelId) : null;
+      if (dm) {
+        for (const r of dm.recipients) names.add(r.username.toLowerCase());
+        if (s.user) names.add(s.user.username.toLowerCase());
+      }
     }
-  }
+    return names;
+  }, [homeView, s.activeServerId, s.activeChannelId, s.servers, s.membersByServer, s.dms, s.user]);
 
   if (!s.user) return <div style={{ padding: 20, color: 'var(--muted)' }}>Loading…</div>;
 
@@ -766,44 +791,6 @@ export default function App() {
       ? (s.membersByServer[activeServer.id] || []).map((m) => m.user)
       : dmChannel ? [...dmChannel.recipients, s.user] : []),
   ];
-  const mentionNames = new Set(mentionCandidates.map((c) => c.username.toLowerCase()));
-
-  const renderContent = (text: string): React.ReactNode => {
-    const parts: React.ReactNode[] = [];
-    // Match a URL or an @mention; render URLs as links, valid mentions as highlights.
-    const re = /(https?:\/\/[^\s<]+)|@([\w.-]+)/g;
-    let last = 0; let key = 0; let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      if (m[1]) {
-        // URL — trim trailing punctuation back out of the link.
-        let url = m[1];
-        const trail = url.match(/[.,!?;:)\]}'"]+$/)?.[0] ?? '';
-        if (trail) url = url.slice(0, url.length - trail.length);
-        if (m.index > last) parts.push(text.slice(last, m.index));
-        parts.push(
-          <a key={key++} href={url} target="_blank" rel="noopener noreferrer"
-            style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
-            {url}
-          </a>,
-        );
-        if (trail) parts.push(trail);
-        last = m.index + m[0].length;
-      } else {
-        const uname = m[2].toLowerCase();
-        if (!(mentionNames.has(uname) || uname === 'everyone' || uname === 'here')) continue;
-        if (m.index > last) parts.push(text.slice(last, m.index));
-        const self = uname === (s.user?.username || '').toLowerCase() || uname === 'everyone' || uname === 'here';
-        parts.push(
-          <span key={key++} style={{ background: self ? 'var(--accent)' : 'var(--hover)', color: self ? 'var(--accent-text)' : 'var(--accent)', borderRadius: 4, padding: '0 3px', fontWeight: 600 }}>
-            @{m[2]}
-          </span>,
-        );
-        last = m.index + m[0].length;
-      }
-    }
-    if (last < text.length) parts.push(text.slice(last));
-    return parts.length ? parts : text;
-  };
 
   // apply live presence over stored status
   const withPresence = <T extends { id: string; status?: string }>(u: T): T =>
@@ -1187,105 +1174,25 @@ export default function App() {
                 </button>
               </div>
             )}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {messages.length === 0 && <div style={{ color: 'var(--muted-2)', fontStyle: 'italic' }}>No messages yet.</div>}
-              {messages.map((m) => {
-                const canDelete = m.authorId === s.user!.id || canDeleteAny;
-                return (
-                  <div key={m.id} id={'msg-' + m.id} className="msg-row" style={{ display: 'flex', gap: 12, position: 'relative', opacity: m.pending ? 0.55 : 1 }}>
-                    <Avatar user={m.author} size={40} />
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      {m.replyTo && (
-                        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
-                          <span style={{ opacity: 0.7 }}>↩</span>
-                          <span style={{ fontWeight: 600 }}>{m.replyTo.authorName}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>{m.replyTo.content}</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                        <span style={{ fontWeight: 'bold', color: 'var(--text-strong)' }}>{m.author?.displayName || m.author?.username || 'user'}</span>
-                        <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
-                        {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>· sending…</span>}
-                        {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="error" size={12} /> failed to send</span>}
-                        {m.pinned && <span title="Pinned" style={{ fontSize: 11, color: 'var(--muted-2)' }}>· 📌 pinned</span>}
-                      </div>
-                      {editingId === m.id ? (
-                        <input autoFocus value={editText} onChange={(e) => setEditText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); saveEdit(m.id, editText); setEditingId(null); }
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          onBlur={() => setEditingId(null)}
-                          style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4, padding: '6px 8px', outline: 'none', marginTop: 2 }} />
-                      ) : (
-                        m.content && m.content !== '​' && !m.poll && !isSingleEmbedUrl(m.content) && (
-                          <p style={{ margin: '2px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                            {renderContent(m.content)}
-                            {m.editedAt && <span style={{ fontSize: 10, color: 'var(--muted-2)', marginLeft: 6 }}>(edited)</span>}
-                          </p>
-                        )
-                      )}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                        {(m.attachments || []).map((a) => (
-                          <Attachment key={a.id || a.shareAssetId} attachment={a} shareBaseUrl={s.shareBaseUrl} />
-                        ))}
-                      </div>
-                      {m.poll && <PollView poll={m.poll} meId={s.user!.id} onVote={handlePollVote} />}
-                      {m.content && m.content !== '​' && !m.poll && <MessageEmbeds content={m.content} />}
-                      {m.reactions.length > 0 && (
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
-                          {m.reactions.map((r) => {
-                            const mine = r.userIds.includes(s.user!.id);
-                            return (
-                              <button key={r.emoji} onClick={() => toggleReaction(m.id, r.emoji, mine)}
-                                style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '1px 8px', borderRadius: 12, fontSize: 13, cursor: 'pointer',
-                                  border: '1px solid ' + (mine ? 'var(--accent)' : 'var(--border)'), background: mine ? 'var(--hover)' : 'var(--panel)', color: 'var(--text)' }}>
-                                <span>{r.emoji}</span><span style={{ fontSize: 11, color: 'var(--muted)' }}>{r.count}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {editingId !== m.id && !m.pending && !m.failed && (
-                      <div className="msg-del" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4 }}>
-                        <button title="Add reaction"
-                          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setReactPickerAnchor({ x: r.right, y: r.top }); setReactPickerFor(m.id); }}
-                          style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                          😊
-                        </button>
-                        <button title="Reply"
-                          onClick={() => setReplyingTo({ id: m.id, authorName: m.author?.displayName || m.author?.username || 'user', content: (m.content === '​' ? '(attachment)' : m.content).slice(0, 120) })}
-                          style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                          ↩
-                        </button>
-                        {m.authorId === s.user!.id && (
-                          <button title="Edit message"
-                            onClick={() => { setEditingId(m.id); setEditText(m.content === '​' ? '' : m.content); }}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                            ✏️
-                          </button>
-                        )}
-                        {canPin && (
-                          <button title={m.pinned ? 'Unpin message' : 'Pin message'}
-                            onClick={() => handlePin(m, !m.pinned)}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', padding: '2px 5px', display: 'flex', alignItems: 'center', opacity: m.pinned ? 1 : 0.75 }}>
-                            <Icon name="pin" size={13} />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button title="Delete message"
-                            onClick={() => handleDeleteMessage(m.channelId, m.id)}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--danger)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                            🗑
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <MessageList
+              messages={messages}
+              meId={s.user.id}
+              myUsername={s.user.username}
+              shareBaseUrl={s.shareBaseUrl}
+              mentionNames={mentionNames}
+              canDeleteAny={canDeleteAny}
+              canPin={canPin}
+              editingId={editingId}
+              onToggleReaction={toggleReaction}
+              onReply={handleReply}
+              onStartEdit={handleStartEdit}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              onPin={handlePin}
+              onDelete={handleDeleteMessage}
+              onPollVote={handlePollVote}
+              onOpenReactionPicker={handleOpenReactionPicker}
+            />
             {typingText && <div style={{ padding: '0 16px 2px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', height: 16 }}>{typingText}</div>}
             <Composer channelId={s.activeChannelId} shareBaseUrl={s.shareBaseUrl} wsRef={wsRef} title={headerTitle}
               me={s.user} replyingTo={replyingTo} onClearReply={() => setReplyingTo(null)} mentionCandidates={mentionCandidates} />
