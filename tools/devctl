@@ -107,13 +107,28 @@ cmd_stack_health() {
 }
 
 cmd_verify() {
+  local only_layer="${1:-}"
   echo "[devctl] verify — Phase 0 signoff gates"
-  echo "  (stub — full implementation in P0-04)"
-  cmd_stack_health --json || {
-    echo "  ✗ stack health failed"
-    exit 1
-  }
-  echo "  ✓ verify pass (health only — char tests pending P0-04)"
+
+  # 1. Health
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "health" ]; then
+    cmd_stack_health --json || {
+      echo "  ✗ stack health failed"
+      exit 1
+    }
+  fi
+
+  # 2. Characterization tests
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "char" ]; then
+    echo "[devctl] running characterization tests…"
+    (cd "$ROOT/apps/api" && npx jest --config jest-char.config.js --forceExit --json 2>&1) || {
+      echo "  ✗ characterization tests failed"
+      exit 1
+    }
+    echo "  ✓ characterization tests pass"
+  fi
+
+  echo "  ✓ verify pass"
 }
 
 usage() {
