@@ -1105,6 +1105,7 @@ export default function App() {
             sharing={voice.channelId === activeChannel.id && voice.sharing}
             onShareScreen={() => voice.startScreenShare()}
             onStopShare={() => voice.stopScreenShare()}
+            onStopScreen={(id) => voice.stopScreen(id)}
           />
         ) : s.activeChannelId ? (
           <>

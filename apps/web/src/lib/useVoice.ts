@@ -32,8 +32,9 @@ export function useVoice() {
   const soundDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const soundTrackRef = useRef<MediaStreamTrack | null>(null);
   const soundCache = useRef<Map<string, AudioBuffer>>(new Map());
-  // Screen sharing: locally-published screen tracks (one per shared surface/monitor).
-  const screenTracksRef = useRef<LocalTrack[]>([]);
+  // Screen sharing: one entry per shared surface/monitor; each groups its video +
+  // (optional) system-audio track so a single surface can be stopped independently.
+  const screenSurfacesRef = useRef<{ id: string; tracks: LocalTrack[] }[]>([]);
   const [screens, setScreens] = useState<ScreenShare[]>([]);
   const [sharing, setSharing] = useState(false);
   const [channelId, setChannelId] = useState<string | null>(null);
@@ -59,8 +60,8 @@ export function useVoice() {
     for (const el of audioEls.current) el.remove();
     audioEls.current = [];
     // Stop any active screen shares.
-    for (const t of screenTracksRef.current) { try { t.stop(); } catch { /* ignore */ } }
-    screenTracksRef.current = [];
+    for (const surface of screenSurfacesRef.current) for (const t of surface.tracks) { try { t.stop(); } catch { /* ignore */ } }
+    screenSurfacesRef.current = [];
     setScreens([]);
     setSharing(false);
     // Tear down the soundboard graph + published track.
@@ -223,12 +224,26 @@ export function useVoice() {
     }
   }, [channelId, leave, snapshot, cleanupAudio]);
 
+  /** Stop a single shared surface (video + its system audio) by id. */
+  const stopScreen = useCallback(async (id: string) => {
+    const room = roomRef.current;
+    const surface = screenSurfacesRef.current.find((s) => s.id === id);
+    if (!surface) return;
+    screenSurfacesRef.current = screenSurfacesRef.current.filter((s) => s.id !== id);
+    for (const t of surface.tracks) {
+      try { if (room) await room.localParticipant.unpublishTrack(t, true); } catch { /* ignore */ }
+      try { t.stop(); } catch { /* ignore */ }
+    }
+    setScreens((prev) => prev.filter((s) => s.id !== id));
+    setSharing(screenSurfacesRef.current.length > 0);
+  }, []);
+
   /** Stop every active screen share (unpublish + release the capture). */
   const stopScreenShare = useCallback(async () => {
     const room = roomRef.current;
-    const tracks = screenTracksRef.current;
-    screenTracksRef.current = [];
-    for (const t of tracks) {
+    const surfaces = screenSurfacesRef.current;
+    screenSurfacesRef.current = [];
+    for (const surface of surfaces) for (const t of surface.tracks) {
       try { if (room) await room.localParticipant.unpublishTrack(t, true); } catch { /* ignore */ }
       try { t.stop(); } catch { /* ignore */ }
     }
@@ -254,27 +269,28 @@ export function useVoice() {
     } catch {
       return; // user cancelled the picker or capture was denied
     }
+    const published: LocalTrack[] = [];
     for (const t of tracks) {
       const opts = t.kind === Track.Kind.Video
         ? { screenShareEncoding: { maxBitrate: 8_000_000, maxFramerate: 30, priority: 'high' as const }, degradationPreference: 'maintain-resolution' as const }
         : undefined;
-      try { await room.localParticipant.publishTrack(t, opts); } catch { try { t.stop(); } catch { /* ignore */ } continue; }
-      screenTracksRef.current.push(t);
-      if (t.kind === Track.Kind.Video) {
-        const mst = t.mediaStreamTrack;
-        const id = mst.id;
-        setScreens((prev) => [...prev, { id, name: 'You', isMe: true, track: mst }]);
-        // When the user stops this surface from the browser's own "Stop sharing" bar.
-        mst.addEventListener('ended', () => {
-          screenTracksRef.current = screenTracksRef.current.filter((x) => x !== t);
-          try { room.localParticipant.unpublishTrack(t, true); } catch { /* ignore */ }
-          setScreens((prev) => prev.filter((s) => s.id !== id));
-          if (screenTracksRef.current.length === 0) setSharing(false);
-        }, { once: true });
-      }
+      try { await room.localParticipant.publishTrack(t, opts); published.push(t); }
+      catch { try { t.stop(); } catch { /* ignore */ } }
     }
-    setSharing(screenTracksRef.current.length > 0);
-  }, []);
+    const video = published.find((t) => t.kind === Track.Kind.Video);
+    if (!video) {
+      // Nothing usable was published — clean up whatever went through.
+      for (const t of published) { try { await room.localParticipant.unpublishTrack(t, true); } catch { /* ignore */ } try { t.stop(); } catch { /* ignore */ } }
+      return;
+    }
+    const mst = video.mediaStreamTrack;
+    const id = mst.id;
+    screenSurfacesRef.current.push({ id, tracks: published });
+    setScreens((prev) => [...prev, { id, name: 'You', isMe: true, track: mst }]);
+    setSharing(true);
+    // When the user stops this surface from the browser's own "Stop sharing" bar.
+    mst.addEventListener('ended', () => { stopScreen(id); }, { once: true });
+  }, [stopScreen]);
 
   const toggleMute = useCallback(async () => {
     const room = roomRef.current;
@@ -325,7 +341,7 @@ export function useVoice() {
 
   return {
     channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
-    screens, sharing, startScreenShare, stopScreenShare,
+    screens, sharing, startScreenShare, stopScreenShare, stopScreen,
     audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard },
   };
 }

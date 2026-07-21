@@ -6,7 +6,7 @@ import { WatchPartyPlayer } from './WatchPartyPlayer';
 import { Icon } from './Icon';
 
 /** Renders one live screen-share track into a <video>, with click-to-fullscreen. */
-function ScreenTile({ share }: { share: ScreenShare }) {
+function ScreenTile({ share, onStop }: { share: ScreenShare; onStop?: (id: string) => void }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -28,6 +28,14 @@ function ScreenTile({ share }: { share: ScreenShare }) {
       <div style={{ position: 'absolute', left: 8, bottom: 8, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 600 }}>
         🖥️ {share.isMe ? 'You' : share.name}
       </div>
+      {share.isMe && onStop && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onStop(share.id); }}
+          title="Stop sharing this screen"
+          style={{ position: 'absolute', top: 8, right: 8, padding: '5px 10px', borderRadius: 6, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+          ⏹ Stop
+        </button>
+      )}
     </div>
   );
 }
@@ -52,6 +60,7 @@ export function CallView({
   sharing,
   onShareScreen,
   onStopShare,
+  onStopScreen,
 }: {
   channelName: string;
   connected: boolean;
@@ -72,7 +81,9 @@ export function CallView({
   sharing: boolean;
   onShareScreen: () => void;
   onStopShare: () => void;
+  onStopScreen: (id: string) => void;
 }) {
+  const myScreenCount = screens.filter((s) => s.isMe).length;
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {party && (
@@ -91,7 +102,7 @@ export function CallView({
           <>
             {screens.length > 0 && (
               <div style={{ width: '100%', display: 'grid', gridTemplateColumns: screens.length > 1 ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr', gap: 12 }}>
-                {screens.map((sh) => <ScreenTile key={sh.id} share={sh} />)}
+                {screens.map((sh) => <ScreenTile key={sh.id} share={sh} onStop={onStopScreen} />)}
               </div>
             )}
             {participants.length > 0 && (
@@ -129,7 +140,7 @@ export function CallView({
               {sharing && (
                 <button onClick={onStopShare}
                   style={{ padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, background: 'var(--danger)', color: '#fff' }}>
-                  Stop Sharing
+                  {myScreenCount > 1 ? 'Stop All Sharing' : 'Stop Sharing'}
                 </button>
               )}
               {!party && (
