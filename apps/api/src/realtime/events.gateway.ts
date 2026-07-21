@@ -9,6 +9,21 @@ import { PrismaService } from '../prisma/prisma.service';
 const EVENTS_CHANNEL = 'chat:events';
 const HEARTBEAT_MS = 30_000;
 
+/**
+ * WebSocket protocol (path: /ws?ticket=<ws-ticket>). Envelope: { op, d, id? }.
+ * PROTOCOL_VERSION is echoed in the `ready` event so clients can detect drift.
+ *
+ * Client → server ops:  ping, subscribe {channelId}, unsubscribe {channelId},
+ *   message.send {channelId, content, nonce?, attachments?, replyToId?},
+ *   typing.start {channelId}, presence.update {status}
+ * Server → client ops:  ready {protocolVersion, user, servers}, pong,
+ *   message.created {message, nonce?}, message.updated {message},
+ *   message.deleted {channelId, id}, typing {channelId, userId},
+ *   presence {userId, status}, watchparty.sync {channelId, state},
+ *   notify, mention {channelId, channelName, authorName}, call.ring {...}
+ */
+const PROTOCOL_VERSION = 1;
+
 interface Envelope<T = any> {
   op: string;
   d: T;
@@ -92,6 +107,7 @@ export class EventsGateway {
     this.send(socket, {
       op: 'ready',
       d: {
+        protocolVersion: PROTOCOL_VERSION,
         user: {
           id: user.id,
           username: user.username,
