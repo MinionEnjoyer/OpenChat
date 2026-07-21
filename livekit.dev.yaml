@@ -1,0 +1,10 @@
+port: 7880
+rtc:
+  udp_port: 50000
+  tcp_port: 7881
+  use_external_ip: false
+  node_ip: 127.0.0.1
+keys:
+  devkey: secretsecretsecretsecretsecret12
+logging:
+  level: debug

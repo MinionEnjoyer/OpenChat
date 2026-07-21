@@ -31,3 +31,4 @@ coverage/
 # local data
 postgres-data/
 redis-data/
+!.env.dev.example

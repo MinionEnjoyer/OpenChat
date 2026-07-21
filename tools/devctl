@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# devctl — dev stack lifecycle management for OpenChat
+# Usage: ./tools/devctl stack up|down|reset|logs|health [--json]
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+COMPOSE_FILE="$ROOT/docker-compose.dev.yml"
+COMPOSE_CMD="docker compose -f $COMPOSE_FILE"
+
+json_out() {
+  # --json flag present anywhere in args → emit JSON
+  for a in "$@"; do [ "$a" = "--json" ] && return 0; done
+  return 1
+}
+
+cmd_stack_up() {
+  echo "[devctl] starting dev stack…"
+  $COMPOSE_CMD up --build -d "$@"
+}
+
+cmd_stack_down() {
+  echo "[devctl] stopping dev stack…"
+  $COMPOSE_CMD down "$@"
+}
+
+cmd_stack_reset() {
+  echo "[devctl] resetting dev stack (down + volumes + up)…"
+  $COMPOSE_CMD down -v "$@"
+  $COMPOSE_CMD up --build -d "$@"
+}
+
+cmd_stack_logs() {
+  shift # consume 'logs'
+  $COMPOSE_CMD logs "$@"
+}
+
+cmd_stack_health() {
+  shift # consume 'health'
+  local failures=0 r_pg="" r_rd="" r_ap="" r_wb="" r_lk="" r_os="" r_ah=""
+  local want_json=false
+  json_out "$@" && want_json=true
+
+  echo "[devctl] health check…"
+
+  # postgres
+  if nc -z -w 3 localhost 5432 2>/dev/null; then
+    $want_json && r_pg="ok" || echo "  ✓ postgres (localhost:5432)"
+  else
+    failures=$((failures + 1))
+    $want_json && r_pg="unreachable" || echo "  ✗ postgres (localhost:5432) — unreachable"
+  fi
+
+  # redis
+  if nc -z -w 3 localhost 6379 2>/dev/null; then
+    $want_json && r_rd="ok" || echo "  ✓ redis (localhost:6379)"
+  else
+    failures=$((failures + 1))
+    $want_json && r_rd="unreachable" || echo "  ✗ redis (localhost:6379) — unreachable"
+  fi
+
+  # api
+  if nc -z -w 3 localhost 3001 2>/dev/null; then
+    $want_json && r_ap="ok" || echo "  ✓ api (localhost:3001)"
+  else
+    failures=$((failures + 1))
+    $want_json && r_ap="unreachable" || echo "  ✗ api (localhost:3001) — unreachable"
+  fi
+
+  # web
+  if nc -z -w 3 localhost 3000 2>/dev/null; then
+    $want_json && r_wb="ok" || echo "  ✓ web (localhost:3000)"
+  else
+    failures=$((failures + 1))
+    $want_json && r_wb="unreachable" || echo "  ✗ web (localhost:3000) — unreachable"
+  fi
+
+  # livekit
+  if nc -z -w 3 localhost 7880 2>/dev/null; then
+    $want_json && r_lk="ok" || echo "  ✓ livekit (localhost:7880)"
+  else
+    failures=$((failures + 1))
+    $want_json && r_lk="unreachable" || echo "  ✗ livekit (localhost:7880) — unreachable"
+  fi
+
+  # openshare
+  if nc -z -w 3 localhost 8800 2>/dev/null; then
+    $want_json && r_os="ok" || echo "  ✓ openshare (localhost:8800)"
+  else
+    failures=$((failures + 1))
+    $want_json && r_os="unreachable" || echo "  ✗ openshare (localhost:8800) — unreachable"
+  fi
+
+  # API health endpoint (200 = ok)
+  if curl -sf -o /dev/null "http://localhost:3001/api/health" 2>/dev/null; then
+    $want_json && r_ah="ok" || echo "  ✓ GET /api/health → 200"
+  else
+    failures=$((failures + 1))
+    $want_json && r_ah="fail" || echo "  ✗ GET /api/health → failed"
+  fi
+
+  if $want_json; then
+    printf '{"postgres":"%s","redis":"%s","api":"%s","web":"%s","livekit":"%s","openshare":"%s","api_health":"%s"}\n' \
+      "${r_pg:-unknown}" "${r_rd:-unknown}" "${r_ap:-unknown}" "${r_wb:-unknown}" \
+      "${r_lk:-unknown}" "${r_os:-unknown}" "${r_ah:-unknown}"
+  fi
+
+  return $failures
+}
+
+cmd_verify() {
+  echo "[devctl] verify — Phase 0 signoff gates"
+  echo "  (stub — full implementation in P0-04)"
+  cmd_stack_health --json || {
+    echo "  ✗ stack health failed"
+    exit 1
+  }
+  echo "  ✓ verify pass (health only — char tests pending P0-04)"
+}
+
+usage() {
+  cat <<EOF
+devctl — OpenChat dev stack manager
+
+Usage:  ./tools/devctl <command> [flags]
+
+Commands:
+  stack up      Start dev stack (docker compose up --build)
+  stack down    Stop dev stack
+  stack reset   Down + remove volumes + up (fresh state)
+  stack logs    Tail all service logs (pass extra args to docker compose logs)
+  stack health  Health-check every service; --json for machine-readable output
+  verify        Run full verification suite (health + lint + char tests)
+
+Flags:
+  --json        Emit machine-readable JSON (health + verify)
+EOF
+}
+
+# Route subcommand
+case "${1:-}" in
+  stack)
+    case "${2:-}" in
+      up)     shift 2; cmd_stack_up "$@";;
+      down)   shift 2; cmd_stack_down "$@";;
+      reset)  shift 2; cmd_stack_reset "$@";;
+      logs)   cmd_stack_logs "$@";;
+      health) cmd_stack_health "$@";;
+      *)      usage; exit 1;;
+    esac
+    ;;
+  verify) cmd_verify "$@";;
+  *) usage; exit 1;;
+esac
