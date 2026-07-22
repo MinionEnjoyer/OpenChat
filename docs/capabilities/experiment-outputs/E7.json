@@ -1,0 +1,73 @@
+{
+  "experiment": "E7",
+  "hypothesis": "Reactions/pins arrive as message.updated with full message; read state has NO event",
+  "observations": [
+    {
+      "action": "Add reaction (🔥)",
+      "newOps": [
+        "message.updated"
+      ],
+      "eventOp": "message.updated",
+      "hasFullMessage": true,
+      "reactionsCount": 1,
+      "reactionDetail": {
+        "emoji": "🔥",
+        "count": 1,
+        "userIds": [
+          "e7828399-8133-4999-80cf-b44dc31c2d52"
+        ]
+      }
+    },
+    {
+      "action": "Remove reaction (🔥)",
+      "newOps": [
+        "message.updated"
+      ],
+      "eventOp": "message.updated"
+    },
+    {
+      "action": "Pin message (pinned=true)",
+      "newOps": [
+        "message.updated"
+      ],
+      "eventOp": "message.updated",
+      "isPinned": true
+    },
+    {
+      "action": "Unpin message (pinned=false)",
+      "newOps": [
+        "message.updated"
+      ],
+      "eventOp": "message.updated",
+      "isPinned": false
+    },
+    {
+      "action": "Create poll",
+      "newOps": [
+        "message.created"
+      ],
+      "eventOp": "message.created",
+      "hasPollData": true,
+      "pollShape": [
+        "id",
+        "question",
+        "multiple",
+        "closesAt",
+        "options"
+      ]
+    },
+    {
+      "action": "Vote on poll option",
+      "newOps": [
+        "message.updated"
+      ],
+      "eventOp": "message.updated"
+    },
+    {
+      "action": "Mark read",
+      "newOps": [],
+      "note": "Hypothesis from spec: read state has NO event (service: \"we skip publishing\")"
+    }
+  ],
+  "verdict": "RECORDED"
+}

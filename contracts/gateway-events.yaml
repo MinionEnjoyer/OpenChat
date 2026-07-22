@@ -1,0 +1,497 @@
+asyncapi: 2.6.0
+info:
+  title: OpenChat Gateway Events
+  version: 0.1.0
+  description: >
+    WebSocket envelope and event schema for OpenChat's realtime gateway.
+    Derived from Phase 0 observed behavior (E2, E3, E7).
+    Connect: GET /ws?ticket=<ws-ticket> (ticket from GET /api/auth/ws-ticket).
+    Close codes: 4401 (invalid ticket), 4404 (user missing).
+    Server sends ws-ping every ~30s; client must respond with ws-pong.
+servers:
+  dev:
+    url: ws://localhost:3001/ws
+    protocol: ws
+
+channels:
+  gateway:
+    description: >
+      Single bidirectional WS channel. Messages are JSON frames with
+      `{op: string, d: object, id?: string}`. Channel-scoped events
+      (message.created, message.updated, message.deleted) require prior
+      `subscribe {channelIds: [...]}`. `presence` is global.
+    publish:
+      summary: Client-to-server operations
+      message:
+        oneOf:
+          - $ref: '#/components/messages/ping'
+          - $ref: '#/components/messages/subscribe'
+          - $ref: '#/components/messages/unsubscribe'
+          - $ref: '#/components/messages/messageSend'
+          - $ref: '#/components/messages/typingStart'
+          - $ref: '#/components/messages/presenceUpdate'
+    subscribe:
+      summary: Server-to-client events
+      message:
+        oneOf:
+          - $ref: '#/components/messages/ready'
+          - $ref: '#/components/messages/error'
+          - $ref: '#/components/messages/messageCreated'
+          - $ref: '#/components/messages/messageUpdated'
+          - $ref: '#/components/messages/messageDeleted'
+          - $ref: '#/components/messages/typing'
+          - $ref: '#/components/messages/presence'
+          - $ref: '#/components/messages/notify'
+          - $ref: '#/components/messages/mention'
+          - $ref: '#/components/messages/callRing'
+          - $ref: '#/components/messages/watchpartySync'
+
+components:
+  messages:
+    # ── c2s ──
+    ping:
+      summary: Client heartbeat
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: ping
+          d:
+            type: object
+        required: [op]
+      x-evidence: E2
+
+    subscribe:
+      summary: Subscribe to channel events
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: subscribe
+          d:
+            type: object
+            properties:
+              channelIds:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+        required: [op, d]
+      x-evidence: ws.spec.ts#subscribe, E2
+
+    unsubscribe:
+      summary: Unsubscribe from channels
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: unsubscribe
+          d:
+            type: object
+        required: [op, d]
+      x-evidence: ws.spec.ts#unsubscribe, E3
+
+    messageSend:
+      summary: Send a message via WS
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: message.send
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+              content:
+                type: string
+              nonce:
+                type: string
+            required: [channelId, content]
+      x-evidence: ws.spec.ts#message-send, E2
+
+    typingStart:
+      summary: Send typing indicator
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: typing.start
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+            required: [channelId]
+        required: [op, d]
+      x-evidence: E3
+
+    presenceUpdate:
+      summary: Update presence status
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: presence.update
+          d:
+            type: object
+            properties:
+              status:
+                type: string
+            required: [status]
+        required: [op, d]
+      x-evidence: E3
+
+    # ── s2c ──
+    ready:
+      summary: Connection established (sent once on connect)
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: ready
+          d:
+            type: object
+            properties:
+              user:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  username:
+                    type: string
+                  displayName:
+                    type: string
+                    nullable: true
+                  avatarUrl:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                    nullable: true
+                required: [id, username]
+              servers:
+                type: array
+                description: Currently always empty array
+                items:
+                  type: object
+        required: [op, d]
+      x-evidence: ws.spec.ts#handshake, E2
+
+    error:
+      summary: Server error
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: error
+          d:
+            type: object
+            properties:
+              message:
+                type: string
+        required: [op, d]
+      x-evidence: E2
+
+    messageCreated:
+      summary: New message in subscribed channel
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: message.created
+          d:
+            $ref: '#/components/schemas/Message'
+        required: [op, d]
+      x-evidence: ws.spec.ts#subscribe, E2
+
+    messageUpdated:
+      summary: Message edited, reaction changed, pin toggled, or poll voted
+      description: >
+        Reactions, pins, and poll votes all arrive as message.updated with
+        the full message object.
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: message.updated
+          d:
+            $ref: '#/components/schemas/Message'
+        required: [op, d]
+      x-evidence: E7
+
+    messageDeleted:
+      summary: Message deleted (soft-delete)
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: message.deleted
+          d:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              channelId:
+                type: string
+                format: uuid
+            required: [id, channelId]
+        required: [op, d]
+      x-evidence: E3
+
+    typing:
+      summary: User typing indicator
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: typing
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+              userId:
+                type: string
+                format: uuid
+            required: [channelId, userId]
+        required: [op, d]
+      x-evidence: E3
+
+    presence:
+      summary: User presence change (global broadcast)
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: presence
+          d:
+            type: object
+            properties:
+              userId:
+                type: string
+                format: uuid
+              status:
+                type: string
+            required: [userId, status]
+        required: [op, d]
+      x-evidence: E3
+
+    notify:
+      summary: Generic notification (server/channel/role CRUD changes use this)
+      description: >
+        Guild-structure changes (server, channel, role CRUD) currently emit
+        only `notify` — no granular events. This is gap G4.
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: notify
+          d:
+            type: object
+        required: [op, d]
+      x-evidence: E3
+
+    mention:
+      summary: User mentioned in a message
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: mention
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+              messageId:
+                type: string
+                format: uuid
+              channelName:
+                type: string
+              authorName:
+                type: string
+              preview:
+                type: string
+            required: [channelId, messageId, channelName, authorName]
+        required: [op, d]
+      x-evidence: E3
+
+    callRing:
+      summary: Incoming voice call ring
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: call.ring
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+              callerId:
+                type: string
+                format: uuid
+              callerName:
+                type: string
+              callerAvatar:
+                type: string
+                nullable: true
+            required: [channelId, callerId, callerName]
+        required: [op, d]
+      x-evidence: "mentioned in §0.3 inventory; no characterization test"
+      x-unverified: true
+      x-note: "Not observed in experiments; documented from spec inventory"
+
+    watchpartySync:
+      summary: Watchparty synchronization
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: watchparty.sync
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+              state:
+                type: object
+            required: [channelId, state]
+        required: [op, d]
+      x-evidence: "route exists in controller; no characterization test"
+      x-unverified: true
+      x-note: "Deferred to Phase 7; requires Jellyfin"
+
+  schemas:
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        nonce:
+          type: string
+          nullable: true
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reaction'
+        pinned:
+          type: boolean
+        poll:
+          $ref: '#/components/schemas/Poll'
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, channelId, authorId, content]
+
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        messageId:
+          type: string
+          format: uuid
+        shareAssetId:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: string
+        url:
+          type: string
+        thumbnailUrl:
+          type: string
+          nullable: true
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        durationMs:
+          type: integer
+          nullable: true
+
+    Reaction:
+      type: object
+      properties:
+        emoji:
+          type: string
+        userId:
+          type: string
+          format: uuid
+
+    Poll:
+      type: object
+      properties:
+        id:
+          type: string
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              voterIds:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+        allowMultiple:
+          type: boolean

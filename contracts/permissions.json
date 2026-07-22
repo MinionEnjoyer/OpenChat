@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenChat Permissions Bitfield",
+  "description": "Server permission bitfield names and values. Source: apps/api/src/permissions/permissions.ts. This file is derived from the single source of truth in TypeScript; codegen copies it.",
+  "source": "apps/api/src/permissions/permissions.ts",
+  "evidence": "apps/api/test/characterization/roles.spec.ts#GET /servers/permissions returns catalog with bit as string",
+  "permissions": [
+    { "name": "ADMINISTRATOR",    "bit": "1",   "label": "Administrator (all permissions)" },
+    { "name": "MANAGE_SERVER",    "bit": "2",   "label": "Manage Server" },
+    { "name": "MANAGE_CHANNELS",  "bit": "4",   "label": "Manage Channels" },
+    { "name": "MANAGE_ROLES",     "bit": "8",   "label": "Manage Roles" },
+    { "name": "MANAGE_MEMBERS",   "bit": "16",  "label": "Kick Members" },
+    { "name": "CREATE_INVITE",    "bit": "32",  "label": "Create Invites" },
+    { "name": "MANAGE_MESSAGES",  "bit": "64",  "label": "Manage Messages" },
+    { "name": "MENTION_EVERYONE", "bit": "128", "label": "Mention @everyone / @here" }
+  ],
+  "defaults": {
+    "member": ["CREATE_INVITE"],
+    "admin": "ALL_PERMISSIONS"
+  },
+  "serialization": "Permissions are serialized as decimal strings in API responses (BigInt JSON safety)"
+}

@@ -1,0 +1,59 @@
+=== E10 ===
+--- GET /api/auth/me (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+--- GET /api/servers (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+--- GET /api/dms (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+--- GET /api/friends (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+--- GET /api/voice/sessions (no cookie) ---
+{"message":"Cannot GET /api/voice/sessions","error":"Not Found","statusCode":404}
+HTTP_STATUS: 404
+
+--- GET /api/auth/me (Bearer faketoken) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 DONE
+E10 --- GET /api/auth/me (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 --- GET /api/servers (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 --- GET /api/dms (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 --- GET /api/friends (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 --- GET /api/auth/ws-ticket (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 --- GET /api/invites (no cookie) ---
+{"message":"Cannot GET /api/invites","error":"Not Found","statusCode":404}
+HTTP_STATUS: 404
+
+E10 --- GET /api/auth/me (Bearer faketoken) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E10 --- POST /api/auth/me (Bearer) ---
+{"message":"Cannot POST /api/auth/me","error":"Not Found","statusCode":404}
+HTTP_STATUS: 404
+
+E10 E10 DONE

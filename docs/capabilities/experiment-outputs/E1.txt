@@ -1,0 +1,59 @@
+=== E1 ===
+--- POST /api/auth/dev-login (alice) ---
+{"id":"e7828399-8133-4999-80cf-b44dc31c2d52","username":"alice","displayName":"alice","avatarUrl":null,"friendCode":"13602957","status":"ONLINE","serverLayout":null,"createdAt":"2026-07-21T05:48:28.697Z","updatedAt":"2026-07-21T05:48:28.713Z"}
+--- GET /api/auth/me ---
+{"id":"e7828399-8133-4999-80cf-b44dc31c2d52","username":"alice","displayName":"alice","avatarUrl":null,"friendCode":"13602957","status":"ONLINE","serverLayout":null,"createdAt":"2026-07-21T05:48:28.697Z","updatedAt":"2026-07-21T05:48:28.713Z"}
+--- GET /api/servers ---
+[]
+--- GET /api/friends ---
+[]
+--- GET /api/dms ---
+[]
+--- GET /api/voice/sessions ---
+{"message":"Cannot GET /api/voice/sessions","error":"Not Found","statusCode":404}
+--- GET /api/notifications ---
+{"friendRequests":[],"serverInvites":[],"count":0}
+--- GET /api/watchparty ---
+{"message":"Cannot GET /api/watchparty","error":"Not Found","statusCode":404}
+--- GET /api/auth/me (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+E1 DONE
+E1 --- POST /api/auth/dev-login (alice) ---
+{"id":"e7828399-8133-4999-80cf-b44dc31c2d52","username":"alice","displayName":"alice","avatarUrl":null,"friendCode":"13602957","status":"ONLINE","serverLayout":null,"createdAt":"2026-07-21T05:48:28.697Z","updatedAt":"2026-07-21T05:48:28.713Z"}
+E1 --- GET /api/auth/me (authed) ---
+{"id":"e7828399-8133-4999-80cf-b44dc31c2d52","username":"alice","displayName":"alice","avatarUrl":null,"friendCode":"13602957","status":"ONLINE","serverLayout":null,"createdAt":"2026-07-21T05:48:28.697Z","updatedAt":"2026-07-21T05:48:28.713Z"}
+HTTP_STATUS: 200
+
+E1 --- GET /api/servers (authed) ---
+[{"id":"a8c43835-bb55-4a81-a1f8-b932d419c9d9","name":"E9 Test Server","ownerId":"e7828399-8133-4999-80cf-b44dc31c2d52","iconUrl":null,"createdAt":"2026-07-21T05:52:06.423Z","updatedAt":"2026-07-21T05:52:06.423Z","myPermissions":"255"}]
+HTTP_STATUS: 200
+
+E1 --- GET /api/friends (authed) ---
+[]
+HTTP_STATUS: 200
+
+E1 --- GET /api/dms (authed) ---
+[]
+HTTP_STATUS: 200
+
+E1 --- GET /api/notifications (authed) ---
+{"friendRequests":[],"serverInvites":[],"count":0}
+HTTP_STATUS: 200
+
+E1 --- GET /api/auth/ws-ticket (authed) ---
+{"ticket":"f6c7376bfa06e9fbb694af7664b7f8031854a35cabf3d1d2fdc43ca71bcd7b1f","expiresAt":"2026-07-21T05:53:46.832Z"}
+HTTP_STATUS: 200
+
+E1 --- GET /api/auth/server-layout (authed) ---
+{"message":"Cannot GET /api/auth/server-layout","error":"Not Found","statusCode":404}
+HTTP_STATUS: 404
+
+E1 --- GET /api/invites (authed) ---
+{"message":"Cannot GET /api/invites","error":"Not Found","statusCode":404}
+HTTP_STATUS: 404
+
+E1 --- GET /api/auth/me (no cookie) ---
+{"message":"Session is invalid or expired","error":"Unauthorized","statusCode":401}
+HTTP_STATUS: 401
+
+E1 E1 DONE
