@@ -42,7 +42,8 @@ guarded route — modeled as OpenAPI security schemes `cookieAuth | bearerAuth`)
 - dms: `GET /dms` · `POST /dms`
 - friends: `GET /` · `GET requests` · `POST requests` · `POST requests/:id/accept` ·
   `POST requests/:id/decline` · `DELETE :userId` · `POST block/:userId`
-- notifications: `GET /notifications` · `POST server-invitations/:id/(accept|decline)`
+- notifications: `GET /notifications`
+- server-invitations: `POST server-invitations/:id/accept` · `POST server-invitations/:id/decline` (not under /notifications prefix; controller is @Controller() with no prefix)
 - voice: `POST :channelId/join` · `POST :channelId/leave` · `GET :channelId/participants`
 - watchparty: library/image/stream/state routes (document; client use is P2)
 - gifs: `GET /gifs/search`

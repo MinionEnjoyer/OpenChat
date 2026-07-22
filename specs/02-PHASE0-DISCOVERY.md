@@ -88,7 +88,7 @@ poll, 5 pins.
 Remaining jobs (rescoped from original P0-06):
 - The dev/demo seed used by Maestro E2E and manual demo scripts from Phase 1 onward.
 - The 1000-message #volume channel required by E6 and the NFR-02 scroll baseline (flagged as homeless by P0-04 audit).
-- `tools/seed/fixture-ids.json` emitted deterministically so E2E flows reference ids, not names.
+- `tools/seed/fixture-ids.json` emitted with stable KEYS (semantic names → IDs), regenerated per seed run, as single source of truth. IDs are NOT byte-stable across DB resets (API generates them); the key set and file structure are what's stable.
 - Idempotent and fast: re-running against a seeded DB must converge, not duplicate. Assert with a test that runs the seed twice.
 
 What P0-04's API-driven helpers already cover (NOT duplicated here): alice/bob/carol dev-login,
