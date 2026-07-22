@@ -75,12 +75,25 @@ Every REST route in `03 §2`, every WS op, every gap G1–G5: `present | absent 
 with the experiment/char-test that proves it. `devctl trace` fails Phase 0 signoff if any
 entry lacks evidence.
 
-## P0-06 · Seed fixtures
+## P0-06 · Seed fixtures (RESCOPED per P0-04 audit probe D)
+**Deviation origin:** P0-04 chose API-driven fixtures for characterization tests, obsoleting
+P0-06's original role as their supplier. P0-06 is now rescoped to the remaining deliverables.
+
 `tools/seed/seed.mjs` (idempotent, `devctl stack seed`): users alice/bob/carol/dave (dev-login),
 server "Fixture Guild" (3 categories, 6 text + 2 voice channels), roles Admin/Mod/Member with
 known bitfields, 1000-message channel `#volume` (deterministic content, seeded RNG), one DM,
 one group DM, pending friend request carol→dave, 3 uploaded images (E4-dependent auth), one
-poll, 5 pins. Exported constants in `tools/seed/fixture-ids.json` for tests.
+poll, 5 pins.
+
+Remaining jobs (rescoped from original P0-06):
+- The dev/demo seed used by Maestro E2E and manual demo scripts from Phase 1 onward.
+- The 1000-message #volume channel required by E6 and the NFR-02 scroll baseline (flagged as homeless by P0-04 audit).
+- `tools/seed/fixture-ids.json` emitted deterministically so E2E flows reference ids, not names.
+- Idempotent and fast: re-running against a seeded DB must converge, not duplicate. Assert with a test that runs the seed twice.
+
+What P0-04's API-driven helpers already cover (NOT duplicated here): alice/bob/carol dev-login,
+basic server creation, 2 channels, Admin/Mod roles, 5 messages. P0-06 extends this with dave,
+the full 8-channel layout, roles with known bitfields, friendships, DMs, and #volume.
 
 ## Phase 0 signoff gates
 `devctl verify` green (lint/build/char-tests) · all E1–E10 recorded with observed results ·
