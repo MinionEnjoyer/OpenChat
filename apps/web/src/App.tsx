@@ -29,9 +29,10 @@ import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
-import { wsUrl, serverOrigin, getToken } from './lib/serverConfig';
+import { wsUrl, serverOrigin, getToken, setToken } from './lib/serverConfig';
 import { TitleBar, isTauri } from './components/TitleBar';
 import { DesktopSetup } from './components/DesktopSetup';
+import { LoadingScreen } from './components/LoadingScreen';
 import { canManageServer, has, Permission } from './lib/permissions';
 
 interface AppState {
@@ -139,6 +140,7 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
   const [wsDown, setWsDown] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
   const [loadingOlder, setLoadingOlder] = useState(false);
   const loadingOlderRef = useRef(false);
@@ -227,12 +229,27 @@ export default function App() {
           openDm(dm.id, title);
         }
       } catch (e: any) {
-        if (e?.status === 401) window.location.href = `${serverOrigin()}/api/auth/login`;
-        else console.error('init failed', e);
+        if (e?.status === 401) {
+          // Invalid/expired auth. Desktop (token): clear it and return to setup.
+          if (isTauri()) { setToken(null); window.location.reload(); }
+          else window.location.href = `${serverOrigin()}/api/auth/login`;
+        } else {
+          console.error('init failed', e);
+          setConnectError(`Couldn't connect to ${serverOrigin() || 'the server'}. Check the address and your connection.`);
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Back off the loading screen if we can't reach the server within 10s.
+  useEffect(() => {
+    if (s.user || connectError) return;
+    const t = window.setTimeout(() => {
+      if (!useStore.getState().user) setConnectError((e) => e ?? `Still can't reach ${serverOrigin() || 'the server'}. It may be offline.`);
+    }, 10000);
+    return () => window.clearTimeout(t);
+  }, [s.user, connectError]);
 
   useEffect(() => {
     if (!s.user) return;
@@ -814,7 +831,18 @@ export default function App() {
     );
   }
 
-  if (!s.user) return <div style={{ padding: 20, color: 'var(--muted)' }}>Loading…</div>;
+  if (!s.user) {
+    return (
+      <>
+        {isTauri() && <TitleBar />}
+        <LoadingScreen
+          error={connectError}
+          onRetry={() => window.location.reload()}
+          onReconfigure={isTauri() ? () => { setToken(null); window.location.reload(); } : undefined}
+        />
+      </>
+    );
+  }
 
   const channels = s.activeServerId ? s.channelsByServer[s.activeServerId] || [] : [];
   const messages = s.activeChannelId ? s.messagesByChannel[s.activeChannelId] || [] : [];

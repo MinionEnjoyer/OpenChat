@@ -58,6 +58,14 @@ body {
 
 button, input, textarea { font-family: inherit; }
 
+/* connecting spinner */
+@keyframes oc-spin { to { transform: rotate(360deg); } }
+.oc-spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: oc-spin 0.8s linear infinite;
+}
+
 /* Desktop (Tauri) shell: stack the custom title bar above the app shell. */
 #root.tauri { display: flex; flex-direction: column; }
 #root.tauri > .app-shell { flex: 1 1 0; min-height: 0; height: auto; }

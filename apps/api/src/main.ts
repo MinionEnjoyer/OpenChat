@@ -26,8 +26,13 @@ async function bootstrap() {
 
   // Allow a comma-separated origin list (WEB_ORIGIN) plus native clients, which send
   // no Origin header (or a custom app scheme) and authenticate with a bearer token.
-  const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:5173')
-    .split(',').map((o) => o.trim()).filter(Boolean);
+  // Tauri desktop webviews load from these origins (Windows: http(s)://tauri.localhost,
+  // macOS: tauri://localhost) and call the API cross-origin with a bearer token.
+  const NATIVE_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost'];
+  const allowedOrigins = [
+    ...(process.env.WEB_ORIGIN ?? 'http://localhost:5173').split(',').map((o) => o.trim()).filter(Boolean),
+    ...NATIVE_ORIGINS,
+  ];
   app.enableCors({
     origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
     credentials: true,
