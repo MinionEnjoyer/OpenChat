@@ -34,6 +34,33 @@ fn notify(app: AppHandle, title: String, body: String) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
+// Push-to-talk: register a global shortcut so the mic key works even when the app is
+// unfocused. Emits `ptt://down` on press and `ptt://up` on release; the web layer gates
+// the mic on those events. Any previous PTT binding is cleared first.
+#[tauri::command]
+fn register_ptt(app: AppHandle, accelerator: String) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+    let gs = app.global_shortcut();
+    let _ = gs.unregister_all();
+    let handle = app.clone();
+    // on_shortcut accepts a string-like accelerator (e.g. "Ctrl+Shift+V") directly.
+    gs.on_shortcut(accelerator.as_str(), move |_app, _sc, event| {
+        match event.state() {
+            ShortcutState::Pressed => { let _ = handle.emit("ptt://down", ()); }
+            ShortcutState::Released => { let _ = handle.emit("ptt://up", ()); }
+        }
+    })
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn unregister_ptt(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    app.global_shortcut().unregister_all().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // Driven by the web "checking for updates" gate on launch. Returns false when the
 // app is already current; when an update is found it downloads it (emitting progress
 // events) and relaunches into the new version (so this never returns in that case).
@@ -79,7 +106,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![open_external, notify, run_update])
+        .invoke_handler(tauri::generate_handler![open_external, notify, run_update, register_ptt, unregister_ptt])
         .setup(|app| {
             // Deep links that cold-started the app / arrive while running.
             #[cfg(desktop)]

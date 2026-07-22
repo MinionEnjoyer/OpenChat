@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track, createLocalScreenTracks, type RemoteTrack, type RemoteTrackPublication, type RemoteParticipant, type LocalTrack } from 'livekit-client';
 import * as api from './api';
-import { getAudioPrefs, saveAudioPrefs, type AudioPrefs } from './audioPrefs';
+import { getAudioPrefs, saveAudioPrefs, type AudioPrefs, type InputMode, type PttKeybind } from './audioPrefs';
+import { keybindToAccelerator, registerDesktopPtt } from './ptt';
 
 export interface VoiceParticipant {
   identity: string;
@@ -43,6 +44,13 @@ export function useVoice() {
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [muted, setMuted] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  // Voice-input mode + PTT gating. Refs mirror the state so the mic-sync/key handlers
+  // read live values without re-subscribing.
+  const [inputMode, setInputModeState] = useState<InputMode>(() => getAudioPrefs().inputMode);
+  const [pttKeybind, setPttKeybindState] = useState<PttKeybind | null>(() => getAudioPrefs().pttKeybind);
+  const mutedRef = useRef(false);
+  const inputModeRef = useRef<InputMode>(inputMode);
+  const pttHeldRef = useRef(false);
   // Diagnostics for testing: live connection phase + last failure reason.
   const [status, setStatus] = useState('');
   const [lastError, setLastError] = useState<string | null>(null);
@@ -117,6 +125,21 @@ export function useVoice() {
     if (p.outputDeviceId && 'setSinkId' in el) {
       (el as any).setSinkId(p.outputDeviceId).catch(() => {});
     }
+  }, []);
+
+  // Gate the (already-published) mic track to match the desired transmit state:
+  // never while manually muted, always in VAD mode, and only while held in PTT mode.
+  // Muting the published track is instant and keeps the publication (unlike re-publishing).
+  const syncMic = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+    if (!track) return;
+    const transmit = !mutedRef.current && (inputModeRef.current === 'vad' || pttHeldRef.current);
+    try {
+      if (transmit) await track.unmute();
+      else await track.mute();
+    } catch { /* ignore transient mute races */ }
   }, []);
 
   const leave = useCallback(async () => {
@@ -209,9 +232,13 @@ export function useVoice() {
           true,
           prefs.inputDeviceId ? { deviceId: { exact: prefs.inputDeviceId } } : undefined,
         );
+        mutedRef.current = false;
         setMuted(false);
+        // Apply the input mode: in PTT the mic publishes but stays muted until the key is held.
+        await syncMic();
       } catch (micErr) {
         console.warn('[voice] microphone unavailable — joined muted', micErr);
+        mutedRef.current = true;
         setMuted(true);
         setLastError('Microphone unavailable — joined muted. Grant mic access and unmute to talk.');
       }
@@ -233,7 +260,7 @@ export function useVoice() {
     } finally {
       setConnecting(false);
     }
-  }, [channelId, leave, snapshot, cleanupAudio]);
+  }, [channelId, leave, snapshot, cleanupAudio, syncMic]);
 
   /** Stop a single shared surface (video + its system audio) by id. */
   const stopScreen = useCallback(async (id: string) => {
@@ -316,14 +343,83 @@ export function useVoice() {
     mst.addEventListener('ended', () => { stopScreen(id); }, { once: true });
   }, [stopScreen]);
 
+  // Manual (hard) mute — overrides the input mode. In PTT this fully silences even
+  // while the key is held; unmuting returns to the mode's normal gating.
   const toggleMute = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
-    const next = !muted;
-    await room.localParticipant.setMicrophoneEnabled(!next);
+    const next = !mutedRef.current;
+    mutedRef.current = next;
     setMuted(next);
+    await syncMic();
     snapshot(room);
-  }, [muted, snapshot]);
+  }, [snapshot, syncMic]);
+
+  // Switch between open-mic (VAD) and push-to-talk, applying it to the live call.
+  const setInputMode = useCallback((mode: InputMode) => {
+    saveAudioPrefs({ inputMode: mode });
+    inputModeRef.current = mode;
+    setInputModeState(mode);
+    if (mode !== 'ptt') pttHeldRef.current = false;
+    syncMic();
+  }, [syncMic]);
+
+  const setPttKeybind = useCallback((kb: PttKeybind | null) => {
+    saveAudioPrefs({ pttKeybind: kb });
+    setPttKeybindState(kb);
+  }, []);
+
+  // While in PTT mode during a call, gate the mic by the keybind. In-app key events
+  // cover the focused window; a desktop global shortcut covers the unfocused case.
+  useEffect(() => {
+    if (inputMode !== 'ptt' || !channelId || !pttKeybind) return;
+    const kb = pttKeybind;
+    const down = () => { if (!pttHeldRef.current) { pttHeldRef.current = true; syncMic(); } };
+    const up = () => { if (pttHeldRef.current) { pttHeldRef.current = false; syncMic(); } };
+
+    // A bare character key (no modifiers) must not hijack typing when a text field is
+    // focused — otherwise PTT would eat every keystroke in the message box. Modifier
+    // combos and non-typing keys work everywhere (what the settings hint recommends).
+    const bareChar = !kb.ctrl && !kb.shift && !kb.alt && !kb.meta &&
+      (/^Key[A-Z]$/.test(kb.code) || /^Digit[0-9]$/.test(kb.code) || kb.code === 'Space');
+    const inTextField = () => {
+      const el = document.activeElement as HTMLElement | null;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (bareChar && inTextField()) return;
+      if (e.code === kb.code && e.ctrlKey === kb.ctrl && e.shiftKey === kb.shift && e.altKey === kb.alt && e.metaKey === kb.meta) {
+        e.preventDefault();
+        down();
+      }
+    };
+    // Release on the main key OR any modifier lifting, so the mic can't get stuck open.
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === kb.code || (kb.ctrl && !e.ctrlKey) || (kb.shift && !e.shiftKey) || (kb.alt && !e.altKey) || (kb.meta && !e.metaKey)) up();
+    };
+    const onBlur = () => up(); // losing focus counts as key-up (we won't see the real one)
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+
+    let cleanupDesktop: (() => void) | undefined;
+    let disposed = false;
+    registerDesktopPtt(keybindToAccelerator(kb), down, up).then((c) => {
+      if (disposed) c(); else cleanupDesktop = c;
+    });
+
+    return () => {
+      disposed = true;
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+      cleanupDesktop?.();
+      // Leaving PTT (mode/channel/keybind change): drop any held state and re-sync.
+      pttHeldRef.current = false;
+      syncMic();
+    };
+  }, [inputMode, channelId, pttKeybind, syncMic]);
 
   // ---- live device / volume controls (persisted to localStorage) ----
   const setInputDevice = useCallback(async (deviceId: string) => {
@@ -377,6 +473,7 @@ export function useVoice() {
   return {
     channelId, participants, muted, connecting, status, lastError, join, leave, toggleMute, playSound,
     screens, sharing, startScreenShare, stopScreenShare, stopScreen,
-    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard, setScreenShareBitrate, setScreenShareFps, setScreenShareResolution },
+    inputMode, pttKeybind,
+    audio: { getPrefs, setInputDevice, setOutputDevice, setOutputVolume, setMuteSoundboard, setScreenShareBitrate, setScreenShareFps, setScreenShareResolution, setInputMode, setPttKeybind },
   };
 }

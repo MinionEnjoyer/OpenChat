@@ -9,9 +9,24 @@ export interface AudioPrefs {
   screenShareBitrate: number; // Mbps cap for outgoing screen-share video
   screenShareFps: number; // capture/publish framerate (30 or 60)
   screenShareResolution: ScreenResolution; // capture resolution cap
+  inputMode: InputMode; // how the mic transmits in a call
+  pttKeybind: PttKeybind | null; // the key that opens the mic in push-to-talk mode
 }
 
 export type ScreenResolution = '720' | '1080' | '1440' | 'native';
+
+/** 'vad' = open mic (transmit continuously); 'ptt' = only while the keybind is held. */
+export type InputMode = 'vad' | 'ptt';
+
+/** A captured key + modifier state, usable both for in-app matching and a desktop accelerator. */
+export interface PttKeybind {
+  code: string; // KeyboardEvent.code, e.g. "KeyV", "Space"
+  ctrl: boolean;
+  shift: boolean;
+  alt: boolean;
+  meta: boolean;
+  label: string; // human-readable, e.g. "Shift + V"
+}
 
 /** Live audio/video controls exposed by the voice hook to settings UIs. */
 export interface AudioControls {
@@ -23,12 +38,15 @@ export interface AudioControls {
   setScreenShareBitrate: (mbps: number) => void;
   setScreenShareFps: (fps: number) => void;
   setScreenShareResolution: (res: ScreenResolution) => void;
+  setInputMode: (mode: InputMode) => void;
+  setPttKeybind: (kb: PttKeybind | null) => void;
 }
 
 const KEY = 'openchat.audioPrefs';
 const DEFAULTS: AudioPrefs = {
   inputDeviceId: null, outputDeviceId: null, outputVolume: 100, muteSoundboard: false,
   screenShareBitrate: 12, screenShareFps: 30, screenShareResolution: '1440',
+  inputMode: 'vad', pttKeybind: null,
 };
 
 export function getAudioPrefs(): AudioPrefs {
