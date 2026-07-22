@@ -155,6 +155,209 @@ cmd_doctor() {
   echo "[]"
 }
 
+cmd_capabilities() {
+  # Validate capabilities.json: every evidence reference must resolve to a real file,
+  # test name, or E-number. Rule 5.1: no "present"/"absent" entry may be justified by
+  # source reading alone. Exits nonzero with JSON list of broken references.
+  shift
+  local want_json=false
+  json_out "$@" && want_json=true
+
+  local cap_file="$ROOT/docs/capabilities/capabilities.json"
+  if [ ! -f "$cap_file" ]; then
+    $want_json && echo '{"error":"capabilities.json not found"}' || echo "✗ capabilities.json not found"
+    return 1
+  fi
+
+  local errors=()
+  local warnings=()
+
+  # ── Validate REST entries ──
+  local rest_count=$(jq '.rest | length' "$cap_file")
+  for ((i=0; i<rest_count; i++)); do
+    local entry
+    entry=$(jq -r ".rest[$i]" "$cap_file")
+    local method=$(echo "$entry" | jq -r '.method')
+    local path=$(echo "$entry" | jq -r '.path')
+    local status=$(echo "$entry" | jq -r '.status')
+    local evidence=$(echo "$entry" | jq -r '.evidence // empty')
+    local label="REST ${method} ${path}"
+
+    if [ -z "$evidence" ]; then
+      if [ "$status" = "present" ] || [ "$status" = "absent" ]; then
+        errors+=("${label}: no evidence (status=${status}) — Rule 5.1 violation")
+      fi
+      continue
+    fi
+
+    local resolved rc
+    set +e
+    resolved=$(_resolve_evidence "$evidence" "$label" "$status" "$cap_file")
+    rc=$?
+    set -e
+    if [ $rc -ne 0 ]; then
+      errors+=("$resolved")
+    elif [ -n "$resolved" ]; then
+      warnings+=("$resolved")
+    fi
+  done
+
+  # ── Validate WS s2c entries ──
+  local s2c_count=$(jq '.ws.s2c | length' "$cap_file")
+  for ((i=0; i<s2c_count; i++)); do
+    local entry
+    entry=$(jq -r ".ws.s2c[$i]" "$cap_file")
+    local op=$(echo "$entry" | jq -r '.op')
+    local status=$(echo "$entry" | jq -r '.status')
+    local evidence=$(echo "$entry" | jq -r '.evidence // empty')
+    local label="WS s2c ${op}"
+
+    if [ -z "$evidence" ]; then
+      if [ "$status" = "present" ] || [ "$status" = "absent" ]; then
+        errors+=("${label}: no evidence (status=${status}) — Rule 5.1 violation")
+      fi
+      continue
+    fi
+
+    local resolved rc
+    set +e
+    resolved=$(_resolve_evidence "$evidence" "$label" "$status" "$cap_file")
+    rc=$?
+    set -e
+    if [ $rc -ne 0 ]; then
+      errors+=("$resolved")
+    elif [ -n "$resolved" ]; then
+      warnings+=("$resolved")
+    fi
+  done
+
+  # ── Validate WS c2s entries ──
+  local c2s_count=$(jq '.ws.c2s | length' "$cap_file")
+  for ((i=0; i<c2s_count; i++)); do
+    local entry
+    entry=$(jq -r ".ws.c2s[$i]" "$cap_file")
+    local op=$(echo "$entry" | jq -r '.op')
+    local status=$(echo "$entry" | jq -r '.status')
+    local evidence=$(echo "$entry" | jq -r '.evidence // empty')
+    local label="WS c2s ${op}"
+
+    if [ -z "$evidence" ]; then
+      if [ "$status" = "present" ] || [ "$status" = "absent" ]; then
+        errors+=("${label}: no evidence (status=${status}) — Rule 5.1 violation")
+      fi
+      continue
+    fi
+
+    local resolved rc
+    set +e
+    resolved=$(_resolve_evidence "$evidence" "$label" "$status" "$cap_file")
+    rc=$?
+    set -e
+    if [ $rc -ne 0 ]; then
+      errors+=("$resolved")
+    elif [ -n "$resolved" ]; then
+      warnings+=("$resolved")
+    fi
+  done
+
+  # ── Validate gaps ──
+  local gaps_count=$(jq '.gaps | length' "$cap_file")
+  for ((i=0; i<gaps_count; i++)); do
+    local gap_id=$(jq -r ".gaps[$i].id" "$cap_file")
+    local evidence_path=$(jq -r ".gaps[$i].evidencePath // empty" "$cap_file")
+    local label="Gap ${gap_id}"
+
+    if [ -z "$evidence_path" ]; then
+      errors+=("${label}: no evidencePath")
+      continue
+    fi
+
+    if [ -f "$ROOT/$evidence_path" ]; then
+      : # ok
+    elif echo "$evidence_path" | grep -q '#'; then
+      local base="${evidence_path%%#*}"
+      if [ ! -f "$ROOT/$base" ]; then
+        errors+=("${label}: evidencePath '${evidence_path}' — base file not found")
+      fi
+    else
+      errors+=("${label}: evidencePath '${evidence_path}' — file not found")
+    fi
+  done
+
+  # ── Report ──
+  if $want_json; then
+    printf '{"errors":%s,"warnings":%s}\n' \
+      "$(printf '%s\n' "${errors[@]}" | jq -R . | jq -s .)" \
+      "$(printf '%s\n' "${warnings[@]}" | jq -R . | jq -s .)"
+  else
+    if [ ${#warnings[@]} -gt 0 ]; then
+      for w in "${warnings[@]}"; do echo "  ⚠ $w"; done
+    fi
+    if [ ${#errors[@]} -gt 0 ]; then
+      echo "✗ capabilities validation failed:"
+      for e in "${errors[@]}"; do echo "  ✗ $e"; done
+    else
+      echo "✓ capabilities validation pass"
+    fi
+  fi
+
+  [ ${#errors[@]} -eq 0 ] || return 1
+}
+
+_resolve_evidence() {
+  # Resolves an evidence reference string. Returns 0 if resolved, 1 if broken.
+  # Prints error string to stdout on failure, empty string on success.
+  local evidence="$1" label="$2" status="$3" cap_file="$4"
+
+  # Check for source-reading justifications (Rule 5.1)
+  case "$evidence" in
+    "route exists"*|"implied by"*|"mentioned in"*|"source reading"*)
+      if [ "$status" = "present" ] || [ "$status" = "absent" ]; then
+        echo "${label}: evidence='${evidence}' — source reading not allowed for status=${status} (Rule 5.1)"
+        return 1
+      fi
+      echo ""
+      return 0
+      ;;
+  esac
+
+  # E-number reference (e.g., "E1", "E2")
+  if echo "$evidence" | grep -qE '^E[0-9]+$'; then
+    local e_out_txt="$ROOT/docs/capabilities/experiment-outputs/${evidence}.txt"
+    local e_out_json="$ROOT/docs/capabilities/experiment-outputs/${evidence}.json"
+    if [ -f "$e_out_txt" ] || [ -f "$e_out_json" ]; then
+      echo ""
+      return 0
+    fi
+    echo "${label}: evidence=${evidence} — no experiment output found"
+    return 1
+  fi
+
+  # stack health check (special)
+  if [ "$evidence" = "stack health check" ]; then
+    echo ""
+    return 0
+  fi
+
+  # File path reference
+  if echo "$evidence" | grep -qE '^(docs|apps|specs|contracts|tools)/'; then
+    if [ -f "$ROOT/$evidence" ]; then
+      echo ""
+      return 0
+    fi
+    echo "${label}: evidence='${evidence}' — file not found"
+    return 1
+  fi
+
+  # Unrecognized — treat as source reading
+  if [ "$status" = "present" ] || [ "$status" = "absent" ]; then
+    echo "${label}: evidence='${evidence}' — unrecognized format (Rule 5.1)"
+    return 1
+  fi
+  echo ""
+  return 0
+}
+
 cmd_verify() {
   local only_layer="${1:-}"
   echo "[devctl] verify — Phase 0 signoff gates"
@@ -204,6 +407,7 @@ Commands:
   stack logs    Tail all service logs (pass extra args to docker compose logs)
   stack health  Health-check every service; --json for machine-readable output
   doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
+  capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
   verify        Run full verification suite (doctor + health + char tests)
 
 Flags:
@@ -223,7 +427,8 @@ case "${1:-}" in
       *)      usage; exit 1;;
     esac
     ;;
-  doctor) cmd_doctor "$@";;
-  verify) cmd_verify "$@";;
+  doctor)        cmd_doctor "$@";;
+  capabilities)  cmd_capabilities "$@";;
+  verify)        cmd_verify "$@";;
   *) usage; exit 1;;
 esac
