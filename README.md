@@ -16,7 +16,7 @@ Jellyfin for watch parties — rather than reinvent them.
 Everything environment-specific
 (domains, IPs, keys, passwords) is supplied through a single local config file — see
 **[docs/SETUP.md](docs/SETUP.md)**.
-## The newest version of desktop clients for Mac and Windows can be found in the clients-newest directory.
+## The newest version of desktop clients for Mac and Windows can be found on the [Releases](https://github.com/MinionEnjoyer/OpenChat/releases) page!
 ## If you found this project useful, consider supporting me here: https://buymeacoffee.com/minionenjoyer Thank you!
 
 ## Features
