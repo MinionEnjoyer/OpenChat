@@ -149,4 +149,20 @@ characterization test to match new behavior.
 
 ---
 
-*Last updated: 2026-07-21 (P0-04 remediation)*
+## BUG-014: Consumer contract tests should relocate to apps/mobile at P0-17
+
+- **Evidence:** `apps/api/test/contract/consumer.spec.ts` currently lives under the API
+  project. Consumer contract tests exercise the consumer's understanding of the
+  contract — they belong in the consuming application (`apps/mobile`) where they
+  describe the environment they execute in.
+- **User-visible impact:** None. Organizational clarity.
+- **Priority:** LOW — tests run correctly regardless of location. Move when the
+  `apps/mobile` project struct exists (P0-17).
+- **Phase:** P0-17 (mobile project setup).
+- **Fix note:** Move `consumer.spec.ts` (and its supporting schema types) to
+  `apps/mobile/src/api/__tests__/contract/`. Keep a symlink or CI step in the
+  API project until migration is complete.
+
+---
+
+*Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild)*

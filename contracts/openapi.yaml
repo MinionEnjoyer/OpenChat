@@ -856,9 +856,7 @@ paths:
               required: [emoji]
       responses:
         '201':
-          description: >
-            Message with updated reactions array. Characterized: returns 201
-            (not 200).
+          description: "Message with updated reactions array. Characterized: returns 201 (not 200)."
       x-evidence: reactions.spec.ts#add, E7
     delete:
       operationId: removeReaction

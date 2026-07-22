@@ -75,6 +75,57 @@ the obstacle per the pre-approved bypass procedure.
 **Disposition:** **BACKLOG (BUG-001, BUG-002)** — Documented in `docs/BACKLOG.md`. HIGH priority. Fix in Phase4/Phase7; when fixed, tighten characterization to exact `200` with `[P0-04]` in commit message per intentional-change ritual.
 **Audit ref:** docs/audits/P0-04.md §E
 
+## 2026-07-21 — P0-09: vacuous gate pattern — two gates passed without exercising their check
+
+**What:** Two gates inside `devctl verify` were decorative while reporting green:
+
+1. **codegen --check** (P0-07 era): The `gen.mjs --check` subcommand itself had a
+   bug where it always exited 0 regardless of drift detection. The gate reported
+   green because the exit code was 0 — even when drift existed. The devctl
+   call itself was our own finding and self-reported as a stop-and-fix.
+
+2. **Contract test suite:** The committed `devctl verify` (before P0-08) ran
+   doctor → health → codegen → characterization — it did NOT run the contract
+   test suite (`jest-contract.config.js`). That suite had 14 pre-existing
+   failures (all caused by the logout test destroying Alice's session cookie,
+   causing 10 downstream 401s, plus 4 test assertions mismatched against actual
+   server response shapes). `devctl verify` reported green because the failing
+   suite was never wired in.
+
+**Why systemic:** Both follow the same pattern as D8 (BACKLOG.md missing), D10
+(completion reports claiming files that didn't exist), and the systemic
+inconclusive-as-terminal entries above: a human-reported assertion is accepted
+as truth without a mechanical check.
+
+**Remedy:**
+- codegen --check: bug fixed in gen.mjs (explicit process.exit(1) on drift).
+- Contract suite: wired into devctl verify in P0-08.
+- **Prove-it step (this commit):** One contract test deliberately broken, then
+  `devctl verify` run to confirm nonzero exit code — proving the gate now
+  genuinely catches failures.
+- `devctl selftest` subcommand (this commit): Deliberately breaks one thing per
+  layer (doctor, codegen, contract, char) and asserts the corresponding gate
+  fails with nonzero exit. A gate that has never been observed failing is
+  unproven. Selftest is wired into CI only (not `verify` — it mutates).
+
+**Severity:** HIGH — two gates reporting green while doing nothing is the exact
+failure mode the trust pyramid (§3 of 04-TEST-AND-VERIFICATION.md) exists to
+prevent. The mechanical mitigations (devctl verify wiring + selftest) close this
+class of failure permanently.
+
+**Disposition:** **FIXED (2026-07-21)** — contract suite wired + green + prove-it
+confirmed; selftest implemented.
+
+**Findings reconciled:**
+- `/config` requires auth: Server has `@UseGuards(SessionGuard)` but contract
+  says `security: []`. Server wins (ground truth). Contract to be updated.
+  OpenChat API is not a public-config server — the existing behavior is correct
+  and the contract was aspirational.
+- `/notifications` returns `{friendRequests, serverInvites, count}` not a bare
+  array. Server wins. Contract to be updated.
+- `/friends/requests` returns `{incoming, outgoing}` not a bare array. Server
+  wins. Contract to be updated.
+
 ## 2026-07-21 — Systemic: inconclusive treated as terminal (three occurrences)
 
 **What:** Three times verification was reported satisfied on the basis of source inspection

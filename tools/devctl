@@ -394,8 +394,13 @@ cmd_stack_seed() {
   fi
 }
 
+# ── Global JSON output toggle for verify ──
+VERIFY_JSON=false
+
 cmd_verify() {
   local only_layer="${1:-}"
+  # Check for --json flag
+  for a in "$@"; do [ "$a" = "--json" ] && VERIFY_JSON=true; done
   echo "[devctl] verify — Phase 0 signoff gates"
 
   # 0. Doctor — assert required artifacts exist
@@ -471,6 +476,68 @@ Flags:
 EOF
 }
 
+cmd_selftest() {
+  # Deliberately break one thing per layer and assert the corresponding gate fails.
+  # Mutates test files — NOT wired into verify (verify reads, selftest mutates).
+  echo "[devctl] selftest — proving each gate layer catches failures"
+  local failures=0
+
+  # ── Doctor: temporarily rename a required artifact ──
+  local doctor_path="$ROOT/docs/BACKLOG.md"
+  if [ -f "$doctor_path" ]; then
+    mv "$doctor_path" "$ROOT/docs/BACKLOG.md.selftest-tmp"
+    if cmd_doctor > /dev/null 2>&1; then
+      echo "  ✗ doctor: did not catch missing BACKLOG.md"
+      failures=$((failures + 1))
+    else
+      echo "  ✓ doctor: caught missing artifact"
+    fi
+    mv "$ROOT/docs/BACKLOG.md.selftest-tmp" "$doctor_path"
+  fi
+
+  # ── Contract: break one test assertion ──
+  local contract_test="$ROOT/apps/api/test/contract/provider.spec.ts"
+  if [ -f "$contract_test" ]; then
+    cp "$contract_test" "$contract_test.selftest-bak"
+    sed -i '' 's/expect(r.status).toBe(200);$/expect(r.status).toBe(99999);/' "$contract_test"
+    set +e
+    (cd "$ROOT/apps/api" && npx jest --config jest-contract.config.js --forceExit 2>&1 > /dev/null)
+    local contract_rc=$?
+    set -e
+    cp "$contract_test.selftest-bak" "$contract_test" && rm "$contract_test.selftest-bak"
+    if [ "$contract_rc" -ne 0 ]; then
+      echo "  ✓ contract: caught broken test (exit $contract_rc)"
+    else
+      echo "  ✗ contract: did not catch broken test"
+      failures=$((failures + 1))
+    fi
+  fi
+
+  # ── Char: break one characterization test ──
+  local char_test="$ROOT/apps/api/test/characterization/auth.spec.ts"
+  if [ -f "$char_test" ]; then
+    cp "$char_test" "$char_test.selftest-bak"
+    sed -i '' 's/expect(res.status).toBe(200);$/expect(res.status).toBe(99999);/' "$char_test"
+    set +e
+    (cd "$ROOT/apps/api" && npx jest --config jest-char.config.js --forceExit 2>&1 > /dev/null)
+    local char_rc=$?
+    set -e
+    cp "$char_test.selftest-bak" "$char_test" && rm "$char_test.selftest-bak"
+    if [ "$char_rc" -ne 0 ]; then
+      echo "  ✓ char: caught broken test (exit $char_rc)"
+    else
+      echo "  ✗ char: did not catch broken test"
+      failures=$((failures + 1))
+    fi
+  fi
+
+  if [ "$failures" -gt 0 ]; then
+    echo "  ✗ selftest: $failures layer(s) failed to catch injected faults"
+    return 1
+  fi
+  echo "  ✓ selftest: all layers catch injected faults"
+}
+
 cmd_commit() {
   # Fail loudly if tree is dirty (no staging area ambiguity)
   if ! git -C "$ROOT" diff-index --quiet HEAD -- 2>/dev/null; then
@@ -509,7 +576,8 @@ case "${1:-}" in
     ;;
   doctor)        cmd_doctor "$@";;
   capabilities)  cmd_capabilities "$@";;
-  verify)        cmd_verify "$@";;
+  verify)        shift; cmd_verify "$@";;
+  selftest)      cmd_selftest "$@";;
   commit)        shift; cmd_commit "$@";;
   *) usage; exit 1;;
 esac
