@@ -199,3 +199,66 @@ dynamic but shape contracts are invariant. Noted in `docs/capabilities/EXPERIMEN
 
 **Disposition:** **FIXED (2026-07-21)** — MUT3 runtime re-tested, artifacts inventoried,
 dead helpers exercised, `devctl doctor` implemented.
+
+## 2026-07-21 — P0-10: three contract shapes wrong (contract written from source, not evidence)
+
+**What:** The initial `contracts/openapi.yaml` (written from controller source reading pre-
+experiment) was wrong in three places:
+1. `/config` annotated `security: []` (public) — server returns 401 without session cookie
+2. `/friends/requests` described as a bare array — server returns `{incoming, outgoing}`
+3. `/notifications` described as a bare array — server returns `{friendRequests, serverInvites, count}`
+
+All three are now evidence-derived (provider contract tests at `apps/api/test/contract/provider.spec.ts`,
+36/36 passing with `additionalProperties:false`) with CHANGELOG entries, capabilities.json updates,
+and SPEC corrections in 13-PHASE4-SOCIAL.md §P4-01 and §P4-04.
+
+**DRIFT-LOG note:** 03-CONTRACTS.md was written from source reading pre-experiment and was wrong
+in these three places. Contracts are now evidence-derived; server behavior beats every written artifact.
+
+**Disposition:** **FIXED (2026-07-21)** — `contracts/openapi.yaml`, `contracts/CHANGELOG.md`,
+`docs/capabilities/capabilities.json`, `specs/13-PHASE4-SOCIAL.md` all updated.
+
+## 2026-07-21 — P0-09 verify routing bug: prior "verify green" reports were vacuous
+
+**What:** The `devctl verify` contract check was wired in P0-08, but the prior P0-04/P0-07
+reports of "verify green" occurred when the contract suite was not part of `verify` and had
+14 pre-existing failures (10 downstream 401s from a logout test destroying Alice's session
+cookie, plus 4 test assertion mismatches against actual server response shapes — arithmetic
+confirmed: 10+4=14). The characterization suite (89/89 char, 84/84 after remediation) and
+contract suite (36/36 after P0-08 fix, confirmed by retroactive check on a real run) found
+nothing hidden once both were actually run. This is the same class as the codegen-check exit-
+code bug and the missing BACKLOG.md — a vacuous gate. Selftest now exists precisely to
+prevent this class from recurring.
+
+**Disposition:** **FIXED (2026-07-21)** — `devctl verify` contract lane wired in P0-08;
+selftest subcommand added in P0-09; retroactive confirmatory run (89 char + 36 contract) green.
+
+## 2026-07-21 — Spec assumption about existing OIDC config data was false (DR-002, P0-11)
+
+**What:** 10-PHASE1-FOUNDATION-AUTH.md §P1-03 assumed `GET /api/config` returned
+`{oidc:{issuer, clientId, nativeRedirectUri}}` that the mobile app could read pre-auth.
+In reality, `/api/config` returns only `{shareBaseUrl, jellyfinUrl}` (both post-auth
+internal-service URLs) and is behind `SessionGuard`. No OIDC fields exist anywhere in
+the client-facing API surface. The OIDC env vars (`OIDC_ISSUER`, `OIDC_CLIENT_ID`, etc.)
+exist server-side in `configuration.ts` but are consumed ONLY by `AuthService` (the
+server-side OIDC redirect flow) and never exposed to any client.
+
+**Evidence:**
+- `curl http://localhost:3001/api/config` (no cookie) → 401
+- `curl http://localhost:3001/api/config` (with cookie) → `{shareBaseUrl, jellyfinUrl}`
+- `apps/api/src/config/config.controller.ts:6` — `@UseGuards(SessionGuard)`, returns only two fields
+- `apps/api/src/auth/auth.service.ts:44` — server-side OIDC discovery, never exposed
+- `apps/mobile/` — zero OIDC references in any source file
+
+**Why this survived:** Nothing tested the spec assumption. Phase 0 experiments E1-E11
+did not include a "does this endpoint return what P1-03 assumes" check. The spec was
+written from the design, not from evidence.
+
+**Disposition:** **FIXED (2026-07-21)** — DR-002 rewritten with real finding; P1-03 corrected
+to create a new OIDC metadata endpoint rather than modify `/api/config`. Options re-costed
+(D: new additive endpoint recommended; B+C as composable fallback). Confirmed native flow
+is public-client PKCE — `client_secret` must never reach client.
+
+**Severity:** MEDIUM — Phase 1's P1-03 work item definition was wrong. No code was broken
+(the mobile app doesn't exist yet), but the spec was misleading. Corrected before any
+implementing work began.

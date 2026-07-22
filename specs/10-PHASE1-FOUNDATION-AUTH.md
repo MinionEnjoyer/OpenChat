@@ -33,9 +33,21 @@ static rail fed by `GET /servers`; profile avatar upload (Phase 5); iOS store co
 - `POST /auth/dev-login`: when `DEV_AUTH=1`, ALSO return `{accessToken, refreshToken}`
   alongside the session cookie (test path for mobile; still 404 in prod).
 
-**P1-03 [BE] Contract + config updates**: add routes/security schemes to `openapi.yaml`
-(`x-added-by: P1`), regen types, provider contract tests, `GET /api/config` gains
-`{oidc:{issuer, clientId, nativeRedirectUri}}` for the app (no secrets).
+**P1-03 [BE] Contract + config updates + OIDC discovery endpoint**: add routes/security
+schemes to `openapi.yaml` (`x-added-by: P1`), regen types, provider contract tests.
+Create a new **public** OIDC metadata endpoint (e.g. `GET /api/auth/oidc-metadata` or
+`GET /.well-known/openchat-oidc`) returning `{issuer, clientId, nativeRedirectUri, scopes}`
+(no secrets — `client_secret` is backend-only). Populated from existing server env vars
+(`OIDC_ISSUER`, `OIDC_CLIENT_ID`, plus `NATIVE_REDIRECT_URI` added to config).
+
+**CORRECTION (DR-002, 2026-07-21):** The original spec assumed `GET /api/config` already
+returned `{oidc:{issuer, clientId, nativeRedirectUri}}`. It does not — `/api/config`
+returns only `{shareBaseUrl, jellyfinUrl}` (both post-auth internal service URLs) and is
+behind `SessionGuard`. No OIDC fields exist anywhere in the client-facing API surface
+today. The OIDC env vars exist server-side (consumed by `AuthService`) but are never
+exposed to any client. This work item therefore includes **creating** the OIDC metadata
+endpoint, not modifying `/api/config`. See DR-002 for options (D recommended: new
+additive endpoint) and cost/risk analysis.
 
 ## Mobile work items
 

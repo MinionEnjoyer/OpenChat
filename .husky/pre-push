@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# pre-push: secrets scan + devctl verify --changed
+# Installed by husky; runs before every push.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+FAIL=0
+
+echo "[pre-push] running checks…"
+
+# 1. Secrets scan
+echo "  → secrets scan"
+("$ROOT/scripts/check-secrets.sh") || FAIL=1
+
+# 2. devctl verify --changed
+# Skips if devctl doesn't exist (pre-hook install) or services aren't running
+if [ -x "$ROOT/tools/devctl" ]; then
+  echo "  → devctl verify --changed"
+  ("$ROOT/tools/devctl" verify --changed) || {
+    echo "  ⚠ devctl verify --changed returned non-zero — review before forcing push"
+    FAIL=1
+  }
+else
+  echo "  → devctl not executable (skipping verify)"
+fi
+
+if [ "$FAIL" -eq 0 ]; then
+  echo "[pre-push] ✓ all checks passed"
+else
+  echo "[pre-push] ✗ checks failed — push aborted"
+  exit 1
+fi

@@ -12,6 +12,10 @@ later update" toast so nothing is silently dropped) · media in DMs beyond Phase
 block/unblock; every transition optimistic with rollback-on-error toast (FR-SOC-001,
 APP-006). Tests: integration drives the full `FriendStatus` state machine both directions
 between alice/bob; RTL ×4 states per tab.
+**Corrected 2026-07-21 (P0-10):** `GET /api/friends/requests` returns `{incoming, outgoing}`
+(not a bare array). This was observed during contract/provider testing and confirmed by the
+ajv suite (36/36 with `additionalProperties:false`). The incoming-tab renders from
+`res.incoming`, the outgoing-tab from `res.outgoing`. See `contracts/CHANGELOG.md` P0-10.
 
 **P4-02 DM & group DM channels** — DM list (activity sort, unread badges), open-DM from
 profile sheet/friends list (`POST /dms` idempotency per characterization), group DM create
@@ -27,9 +31,12 @@ characterization (FR-SOC-004, AUTH-007). Integration: ≤2s propagation; invisib
 offline to peers (verify server semantics in Phase 0 E-note; if server lacks invisible
 masking, [BE] add it — additive, characterization-gated).
 
-**P4-04 Notifications inbox** — `GET /notifications` list (mentions + server invitations),
-invitation accept/decline wiring `notify` refresh, badge on inbox icon (FR-SOC-005). E2E:
-web user invites mobile user → accept → server appears without restart.
+**P4-04 Notifications inbox** — `GET /notifications` returns `{friendRequests, serverInvites, count}`
+(not a bare array). `friendRequests` and `serverInvites` are arrays; `count` is the total.
+This shape was observed during contract/provider testing and confirmed by the ajv suite
+(36/36 with `additionalProperties:false`). Invitation accept/decline wiring triggers `notify`
+refresh; badge on inbox icon (FR-SOC-005). E2E: web user invites mobile user → accept →
+server appears without restart. See `contracts/CHANGELOG.md` P0-10.
 
 **P4-05 Profile sheet v2** — avatar, status, mutual servers (client-computed from cached
 servers/members), actions: Message / Add-remove friend / Block (FR-SOC-006); blocked message

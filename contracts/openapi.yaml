@@ -30,13 +30,16 @@ paths:
   /config:
     get:
       operationId: getConfig
-      summary: Public client config
+      summary: Client config (requires auth — characterized)
       tags: [config]
-      security: []
       responses:
         '200':
-          description: Client config (shareBaseUrl, etc.)
-      x-evidence: E1
+          description: >
+            Client config (shareBaseUrl, jellyfinUrl).
+            Requires auth. Characterized: returns 401 without session cookie.
+            A pre-auth public subset (`GET /config/public`) will be added in Phase 1
+            per DR-002.
+      x-evidence: provider.spec.ts#config-auth-char, DRIFT-LOG 2026-07-21
 
   # ── Auth ──
   /auth/login:
@@ -1032,12 +1035,24 @@ paths:
   /friends/requests:
     get:
       operationId: listFriendRequests
-      summary: List pending friend requests
+      summary: List pending friend requests (returns {incoming, outgoing})
       tags: [friends]
       responses:
         '200':
-          description: Array of friend request objects
-      x-evidence: dms-friends.spec.ts#full-cycle, E3
+          description: >
+            Object with `incoming` and `outgoing` arrays (not a bare array).
+            Each array element is a friend request object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incoming:
+                    type: array
+                  outgoing:
+                    type: array
+                required: [incoming, outgoing]
+      x-evidence: provider.spec.ts#friend-requests-shape, DRIFT-LOG 2026-07-21
     post:
       operationId: sendFriendRequest
       summary: Send friend request (by username)
@@ -1109,12 +1124,26 @@ paths:
   /notifications:
     get:
       operationId: listNotifications
-      summary: List notifications for current user
+      summary: List notifications (returns {friendRequests, serverInvites, count})
       tags: [notifications]
       responses:
         '200':
-          description: Array of notification objects
-      x-evidence: E1
+          description: >
+            Object with `friendRequests`, `serverInvites`, and `count` fields (not a bare array).
+            Server-observed shape; server beats aspirational contract.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  friendRequests:
+                    type: array
+                  serverInvites:
+                    type: array
+                  count:
+                    type: integer
+                required: [friendRequests, serverInvites, count]
+      x-evidence: provider.spec.ts#notifications-shape, DRIFT-LOG 2026-07-21
 
   # ── Voice ──
   /voice/{channelId}/join:

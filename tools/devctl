@@ -453,6 +453,16 @@ cmd_verify() {
     echo "  ✓ characterization tests pass"
   fi
 
+  # 5. Traceability — every FR must have an @satisfies annotation
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "trace" ]; then
+    echo "[devctl] trace check — verifying every requirement has an @satisfies test…"
+    cmd_trace check || {
+      echo "  ✗ trace check failed"
+      exit 1
+    }
+    echo "  ✓ trace pass"
+  fi
+
   echo "  ✓ verify pass"
 }
 
@@ -473,6 +483,7 @@ Commands:
   capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
   verify        Run full verification suite (doctor + health + codegen + contract + char); --json
   selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
+  trace         Check or report FR/NFR ↔ test traceability matrix (check|report [--phase N])
   commit        Safe commit: fail if tree is dirty, warn about untracked files
 
 Flags:
@@ -480,6 +491,15 @@ Flags:
 
 Docs: tools/devctl-README.md
 EOF
+}
+
+cmd_trace() {
+  local mode="${1:-check}"
+  local phase_arg=""
+  if [ "${2:-}" = "--phase" ] && [ -n "${3:-}" ]; then
+    phase_arg="--phase $3"
+  fi
+  node "$ROOT/tools/trace.mjs" "$mode" $phase_arg
 }
 
 cmd_selftest() {
@@ -584,6 +604,7 @@ case "${1:-}" in
   capabilities)  cmd_capabilities "$@";;
   verify)        shift; cmd_verify "$@";;
   selftest)      cmd_selftest "$@";;
+  trace)         shift; cmd_trace "$@";;
   commit)        shift; cmd_commit "$@";;
   *) usage; exit 1;;
 esac

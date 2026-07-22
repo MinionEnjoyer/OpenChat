@@ -165,4 +165,48 @@ characterization test to match new behavior.
 
 ---
 
-*Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild)*
+## BUG-015: Provider coverage — Phase 1-4 routes without provider contract tests
+
+**What:** The provider contract test suite (36/36, `additionalProperties:false`) covers 18
+operations across auth, servers, messages, reactions, pins, invites, voice, DMs, friends,
+notifications, and health/config. The following Phase 1-4 mobile-consumed routes lack provider
+coverage:
+
+| Route | Phase | Reason excluded |
+|-------|-------|----------------|
+| `PUT /auth/server-layout` | 1 | No response schema in contract; body is arbitrary layout JSON |
+| `GET /servers/:id/sounds` | 3 | Happy-path only in characterization; no contract schema |
+| `POST /servers/:id/sounds` | 3 | Happy-path only; no contract schema |
+| `DELETE /servers/:id/sounds` | 3 | Happy-path only; no contract schema |
+| `PATCH /servers/:id/sounds` | 3 | Route exists in controller; no characterization test; no schema |
+| `GET /servers/:id/members` | 3 | Characterization only; no contract schema |
+| `POST /servers/:id/members` | 3 | Implicit in seed; no contract schema |
+| `GET /servers/:id/roles` | 3 | Characterization only; no contract schema |
+| `POST /servers/:id/roles` | 3 | Characterization only; no contract schema |
+| `PATCH /servers/:id/roles/:roleId` | 3 | Characterization only; no contract schema |
+| `DELETE /servers/:id/roles/:roleId` | 3 | Characterization only; no contract schema |
+| `PUT member-roles` | 3 | Characterization only; no contract schema |
+| `DELETE member-roles` | 3 | Not tested at all; no contract schema |
+| `GET /dms` | 4 | Asserted as array only (no schema validator) |
+| `POST /dms` | 4 | Accepts 200/201/403 range; no schema validator |
+| `GET /friends` | 4 | Asserted as array only (no schema validator) |
+| `POST /friends/requests/:id/decline` | 4 | Characterization only; no contract schema |
+| `DELETE /friends/:userId` | 4 | Characterization only; no contract schema |
+| `POST /block/:userId` | 4 | Characterization only; no contract schema |
+| `POST /server-invitations/:id/accept` | 4 | Characterization only; no contract schema |
+| `POST /server-invitations/:id/decline` | 4 | Characterization only; no contract schema |
+| `GET /voice/:channelId/participants` | 4 | Characterization only; no contract schema |
+| `GET /gifs/search` | 5 | Requires external API key; no contract schema |
+| Watchparty routes | 7 | Deferred; no contract schema |
+
+This is honest thinness: 18 routes with strict provider validation + 24 with named reasons for
+exclusion. None are silently missing. Characterization coverage provides a backstop for routes
+without provider schemas, but future phases adding schemas for these routes should add ajv
+validators in `provider.spec.ts`.
+
+**Disposition:** Not a defect. This is the stated state of Phase 0 coverage. The provider
+suite covers every route with a contract schema. Routes without schemas are tracked here.
+
+---
+
+*Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild, P0-10)*
