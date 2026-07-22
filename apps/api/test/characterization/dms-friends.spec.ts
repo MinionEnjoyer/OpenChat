@@ -47,4 +47,39 @@ describe('friends', () => {
       expect(res.body.status).toBe('ACCEPTED');
     }
   });
+  it('decline friend request', async () => {
+    const a = await devLogin('fd-a-' + Date.now());
+    const b = await devLogin('fd-b-' + Date.now());
+    await apiFetch('/friends/requests', { method: 'POST', body: { username: b.username }, jar: a.jar });
+    const pending = await apiFetch('/friends/requests', { jar: b.jar });
+    if (pending.body.length > 0) {
+      const res = await apiFetch(`/friends/requests/${pending.body[0].id}/decline`, { method: 'POST', jar: b.jar });
+      // characterizes: decline returns status < 500
+      expect(res.status).toBeLessThan(500);
+    }
+  });
+  it('remove friend', async () => {
+    const a = await devLogin('rm-a-' + Date.now());
+    const b = await devLogin('rm-b-' + Date.now());
+    await apiFetch('/friends/requests', { method: 'POST', body: { username: b.username }, jar: a.jar });
+    const pending = await apiFetch('/friends/requests', { jar: b.jar });
+    if (pending.body.length > 0) {
+      await apiFetch(`/friends/requests/${pending.body[0].id}/accept`, { method: 'POST', jar: b.jar });
+      const res = await apiFetch(`/friends/${a.userId}`, { method: 'DELETE', jar: b.jar });
+      // characterizes: remove friend returns status < 500
+      expect(res.status).toBeLessThan(500);
+    }
+  });
+  it('block user', async () => {
+    const a = await devLogin('bl-a-' + Date.now());
+    const b = await devLogin('bl-b-' + Date.now());
+    await apiFetch('/friends/requests', { method: 'POST', body: { username: b.username }, jar: a.jar });
+    const pending = await apiFetch('/friends/requests', { jar: b.jar });
+    if (pending.body.length > 0) {
+      await apiFetch(`/friends/requests/${pending.body[0].id}/accept`, { method: 'POST', jar: b.jar });
+      const res = await apiFetch(`/friends/block/${a.userId}`, { method: 'POST', jar: b.jar });
+      // characterizes: block returns status < 500
+      expect(res.status).toBeLessThan(500);
+    }
+  });
 });

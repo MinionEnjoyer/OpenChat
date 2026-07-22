@@ -135,6 +135,7 @@ cmd_doctor() {
     "specs/00-MASTER-SPEC.md"
     "specs/05-AGENT-OPERATIONS.md"
     "specs/templates/T2-AUDIT-CHECKLIST.md"
+    "tools/seed/seed.mjs"
     "tools/devctl"
   )
   for p in "${paths[@]}"; do
@@ -339,9 +340,10 @@ _resolve_evidence() {
     return 0
   fi
 
-  # File path reference
+  # File path reference (may include #test-fragment after the file path)
   if echo "$evidence" | grep -qE '^(docs|apps|specs|contracts|tools)/'; then
-    if [ -f "$ROOT/$evidence" ]; then
+    local file_path="${evidence%%#*}"
+    if [ -f "$ROOT/$file_path" ]; then
       echo ""
       return 0
     fi
@@ -356,6 +358,21 @@ _resolve_evidence() {
   fi
   echo ""
   return 0
+}
+
+cmd_stack_seed() {
+  echo "[devctl] running seed fixtures…"
+  node "$ROOT/tools/seed/seed.mjs" || {
+    echo "  ✗ seed failed"
+    return 1
+  }
+  # Verify fixture-ids.json was produced
+  if [ -f "$ROOT/tools/seed/fixture-ids.json" ]; then
+    echo "  ✓ seed complete — fixture-ids.json generated"
+  else
+    echo "  ✗ seed did not produce fixture-ids.json"
+    return 1
+  fi
 }
 
 cmd_verify() {
@@ -424,6 +441,7 @@ case "${1:-}" in
       reset)  shift 2; cmd_stack_reset "$@";;
       logs)   cmd_stack_logs "$@";;
       health) cmd_stack_health "$@";;
+      seed)   cmd_stack_seed "$@";;
       *)      usage; exit 1;;
     esac
     ;;

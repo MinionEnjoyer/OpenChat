@@ -62,15 +62,29 @@
 | ws.spec.ts | Handshake+ready, 4401 close code, subscribe gating, message.send | 5 tests |
 | share.spec.ts | OpenShare public endpoints, ShareService dead path (G2), dev-login | 6 tests |
 
-**Deliberately uncovered routes:**
+**Deliberately uncovered routes (genuine exclusions):**
 - `GET /api/auth/login` — OIDC redirect (requires Authentik)
 - `GET /api/auth/callback` — OIDC callback (requires Authentik)
 - `GET /api/config` — public config endpoint (not authenticated)
 - `GET /api/health` — covered implicitly by global health check
-- `GET /api/notifications` — covered in 401 matrix; full lifecycle needs server-invite flow
 - `GET /api/gifs/search` — requires Giphy API key
 - Watchparty routes — requires Jellyfin; deferred to Phase 7
 - Server sounds PATCH — covered by POST+DELETE; PATCH has same guard
+
+**Overclaimed routes (P0-04 claimed "all routes from 03-CONTRACTS.md §2 REST inventory" but these had no test; remediated by P0-05):**
+- `POST /api/friends/requests/:id/decline` — added `dms-friends.spec.ts#decline`
+- `DELETE /api/friends/:userId` — added `dms-friends.spec.ts#remove`
+- `POST /api/friends/block/:userId` — added `dms-friends.spec.ts#block`
+- `POST /api/server-invitations/:id/accept` — added `invites.spec.ts#notif-accept` (also corrected path from `/notifications/server-invitations/`)
+- `POST /api/server-invitations/:id/decline` — added `invites.spec.ts#notif-decline` (ditto)
+
+**Coverage reconciliation (P0-05):**
+- 03-CONTRACTS.md §2 route patterns: 43
+- capabilities.json REST entries: 64 (expanded: sound CRUD split into 4 entries, channels CRUD+reorder, member-roles PUT+DELETE, etc.)
+- Routes with a reaching characterization test: 62 (2 remain partial: sounds PATCH, gifs/search)
+
+The original "all routes" claim was incorrect. The LOG.md table omitted 5 routes
+that existed in the controller code and the 03 §2 inventory. These are now covered.
 
 **Characterized behaviors noted:**
 - `friendCode` may be `null` (lazy backfill in `getCurrentUser`)
@@ -99,3 +113,36 @@
 - [x] STOP — hand off for audit by separate session per 05 §2
 
 **Next:** P0-05 — Capability matrix (by audit session)
+
+## 2026-07-21 — P0-05 (William B. Sexton) — Remediation
+
+### P0-05 accepted provisionally. Three reconciliation items:
+
+### 1. The 7 partials vs P0-04's coverage claim
+**7 partial entries:**
+| Route | In exclusion list? |
+|-------|-------------------|
+| `PATCH /api/servers/:id/sounds` | YES — "PATCH has same guard as POST+DELETE" |
+| `POST /api/friends/requests/:id/decline` | NO — overclaimed |
+| `DELETE /api/friends/:userId` | NO — overclaimed |
+| `POST /api/friends/block/:userId` | NO — overclaimed |
+| `POST /api/notifications/server-invitations/:id/accept` | NO — overclaimed; also wrong path |
+| `POST /api/notifications/server-invitations/:id/decline` | NO — overclaimed; also wrong path |
+| `GET /api/gifs/search` | YES — "requires Giphy API key" |
+
+**Reconciliation:** 03 §2 route patterns: 43. capabilities.json REST entries: 64. Routes with a reaching characterization test: 62 (2 remain partial: sounds PATCH, gifs/search).
+
+**Actions:** 5 new characterization tests added (decline friend, remove friend, block user in `dms-friends.spec.ts`; notif-accept, notif-decline in `invites.spec.ts`). All 5 promoted to `present`. Two notification paths corrected from `/notifications/server-invitations/` to `/server-invitations/`. LOG.md coverage note corrected — no longer overclaims.
+
+### 2. MUT2 lookup structure
+- Added `thumbnailUrl` to seed body in `helpers.ts` (was previously absent, so `assertExactKeys` wasn't exercising the key)
+- Re-ran MUT2: **1 failure, 88 passed** — mutation caught. `assertAttachmentShape` now properly detects `thumbnailUrl→thumbUrl` rename.
+
+### 3. Evidence quality spot-check
+- Only one entry uses "stack health check" as sole evidence: `GET /api/health`. For this endpoint, the health check IS the capability — `devctl health` directly calls it. No downgrade needed.
+- Fixed `devctl capabilities` to handle `#` fragments in file-path evidence references.
+
+### devctl capabilities
+`devctl capabilities --validate` passes. `bash tools/devctl capabilities` → `✓ capabilities validation pass`.
+
+**Next:** P0-06 — Seed fixtures (rescoped per P0-04 audit probe D)

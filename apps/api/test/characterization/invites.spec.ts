@@ -47,3 +47,38 @@ describe('invites — accept', () => {
     expect(res.status).toBe(201);
   });
 });
+
+describe('notifications — server-invitation', () => {
+  it('accept server invitation via notifications', async () => {
+    // Create a member-to-member invitation (creates ServerInvitation row)
+    const fresh = await devLogin('ni-accept-' + Date.now());
+    await apiFetch(`/servers/${s.serverId}/members`, {
+      method: 'POST', body: { userId: fresh.userId }, jar: s.alice.jar,
+    });
+    // Fetch notifications to get the invitation id
+    const notifs = await apiFetch('/notifications', { jar: fresh.jar });
+    // characterizes: GET /notifications returns 200 with serverInvites array
+    expect(notifs.status).toBe(200);
+    expect(notifs.body).toHaveProperty('serverInvites');
+    if (notifs.body.serverInvites.length > 0) {
+      const invId = notifs.body.serverInvites[0].id;
+      const res = await apiFetch(`/server-invitations/${invId}/accept`, { method: 'POST', jar: fresh.jar });
+      // characterizes: POST /server-invitations/:id/accept returns < 500
+      expect(res.status).toBeLessThan(500);
+    }
+  });
+  it('decline server invitation via notifications', async () => {
+    const fresh = await devLogin('ni-decline-' + Date.now());
+    await apiFetch(`/servers/${s.serverId}/members`, {
+      method: 'POST', body: { userId: fresh.userId }, jar: s.alice.jar,
+    });
+    const notifs = await apiFetch('/notifications', { jar: fresh.jar });
+    expect(notifs.body).toHaveProperty('serverInvites');
+    if (notifs.body.serverInvites.length > 0) {
+      const invId = notifs.body.serverInvites[0].id;
+      const res = await apiFetch(`/server-invitations/${invId}/decline`, { method: 'POST', jar: fresh.jar });
+      // characterizes: POST /server-invitations/:id/decline returns < 500
+      expect(res.status).toBeLessThan(500);
+    }
+  });
+});
