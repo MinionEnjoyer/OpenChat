@@ -30,7 +30,7 @@ import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
 import { wsUrl, serverOrigin, getToken, setToken } from './lib/serverConfig';
-import { TitleBar, isTauri } from './components/TitleBar';
+import { TitleBar, isTauri, isMac } from './components/TitleBar';
 import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
 import { notifyNative } from './lib/notify';
@@ -138,6 +138,8 @@ const useStore = create<AppState>((set) => ({
 
 export default function App() {
   const s = useStore();
+  // Custom title bar on Windows/Linux desktop only; macOS keeps native chrome.
+  const showChrome = isTauri() && !isMac;
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
   const [wsDown, setWsDown] = useState(false);
@@ -202,8 +204,8 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    if (isTauri()) document.getElementById('root')?.classList.add('tauri');
-  }, []);
+    if (showChrome) document.getElementById('root')?.classList.add('tauri');
+  }, [showChrome]);
 
   useEffect(() => {
     (async () => {
@@ -834,7 +836,7 @@ export default function App() {
   if (isTauri() && (!serverOrigin() || !getToken())) {
     return (
       <>
-        <TitleBar />
+        {showChrome && <TitleBar />}
         <DesktopSetup onDone={() => window.location.reload()} />
       </>
     );
@@ -843,7 +845,7 @@ export default function App() {
   if (!s.user) {
     return (
       <>
-        {isTauri() && <TitleBar />}
+        {showChrome && <TitleBar />}
         <LoadingScreen
           error={connectError}
           onRetry={() => window.location.reload()}
@@ -1076,7 +1078,7 @@ export default function App() {
 
   return (
     <>
-      {isTauri() && <TitleBar />}
+      {showChrome && <TitleBar />}
       <div className={'app-shell' + (navOpen ? ' nav-open' : '')} onClick={() => navOpen && setNavOpen(false)}>
       <div className="sidebars" onClick={(e) => e.stopPropagation()}>
         {/* server rail */}

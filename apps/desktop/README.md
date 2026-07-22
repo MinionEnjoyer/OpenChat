@@ -38,9 +38,14 @@ as a repo secret so CI can sign:
    and install. Installed clients auto-check that release's `latest.json` on launch and
    update themselves when a newer version is published.
 
-- **Just an installer, no release:** Actions → **desktop-windows** → Run workflow →
-  download the `openchat-windows-installer` artifact.
+- **Just installers, no release:** Actions → **desktop-release** → Run workflow →
+  download the `openchat-windows-latest` / `openchat-macos-latest` artifacts.
 - **Local dev** (needs Rust + Tauri prereqs): `cd apps/desktop && npm install && npm run dev`.
+
+**Platform chrome:** Windows/Linux use a custom frameless title bar; macOS uses native
+window chrome (`tauri.macos.conf.json`). macOS builds are a universal binary (Intel +
+Apple Silicon). Neither build is OS-code-signed, so first launch shows a warning —
+Windows: *More info → Run anyway*; macOS: *right-click → Open* (Gatekeeper).
 
 ## Status
 Phase 1 MVP: shell + custom title bar + tray + close-to-tray + first-run setup.

@@ -1,0 +1,20 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "OpenChat",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 940,
+        "minHeight": 600,
+        "decorations": true,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "createUpdaterArtifacts": true
+  }
+}

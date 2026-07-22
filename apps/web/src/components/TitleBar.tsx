@@ -6,7 +6,7 @@ export function isTauri(): boolean {
   return typeof (window as any).__TAURI_INTERNALS__ !== 'undefined' || typeof (window as any).__TAURI__ !== 'undefined';
 }
 
-const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || navigator.userAgent || '');
+export const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform || navigator.userAgent || '');
 
 function currentWindow(): any {
   return (window as any).__TAURI__?.window?.getCurrentWindow?.();
