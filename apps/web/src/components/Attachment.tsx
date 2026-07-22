@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Attachment as AttachmentModel } from '../lib/types';
+import { AudioPlayer } from './AudioPlayer';
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -50,11 +51,7 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
   }
 
   if (mimeType.startsWith('audio/')) {
-    return (
-      <audio controls src={url} style={{ maxWidth: '400px', width: '100%' }}>
-        Your browser does not support the audio tag.
-      </audio>
-    );
+    return <AudioPlayer src={url} filename={filename} />;
   }
 
   // File card for other types
