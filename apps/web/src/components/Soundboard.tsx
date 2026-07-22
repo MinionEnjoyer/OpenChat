@@ -71,14 +71,17 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
     if (file.size > MAX_SOUND_BYTES) { alert(`Sounds must be ${MAX_SOUND_MB} MB or less.`); return; }
     setUploading(true);
     try {
-      const { attachments } = await uploadToShare([file], shareBaseUrl);
+      const { attachments, rejected } = await uploadToShare([file]);
       const url = attachments[0]?.url;
-      if (!url) throw new Error('upload rejected');
+      if (!url) {
+        const reason = rejected?.[0]?.reason;
+        throw new Error(reason ? `file was rejected — ${reason}` : 'the file type was not accepted');
+      }
       const s = await api.addSound(serverId, { name: name.trim(), url, emoji: emoji.trim() || null });
       setSounds((prev) => [...prev, s]);
       setFile(null); setName(''); setEmoji('');
-    } catch {
-      alert('Could not add sound (audio only, must be small).');
+    } catch (e: any) {
+      alert(`Could not add sound: ${e?.message || 'unknown error'}`);
     } finally { setUploading(false); }
   }
   async function remove(id: string) {
