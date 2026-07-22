@@ -33,6 +33,7 @@ import { wsUrl, serverOrigin, getToken, setToken } from './lib/serverConfig';
 import { TitleBar, isTauri } from './components/TitleBar';
 import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
+import { notifyNative } from './lib/notify';
 import { canManageServer, has, Permission } from './lib/permissions';
 
 interface AppState {
@@ -298,8 +299,14 @@ export default function App() {
             st.bumpUnread(d.message.channelId);
           }
           // Bubble the DM to the top of the list on new activity.
-          if (st.dms.some((dm) => dm.id === d.message.channelId)) {
+          const isDm = st.dms.some((dm) => dm.id === d.message.channelId);
+          if (isDm) {
             st.set({ dms: st.dms.map((dm) => (dm.id === d.message.channelId ? { ...dm, lastMessageAt: d.message.createdAt } : dm)) });
+            if (d.message.authorId !== st.user?.id) {
+              const name = d.message.author?.displayName || d.message.author?.username || 'New message';
+              const body = (d.message.content === '​' ? '(attachment)' : d.message.content || '').slice(0, 120);
+              notifyNative(name, body);
+            }
           }
         } else if (op === 'message.updated') st.updateMessage(d.message);
         else if (op === 'message.deleted') st.deleteMessage(d.channelId, d.id);
@@ -308,6 +315,7 @@ export default function App() {
         else if (op === 'mention') {
           if (d.channelId !== st.activeChannelId) st.bumpUnread(d.channelId);
           showToast(`💬 ${d.authorName} mentioned you in #${d.channelName}`);
+          notifyNative(`Mention in #${d.channelName}`, `${d.authorName} mentioned you`);
         }
         else if (op === 'call.ring') {
           // Ignore if we're already in this call; otherwise ring for ~30s.
@@ -315,6 +323,7 @@ export default function App() {
             setIncomingCall({ channelId: d.channelId, callerId: d.callerId, callerName: d.callerName, callerAvatar: d.callerAvatar });
             if (ringTimer.current) window.clearTimeout(ringTimer.current);
             ringTimer.current = window.setTimeout(() => setIncomingCall(null), 30000);
+            notifyNative('Incoming call', `${d.callerName} is calling`);
           }
         }
         else if (op === 'presence') st.setPresence(d.userId, d.status);

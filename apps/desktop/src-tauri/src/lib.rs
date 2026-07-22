@@ -27,6 +27,13 @@ async fn open_external(app: AppHandle, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+// Show an OS notification (mentions, DMs, incoming calls when the app is unfocused).
+#[tauri::command]
+fn notify(app: AppHandle, title: String, body: String) {
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app.notification().builder().title(title).body(body).show();
+}
+
 async fn check_for_update(app: AppHandle) {
     let Ok(updater) = app.updater() else { return };
     if let Ok(Some(update)) = updater.check().await {
@@ -54,7 +61,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![open_external])
+        .invoke_handler(tauri::generate_handler![open_external, notify])
         .setup(|app| {
             // Deep links that cold-started the app / arrive while running.
             #[cfg(desktop)]
