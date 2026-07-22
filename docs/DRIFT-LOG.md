@@ -99,3 +99,52 @@ the concrete checks must now be executed.
 
 **Disposition:** **FIXED-NOW (process)** — Rule 5.1 committed to 05. **OPEN (checks)** — MUT1,
 MUT2, MUT5 await execution in remediation v2.
+
+## 2026-07-21 — P0-04 remediation v3: completion reports twice asserted state that did not hold
+
+**What:** Two artifacts claimed as "created"/verified in prior completion reports did not exist
+at verification time:
+- `contracts/x-attachment-shape.yaml`: referenced in P0-03 corrections, did not exist
+- MUT2 "caught by design": remediation v1/v2 claimed `assertExactKeys` would catch field
+  renames, but MUT2's actual catch mechanism was `expect().toBeDefined()` failure because
+  the renamed field caused the message to be unretrievable — the assertion layer was never
+  involved in MUT2's catch
+
+**Why systemic:** Completion reports are human-generated summaries and can drift from ground
+truth. The same pattern as D8 (BACKLOG.md missing) and systemic inconclusive-as-terminal.
+
+**Remedy:** `devctl doctor` subcommand (mechanical, this commit) asserts presence of every
+required artifact file and exits nonzero with a JSON list of missing paths. Wired into
+`devctl verify`. Contracts directory now contains `x-attachment-shape.yaml`. Artifact
+inventory documented at `docs/audits/artifact-inventory.md`.
+
+**Severity:** HIGH — two separate completion reports asserted state that did not hold on
+disk. The mitigation is mechanical, not intentional: a runtime assertion (`devctl doctor`)
+replaces human verification for file existence.
+
+### MUT3 runtime re-test (this commit)
+
+MUT3 was caught at TypeScript compile time in remediation v1/v2. To prove `assertExactKeys`
+executes against real wire payloads at runtime, a NestJS interceptor (`DriftMut3Interceptor`,
+scratch-branch artifact) injected `extraSpyField` into every outgoing JSON response body
+post-serialization. Result: **23 tests fail across 8 suites**, all reporting
+`"unexpected keys: [extraSpyField]"`. The interceptor was removed after observation; no
+production code changed. This confirms `assertExactKeys` genuinely executes at runtime
+against real API responses.
+
+### D11: Two assertion helpers unreachable (fixed this commit)
+
+- `assertChannelShape`: imported in `servers.spec.ts`, never called. Now exercised in
+  `servers — channels › lists (≥2)`.
+- `assertRoleShape`: imported in `roles.spec.ts`, never called. Now exercised in
+  `roles › lists roles`.
+- `assertSoundShape` line number corrected: `servers.spec.ts:130`, not `:81`.
+
+### E5 reproducibility (this commit)
+
+E5 dev-login (OpenShare upload experiment) confirmed reproducible on the committed
+stack with `DEV_AUTH=1`. Envelope shapes match recorded output. Upload IDs are
+dynamic but shape contracts are invariant. Noted in `docs/capabilities/EXPERIMENTS.md`.
+
+**Disposition:** **FIXED (2026-07-21)** — MUT3 runtime re-tested, artifacts inventoried,
+dead helpers exercised, `devctl doctor` implemented.

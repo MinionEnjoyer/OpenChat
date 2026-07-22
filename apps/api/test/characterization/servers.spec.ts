@@ -64,6 +64,7 @@ describe('servers — channels', () => {
     const res = await apiFetch(`/servers/${s.serverId}/channels`, { jar: s.alice.jar });
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThanOrEqual(2);
+    for (const ch of res.body) assertChannelShape(ch);
   });
   it('creates TEXT', async () => {
     const res = await apiFetch(`/servers/${s.serverId}/channels`, { method: 'POST', body: { name: 't', type: 'TEXT' }, jar: s.alice.jar });

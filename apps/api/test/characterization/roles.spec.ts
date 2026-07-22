@@ -11,7 +11,10 @@ describe('roles', () => {
     // characterizes: @everyone may or may not exist. Check what's there.
     const names = res.body.map((r: any) => r.name);
     // characterizes: permissions is BigInt serialized as string
-    for (const r of res.body) assertBigIntString(r.permissions);
+    for (const r of res.body) {
+      assertRoleShape(r);
+      assertBigIntString(r.permissions);
+    }
   });
   it('creates/updates/deletes role', async () => {
     const r = await apiFetch(`/servers/${s.serverId}/roles`, { method:'POST', body:{name:'T', permissions:'64'}, jar:s.alice.jar });

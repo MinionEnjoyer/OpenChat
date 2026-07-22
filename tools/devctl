@@ -106,9 +106,69 @@ cmd_stack_health() {
   return $failures
 }
 
+cmd_doctor() {
+  # Assert presence of every required artifact. Exits nonzero with JSON list of missing paths.
+  # Required artifacts per docs/audits/artifact-inventory.md — keep in sync.
+  local missing=()
+  local paths=(
+    "contracts/x-attachment-shape.yaml"
+    "docs/BACKLOG.md"
+    "docs/DRIFT-LOG.md"
+    "docs/LOG.md"
+    "docs/audits/P0-04.md"
+    "docs/audits/P0-04-remediation.md"
+    "docs/audits/P0-04-verification.md"
+    "docs/audits/artifact-inventory.md"
+    "docs/capabilities/EXPERIMENTS.md"
+    "docs/capabilities/experiment-outputs/E1.txt"
+    "docs/capabilities/experiment-outputs/E2.json"
+    "docs/capabilities/experiment-outputs/E3.json"
+    "docs/capabilities/experiment-outputs/E4.txt"
+    "docs/capabilities/experiment-outputs/E5.json"
+    "docs/capabilities/experiment-outputs/E5.txt"
+    "docs/capabilities/experiment-outputs/E6.json"
+    "docs/capabilities/experiment-outputs/E7.json"
+    "docs/capabilities/experiment-outputs/E8.json"
+    "docs/capabilities/experiment-outputs/E9.txt"
+    "docs/capabilities/experiment-outputs/E10.txt"
+    "docs/capabilities/experiment-outputs/E11.json"
+    "specs/00-MASTER-SPEC.md"
+    "specs/05-AGENT-OPERATIONS.md"
+    "specs/templates/T2-AUDIT-CHECKLIST.md"
+    "tools/devctl"
+  )
+  for p in "${paths[@]}"; do
+    if [ ! -f "$ROOT/$p" ]; then
+      missing+=("$p")
+    fi
+  done
+  if [ ${#missing[@]} -gt 0 ]; then
+    local json="["
+    for i in "${!missing[@]}"; do
+      [ "$i" -gt 0 ] && json+=","
+      json+="\"${missing[$i]}\""
+    done
+    json+="]"
+    echo "$json"
+    return 1
+  fi
+  echo "[]"
+}
+
 cmd_verify() {
   local only_layer="${1:-}"
   echo "[devctl] verify — Phase 0 signoff gates"
+
+  # 0. Doctor — assert required artifacts exist
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "doctor" ]; then
+    echo "[devctl] doctor — checking required artifacts…"
+    local doctor_out
+    doctor_out=$(cmd_doctor) || {
+      echo "  ✗ doctor failed — missing artifacts: $doctor_out"
+      exit 1
+    }
+    echo "  ✓ doctor pass — all required artifacts present"
+  fi
 
   # 1. Health
   if [ "$only_layer" = "" ] || [ "$only_layer" = "health" ]; then
@@ -143,7 +203,8 @@ Commands:
   stack reset   Down + remove volumes + up (fresh state)
   stack logs    Tail all service logs (pass extra args to docker compose logs)
   stack health  Health-check every service; --json for machine-readable output
-  verify        Run full verification suite (health + lint + char tests)
+  doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
+  verify        Run full verification suite (doctor + health + char tests)
 
 Flags:
   --json        Emit machine-readable JSON (health + verify)
@@ -162,6 +223,7 @@ case "${1:-}" in
       *)      usage; exit 1;;
     esac
     ;;
+  doctor) cmd_doctor "$@";;
   verify) cmd_verify "$@";;
   *) usage; exit 1;;
 esac
