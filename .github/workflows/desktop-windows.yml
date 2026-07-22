@@ -1,10 +1,12 @@
 name: desktop-windows
 
-# Manual trigger (Actions tab → Run workflow). Builds the Windows installer.
-# Set a repo variable SERVER_URL to bake a default server origin into the build
-# (otherwise the app asks for it on first run).
+# Build the Windows client. Push a tag like `desktop-v0.1.0` to build + sign +
+# publish a GitHub Release (installer + updater manifest). Manual dispatch just
+# builds and uploads the installer as an artifact.
 on:
   workflow_dispatch:
+  push:
+    tags: ['desktop-v*']
 
 jobs:
   build:
@@ -26,18 +28,26 @@ jobs:
       - name: Install desktop tooling
         run: npm --prefix apps/desktop install
 
-      - name: Build Windows app (Tauri)
+      - name: Build (Tauri) + release on tag
         uses: tauri-apps/tauri-action@v0
         with:
           projectPath: apps/desktop
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: OpenChat Desktop ${{ github.ref_name }}
+          releaseDraft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing (required — createUpdaterArtifacts is on).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Optional: bake in the default server origin.
           VITE_SERVER_URL: ${{ vars.SERVER_URL }}
 
-      - name: Upload installer
+      - name: Upload installer (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: openchat-windows-installer
-          path: |
-            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: warn

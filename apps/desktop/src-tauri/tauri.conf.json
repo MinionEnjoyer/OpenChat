@@ -27,9 +27,18 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/MinionEnjoyer/OpenChat/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMzRjczNjA1RjEyNTQ3QkUKUldTK1J5WHhCVGIzd3c5TWdFUzBEdGIwNEg1d2VRMCsyYVF4ajFzNEwxRWlDUHhkbGJqREF2Nm0K"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
