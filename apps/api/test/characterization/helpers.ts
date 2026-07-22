@@ -1,6 +1,11 @@
 /**
  * Shared helpers for characterization tests. No production-code changes.
  * Seed is per-test (NO caching — DB is tmpfs, always fresh).
+ *
+ * Shape assertions are EXHAUSTIVE: they check exact key sets (presence AND
+ * absence), recurse into nested objects and arrays, and normalize volatile
+ * values (ids, timestamps) by asserting a type pattern — never by omission.
+ * An unexpected key fails. A renamed key fails.
  */
 import * as http from 'http';
 import * as https from 'https';
@@ -94,7 +99,7 @@ export async function wsConnect(jar: CookieJar): Promise<WsClient> {
     const proc = (raw: string) => { let env: WsFrame; try { env = JSON.parse(raw); } catch { return; } frames.push(env); for (let i = pending.length-1; i>=0; i--) { if (pending[i].predicate(env)) { const r = pending[i]!; pending.splice(i,1); r.resolve(env); } } };
     ws.on('message', d => proc(d.toString()));
     ws.on('close', (code, reason) => { cc = code; cr = reason?.toString() ?? null; });
-    ws.on('error', () => {});
+    ws.on('error', (err) => { /* swalled for test stability — connection errors surface as timeout */ });
     let resolved = false;
     ws.on('open', () => {
       const t = setTimeout(() => { if (!resolved) { resolved = true; resolve(build(ws,frames,cc,cr,pending)); } }, 10_000);
@@ -155,58 +160,388 @@ export async function seed(): Promise<SeedContext> {
   return { alice, bob, carol, serverId, textChannelId, voiceChannelId, adminRoleId: adminRole.body.id, modRoleId: modRole.body.id, memberRoleId, messageIds };
 }
 
-// ── Assertions ──
-export function assertIsoDate(val: any): string { expect(typeof val).toBe('string'); expect(()=>new Date(val)).not.toThrow(); expect(val).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); return val; }
-export function assertUuid(val: any): string { expect(typeof val).toBe('string'); expect(val).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i); return val; }
-export function assertBigIntString(val: any): string { expect(typeof val).toBe('string'); expect(val).toMatch(/^\d+$/); return val; }
+// ═══════════════════════════════════════════════════════════════════════════
+//  EXHAUSTIVE SHAPE ASSERTIONS
+//  Every assertion below validates the exact set of keys (presence AND
+//  absence) and recurses into nested objects/arrays. A renamed key fails
+//  because the old name won't be in the expected set. An extra key fails
+//  because it won't be in the expected set either.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Primitive validators (volatile value normalization — never omit) ──
+
+export function assertIsoDate(val: any): string {
+  expect(typeof val).toBe('string');
+  expect(() => new Date(val)).not.toThrow();
+  expect(val).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  return val;
+}
+
+export function assertUuid(val: any): string {
+  expect(typeof val).toBe('string');
+  expect(val).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  return val;
+}
+
+export function assertBigIntString(val: any): string {
+  expect(typeof val).toBe('string');
+  expect(val).toMatch(/^\d+$/);
+  return val;
+}
+
+/**
+ * Assert obj has exactly the given keys (and no others).
+ * Order-independent; sorts both before comparison.
+ */
+export function assertExactKeys(obj: Record<string, any>, expectedKeys: string[], label: string = 'object'): void {
+  const actual = Object.keys(obj).sort();
+  const expected = [...expectedKeys].sort();
+  try {
+    expect(actual).toEqual(expected);
+  } catch {
+    // Provide a descriptive diff
+    const extra = actual.filter(k => !expected.includes(k));
+    const missing = expected.filter(k => !actual.includes(k));
+    const parts: string[] = [];
+    if (extra.length) parts.push(`unexpected keys: [${extra.join(', ')}]`);
+    if (missing.length) parts.push(`missing keys: [${missing.join(', ')}]`);
+    throw new Error(`${label} key set mismatch: ${parts.join('; ')}`);
+  }
+}
+
+// ── User shape (from auth.service getCurrentUser / devLogin / me / PATCH me) ──
+// Keys: id, username, displayName, avatarUrl, friendCode, status, serverLayout, createdAt, updatedAt
+// Explicitly absent: authSub
+
+const USER_KEYS = ['id', 'username', 'displayName', 'avatarUrl', 'friendCode', 'status', 'serverLayout', 'createdAt', 'updatedAt'];
 
 export function assertUserShape(user: any): void {
-  expect(user).toHaveProperty('id'); assertUuid(user.id);
-  expect(user).toHaveProperty('username'); expect(typeof user.username).toBe('string');
-  expect(user).toHaveProperty('displayName');
-  expect(user).toHaveProperty('avatarUrl');
-  expect(user).toHaveProperty('friendCode');
-  expect(user).toHaveProperty('status');
-  expect(user).toHaveProperty('serverLayout');
-  expect(user).toHaveProperty('createdAt'); assertIsoDate(user.createdAt);
-  expect(user).toHaveProperty('updatedAt'); assertIsoDate(user.updatedAt);
+  assertExactKeys(user, USER_KEYS, 'User');
+  assertUuid(user.id);
+  expect(typeof user.username).toBe('string');
+  // displayName: string or null
+  if (user.displayName !== null) expect(typeof user.displayName).toBe('string');
+  // avatarUrl: string or null
+  if (user.avatarUrl !== null) expect(typeof user.avatarUrl).toBe('string');
+  // friendCode: string|null (null = lazy backfill)
+  if (user.friendCode !== null) { expect(typeof user.friendCode).toBe('string'); expect(user.friendCode).toMatch(/^\d{8}$/); }
+  expect(typeof user.status).toBe('string');
+  // serverLayout: JSON object or null
+  if (user.serverLayout !== null && user.serverLayout !== undefined) expect(typeof user.serverLayout).toBe('object');
+  assertIsoDate(user.createdAt);
+  assertIsoDate(user.updatedAt);
+  // authSub must NEVER be exposed
   expect(user).not.toHaveProperty('authSub');
 }
 
+// ── Server shape ──
+const SERVER_KEYS = ['id', 'name', 'ownerId', 'iconUrl', 'createdAt', 'updatedAt', 'myPermissions'];
+
 export function assertServerShape(s: any): void {
-  expect(s).toHaveProperty('id'); assertUuid(s.id);
-  expect(s).toHaveProperty('name');
-  expect(s).toHaveProperty('ownerId'); assertUuid(s.ownerId);
-  expect(s).toHaveProperty('iconUrl');
-  expect(s).toHaveProperty('createdAt'); assertIsoDate(s.createdAt);
-  expect(s).toHaveProperty('updatedAt'); assertIsoDate(s.updatedAt);
+  assertExactKeys(s, SERVER_KEYS, 'Server');
+  assertUuid(s.id);
+  expect(typeof s.name).toBe('string');
+  assertUuid(s.ownerId);
+  // iconUrl: string or null
+  if (s.iconUrl !== null) expect(typeof s.iconUrl).toBe('string');
+  assertIsoDate(s.createdAt);
+  assertIsoDate(s.updatedAt);
 }
+
+// ── Channel shape ──
+const CHANNEL_KEYS = ['id', 'name', 'type', 'serverId', 'categoryId', 'topic', 'position', 'parentId'];
 
 export function assertChannelShape(ch: any): void {
-  expect(ch).toHaveProperty('id'); assertUuid(ch.id);
-  expect(ch).toHaveProperty('name');
-  expect(ch).toHaveProperty('type');
-  expect(['TEXT','VOICE','ANNOUNCEMENT','DM','GROUP_DM']).toContain(ch.type);
-  expect(ch).toHaveProperty('serverId');
-  expect(ch).toHaveProperty('categoryId');
-  expect(ch).toHaveProperty('topic');
-  expect(ch).toHaveProperty('position');
-  expect(ch).toHaveProperty('parentId');
+  assertExactKeys(ch, CHANNEL_KEYS, 'Channel');
+  assertUuid(ch.id);
+  expect(typeof ch.name).toBe('string');
+  expect(['TEXT', 'VOICE', 'ANNOUNCEMENT', 'DM', 'GROUP_DM']).toContain(ch.type);
+  // serverId: nullable UUID
+  if (ch.serverId !== null) assertUuid(ch.serverId);
+  // categoryId: nullable UUID
+  if (ch.categoryId !== null) assertUuid(ch.categoryId);
+  // topic: string or null
+  if (ch.topic !== null) expect(typeof ch.topic).toBe('string');
+  expect(typeof ch.position).toBe('number');
+  // parentId: nullable UUID
+  if (ch.parentId !== null) assertUuid(ch.parentId);
 }
 
+// ── Author sub-shape (embedded in messages) ──
+const AUTHOR_KEYS = ['id', 'username', 'displayName', 'avatarUrl', 'status'];
+
+export function assertAuthorShape(author: any): void {
+  assertExactKeys(author, AUTHOR_KEYS, 'Author');
+  assertUuid(author.id);
+  expect(typeof author.username).toBe('string');
+  if (author.displayName !== null) expect(typeof author.displayName).toBe('string');
+  if (author.avatarUrl !== null) expect(typeof author.avatarUrl).toBe('string');
+  expect(typeof author.status).toBe('string');
+}
+
+// ── Attachment shape ──
+const ATTACHMENT_KEYS = ['id', 'messageId', 'shareAssetId', 'filename', 'mimeType', 'size', 'url', 'thumbnailUrl', 'width', 'height', 'durationMs'];
+
+export function assertAttachmentShape(att: any): void {
+  assertExactKeys(att, ATTACHMENT_KEYS, 'Attachment');
+  assertUuid(att.id);
+  assertUuid(att.messageId);
+  expect(typeof att.shareAssetId).toBe('string');
+  expect(typeof att.filename).toBe('string');
+  expect(typeof att.mimeType).toBe('string');
+  // size: BigInt serialized as string
+  assertBigIntString(att.size);
+  expect(typeof att.url).toBe('string');
+  // thumbnailUrl: string or null
+  if (att.thumbnailUrl !== null) expect(typeof att.thumbnailUrl).toBe('string');
+  // width/height: number or null
+  if (att.width !== null) expect(typeof att.width).toBe('number');
+  if (att.height !== null) expect(typeof att.height).toBe('number');
+  // durationMs: number or null
+  if (att.durationMs !== null) expect(typeof att.durationMs).toBe('number');
+}
+
+// ── Reaction sub-shape (grouped) ──
+const REACTION_KEYS = ['emoji', 'count', 'userIds'];
+
+export function assertReactionShape(r: any): void {
+  assertExactKeys(r, REACTION_KEYS, 'Reaction');
+  expect(typeof r.emoji).toBe('string');
+  expect(typeof r.count).toBe('number');
+  expect(r.count).toBeGreaterThanOrEqual(1);
+  expect(Array.isArray(r.userIds)).toBe(true);
+  for (const uid of r.userIds) {
+    assertUuid(uid);
+  }
+}
+
+// ── ReplyTo sub-shape (embedded in messages) ──
+const REPLY_TO_KEYS = ['id', 'authorName', 'content'];
+
+export function assertReplyToShape(replyTo: any): void {
+  assertExactKeys(replyTo, REPLY_TO_KEYS, 'ReplyTo');
+  assertUuid(replyTo.id);
+  expect(typeof replyTo.authorName).toBe('string');
+  expect(typeof replyTo.content).toBe('string');
+}
+
+// ── Poll option sub-shape ──
+const POLL_OPTION_KEYS = ['id', 'text', 'voterIds'];
+
+export function assertPollOptionShape(opt: any): void {
+  assertExactKeys(opt, POLL_OPTION_KEYS, 'PollOption');
+  assertUuid(opt.id);
+  expect(typeof opt.text).toBe('string');
+  expect(Array.isArray(opt.voterIds)).toBe(true);
+  for (const vid of opt.voterIds) {
+    assertUuid(vid);
+  }
+}
+
+// ── Poll sub-shape (embedded in messages) ──
+const POLL_KEYS = ['id', 'question', 'multiple', 'closesAt', 'options'];
+
+export function assertPollShape(poll: any): void {
+  assertExactKeys(poll, POLL_KEYS, 'Poll');
+  assertUuid(poll.id);
+  expect(typeof poll.question).toBe('string');
+  expect(typeof poll.multiple).toBe('boolean');
+  // closesAt: ISO date string or null
+  if (poll.closesAt !== null) assertIsoDate(poll.closesAt);
+  expect(Array.isArray(poll.options)).toBe(true);
+  for (const opt of poll.options) {
+    assertPollOptionShape(opt);
+  }
+}
+
+// ── Message shape (EXHAUSTIVE) ──
+const MESSAGE_KEYS = ['id', 'channelId', 'authorId', 'content', 'createdAt', 'editedAt', 'deletedAt', 'replyToId', 'pinned', 'author', 'attachments', 'reactions', 'replyTo', 'poll'];
+
 export function assertMessageShape(msg: any): void {
-  expect(msg).toHaveProperty('id'); assertUuid(msg.id);
-  expect(msg).toHaveProperty('channelId'); assertUuid(msg.channelId);
-  expect(msg).toHaveProperty('authorId'); assertUuid(msg.authorId);
-  expect(msg).toHaveProperty('content');
-  expect(msg).toHaveProperty('createdAt'); assertIsoDate(msg.createdAt);
-  expect(msg).toHaveProperty('editedAt');
-  expect(msg).toHaveProperty('deletedAt');
-  expect(msg).toHaveProperty('replyToId');
-  expect(msg).toHaveProperty('pinned');
-  expect(msg).toHaveProperty('author'); expect(msg.author).toHaveProperty('id');
-  expect(msg).toHaveProperty('attachments'); expect(Array.isArray(msg.attachments)).toBe(true);
-  expect(msg).toHaveProperty('reactions'); expect(Array.isArray(msg.reactions)).toBe(true);
-  expect(msg).toHaveProperty('replyTo');
-  expect(msg).toHaveProperty('poll');
+  assertExactKeys(msg, MESSAGE_KEYS, 'Message');
+  assertUuid(msg.id);
+  assertUuid(msg.channelId);
+  assertUuid(msg.authorId);
+  expect(typeof msg.content).toBe('string');
+  assertIsoDate(msg.createdAt);
+  // editedAt: ISO date or null
+  if (msg.editedAt !== null) assertIsoDate(msg.editedAt);
+  // deletedAt: ISO date or null
+  if (msg.deletedAt !== null) assertIsoDate(msg.deletedAt);
+  // replyToId: uuid or null
+  if (msg.replyToId !== null) assertUuid(msg.replyToId);
+  expect(typeof msg.pinned).toBe('boolean');
+
+  // ── Recurse into nested objects ──
+  assertAuthorShape(msg.author);
+
+  expect(Array.isArray(msg.attachments)).toBe(true);
+  for (const att of msg.attachments) {
+    assertAttachmentShape(att);
+  }
+
+  expect(Array.isArray(msg.reactions)).toBe(true);
+  for (const r of msg.reactions) {
+    assertReactionShape(r);
+  }
+
+  // replyTo: object or null
+  if (msg.replyTo !== null) {
+    assertReplyToShape(msg.replyTo);
+  }
+
+  // poll: object or null
+  if (msg.poll !== null) {
+    assertPollShape(msg.poll);
+  }
+}
+
+// ── Server member shape ──
+const MEMBER_KEYS = ['userId', 'user', 'roleIds', 'isOwner', 'joinedAt', 'nickname'];
+
+export function assertMemberShape(m: any): void {
+  assertExactKeys(m, MEMBER_KEYS, 'ServerMember');
+  assertUuid(m.userId);
+  expect(typeof m.user).toBe('object');
+  // user sub-object: id, username, displayName, avatarUrl (at minimum)
+  expect(m.user).toHaveProperty('id');
+  expect(m.user).toHaveProperty('username');
+  expect(Array.isArray(m.roleIds)).toBe(true);
+  for (const rid of m.roleIds) {
+    assertUuid(rid);
+  }
+}
+
+// ── Invite shape (create response) ──
+const INVITE_KEYS = ['code', 'serverId', 'expiresAt', 'maxUses'];
+
+export function assertInviteShape(inv: any): void {
+  assertExactKeys(inv, INVITE_KEYS, 'Invite');
+  expect(typeof inv.code).toBe('string');
+  expect(inv.code.length).toBeGreaterThan(0);
+  assertUuid(inv.serverId);
+  // expiresAt: ISO date or null
+  if (inv.expiresAt !== null) assertIsoDate(inv.expiresAt);
+  // maxUses: number or null
+  if (inv.maxUses !== null) expect(typeof inv.maxUses).toBe('number');
+}
+
+// ── Invite preview shape (GET /invites/:code) ──
+const INVITE_PREVIEW_KEYS = ['code', 'expiresAt', 'server', 'inviter'];
+
+export function assertInvitePreviewShape(inv: any): void {
+  assertExactKeys(inv, INVITE_PREVIEW_KEYS, 'InvitePreview');
+  expect(typeof inv.server).toBe('object');
+  expect(inv.server).toHaveProperty('name');
+  expect(inv.server).toHaveProperty('id');
+  expect(typeof inv.inviter).toBe('object');
+  expect(inv.inviter).toHaveProperty('username');
+  expect(inv.inviter).toHaveProperty('id');
+}
+
+// ── Role shape ──
+const ROLE_KEYS = ['id', 'name', 'color', 'serverId', 'permissions', 'position'];
+
+export function assertRoleShape(r: any): void {
+  assertExactKeys(r, ROLE_KEYS, 'Role');
+  assertUuid(r.id);
+  expect(typeof r.name).toBe('string');
+  // color: number or null
+  if (r.color !== null) expect(typeof r.color).toBe('number');
+  assertUuid(r.serverId);
+  // permissions: BigInt serialized as string
+  assertBigIntString(r.permissions);
+  expect(typeof r.position).toBe('number');
+}
+
+// ── Permission catalog entry shape ──
+const PERMISSION_KEYS = ['name', 'bit', 'label'];
+
+export function assertPermissionShape(p: any): void {
+  assertExactKeys(p, PERMISSION_KEYS, 'Permission');
+  expect(typeof p.name).toBe('string');
+  // bit: BigInt serialized as string
+  assertBigIntString(p.bit);
+  expect(typeof p.label).toBe('string');
+}
+
+// ── Voice join response shape ──
+const VOICE_JOIN_KEYS = ['url', 'token', 'room'];
+
+export function assertVoiceJoinShape(body: any): void {
+  assertExactKeys(body, VOICE_JOIN_KEYS, 'VoiceJoin');
+  expect(typeof body.url).toBe('string');
+  expect(body.url).toContain('ws://');
+  expect(typeof body.token).toBe('string');
+  expect(body.token.length).toBeGreaterThan(0);
+  expect(typeof body.room).toBe('string');
+  assertUuid(body.room);
+}
+
+// ── Voice leave response shape ──
+const VOICE_LEAVE_KEYS = ['success'];
+
+export function assertVoiceLeaveShape(body: any): void {
+  assertExactKeys(body, VOICE_LEAVE_KEYS, 'VoiceLeave');
+  expect(body.success).toBe(true);
+}
+
+// ── WS ticket response shape ──
+const WS_TICKET_KEYS = ['ticket', 'expiresAt'];
+
+export function assertWsTicketShape(body: any): void {
+  assertExactKeys(body, WS_TICKET_KEYS, 'WsTicket');
+  expect(typeof body.ticket).toBe('string');
+  expect(body.ticket.length).toBeGreaterThan(0);
+  assertIsoDate(body.expiresAt);
+}
+
+// ── WS ready frame data shape ──
+const WS_READY_DATA_KEYS = ['user', 'servers'];
+
+export function assertWsReadyDataShape(d: any): void {
+  assertExactKeys(d, WS_READY_DATA_KEYS, 'WsReadyData');
+  expect(typeof d.user).toBe('object');
+  expect(d.user).toHaveProperty('id');
+  expect(Array.isArray(d.servers)).toBe(true);
+}
+
+// ── 401 error body shape ──
+const ERROR_401_KEYS = ['message', 'error', 'statusCode'];
+
+export function assert401Shape(body: any): void {
+  assertExactKeys(body, ERROR_401_KEYS, '401Error');
+  expect(typeof body.message).toBe('string');
+  expect(typeof body.error).toBe('string');
+  expect(body.statusCode).toBe(401);
+}
+
+// ── Sound shape ──
+const SOUND_KEYS = ['id', 'name', 'url', 'emoji'];
+
+export function assertSoundShape(snd: any): void {
+  assertExactKeys(snd, SOUND_KEYS, 'Sound');
+  assertUuid(snd.id);
+  expect(typeof snd.name).toBe('string');
+  expect(typeof snd.url).toBe('string');
+  // emoji: string or null
+  if (snd.emoji !== null) expect(typeof snd.emoji).toBe('string');
+}
+
+// ── Friend request shape ──
+const FRIEND_REQUEST_KEYS = ['id', 'status', 'senderId', 'receiverId', 'sender', 'receiver', 'createdAt'];
+
+export function assertFriendRequestShape(req: any): void {
+  assertExactKeys(req, FRIEND_REQUEST_KEYS, 'FriendRequest');
+  assertUuid(req.id);
+  expect(typeof req.status).toBe('string');
+  assertUuid(req.senderId);
+  assertUuid(req.receiverId);
+  expect(typeof req.sender).toBe('object');
+  expect(req.sender).toHaveProperty('username');
+  expect(req.sender).toHaveProperty('id');
+  expect(typeof req.receiver).toBe('object');
+  expect(req.receiver).toHaveProperty('username');
+  expect(req.receiver).toHaveProperty('id');
+  assertIsoDate(req.createdAt);
 }

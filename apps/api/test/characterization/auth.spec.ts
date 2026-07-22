@@ -1,5 +1,5 @@
 /** @characterizes auth — dev-login, /me, PATCH /me, ws-ticket, logout, 401 matrix */
-import { apiFetch, createJar, devLogin, assertUserShape, assertIsoDate } from './helpers';
+import { apiFetch, createJar, devLogin, assertUserShape, assertIsoDate, assertWsTicketShape, assert401Shape } from './helpers';
 
 describe('auth — dev-login', () => {
   it('returns user object with standard shape and session cookie', async () => {
@@ -97,11 +97,7 @@ describe('auth — ws-ticket', () => {
     const res = await apiFetch('/auth/ws-ticket', { jar });
     expect(res.status).toBe(200);
     // characterizes: ws-ticket response shape {ticket, expiresAt}
-    expect(res.body).toHaveProperty('ticket');
-    expect(typeof res.body.ticket).toBe('string');
-    expect(res.body.ticket.length).toBeGreaterThan(0);
-    expect(res.body).toHaveProperty('expiresAt');
-    assertIsoDate(res.body.expiresAt);
+    assertWsTicketShape(res.body);
   });
 });
 
@@ -134,9 +130,7 @@ describe('auth — 401 matrix', () => {
     it(`${method} ${path} → 401 without cookie`, async () => {
       const res = await apiFetch(path, { method });
       expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty('message');
-      expect(res.body).toHaveProperty('error');
-      expect(res.body).toHaveProperty('statusCode', 401);
+      assert401Shape(res.body);
     });
   }
 });

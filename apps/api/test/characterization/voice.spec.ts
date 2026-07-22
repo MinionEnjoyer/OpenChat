@@ -1,5 +1,5 @@
 /** @characterizes voice — join {url,token,room}, JWT claims (E8) */
-import { seed, apiFetch } from './helpers';
+import { seed, apiFetch, assertVoiceJoinShape, assertVoiceLeaveShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -8,11 +8,8 @@ describe('voice — join', () => {
     const res = await apiFetch(`/voice/${s.voiceChannelId}/join`, { method:'POST', jar:s.alice.jar });
     // characterizes: voice join returns 201
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('url');
-    expect(res.body.url).toContain('ws://');
-    expect(res.body).toHaveProperty('token');
-    expect(res.body.token.length).toBeGreaterThan(0);
-    expect(res.body).toHaveProperty('room', s.voiceChannelId);
+    assertVoiceJoinShape(res.body);
+    expect(res.body.room).toBe(s.voiceChannelId);
   });
   it('token decodes to JWT with claim names per E8', async () => {
     const res = await apiFetch(`/voice/${s.voiceChannelId}/join`, { method:'POST', jar:s.alice.jar });
@@ -41,6 +38,6 @@ describe('voice — leave', () => {
   it('POST returns {success:true}', async () => {
     const res = await apiFetch(`/voice/${s.voiceChannelId}/leave`, { method:'POST', jar:s.alice.jar });
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('success', true);
+    assertVoiceLeaveShape(res.body);
   });
 });

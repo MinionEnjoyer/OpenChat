@@ -1,5 +1,5 @@
 /** @characterizes servers — CRUD, channels, members, reorder, leave/kick */
-import { apiFetch, devLogin, seed, assertServerShape, assertChannelShape } from './helpers';
+import { apiFetch, devLogin, seed, assertServerShape, assertChannelShape, assertMemberShape, assertSoundShape } from './helpers';
 
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
@@ -96,9 +96,7 @@ describe('servers — members', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     for (const m of res.body) {
-      expect(m).toHaveProperty('userId');
-      expect(m).toHaveProperty('user');
-      expect(m).toHaveProperty('roleIds');
+      assertMemberShape(m);
     }
   });
 });
@@ -129,6 +127,7 @@ describe('servers — sounds', () => {
     expect(list.status).toBe(200);
     const add = await apiFetch(`/servers/${s.serverId}/sounds`, { method: 'POST', body: { name: 's', url: 'https://x.com/a.mp3' }, jar: s.alice.jar });
     expect(add.status).toBe(201);
+    assertSoundShape(add.body);
     expect((await apiFetch(`/servers/${s.serverId}/sounds/${add.body.id}`, { method: 'DELETE', jar: s.alice.jar })).status).toBe(200);
   });
 });

@@ -1,5 +1,5 @@
 /** @characterizes invites — create, preview, accept, error codes */
-import { seed, apiFetch, devLogin, assertIsoDate } from './helpers';
+import { seed, apiFetch, devLogin, assertIsoDate, assertInviteShape, assertInvitePreviewShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -8,12 +8,9 @@ describe('invites — create', () => {
     const res = await apiFetch(`/servers/${s.serverId}/invites`, { method:'POST', body:{}, jar:s.alice.jar });
     expect(res.status).toBe(201);
     // characterizes: invite create returns code (no id at top level)
-    expect(res.body).toHaveProperty('code');
-    expect(typeof res.body.code).toBe('string');
-    expect(res.body.code.length).toBeGreaterThan(0);
-    expect(res.body).toHaveProperty('serverId', s.serverId);
-    // characterizes: maxUses defaults to null
-    expect(res.body).toHaveProperty('maxUses');
+    // characterizes: invite create returns {code, serverId, expiresAt, maxUses}
+    assertInviteShape(res.body);
+    expect(res.body.serverId).toBe(s.serverId);
   });
   it('accepts maxUses and expiresInHours', async () => {
     const res = await apiFetch(`/servers/${s.serverId}/invites`, {
@@ -31,9 +28,8 @@ describe('invites — preview', () => {
     const inv = await apiFetch(`/servers/${s.serverId}/invites`, { method:'POST', body:{}, jar:s.alice.jar });
     const res = await apiFetch(`/invites/${inv.body.code}`, { jar:s.bob.jar });
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('server');
+    assertInvitePreviewShape(res.body);
     expect(res.body.server).toHaveProperty('name');
-    expect(res.body).toHaveProperty('inviter');
     expect(res.body.inviter).toHaveProperty('username');
   });
   it('returns 404 for invalid code', async () => {

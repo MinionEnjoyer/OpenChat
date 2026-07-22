@@ -1,5 +1,5 @@
 /** @characterizes roles — CRUD, BigInt serialization, member-role */
-import { seed, apiFetch, assertBigIntString, assertUuid } from './helpers';
+import { seed, apiFetch, assertBigIntString, assertUuid, assertRoleShape, assertPermissionShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -24,10 +24,7 @@ describe('roles', () => {
     const res = await apiFetch('/servers/permissions', { jar: s.alice.jar });
     expect(res.status).toBe(200);
     for (const p of res.body) {
-      expect(p).toHaveProperty('name');
-      expect(p).toHaveProperty('bit');
-      expect(typeof p.bit).toBe('string');
-      expect(p).toHaveProperty('label');
+      assertPermissionShape(p);
     }
   });
   it('member-role assignment (characterize as-is)', async () => {

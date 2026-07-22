@@ -1,5 +1,5 @@
 /** @characterizes ws — handshake, 4401/4404, subscribe gating, ready payload servers:[] */
-import { wsConnect, seed, apiFetch } from './helpers';
+import { wsConnect, seed, apiFetch, assertWsReadyDataShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -9,10 +9,9 @@ describe('ws — handshake', () => {
     try {
       const ready = client.frames.find(f => f.op === 'ready');
       expect(ready).toBeDefined();
-      expect(ready!.d).toHaveProperty('user');
+      assertWsReadyDataShape(ready!.d);
       expect(ready!.d.user).toHaveProperty('id', s.alice.userId);
       // characterizes: servers is hardcoded [] per gateway code
-      expect(ready!.d).toHaveProperty('servers');
       expect(ready!.d.servers).toEqual([]);
     } finally { client.close(); }
   });
