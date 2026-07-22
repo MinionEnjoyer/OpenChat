@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Patch, Put, Delete, Param, Body, Req, Res, UseGuards, NotFoundException,
+  Controller, Get, Post, Patch, Put, Delete, Param, Query, Body, Req, Res, UseGuards, NotFoundException,
 } from '@nestjs/common';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
@@ -14,7 +14,10 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('login')
-  async login(@Req() req: Request, @Res() res: Response) {
+  async login(@Req() req: Request, @Res() res: Response, @Query('returnTo') returnTo?: string) {
+    // Only allow internal paths as returnTo (no open redirect).
+    const safe = returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : null;
+    (req.session as typeof req.session & { returnTo?: string | null }).returnTo = safe;
     const url = await this.authService.beginLogin(req.session);
     res.redirect(url);
   }
@@ -25,6 +28,7 @@ export class AuthController {
       userId?: string;
       idToken?: string;
       loginRetries?: number;
+      returnTo?: string | null;
     };
     try {
       const { userId, idToken } = await this.authService.completeLogin(
@@ -34,11 +38,13 @@ export class AuthController {
       session.userId = userId;
       session.idToken = idToken;
       session.loginRetries = 0;
+      const dest = session.returnTo && session.returnTo.startsWith('/') && !session.returnTo.startsWith('//') ? session.returnTo : '/';
+      session.returnTo = null;
       // Persist the logged-in session BEFORE redirecting so the app's first /auth/me finds it.
       await new Promise<void>((resolve, reject) =>
         req.session.save((err) => (err ? reject(err) : resolve())),
       );
-      res.redirect('/');
+      res.redirect(dest);
     } catch (err) {
       // A stale/overlapping login (e.g. OIDC state mismatch from multiple open flows) should
       // restart the login cleanly rather than 500 — Authentik's SSO session makes it instant.
@@ -54,6 +60,27 @@ export class AuthController {
         res.redirect('/api/auth/login');
       }
     }
+  }
+
+  // Desktop sign-in handoff: after SSO, mint an app token and bounce it to the
+  // desktop client via the openchat:// deep link. Unauthenticated → go log in first.
+  @Get('desktop')
+  async desktopLogin(@Req() req: Request, @Res() res: Response) {
+    const session = req.session as typeof req.session & { userId?: string };
+    if (!session?.userId) {
+      return res.redirect('/api/auth/login?returnTo=/api/auth/desktop');
+    }
+    const { token } = await this.authService.createToken(session.userId, 'Desktop app');
+    const deepLink = `openchat://auth?token=${encodeURIComponent(token)}`;
+    res.type('html').send(
+      `<!doctype html><meta charset="utf-8"><title>OpenChat</title>` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<body style="font-family:system-ui;background:#2f3136;color:#dcddde;display:flex;min-height:100vh;margin:0;align-items:center;justify-content:center;text-align:center">` +
+      `<div><h2 style="color:#fff">Signing you in…</h2>` +
+      `<p>OpenChat should open automatically. If it doesn't, <a style="color:#5865F2" href="${deepLink}">click here</a>.</p>` +
+      `<p style="color:#8e9297;font-size:13px">You can close this tab.</p></div>` +
+      `<script>location.href=${JSON.stringify(deepLink)}</script></body>`,
+    );
   }
 
   @Post('logout')

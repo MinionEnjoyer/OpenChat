@@ -28,6 +28,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["openchat"]
+      }
+    },
     "updater": {
       "endpoints": [
         "https://github.com/MinionEnjoyer/OpenChat/releases/latest/download/latest.json"
