@@ -34,12 +34,30 @@ fn notify(app: AppHandle, title: String, body: String) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
-async fn check_for_update(app: AppHandle) {
-    let Ok(updater) = app.updater() else { return };
-    if let Ok(Some(update)) = updater.check().await {
-        if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+// Driven by the web "checking for updates" gate on launch. Returns false when the
+// app is already current; when an update is found it downloads it (emitting progress
+// events) and relaunches into the new version (so this never returns in that case).
+#[tauri::command]
+async fn run_update(app: AppHandle) -> Result<bool, String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    match updater.check().await.map_err(|e| e.to_string())? {
+        Some(update) => {
+            let _ = app.emit("update://status", "downloading");
+            let downloaded = AtomicU64::new(0);
+            update
+                .download_and_install(
+                    |chunk_len, content_len| {
+                        let d = downloaded.fetch_add(chunk_len as u64, Ordering::Relaxed) + chunk_len as u64;
+                        let _ = app.emit("update://progress", serde_json::json!({ "downloaded": d, "total": content_len }));
+                    },
+                    || { let _ = app.emit("update://status", "installing"); },
+                )
+                .await
+                .map_err(|e| e.to_string())?;
             app.restart();
         }
+        None => Ok(false),
     }
 }
 
@@ -61,7 +79,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![open_external, notify])
+        .invoke_handler(tauri::generate_handler![open_external, notify, run_update])
         .setup(|app| {
             // Deep links that cold-started the app / arrive while running.
             #[cfg(desktop)]
@@ -100,8 +118,6 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(check_for_update(handle));
             Ok(())
         })
         // Close-to-tray: hide instead of quitting so notifications keep flowing.
