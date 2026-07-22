@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Waveform } from './Waveform';
 
 const BARS = 64;
 const MAX_WAVEFORM_BYTES = 25 * 1024 * 1024; // don't decode huge files just to draw a waveform
@@ -31,27 +32,42 @@ function computePeaks(buf: AudioBuffer): number[] {
 }
 
 /**
- * Inline audio player: play/pause, a waveform (best-effort) or progress track you can
- * click/drag to scrub, elapsed/total time, and mute. Works for any audio the browser can
- * play; scrubbing relies on the /raw endpoint's HTTP Range support.
+ * Inline audio player: play/pause, a waveform (server peaks, precomputed peaks, or a
+ * best-effort client decode) you can click/drag to scrub, elapsed/total time, and mute.
+ * When `gainDb` is provided, playback is routed through a GainNode (used by the recorder
+ * preview so a level change is audible). Scrubbing relies on /raw HTTP Range support.
  */
-export function AudioPlayer({ src, filename, peaksUrl }: { src: string; filename: string; peaksUrl?: string }) {
+export function AudioPlayer({
+  src,
+  filename,
+  peaksUrl,
+  peaks: peaksProp,
+  gainDb,
+}: {
+  src: string;
+  filename: string;
+  peaksUrl?: string;
+  peaks?: number[];
+  gainDb?: number;
+}) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [dur, setDur] = useState(0);
   const [cur, setCur] = useState(0);
   const [muted, setMuted] = useState(false);
-  const [peaks, setPeaks] = useState<number[] | null>(() => peaksCache.get(src) ?? null);
+  const [bars, setBars] = useState<number[] | null>(() => peaksProp ?? peaksCache.get(src) ?? null);
 
-  // Waveform: prefer server-computed peaks (also used by OpenShare previews); otherwise
-  // decode client-side. Failures (CORS, size, unsupported codec) fall back to a plain
-  // progress track — playback is unaffected either way.
+  // Optional playback gain graph (recorder preview). Created once; source can only be
+  // attached to an element a single time.
+  const gainCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+
+  // Waveform source of truth: explicit peaks prop > server peaks > client decode.
   useEffect(() => {
-    if (peaksCache.has(src)) { setPeaks(peaksCache.get(src)!); return; }
+    if (peaksProp) { setBars(peaksProp); return; }
+    if (peaksCache.has(src)) { setBars(peaksCache.get(src)!); return; }
     let cancelled = false;
     (async () => {
-      // 1) Server peaks (0..100 ints) + duration.
       if (peaksUrl) {
         try {
           const res = await fetch(peaksUrl);
@@ -61,14 +77,13 @@ export function AudioPlayer({ src, filename, peaksUrl }: { src: string; filename
               const norm = data.peaks.map((p: number) => Math.max(0, Math.min(1, p / 100)));
               if (cancelled) return;
               peaksCache.set(src, norm);
-              setPeaks(norm);
+              setBars(norm);
               if (typeof data.duration === 'number' && data.duration > 0) setDur((d) => d || data.duration);
               return;
             }
           }
         } catch { /* fall through to client decode */ }
       }
-      // 2) Client-side decode fallback (size-guarded).
       try {
         const head = await fetch(src, { method: 'HEAD' });
         const len = Number(head.headers.get('content-length') || '0');
@@ -83,38 +98,48 @@ export function AudioPlayer({ src, filename, peaksUrl }: { src: string; filename
         if (cancelled) return;
         const p = computePeaks(buf);
         peaksCache.set(src, p);
-        setPeaks(p);
+        setBars(p);
       } catch { /* keep the plain progress track */ }
     })();
     return () => { cancelled = true; };
-  }, [src, peaksUrl]);
+  }, [src, peaksUrl, peaksProp]);
+
+  // Route playback through a GainNode when a gain is requested.
+  useEffect(() => {
+    if (gainDb === undefined) return;
+    const el = audioRef.current;
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!el || !Ctx) return;
+    try {
+      if (!gainCtxRef.current) {
+        const ctx = new Ctx();
+        gainCtxRef.current = ctx;
+        const g = ctx.createGain();
+        ctx.createMediaElementSource(el).connect(g);
+        g.connect(ctx.destination);
+        gainNodeRef.current = g;
+      }
+      if (gainNodeRef.current) gainNodeRef.current.gain.value = Math.pow(10, gainDb / 20);
+    } catch { /* gain is optional */ }
+  }, [gainDb]);
+
+  useEffect(() => () => { gainCtxRef.current?.close().catch(() => {}); }, []);
 
   const frac = dur > 0 ? Math.min(1, cur / dur) : 0;
 
   function toggle() {
     const a = audioRef.current;
     if (!a) return;
+    gainCtxRef.current?.resume().catch(() => {});
     if (a.paused) a.play().catch(() => {});
     else a.pause();
   }
 
-  function seekToClientX(clientX: number) {
-    const el = trackRef.current;
+  function seekFrac(f: number) {
     const a = audioRef.current;
-    if (!el || !a || !dur) return;
-    const rect = el.getBoundingClientRect();
-    const f = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    if (!a || !dur) return;
     a.currentTime = f * dur;
     setCur(a.currentTime);
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    seekToClientX(e.clientX);
-    const move = (ev: PointerEvent) => seekToClientX(ev.clientX);
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
   }
 
   return (
@@ -143,32 +168,21 @@ export function AudioPlayer({ src, filename, peaksUrl }: { src: string; filename
           {filename}
         </div>
 
-        {/* Scrub track: waveform if decoded, else a plain progress bar. */}
-        <div
-          ref={trackRef}
-          onPointerDown={onPointerDown}
-          style={{ cursor: 'pointer', height: 28, display: 'flex', alignItems: 'center' }}
-        >
-          {peaks ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', height: '100%' }}>
-              {peaks.map((p, i) => (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    height: `${Math.max(8, p * 100)}%`,
-                    borderRadius: 1,
-                    background: i / BARS <= frac ? 'var(--accent)' : 'var(--border)',
-                  }}
-                />
-              ))}
-            </div>
-          ) : (
+        {bars ? (
+          <Waveform peaks={bars} progress={frac} onSeek={seekFrac} />
+        ) : (
+          <div
+            onPointerDown={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              seekFrac((e.clientX - r.left) / r.width);
+            }}
+            style={{ cursor: 'pointer', height: 28, display: 'flex', alignItems: 'center' }}
+          >
             <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--input-bg)', overflow: 'hidden' }}>
               <div style={{ width: `${frac * 100}%`, height: '100%', background: 'var(--accent)' }} />
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
           <span>{fmt(cur)}</span>

@@ -84,6 +84,31 @@ export async function uploadToShare(
   return { attachments, rejected: data.rejected ?? [] };
 }
 
+/**
+ * Compute a waveform (audio-level peaks, normalized 0..1) + duration for a clip WITHOUT
+ * storing it — used by the recorder to bake the preview waveform right after recording.
+ * Returns null on any failure (caller falls back to no waveform).
+ */
+export async function analyzeWaveform(
+  file: File,
+  shareBaseUrl: string,
+): Promise<{ peaks: number[]; duration: number | null } | null> {
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${shareBaseUrl}/waveform`, { method: 'POST', body: form });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data?.peaks) || !data.peaks.length) return null;
+    return {
+      peaks: data.peaks.map((p: number) => Math.max(0, Math.min(1, p / 100))),
+      duration: typeof data.duration === 'number' ? data.duration : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 const VIEWER_PREFIX: Record<string, string> = {
   image: 'i',
   video: 'v',

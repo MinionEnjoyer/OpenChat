@@ -114,7 +114,7 @@ export function AttachmentPicker({
       </div>
 
       {recording && (
-        <SoundRecorder onRecorded={(file) => handleFiles([file])} onClose={() => setRecording(false)} />
+        <SoundRecorder shareBaseUrl={shareBaseUrl} onRecorded={(file) => handleFiles([file])} onClose={() => setRecording(false)} />
       )}
     </div>
   );

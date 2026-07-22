@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAudioPrefs } from '../lib/audioPrefs';
+import { analyzeWaveform } from '../lib/share';
+import { AudioPlayer } from './AudioPlayer';
 
 // Pick a MediaRecorder MIME the browser supports, mapped to a base MIME + extension that
 // OpenShare accepts. OpenShare matches the content-type exactly, so we strip the ";codecs="
@@ -61,17 +63,14 @@ function encodeWav(buffer: AudioBuffer, gain: number): Blob {
  * Record a short mic clip and hand it back as a File (posted like any other attachment).
  * Records → preview (with re-record) → Post.
  */
-export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File) => void; onClose: () => void }) {
+export function SoundRecorder({ shareBaseUrl, onRecorded, onClose }: { shareBaseUrl: string; onRecorded: (file: File) => void; onClose: () => void }) {
   const [phase, setPhase] = useState<'idle' | 'recording' | 'review'>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [level, setLevel] = useState(0);
   const [gainDb, setGainDb] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  const previewAudioRef = useRef<HTMLAudioElement>(null);
-  const previewCtxRef = useRef<AudioContext | null>(null);
-  const previewGainRef = useRef<GainNode | null>(null);
+  const [previewPeaks, setPreviewPeaks] = useState<number[] | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -96,32 +95,8 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
   useEffect(() => () => {
     stopStream();
     try { recorderRef.current?.stop(); } catch { /* ignore */ }
-    previewCtxRef.current?.close().catch(() => {});
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
-
-  // Route the preview <audio> through a GainNode so the dB adjustment is audible before
-  // posting. The source can only be created once per element, hence the guard.
-  useEffect(() => {
-    if (phase !== 'review') return;
-    const el = previewAudioRef.current;
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!el || !Ctx) return;
-    try {
-      if (!previewCtxRef.current) {
-        const ctx = new Ctx();
-        previewCtxRef.current = ctx;
-        const g = ctx.createGain();
-        ctx.createMediaElementSource(el).connect(g);
-        g.connect(ctx.destination);
-        previewGainRef.current = g;
-      }
-      if (previewGainRef.current) previewGainRef.current.gain.value = dbToLinear(gainDb);
-    } catch { /* preview gain is optional; export still applies it */ }
-    const resume = () => previewCtxRef.current?.resume().catch(() => {});
-    el.addEventListener('play', resume);
-    return () => el.removeEventListener('play', resume);
-  }, [phase, gainDb]);
 
   async function start() {
     setError(null);
@@ -153,8 +128,14 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
       const nextUrl = URL.createObjectURL(blob);
       setPreviewUrl(nextUrl);
       if (urlOld) URL.revokeObjectURL(urlOld);
+      setPreviewPeaks(null);
       setPhase('review');
       stopStream();
+      // Bake the waveform on the server right away so the preview matches the posted clip.
+      const { mime, ext } = fmtRef.current;
+      analyzeWaveform(new File([blob], `clip.${ext}`, { type: mime }), shareBaseUrl)
+        .then((r) => { if (r) setPreviewPeaks(r.peaks); })
+        .catch(() => {});
     };
     recorder.start();
     startedAtRef.current = Date.now();
@@ -194,6 +175,7 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
+    setPreviewPeaks(null);
     blobRef.current = null;
     setElapsed(0);
     setLevel(0);
@@ -255,7 +237,9 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
 
         {phase === 'review' && previewUrl && (
           <>
-            <audio ref={previewAudioRef} controls src={previewUrl} style={{ width: '100%', marginBottom: 14 }} />
+            <div style={{ marginBottom: 14 }}>
+              <AudioPlayer src={previewUrl} filename="Recording" peaks={previewPeaks ?? undefined} gainDb={gainDb} />
+            </div>
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
                 <span>Level</span>
