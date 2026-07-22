@@ -35,7 +35,7 @@ function computePeaks(buf: AudioBuffer): number[] {
  * click/drag to scrub, elapsed/total time, and mute. Works for any audio the browser can
  * play; scrubbing relies on the /raw endpoint's HTTP Range support.
  */
-export function AudioPlayer({ src, filename }: { src: string; filename: string }) {
+export function AudioPlayer({ src, filename, peaksUrl }: { src: string; filename: string; peaksUrl?: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -44,12 +44,31 @@ export function AudioPlayer({ src, filename }: { src: string; filename: string }
   const [muted, setMuted] = useState(false);
   const [peaks, setPeaks] = useState<number[] | null>(() => peaksCache.get(src) ?? null);
 
-  // Best-effort waveform: HEAD to check size, then fetch + decode. Failures (CORS, size,
-  // unsupported codec) fall back to a plain progress track — playback is unaffected.
+  // Waveform: prefer server-computed peaks (also used by OpenShare previews); otherwise
+  // decode client-side. Failures (CORS, size, unsupported codec) fall back to a plain
+  // progress track — playback is unaffected either way.
   useEffect(() => {
     if (peaksCache.has(src)) { setPeaks(peaksCache.get(src)!); return; }
     let cancelled = false;
     (async () => {
+      // 1) Server peaks (0..100 ints) + duration.
+      if (peaksUrl) {
+        try {
+          const res = await fetch(peaksUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data?.peaks) && data.peaks.length) {
+              const norm = data.peaks.map((p: number) => Math.max(0, Math.min(1, p / 100)));
+              if (cancelled) return;
+              peaksCache.set(src, norm);
+              setPeaks(norm);
+              if (typeof data.duration === 'number' && data.duration > 0) setDur((d) => d || data.duration);
+              return;
+            }
+          }
+        } catch { /* fall through to client decode */ }
+      }
+      // 2) Client-side decode fallback (size-guarded).
       try {
         const head = await fetch(src, { method: 'HEAD' });
         const len = Number(head.headers.get('content-length') || '0');
@@ -68,7 +87,7 @@ export function AudioPlayer({ src, filename }: { src: string; filename: string }
       } catch { /* keep the plain progress track */ }
     })();
     return () => { cancelled = true; };
-  }, [src]);
+  }, [src, peaksUrl]);
 
   const frac = dur > 0 ? Math.min(1, cur / dur) : 0;
 

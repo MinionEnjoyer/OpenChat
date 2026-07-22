@@ -51,7 +51,7 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
   }
 
   if (mimeType.startsWith('audio/')) {
-    return <AudioPlayer src={url} filename={filename} />;
+    return <AudioPlayer src={url} filename={filename} peaksUrl={`${shareBaseUrl}/waveform/${shareAssetId}`} />;
   }
 
   // File card for other types

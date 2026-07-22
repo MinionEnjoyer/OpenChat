@@ -27,6 +27,36 @@ function fmt(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+const dbToLinear = (db: number): number => Math.pow(10, db / 20);
+
+/** Encode an AudioBuffer to a 16-bit PCM WAV Blob, applying a linear gain (clamped). */
+function encodeWav(buffer: AudioBuffer, gain: number): Blob {
+  const numCh = buffer.numberOfChannels;
+  const len = buffer.length;
+  const rate = buffer.sampleRate;
+  const blockAlign = numCh * 2;
+  const dataSize = len * blockAlign;
+  const ab = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(ab);
+  const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF'); view.setUint32(4, 36 + dataSize, true); writeStr(8, 'WAVE');
+  writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numCh, true);
+  view.setUint32(24, rate, true); view.setUint32(28, rate * blockAlign, true); view.setUint16(32, blockAlign, true); view.setUint16(34, 16, true);
+  writeStr(36, 'data'); view.setUint32(40, dataSize, true);
+  const chans: Float32Array[] = [];
+  for (let c = 0; c < numCh; c++) chans.push(buffer.getChannelData(c));
+  let off = 44;
+  for (let i = 0; i < len; i++) {
+    for (let c = 0; c < numCh; c++) {
+      let s = chans[c][i] * gain;
+      s = Math.max(-1, Math.min(1, s));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      off += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
 /**
  * Record a short mic clip and hand it back as a File (posted like any other attachment).
  * Records → preview (with re-record) → Post.
@@ -35,8 +65,13 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
   const [phase, setPhase] = useState<'idle' | 'recording' | 'review'>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [level, setLevel] = useState(0);
+  const [gainDb, setGainDb] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const previewAudioRef = useRef<HTMLAudioElement>(null);
+  const previewCtxRef = useRef<AudioContext | null>(null);
+  const previewGainRef = useRef<GainNode | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -61,8 +96,32 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
   useEffect(() => () => {
     stopStream();
     try { recorderRef.current?.stop(); } catch { /* ignore */ }
+    previewCtxRef.current?.close().catch(() => {});
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+
+  // Route the preview <audio> through a GainNode so the dB adjustment is audible before
+  // posting. The source can only be created once per element, hence the guard.
+  useEffect(() => {
+    if (phase !== 'review') return;
+    const el = previewAudioRef.current;
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!el || !Ctx) return;
+    try {
+      if (!previewCtxRef.current) {
+        const ctx = new Ctx();
+        previewCtxRef.current = ctx;
+        const g = ctx.createGain();
+        ctx.createMediaElementSource(el).connect(g);
+        g.connect(ctx.destination);
+        previewGainRef.current = g;
+      }
+      if (previewGainRef.current) previewGainRef.current.gain.value = dbToLinear(gainDb);
+    } catch { /* preview gain is optional; export still applies it */ }
+    const resume = () => previewCtxRef.current?.resume().catch(() => {});
+    el.addEventListener('play', resume);
+    return () => el.removeEventListener('play', resume);
+  }, [phase, gainDb]);
 
   async function start() {
     setError(null);
@@ -141,12 +200,27 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
     setPhase('idle');
   }
 
-  function post() {
+  async function post() {
     const blob = blobRef.current;
     if (!blob) return;
-    const { mime, ext } = fmtRef.current;
+    let outBlob: Blob = blob;
+    let mime = fmtRef.current.mime;
+    let ext = fmtRef.current.ext;
+    // Bake the dB gain into a WAV when adjusted; 0 dB posts the original (smaller) clip.
+    if (gainDb !== 0) {
+      try {
+        const arr = await blob.arrayBuffer();
+        const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new Ctx();
+        const buf = await ctx.decodeAudioData(arr);
+        ctx.close().catch(() => {});
+        outBlob = encodeWav(buf, dbToLinear(gainDb));
+        mime = 'audio/wav';
+        ext = 'wav';
+      } catch { /* fall back to the original clip if decode/encode fails */ }
+    }
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const file = new File([blob], `recording-${stamp}.${ext}`, { type: mime });
+    const file = new File([outBlob], `recording-${stamp}.${ext}`, { type: mime });
     onRecorded(file);
     onClose();
   }
@@ -180,7 +254,25 @@ export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File
         </div>
 
         {phase === 'review' && previewUrl && (
-          <audio controls src={previewUrl} style={{ width: '100%', marginBottom: 18 }} />
+          <>
+            <audio ref={previewAudioRef} controls src={previewUrl} style={{ width: '100%', marginBottom: 14 }} />
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
+                <span>Level</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{gainDb > 0 ? '+' : ''}{gainDb} dB</span>
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="range" min={-12} max={12} step={1} value={gainDb}
+                  onChange={(e) => setGainDb(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: 'var(--accent)' }}
+                />
+                {gainDb !== 0 && (
+                  <button onClick={() => setGainDb(0)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>Reset</button>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
