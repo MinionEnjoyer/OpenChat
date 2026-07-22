@@ -195,7 +195,7 @@ export class ServersService {
   async addSound(serverId: string, userId: string, data: { name: string; url: string; emoji?: string | null }) {
     await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
     const count = await this.prisma.serverSound.count({ where: { serverId } });
-    if (count >= 50) throw new ForbiddenException('This soundboard is full (50 sounds max).');
+    if (count >= 500) throw new ForbiddenException('This soundboard is full (500 sounds max).');
     return this.prisma.serverSound.create({
       data: { serverId, name: data.name.slice(0, 40), url: data.url, emoji: data.emoji ?? null },
       select: { id: true, name: true, emoji: true, url: true },
