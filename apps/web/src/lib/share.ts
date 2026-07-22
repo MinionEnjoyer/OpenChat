@@ -33,6 +33,22 @@ export async function uploadToShare(
   files: File[],
   shareBaseUrl: string,
 ): Promise<{ attachments: Attachment[]; rejected: { name: string; reason: string }[] }> {
+  // Native clients (desktop) have no Share session cookie, so they upload through
+  // the API, which stores to Share on the user's behalf (bearer + service key).
+  const token = getToken();
+  if (token) {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    const res = await fetch(`${apiBase()}/uploads`, {
+      method: 'POST',
+      body: form,
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    return (await res.json()) as { attachments: Attachment[]; rejected: { name: string; reason: string }[] };
+  }
+
+  // Web: post directly to Share, authorized by the browser's Share session cookie.
   const form = new FormData();
   for (const f of files) form.append('files', f);
   form.append('source', 'chat'); // routes into the user's "Chat" folder on Share + enables dedup
