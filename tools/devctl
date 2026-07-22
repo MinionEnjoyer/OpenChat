@@ -138,6 +138,25 @@ cmd_doctor() {
     "tools/seed/seed.mjs"
     "tools/devctl"
   )
+  # ── Stale fixture-ids.json check: if the file exists but is older than the last DB reset,
+  # ── flag it so Phase 1 E2E doesn't silently reference wrong fixture ids.
+  local fid_path="$ROOT/tools/seed/fixture-ids.json"
+  if [ -f "$fid_path" ]; then
+    local postgres_container
+    postgres_container=$(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null)
+    if [ -n "$postgres_container" ]; then
+      # Approximate "last DB reset" by postgres container creation time
+      local pg_created
+      pg_created=$(docker inspect --format='{{.Created}}' "$postgres_container" 2>/dev/null | cut -d'T' -f1 | tr -d '-' 2>/dev/null)
+      local fid_mtime
+      fid_mtime=$(stat -f '%Sm' -t '%Y%m%d' "$fid_path" 2>/dev/null || stat -c '%Y' "$fid_path" 2>/dev/null | head -c8 2>/dev/null)
+      if [ -n "$pg_created" ] && [ -n "$fid_mtime" ] && [ "$fid_mtime" -lt "$pg_created" ] 2>/dev/null; then
+        local f_text="fixture-ids.json is older than the last DB reset — stale ids may cause E2E errors"
+        missing+=("$f_text")
+      fi
+    fi
+  fi
+
   for p in "${paths[@]}"; do
     if [ ! -f "$ROOT/$p" ]; then
       missing+=("$p")
@@ -398,7 +417,27 @@ cmd_verify() {
     }
   fi
 
-  # 2. Characterization tests
+  # 2. Codegen check — generated types must not drift from contracts
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "codegen" ]; then
+    echo "[devctl] codegen --check (contract → type drift gate)…"
+    if ! node "$ROOT/tools/codegen/gen.mjs" --check 2>&1; then
+      echo "  ✗ codegen drift — regenerate with: node tools/codegen/gen.mjs"
+      exit 1
+    fi
+    echo "  ✓ codegen pass"
+  fi
+
+  # 3. Contract tests (provider + consumer)
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "contract" ]; then
+    echo "[devctl] running contract tests (provider + consumer)…"
+    (cd "$ROOT/apps/api" && npx jest --config jest-contract.config.js --forceExit --json 2>&1) || {
+      echo "  ✗ contract tests failed"
+      exit 1
+    }
+    echo "  ✓ contract tests pass"
+  fi
+
+  # 4. Characterization tests
   if [ "$only_layer" = "" ] || [ "$only_layer" = "char" ]; then
     echo "[devctl] running characterization tests…"
     (cd "$ROOT/apps/api" && npx jest --config jest-char.config.js --forceExit --json 2>&1) || {
@@ -432,6 +471,29 @@ Flags:
 EOF
 }
 
+cmd_commit() {
+  # Fail loudly if tree is dirty (no staging area ambiguity)
+  if ! git -C "$ROOT" diff-index --quiet HEAD -- 2>/dev/null; then
+    echo "✗ devctl commit: working tree is dirty (tracked files modified)"
+    echo "  Unstaged changes:"
+    git -C "$ROOT" diff --name-only -- ':(exclude)node_modules' 2>/dev/null
+    echo "  Staged changes:"
+    git -C "$ROOT" diff --name-only --cached -- ':(exclude)node_modules' 2>/dev/null
+    echo "  Stage or stash before committing."
+    return 1
+  fi
+  # Check for untracked files that should be committed
+  local untracked
+  untracked=$(git -C "$ROOT" ls-files --others --exclude-standard -- ':(exclude)node_modules' 2>/dev/null)
+  if [ -n "$untracked" ]; then
+    echo "⚠ devctl commit: untracked files present — consider staging them:"
+    echo "$untracked" | sed 's/^/  /'
+  fi
+
+  # Pass through to git commit
+  git -C "$ROOT" commit "$@"
+}
+
 # Route subcommand
 case "${1:-}" in
   stack)
@@ -448,5 +510,6 @@ case "${1:-}" in
   doctor)        cmd_doctor "$@";;
   capabilities)  cmd_capabilities "$@";;
   verify)        cmd_verify "$@";;
+  commit)        shift; cmd_commit "$@";;
   *) usage; exit 1;;
 esac
