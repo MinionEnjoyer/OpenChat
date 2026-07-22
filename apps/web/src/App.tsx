@@ -33,6 +33,7 @@ import { wsUrl, serverOrigin, getToken, setToken } from './lib/serverConfig';
 import { TitleBar, isTauri, isMac } from './components/TitleBar';
 import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
+import { UpdateGate } from './components/UpdateGate';
 import { notifyNative } from './lib/notify';
 import { canManageServer, has, Permission } from './lib/permissions';
 
@@ -144,6 +145,8 @@ export default function App() {
   const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
   const [wsDown, setWsDown] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [updateChecked, setUpdateChecked] = useState(() => !isTauri()); // desktop gates on an update check first
+  const finishUpdateCheck = useCallback(() => setUpdateChecked(true), []);
   const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
   const [loadingOlder, setLoadingOlder] = useState(false);
   const loadingOlderRef = useRef(false);
@@ -831,6 +834,16 @@ export default function App() {
     }
     return names;
   }, [homeView, s.activeServerId, s.activeChannelId, s.servers, s.membersByServer, s.dms, s.user]);
+
+  // Desktop: check for + apply updates before loading the app.
+  if (isTauri() && !updateChecked) {
+    return (
+      <>
+        {showChrome && <TitleBar />}
+        <UpdateGate onDone={finishUpdateCheck} />
+      </>
+    );
+  }
 
   // Native shell not yet pointed at a server / signed in → first-run setup.
   if (isTauri() && (!serverOrigin() || !getToken())) {
