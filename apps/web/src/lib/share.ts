@@ -1,4 +1,5 @@
 import type { Attachment } from './types';
+import { apiBase, getToken } from './serverConfig';
 
 export interface ShareConfig {
   shareBaseUrl: string;
@@ -6,7 +7,11 @@ export interface ShareConfig {
 }
 
 export async function getConfig(): Promise<ShareConfig> {
-  const res = await fetch('/api/config', { credentials: 'include' });
+  const token = getToken();
+  const res = await fetch(`${apiBase()}/config`, {
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) {
     const err = new Error(`config ${res.status}`) as Error & { status?: number };
     err.status = res.status;

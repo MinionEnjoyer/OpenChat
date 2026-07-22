@@ -29,6 +29,7 @@ import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
+import { wsUrl, serverOrigin } from './lib/serverConfig';
 import { canManageServer, has, Permission } from './lib/permissions';
 
 interface AppState {
@@ -220,7 +221,7 @@ export default function App() {
           openDm(dm.id, title);
         }
       } catch (e: any) {
-        if (e?.status === 401) window.location.href = '/api/auth/login';
+        if (e?.status === 401) window.location.href = `${serverOrigin()}/api/auth/login`;
         else console.error('init failed', e);
       }
     })();
@@ -247,8 +248,7 @@ export default function App() {
       try { ({ ticket } = await api.getWsTicket()); }
       catch { scheduleReconnect(); return; }
       if (closedByUs) return;
-      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${window.location.host}/ws?ticket=${ticket}`);
+      const ws = new WebSocket(wsUrl(`/ws?ticket=${ticket}`));
       wsRef.current = ws;
       ws.onopen = () => {
         attempt = 0;
