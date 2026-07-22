@@ -172,7 +172,6 @@ export async function seed(): Promise<SeedContext> {
         mimeType: 'image/png',
         size: 1024,
         url: 'http://localhost:8800/raw/test',
-        thumbnailUrl: null,
         width: null,
         height: null,
         durationMs: null,
