@@ -75,6 +75,15 @@ recommendation), do NOT push partial work to main:
 Also stop-and-decompose (no escalation file needed): an item exceeds ~15 substantive commits
 or its diff exceeds ~1500 lines — split it into sub-items `<ID>a/b/…` with their own DoD.
 
+5.1. INCONCLUSIVE IS NOT A TERMINAL STATE. Any pre-registered check, mutation, or experiment
+that cannot be executed has exactly two valid dispositions: (a) the obstacle is removed and the
+check is executed, or (b) an escalation file is opened under `docs/escalations/` and all
+dependent work is stopped. Source inspection, "verified correct by reading", "caught by design",
+and "assertion logic confirms" are explicitly **forbidden** as evidence that a check passed.
+Evidence means observed output — a test-run log, a gate JSON produced by the check itself, or
+a mutation caught with a failure message naming the fault. If neither disposition (a) nor (b)
+has been taken, the check is OPEN, not PASSED.
+
 ## 6. Context hygiene (counter context-rot)
 One work item per session. On compaction or resumption: re-read §1.1's prepare list before
 continuing — never trust a summary of a contract; open the contract. When output quality

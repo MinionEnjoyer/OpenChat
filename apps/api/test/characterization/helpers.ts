@@ -134,6 +134,10 @@ export interface SeedContext {
   serverId: string; textChannelId: string; voiceChannelId: string;
   adminRoleId: string; modRoleId: string; memberRoleId: string;
   messageIds: string[];
+  /** Message with attachments — exercises assertAttachmentShape */
+  attachmentMsgId: string;
+  /** Message that is a reply — exercises assertReplyToShape */
+  replyMsgId: string;
 }
 
 export async function seed(): Promise<SeedContext> {
@@ -157,7 +161,39 @@ export async function seed(): Promise<SeedContext> {
     const msg = await apiFetch(`/channels/${textChannelId}/messages`, { method: 'POST', body: { content: `Seed message ${i + 1}` }, jar: alice.jar });
     messageIds.push(msg.body.id);
   }
-  return { alice, bob, carol, serverId, textChannelId, voiceChannelId, adminRoleId: adminRole.body.id, modRoleId: modRole.body.id, memberRoleId, messageIds };
+  // Message with fake attachment (exercises assertAttachmentShape)
+  const attMsg = await apiFetch(`/channels/${textChannelId}/messages`, {
+    method: 'POST',
+    body: {
+      content: 'Message with attachment',
+      attachments: [{
+        shareAssetId: 'fake-asset-id-001',
+        filename: 'test.png',
+        mimeType: 'image/png',
+        size: 1024,
+        url: 'http://localhost:8800/raw/test',
+        thumbnailUrl: null,
+        width: null,
+        height: null,
+        durationMs: null,
+      }],
+    },
+    jar: alice.jar,
+  });
+  const attachmentMsgId = attMsg.body.id;
+
+  // Message that is a reply (exercises assertReplyToShape)
+  const replyMsg = await apiFetch(`/channels/${textChannelId}/messages`, {
+    method: 'POST',
+    body: {
+      content: 'This is a reply',
+      replyToId: messageIds[0],
+    },
+    jar: alice.jar,
+  });
+  const replyMsgId = replyMsg.body.id;
+
+  return { alice, bob, carol, serverId, textChannelId, voiceChannelId, adminRoleId: adminRole.body.id, modRoleId: modRole.body.id, memberRoleId, messageIds, attachmentMsgId, replyMsgId };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -528,20 +564,14 @@ export function assertSoundShape(snd: any): void {
   if (snd.emoji !== null) expect(typeof snd.emoji).toBe('string');
 }
 
-// ── Friend request shape ──
-const FRIEND_REQUEST_KEYS = ['id', 'status', 'senderId', 'receiverId', 'sender', 'receiver', 'createdAt'];
+// ── Friend request shape (Friendship model from accept/decline/pending) ──
+const FRIEND_REQUEST_KEYS = ['id', 'status', 'requesterId', 'addresseeId', 'createdAt'];
 
 export function assertFriendRequestShape(req: any): void {
   assertExactKeys(req, FRIEND_REQUEST_KEYS, 'FriendRequest');
   assertUuid(req.id);
   expect(typeof req.status).toBe('string');
-  assertUuid(req.senderId);
-  assertUuid(req.receiverId);
-  expect(typeof req.sender).toBe('object');
-  expect(req.sender).toHaveProperty('username');
-  expect(req.sender).toHaveProperty('id');
-  expect(typeof req.receiver).toBe('object');
-  expect(req.receiver).toHaveProperty('username');
-  expect(req.receiver).toHaveProperty('id');
+  assertUuid(req.requesterId);
+  assertUuid(req.addresseeId);
   assertIsoDate(req.createdAt);
 }

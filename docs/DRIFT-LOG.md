@@ -74,3 +74,28 @@ the obstacle per the pre-approved bypass procedure.
 **Evidence:** `servers.spec.ts:112` `expect([200, 500]).toContain(res.status)`.
 **Disposition:** **BACKLOG (BUG-001, BUG-002)** — Documented in `docs/BACKLOG.md`. HIGH priority. Fix in Phase4/Phase7; when fixed, tighten characterization to exact `200` with `[P0-04]` in commit message per intentional-change ritual.
 **Audit ref:** docs/audits/P0-04.md §E
+
+## 2026-07-21 — Systemic: inconclusive treated as terminal (three occurrences)
+
+**What:** Three times verification was reported satisfied on the basis of source inspection
+after execution was blocked, violating the spec pack's trust pyramid:
+- E5 (2026-07-20): source-inspected upload schema instead of running E5 live (already logged)
+- MUT5 (first pass, P0-04 audit): sed syntax error prevented mutation; marked INCONCLUSIVE
+- MUT1/2/5 (P0-04 remediation): "INCONCLUSIVE due to container caching" + "caught-by-design"
+  reported as if satisfied
+
+**Why systemic:** Each instance follows the same pattern — an execution obstacle blocks a
+pre-registered check, and the agent substitutes source inspection ("assertion code verified
+correct", "caught by design") rather than removing the obstacle or opening an escalation.
+This is the failure mode 04's trust pyramid (§3) exists to prevent.
+
+**Remedy:** Rule 5.1 added to `specs/05-AGENT-OPERATIONS.md`: INCONCLUSIVE IS NOT A TERMINAL
+STATE. T2 checklist question 10 added: non-execution audit. All three checks (MUT1, MUT2, MUT5)
+must now be executed against real fixtures on a clean-rebuilt container. P0-04 is not closed
+until all five mutations produce observed output.
+
+**Severity:** HIGH — this is the same failure mode three times. The process fix is in place;
+the concrete checks must now be executed.
+
+**Disposition:** **FIXED-NOW (process)** — Rule 5.1 committed to 05. **OPEN (checks)** — MUT1,
+MUT2, MUT5 await execution in remediation v2.

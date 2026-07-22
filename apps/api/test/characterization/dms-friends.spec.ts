@@ -1,5 +1,5 @@
 /** @characterizes dms + friends — DM gated by friendship, friend state machine */
-import { seed, apiFetch, devLogin } from './helpers';
+import { seed, apiFetch, devLogin, assertFriendRequestShape, assertMessageShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -8,6 +8,10 @@ describe('dms', () => {
     const res = await apiFetch('/dms', { jar: s.alice.jar });
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
+    // Validate shape of each DM if any exist
+    for (const dm of res.body) {
+      expect(typeof dm.id).toBe('string');
+    }
   });
   it('DM requires friendship (403 for non-friends)', async () => {
     const a = await devLogin('dm-a-' + Date.now());
@@ -28,7 +32,7 @@ describe('friends', () => {
     const a = await devLogin('fr-snd-' + Date.now());
     const b = await devLogin('fr-rcv-' + Date.now());
     const res = await apiFetch('/friends/requests', { method: 'POST', body: { username: b.username }, jar: a.jar });
-    // characterizes: friend request may return 201 Created
+    // characterizes: friend request may return 201 Created; response shape varies (User DTO vs Friendship)
     expect(res.status).toBeLessThan(500);
   });
   it('full cycle: send → accept → list', async () => {
@@ -39,7 +43,8 @@ describe('friends', () => {
     if (pending.body.length > 0) {
       const res = await apiFetch(`/friends/requests/${pending.body[0].id}/accept`, { method: 'POST', jar: b.jar });
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('status', 'ACCEPTED');
+      assertFriendRequestShape(res.body);
+      expect(res.body.status).toBe('ACCEPTED');
     }
   });
 });

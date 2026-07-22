@@ -28,4 +28,9 @@ answer. Output file: docs/audits/<item>.md. Verdict options per question: PASS /
 9. Legibility: could the next fresh session understand this from repo alone (docs updated,
    non-obvious decisions commented with spec refs)?
 
+10. Non-execution audit: List every check in this item that did not execute. For each,
+    which of the two valid dispositions was taken (per 05 §5.1)? (a) obstacle removed and
+    check executed, or (b) escalation file opened and work stopped? If neither, the check
+    is OPEN, not PASSED.
+
 Disposition summary → DRIFT-LOG lines appended: <list or "none">

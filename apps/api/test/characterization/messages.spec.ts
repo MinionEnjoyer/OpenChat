@@ -1,5 +1,5 @@
 /** @characterizes messages — list, send, edit, delete, read, pagination per E6 */
-import { seed, apiFetch, assertMessageShape, assertIsoDate } from './helpers';
+import { seed, apiFetch, assertMessageShape, assertIsoDate, assertAttachmentShape, assertReplyToShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -13,10 +13,15 @@ describe('messages — list', () => {
       expect(new Date(res.body[i - 1].createdAt).getTime()).toBeGreaterThanOrEqual(new Date(res.body[i].createdAt).getTime());
     }
   });
-  it('message has standard shape', async () => {
-    const res = await apiFetch(`/channels/${s.textChannelId}/messages?limit=1`, { jar: s.alice.jar });
-    expect(res.body.length).toBeGreaterThanOrEqual(1);
-    assertMessageShape(res.body[0]);
+  it('message with attachment — exercises assertAttachmentShape', async () => {
+    const res = await apiFetch(`/channels/${s.textChannelId}/messages?limit=20`, { jar: s.alice.jar });
+    expect(res.status).toBe(200);
+    // Find the message with attachments
+    const attMsg = res.body.find((m: any) => m.id === s.attachmentMsgId);
+    expect(attMsg).toBeDefined();
+    assertMessageShape(attMsg);
+    expect(attMsg.attachments.length).toBeGreaterThanOrEqual(1);
+    assertAttachmentShape(attMsg.attachments[0]);
   });
   it('supports ?before cursor (E6: no gaps/dupes)', async () => {
     const first = await apiFetch(`/channels/${s.textChannelId}/messages?limit=1`, { jar: s.alice.jar });

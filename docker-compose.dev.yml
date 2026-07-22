@@ -56,6 +56,8 @@ services:
       LIVEKIT_API_SECRET: secretsecretsecretsecretsecret12
       LIVEKIT_URL: ws://livekit:7880
       LIVEKIT_API_URL: http://livekit:7880
+    volumes:
+      - ./apps/api/src:/app/src:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,6 +99,7 @@ services:
     container_name: chat-dev-openshare
     restart: unless-stopped
     environment:
+      DEV_AUTH: "1"
       SESSION_SECRET: dev-share-session-secret-not-for-prod
       OIDC_CLIENT_ID: dev
       OIDC_CLIENT_SECRET: dev
