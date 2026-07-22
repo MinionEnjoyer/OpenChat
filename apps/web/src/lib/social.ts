@@ -1,15 +1,18 @@
 import type { User, Server } from './types';
+import { apiBase, getToken } from './serverConfig';
 
 interface ApiResponse<T> extends Response {
   json(): Promise<T>;
 }
 
 async function req<T>(path: string, method = 'GET', body?: any): Promise<T> {
+  const token = getToken();
   const options: RequestInit = {
     method,
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   };
 
@@ -17,7 +20,7 @@ async function req<T>(path: string, method = 'GET', body?: any): Promise<T> {
     options.body = JSON.stringify(body);
   }
 
-  const res = await fetch(`/api${path}`, options) as ApiResponse<T>;
+  const res = await fetch(`${apiBase()}${path}`, options) as ApiResponse<T>;
 
   if (!res.ok) {
     // Prefer the server's message (Nest exceptions serialize { message } in the body).
