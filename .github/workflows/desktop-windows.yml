@@ -26,7 +26,8 @@ jobs:
           workspaces: apps/desktop/src-tauri
 
       - name: Install desktop tooling
-        run: npm --prefix apps/desktop install
+        working-directory: apps/desktop
+        run: npm install
 
       - name: Build (Tauri) + release on tag
         uses: tauri-apps/tauri-action@v0
