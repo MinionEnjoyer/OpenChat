@@ -1,0 +1,43 @@
+name: desktop-windows
+
+# Manual trigger (Actions tab → Run workflow). Builds the Windows installer.
+# Set a repo variable SERVER_URL to bake a default server origin into the build
+# (otherwise the app asks for it on first run).
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+
+      - name: Install desktop tooling
+        run: npm --prefix apps/desktop install
+
+      - name: Build Windows app (Tauri)
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: apps/desktop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SERVER_URL: ${{ vars.SERVER_URL }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: openchat-windows-installer
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn

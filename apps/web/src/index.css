@@ -58,6 +58,10 @@ body {
 
 button, input, textarea { font-family: inherit; }
 
+/* Desktop (Tauri) shell: stack the custom title bar above the app shell. */
+#root.tauri { display: flex; flex-direction: column; }
+#root.tauri > .app-shell { flex: 1 1 0; min-height: 0; height: auto; }
+
 /* --- interaction polish + accessibility --- */
 
 /* Smooth the many inline background/opacity swaps (mute toggle, hovers, etc.)

@@ -29,7 +29,9 @@ import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
-import { wsUrl, serverOrigin } from './lib/serverConfig';
+import { wsUrl, serverOrigin, getToken } from './lib/serverConfig';
+import { TitleBar, isTauri } from './components/TitleBar';
+import { DesktopSetup } from './components/DesktopSetup';
 import { canManageServer, has, Permission } from './lib/permissions';
 
 interface AppState {
@@ -195,6 +197,10 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (isTauri()) document.getElementById('root')?.classList.add('tauri');
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -798,6 +804,16 @@ export default function App() {
     return names;
   }, [homeView, s.activeServerId, s.activeChannelId, s.servers, s.membersByServer, s.dms, s.user]);
 
+  // Native shell not yet pointed at a server / signed in → first-run setup.
+  if (isTauri() && (!serverOrigin() || !getToken())) {
+    return (
+      <>
+        <TitleBar />
+        <DesktopSetup onDone={() => window.location.reload()} />
+      </>
+    );
+  }
+
   if (!s.user) return <div style={{ padding: 20, color: 'var(--muted)' }}>Loading…</div>;
 
   const channels = s.activeServerId ? s.channelsByServer[s.activeServerId] || [] : [];
@@ -1022,7 +1038,9 @@ export default function App() {
   const railKeys = topLevelKeys(layout);
 
   return (
-    <div className={'app-shell' + (navOpen ? ' nav-open' : '')} onClick={() => navOpen && setNavOpen(false)}>
+    <>
+      {isTauri() && <TitleBar />}
+      <div className={'app-shell' + (navOpen ? ' nav-open' : '')} onClick={() => navOpen && setNavOpen(false)}>
       <div className="sidebars" onClick={(e) => e.stopPropagation()}>
         {/* server rail */}
         <div style={{ width: 64, background: 'var(--panel-dark)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, paddingBottom: 12, overflowY: 'auto' }}>
@@ -1457,7 +1475,8 @@ export default function App() {
           }}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
