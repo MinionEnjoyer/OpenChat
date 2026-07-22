@@ -39,10 +39,16 @@ export async function uploadToShare(
   const res = await fetch(`${apiBase()}/uploads`, {
     method: 'POST',
     body: form,
-    credentials: 'include',
+    // Native clients auth with the bearer token cross-origin — omit cookies so the request
+    // doesn't require CORS credentials support. Web (no token) sends its same-origin cookie.
+    credentials: token ? 'omit' : 'include',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 200); } catch { /* ignore */ }
+    throw new Error(`Upload failed (${res.status})${detail ? `: ${detail}` : ''}`);
+  }
   return (await res.json()) as { attachments: Attachment[]; rejected: { name: string; reason: string }[] };
 }
 
