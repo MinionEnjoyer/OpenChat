@@ -20,68 +20,30 @@ export async function getConfig(): Promise<ShareConfig> {
   return res.json();
 }
 
-interface UploadResponse {
-  saved: { id: string; media_type: string; bundle?: boolean }[];
-  rejected: { name: string; reason: string }[];
-}
-
 /**
- * Upload files directly to the Share service (the user is SSO'd to Share too, so the
- * browser's Share session cookie authorizes it). Returns Chat attachment references.
+ * Upload files through the API's authenticated upload endpoint, which stores them in Share
+ * on the user's behalf using the shared service key + the user's SSO sub. This needs NO
+ * Share session or account, so it works for users who have never opened OpenShare (the old
+ * web path posted straight to Share with a browser cookie, which such users don't have).
+ * Web authenticates with the session cookie; native clients send a bearer app token.
+ * `shareBaseUrl` is unused now (the API builds the returned URLs) but kept for call sites.
  */
 export async function uploadToShare(
   files: File[],
-  shareBaseUrl: string,
+  shareBaseUrl?: string,
 ): Promise<{ attachments: Attachment[]; rejected: { name: string; reason: string }[] }> {
-  // Native clients (desktop) have no Share session cookie, so they upload through
-  // the API, which stores to Share on the user's behalf (bearer + service key).
+  void shareBaseUrl;
   const token = getToken();
-  if (token) {
-    const form = new FormData();
-    for (const f of files) form.append('files', f);
-    const res = await fetch(`${apiBase()}/uploads`, {
-      method: 'POST',
-      body: form,
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-    return (await res.json()) as { attachments: Attachment[]; rejected: { name: string; reason: string }[] };
-  }
-
-  // Web: post directly to Share, authorized by the browser's Share session cookie.
   const form = new FormData();
   for (const f of files) form.append('files', f);
-  form.append('source', 'chat'); // routes into the user's "Chat" folder on Share + enables dedup
-
-  const res = await fetch(`${shareBaseUrl}/upload`, {
+  const res = await fetch(`${apiBase()}/uploads`, {
     method: 'POST',
     body: form,
     credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-  if (!res.ok) throw new Error(`Share upload failed (${res.status})`);
-  const data: UploadResponse = await res.json();
-
-  // Share returns accepted files (in order) under `saved` and skips rejected ones.
-  const rejectedNames = new Set((data.rejected ?? []).map((r) => r.name));
-  const accepted = files.filter((f) => !rejectedNames.has(f.name));
-
-  const attachments: Attachment[] = data.saved.map((s, i) => {
-    const file = accepted[i] ?? files[i];
-    return {
-      id: s.id,
-      shareAssetId: s.id,
-      filename: file?.name ?? s.id,
-      mimeType: file?.type ?? '',
-      size: String(file?.size ?? 0),
-      url: `${shareBaseUrl}/raw/${s.id}`,
-      thumbnailUrl: `${shareBaseUrl}/thumb/${s.id}`,
-      width: null,
-      height: null,
-      durationMs: null,
-    };
-  });
-
-  return { attachments, rejected: data.rejected ?? [] };
+  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  return (await res.json()) as { attachments: Attachment[]; rejected: { name: string; reason: string }[] };
 }
 
 /**
