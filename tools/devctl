@@ -534,6 +534,8 @@ Commands:
   verify        Run full verification suite (doctor + health + codegen + contract + char + trace); --json
   selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
   trace         Check or report FR/NFR ↔ test traceability matrix (check|report [--phase N])
+  device up     Boot Android emulator(s) (Pixel 6a, API 34); provisions AVD if needed
+  e2e           Run Maestro E2E flows against connected emulator(s) [--json] [<flow>]
   commit        Safe commit: fail if tree is dirty, warn about untracked files
 
 Flags:
@@ -680,6 +682,86 @@ cmd_commit() {
   git -C "$ROOT" commit "$@"
 }
 
+cmd_device_up() {
+  # Boot Android emulator(s). Provisions AVD if needed.
+  # --second boots only :5556; default boots both :5554 and :5556.
+  echo "[devctl] device up — provisioning Android emulator(s)…"
+  bash "$ROOT/tools/device-up.sh" "$@"
+}
+
+cmd_e2e() {
+  shift
+  # Run Maestro E2E flows against connected emulator(s).
+  # --json emits machine-readable results. Exit 0 = all flows pass, 1 = any fail.
+  # env E2E=1 signals the app to use frozen clock / test shims.
+  local want_json=false
+  json_out "$@" && want_json=true
+
+  local flow_file="${1:-}"
+  local flows_dir="$ROOT/apps/mobile/e2e/flows"
+
+  if ! command -v maestro &>/dev/null; then
+    echo "✗ Maestro CLI not found on PATH"
+    echo "  Install: curl -Ls 'https://get.maestro.mobile.dev' | bash"
+    return 1
+  fi
+
+  if [ ! -d "$flows_dir" ]; then
+    echo "✗ E2E flows directory not found: $flows_dir"
+    return 1
+  fi
+
+  # Check at least one device is connected
+  local adb_devices
+  adb_devices=$(adb devices 2>/dev/null | grep -v 'List of devices' | grep -v '^$' | wc -l | tr -d ' ')
+  if [ "$adb_devices" -lt 1 ]; then
+    echo "✗ No Android device/emulator connected (run: devctl device up)"
+    return 1
+  fi
+
+  export E2E=1
+
+  if [ -n "$flow_file" ]; then
+    # Run a specific flow
+    local flow_path=""
+    if [ -f "$flows_dir/$flow_file" ]; then
+      flow_path="$flows_dir/$flow_file"
+    elif [ -f "$flow_file" ]; then
+      flow_path="$flow_file"
+    else
+      echo "✗ Flow file not found: $flow_file (looked in $flows_dir/ and .)"
+      return 1
+    fi
+    echo "[devctl] e2e — running flow: $flow_file"
+    if maestro test "$flow_path" 2>&1; then
+      echo "  ✓ $flow_file passed"
+    else
+      echo "  ✗ $flow_file failed"
+      return 1
+    fi
+  else
+    # Run all flows
+    echo "[devctl] e2e — running all Maestro flows"
+    local failures=0
+    for flow in "$flows_dir"/*.yaml; do
+      local flow_name
+      flow_name=$(basename "$flow")
+      echo "  → $flow_name"
+      if maestro test "$flow" 2>&1; then
+        echo "    ✓ pass"
+      else
+        echo "    ✗ fail"
+        failures=$((failures + 1))
+      fi
+    done
+    if [ "$failures" -gt 0 ]; then
+      echo "  ✗ e2e: $failures flow(s) failed"
+      return 1
+    fi
+    echo "  ✓ e2e: all flows pass"
+  fi
+}
+
 # Route subcommand
 case "${1:-}" in
   stack)
@@ -698,6 +780,8 @@ case "${1:-}" in
   verify)        shift; cmd_verify "$@";;
   selftest)      cmd_selftest "$@";;
   trace)         shift; cmd_trace "$@";;
+  device)        shift; cmd_device_up "$@";;
+  e2e)           cmd_e2e "$@";;
   commit)        shift; cmd_commit "$@";;
   *) usage; exit 1;;
 esac

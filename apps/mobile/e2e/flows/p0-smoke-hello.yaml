@@ -1,0 +1,14 @@
+# p0-smoke-hello — Trivial smoke flow to prove the Maestro rig works end to end.
+# @satisfies NFR-12  (harness smoke — rig proven before any real flows run)
+#
+# Uses a stock Android Settings launch as the APK target since the mobile skeleton
+# does not exist yet (P0-17). Replace appId with OpenChat package ID once available.
+#
+# Determinism: no sleeps — relies on assertVisible with timeout; E2E=1 frozen clock
+# assumed by the test harness.
+
+appId: com.android.settings
+
+---
+- launchApp
+- assertVisible: "Settings"
