@@ -2,7 +2,7 @@
 /**
  * [P0-11] trace — FR/NFR ↔ test matrix builder
  *
- * Parses all FR-NNN and NFR-NN IDs from specs/01-REQUIREMENTS.md §5 (the canonical
+ * Parses all FR-NNN and NFR-NN IDs from specs/01-REQUIREMENTS.md (the canonical
  * extraction regex), scans the repo for @satisfies and @characterizes annotations,
  * emits artifacts/trace/matrix.json, and gates per phase.
  *
@@ -13,7 +13,7 @@
  *
  * Unknown FR id referenced by any annotation = error, not warning.
  *
- * Phase filter: --phase X gates only FRs assigned to phase X (from §3 table).
+ * Phase filter: --phase X gates FRs assigned to phases 0..X (cumulative).
  * Without --phase, all FRs/NFRs are checked.
  */
 
@@ -25,8 +25,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
 // ── Canonical FR/NFR extraction ──────────────────────────────────────
-// From specs/01-REQUIREMENTS.md §5: regex \b(FR-[A-Z]+-\d{3}|NFR-\d{2})\b, first column only.
-// We parse the Markdown tables in §3 and §4 to build the canonical set.
+// FR table: | ID | Requirement | Acceptance criterion | Pri | Ph |
+//   (6 columns including the leading |, so 5 cells)
+// NFR table: | ID | Requirement | Acceptance criterion |
+//   (3 columns, no phase — NFRs are cross-cutting, phase N/A)
 
 const REQ_PATH = join(ROOT, 'specs', '01-REQUIREMENTS.md');
 
@@ -40,10 +42,12 @@ function parseRequirements() {
   const frIds = new Set();
   const nfrIds = new Set();
 
-  // Also extract phase: the last column in each FR row is the phase number
-  // Format: | FR-ID | ... | Pri | Ph |
-  const frPhaseRe = /^\|\s*(FR-[A-Z]+-\d{3})\b[^|]*\|\s*P\d+\s*\|\s*(\d+)\s*\|/gm;
-  const nfrPhaseRe = /^\|\s*(NFR-\d{2})\b[^|]*\|\s*[^|]*\|\s*(\d+|N\/A)\s*\|/gm;
+  // FR phase: skip ID column, Requirement column, Acceptance column, then read Pri|Ph
+  // Columns: | FR-ID | Requirement... | Acceptance... | Pri | Ph |
+  // Phase may be e.g. "1" or "1/5" (phase/item); extract just the phase digit.
+  const frPhaseRe = /^\|\s*(FR-[A-Z]+-\d{3})\b[^|]*\|[^|]*\|[^|]*\|\s*P\d+\s*\|\s*(\d+)/gm;
+  // NFRs: no phase column — all NFRs get phase=null (cross-cutting, not tied to a phase)
+  const nfrPhaseRe = /^\|\s*(NFR-\d{2})\b/gm;
 
   let m;
   while ((m = frRegex.exec(text)) !== null) {
@@ -53,15 +57,15 @@ function parseRequirements() {
     nfrIds.add(m[1]);
   }
 
-  // Parse phase assignments
+  // Parse phase assignments for FRs
   const frPhases = new Map();
   while ((m = frPhaseRe.exec(text)) !== null) {
     frPhases.set(m[1], parseInt(m[2], 10));
   }
+  // NFRs: all null (cross-cutting)
   const nfrPhases = new Map();
   while ((m = nfrPhaseRe.exec(text)) !== null) {
-    const ph = m[2] === 'N/A' ? null : parseInt(m[2], 10);
-    nfrPhases.set(m[1], ph);
+    nfrPhases.set(m[1], null);
   }
 
   return { frIds, nfrIds, frPhases, nfrPhases };
@@ -136,15 +140,17 @@ function gate(phaseFilter) {
     }
   }
 
-  // Determine which reqs are in scope for the phase
+  // Determine which reqs are in scope for the phase.
+  // --phase N gates phases 0..N (cumulative), not just the exact phase.
+  // A completed FR losing its test annotation is a regression caught here.
   let inScope = allReqIds;
   if (phaseFilter !== null) {
     inScope = new Set();
     for (const id of allReqIds) {
-      if (id.startsWith('FR-')) {
-        if (frPhases.get(id) === phaseFilter) inScope.add(id);
-      } else {
-        if (nfrPhases.get(id) === phaseFilter) inScope.add(id);
+      const reqPhase = id.startsWith('FR-') ? frPhases.get(id) : nfrPhases.get(id);
+      // null phase = NFR (cross-cutting) or unassigned => not in any numbered phase scope
+      if (reqPhase !== null && reqPhase !== undefined && reqPhase <= phaseFilter) {
+        inScope.add(id);
       }
     }
   }

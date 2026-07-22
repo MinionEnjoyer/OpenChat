@@ -6,6 +6,17 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$ROOT/docker-compose.dev.yml"
 COMPOSE_CMD="docker compose -f $COMPOSE_FILE"
 
+read_phase() {
+  # Return the current phase number from .phase at repo root.
+  # Single source of truth for which phase the project is in.
+  local phase_file="$ROOT/.phase"
+  if [ -f "$phase_file" ]; then
+    head -n1 "$phase_file" | tr -d '[:space:]'
+  else
+    echo "0"
+  fi
+}
+
 json_out() {
   # --json flag present anywhere in args → emit JSON
   for a in "$@"; do [ "$a" = "--json" ] && return 0; done
@@ -162,7 +173,14 @@ cmd_doctor() {
     "tools/seed/seed.mjs"
     "tools/devctl"
     "tools/devctl-README.md"
+    ".phase"
   )
+  # ── .phase value must be a non-negative integer ──
+  local phase_val
+  phase_val=$(read_phase)
+  if ! echo "$phase_val" | grep -qE '^[0-9]+$'; then
+    missing+=(".phase: invalid value '$phase_val' — must be a non-negative integer")
+  fi
   # ── Stale fixture-ids.json check: if the file exists but is older than the last DB reset,
   # ── flag it so Phase 1 E2E doesn't silently reference wrong fixture ids.
   local fid_path="$ROOT/tools/seed/fixture-ids.json"
@@ -481,11 +499,14 @@ cmd_verify() {
     echo "  ✓ characterization tests pass"
   fi
 
-  # 5. Traceability — every FR of the CURRENT phase must have an @satisfies annotation.
-  # Phase 0 has no FRs assigned, so this passes trivially until FRs are assigned.
+  # 5. Traceability — every FR up to the current phase must have an @satisfies annotation.
+  # The current phase is read from .phase at repo root (single source of truth).
+  # Earlier phases' FRs stay traced forever — losing a test annotation is a regression.
   if [ "$only_layer" = "" ] || [ "$only_layer" = "trace" ]; then
-    echo "[devctl] trace check — verifying Phase 0 requirements have @satisfies annotations…"
-    cmd_trace check --phase 0 || {
+    local cur_phase
+    cur_phase=$(read_phase)
+    echo "[devctl] trace check — verifying Phase 0–${cur_phase} requirements have @satisfies annotations…"
+    cmd_trace check --phase "$cur_phase" || {
       echo "  ✗ trace check failed"
       exit 1
     }
@@ -510,7 +531,7 @@ Commands:
   stack seed    Run seed fixtures (tools/seed/seed.mjs)
   doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
   capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
-  verify        Run full verification suite (doctor + health + codegen + contract + char); --json
+  verify        Run full verification suite (doctor + health + codegen + contract + char + trace); --json
   selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
   trace         Check or report FR/NFR ↔ test traceability matrix (check|report [--phase N])
   commit        Safe commit: fail if tree is dirty, warn about untracked files
@@ -527,6 +548,9 @@ cmd_trace() {
   local phase_arg=""
   if [ "${2:-}" = "--phase" ] && [ -n "${3:-}" ]; then
     phase_arg="--phase $3"
+  elif [ "$mode" = "check" ] || [ "$mode" = "report" ]; then
+    # No --phase given: default to current phase from .phase (0..N cumulative)
+    phase_arg="--phase $(read_phase)"
   fi
   node "$ROOT/tools/trace.mjs" "$mode" $phase_arg
 }
@@ -548,6 +572,27 @@ cmd_selftest() {
       echo "  ✓ doctor: caught missing artifact"
     fi
     mv "$ROOT/docs/BACKLOG.md.selftest-tmp" "$doctor_path"
+  fi
+
+  # ── Contamination: inject XML markers into a .sh and .mjs file, assert doctor catches them ──
+  local contam_sh="$ROOT/tools/diag-provider.mjs"
+  local contam_mjs="$ROOT/tools/diag-provider.mjs"
+  local injected=false
+  if [ -f "$contam_sh" ] && [ -f "$contam_mjs" ]; then
+    echo "</write_to_file>" >> "$contam_sh"
+    echo "</write_to_file>" >> "$contam_mjs"
+    injected=true
+    if cmd_doctor > /dev/null 2>&1; then
+      echo "  ✗ contamination: doctor did not catch injected XML markers"
+      failures=$((failures + 1))
+    else
+      echo "  ✓ contamination: doctor caught injected markers"
+    fi
+    # Revert: remove the last line from each
+    if $injected; then
+      sed -i '' '$d' "$contam_sh" 2>/dev/null || true
+      sed -i '' '$d' "$contam_mjs" 2>/dev/null || true
+    fi
   fi
 
   # ── Contract: break one test assertion ──
@@ -584,6 +629,25 @@ cmd_selftest() {
       echo "  ✗ char: did not catch broken test"
       failures=$((failures + 1))
     fi
+  fi
+
+  # ── Trace: delete an existing @satisfies annotation, assert trace check fails ──
+  # Find a file with @satisfies; if none exist yet (Phase 0), this layer is untestable
+  local trace_test=""
+  trace_test=$(grep -rl '@satisfies' "$ROOT" --include='*.ts' --include='*.mjs' --include='*.js' --include='*.md' 2>/dev/null | grep -v node_modules | grep -v '.git/' | head -n1)
+  if [ -n "$trace_test" ]; then
+    cp "$trace_test" "$trace_test.selftest-bak"
+    # Remove the first @satisfies line
+    sed -i '' '/@satisfies/d' "$trace_test"
+    if cmd_trace check > /dev/null 2>&1; then
+      echo "  ✗ trace: did not catch deleted @satisfies annotation"
+      failures=$((failures + 1))
+    else
+      echo "  ✓ trace: caught deleted annotation"
+    fi
+    cp "$trace_test.selftest-bak" "$trace_test" && rm "$trace_test.selftest-bak"
+  else
+    echo "  — trace: no @satisfies annotations exist yet (Phase 0 — expected)"
   fi
 
   if [ "$failures" -gt 0 ]; then

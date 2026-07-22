@@ -142,7 +142,7 @@ Specs execute strictly in order; a phase starts only after the previous phase's 
 ## 0.6 Conventions
 
 - **Requirement IDs**: `FR-<AREA>-<NNN>` / `NFR-<NNN>` as defined in `01-REQUIREMENTS.md`.
-  Tests claim coverage with a literal comment `// @satisfies FR-MSG-012` (TS/Kotlin/Swift),
+  Tests claim coverage with a literal comment `// @satisfies FR-<AREA>-<NNN>` (TS/Kotlin/Swift),
   `# @satisfies …` (Python/YAML incl. Maestro flows). `devctl trace` enforces the matrix.
 - **RFC 2119** keywords (MUST/SHOULD/MAY) are used with their standard meaning.
 - **Priorities**: P0 = parity MVP (ship-blocking), P1 = full standard parity, P2 = extended
