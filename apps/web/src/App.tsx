@@ -143,6 +143,18 @@ export default function App() {
   const showChrome = isTauri() && !isMac;
   const wsRef = useRef<WebSocket | null>(null);
   const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
+  const manualStatusRef = useRef<string>('ONLINE'); // the user's chosen status (drives auto-away restore)
+  const autoAwayRef = useRef(false); // true while we've auto-flipped to AWAY on idle
+
+  // Broadcast a presence change over WS. transient=true (auto-away) updates live presence
+  // only; a manual change (settings) also persists as the user's saved preference.
+  const sendPresence = useCallback((status: string, transient: boolean) => {
+    if (!transient) autoAwayRef.current = false;
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ op: 'presence.update', d: { status, transient } }));
+    }
+  }, []);
   const [wsDown, setWsDown] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [updateChecked, setUpdateChecked] = useState(() => !isTauri()); // desktop gates on an update check first
@@ -282,6 +294,7 @@ export default function App() {
       ws.onopen = () => {
         attempt = 0;
         setWsDown(false);
+        autoAwayRef.current = false; // a fresh connection starts active
         const st = useStore.getState();
         const status = st.user?.status && st.user.status !== 'OFFLINE' ? st.user.status : 'ONLINE';
         ws.send(JSON.stringify({ op: 'presence.update', d: { status } }));
@@ -331,7 +344,14 @@ export default function App() {
             notifyNative('Incoming call', `${d.callerName} is calling`);
           }
         }
-        else if (op === 'presence') st.setPresence(d.userId, d.status);
+        else if (op === 'presence.snapshot') {
+          // Authoritative online set on (re)connect — replace, dropping stale entries.
+          const map: Record<string, string> = {};
+          for (const u of d.users || []) map[u.userId] = u.status;
+          st.set({ presenceById: map });
+        }
+        // Our own status is authoritative locally (settings/invisible); ignore echoes for self.
+        else if (op === 'presence') { if (d.userId !== st.user?.id) st.setPresence(d.userId, d.status); }
         else if (op === 'typing' && d.userId !== st.user?.id) {
           setTyping((prev) => ({ ...prev, [d.channelId]: { ...(prev[d.channelId] || {}), [d.userId]: Date.now() + 5000 } }));
         }
@@ -346,6 +366,44 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.user?.id]);
+
+  // Mirror the user's chosen status into a ref so auto-away can restore it.
+  useEffect(() => {
+    manualStatusRef.current = (s.user?.status as string) || 'ONLINE';
+  }, [s.user?.status]);
+
+  // Auto-away: after 5 min with no activity, flip ONLINE → AWAY (transient); restore on
+  // the next activity. Only auto-aways from a plain ONLINE status — Away/DND/Invisible are
+  // explicit choices we leave alone.
+  useEffect(() => {
+    if (!s.user) return;
+    const IDLE_MS = 5 * 60 * 1000;
+    let last = Date.now();
+    const markActive = () => {
+      last = Date.now();
+      if (autoAwayRef.current) {
+        autoAwayRef.current = false;
+        sendPresence(manualStatusRef.current, true);
+      }
+    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') markActive(); };
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'focus'];
+    events.forEach((e) => window.addEventListener(e, markActive, { passive: true }));
+    document.addEventListener('visibilitychange', onVisibility);
+    const iv = window.setInterval(() => {
+      if (autoAwayRef.current || manualStatusRef.current !== 'ONLINE') return;
+      if (Date.now() - last >= IDLE_MS) {
+        autoAwayRef.current = true;
+        sendPresence('AWAY', true);
+      }
+    }, 30000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, markActive));
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.user?.id, sendPresence]);
 
   // Keep DM subscriptions current as the conversation list loads/changes.
   useEffect(() => {
@@ -954,9 +1012,12 @@ export default function App() {
       : dmChannel ? [...dmChannel.recipients, s.user] : []),
   ];
 
-  // apply live presence over stored status
+  // Apply the live presence set over stored status. For other users, presence is
+  // authoritative — absence from the set means offline (the stored column is only their
+  // saved preference and can be stale). For self we keep our own status (covers Invisible,
+  // which is intentionally absent from the broadcast set).
   const withPresence = <T extends { id: string; status?: string }>(u: T): T =>
-    ({ ...u, status: s.presenceById[u.id] ?? u.status });
+    ({ ...u, status: u.id === s.user?.id ? (s.user?.status ?? 'OFFLINE') : (s.presenceById[u.id] ?? 'OFFLINE') });
 
   // resolve a display name for a userId (for typing indicators)
   const nameById: Record<string, string> = {};
@@ -1285,7 +1346,7 @@ export default function App() {
         )}
 
         {showFriends ? (
-          <FriendsView me={s.user} onOpenDm={openDm} reloadKey={s.notifyTick} />
+          <FriendsView me={s.user} onOpenDm={openDm} reloadKey={s.notifyTick} presenceById={s.presenceById} />
         ) : activeChannel?.type === 'VOICE' && s.activeChannelId ? (
           <CallView
             channelName={activeChannel.name}
@@ -1385,6 +1446,7 @@ export default function App() {
           audio={voice.audio}
           onThemeChange={changeTheme}
           onSaved={(u) => useStore.getState().set({ user: u })}
+          onStatusBroadcast={(status) => sendPresence(status, false)}
           onClose={() => setSettingsOpen(false)}
         />
       )}

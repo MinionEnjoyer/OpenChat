@@ -23,7 +23,9 @@ const COLORS = {
   muted: 'var(--muted)',
 };
 
-export function FriendsView({ me, onOpenDm, reloadKey }: { me: User; onOpenDm: (channelId: string, title: string) => void; reloadKey?: number }) {
+const ACTIVE_STATUSES = ['ONLINE', 'AWAY', 'DND'];
+
+export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: User; onOpenDm: (channelId: string, title: string) => void; reloadKey?: number; presenceById?: Record<string, string> }) {
   const [friends, setFriends] = useState<User[]>([]);
   const [requests, setRequests] = useState<{ incoming: { id: string; user: User }[], outgoing: { id: string; user: User }[] }>({ incoming: [], outgoing: [] });
 
@@ -117,6 +119,18 @@ export function FriendsView({ me, onOpenDm, reloadKey }: { me: User; onOpenDm: (
       console.error('Failed to open DM', e);
     }
   };
+
+  // Online is derived from the live presence set (authoritative), not the friend's stored
+  // status column, which is only their saved preference and can be stale.
+  const decorated = friends.map((friend) => {
+    const status = presenceById?.[friend.id] ?? 'OFFLINE';
+    return { friend, status, online: ACTIVE_STATUSES.includes(status) };
+  });
+  const onlineCount = decorated.filter((f) => f.online).length;
+  const sortedFriends = [...decorated].sort((a, b) => {
+    if (a.online !== b.online) return a.online ? -1 : 1;
+    return (a.friend.displayName || a.friend.username).localeCompare(b.friend.displayName || b.friend.username);
+  });
 
   const styles = {
     container: {
@@ -268,21 +282,21 @@ export function FriendsView({ me, onOpenDm, reloadKey }: { me: User; onOpenDm: (
 
       {/* Friends Section — click a friend to open the chat with them */}
       <div style={styles.section}>
-        <h2 style={styles.header}>Friends — {friends.length}</h2>
+        <h2 style={styles.header}>Friends — {onlineCount}/{friends.length} online</h2>
         {friends.length === 0 ? (
           <p style={styles.mutedText}>No friends yet. Add someone above to start chatting.</p>
         ) : (
-          friends.map(friend => (
+          sortedFriends.map(({ friend, status, online }) => (
             <div
               key={friend.id}
-              style={{ ...styles.row, cursor: 'pointer' }}
+              style={{ ...styles.row, cursor: 'pointer', opacity: online ? 1 : 0.55 }}
               onClick={() => handleOpenDm(friend)}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = COLORS.hover)}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = COLORS.darkerPanel)}
               title="Open chat"
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <Avatar user={friend} size={32} />
+                <Avatar user={{ ...friend, status }} size={32} showStatus />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ color: 'var(--text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {friend.displayName || friend.username}

@@ -5,6 +5,7 @@ import { RedisService } from '../redis/redis.service';
 import { AuthService } from '../auth/auth.service';
 import { MessagesService } from '../messages/messages.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PresenceService } from './presence.service';
 
 const EVENTS_CHANNEL = 'chat:events';
 const HEARTBEAT_MS = 30_000;
@@ -15,11 +16,12 @@ const HEARTBEAT_MS = 30_000;
  *
  * Client → server ops:  ping, subscribe {channelId}, unsubscribe {channelId},
  *   message.send {channelId, content, nonce?, attachments?, replyToId?},
- *   typing.start {channelId}, presence.update {status}
+ *   typing.start {channelId}, presence.update {status, transient?}
  * Server → client ops:  ready {protocolVersion, user, servers}, pong,
  *   message.created {message, nonce?}, message.updated {message},
  *   message.deleted {channelId, id}, typing {channelId, userId},
- *   presence {userId, status}, watchparty.sync {channelId, state},
+ *   presence {userId, status}, presence.snapshot {users:[{userId,status}]},
+ *   watchparty.sync {channelId, state},
  *   notify, mention {channelId, channelName, authorName}, call.ring {...}
  */
 const PROTOCOL_VERSION = 1;
@@ -54,6 +56,8 @@ export class EventsGateway {
   private readonly logger = new Logger(EventsGateway.name);
   private wss?: WebSocketServer;
   private readonly clients = new Map<WebSocket, Client>();
+  // userId -> that user's open sockets, so presence flips offline only when the LAST one closes.
+  private readonly userSockets = new Map<string, Set<WebSocket>>();
   private heartbeat?: NodeJS.Timeout;
 
   constructor(
@@ -61,7 +65,21 @@ export class EventsGateway {
     private readonly auth: AuthService,
     private readonly messages: MessagesService,
     private readonly prisma: PrismaService,
+    private readonly presence: PresenceService,
   ) {}
+
+  /** Status as visible to OTHER users — invisible/appear-offline collapses to OFFLINE. */
+  private masked(status: string): string {
+    return status === 'ONLINE' || status === 'AWAY' || status === 'DND' ? status : 'OFFLINE';
+  }
+
+  private publishPresence(userId: string, status: string): Promise<void> {
+    return this.redis.publish(EVENTS_CHANNEL, {
+      type: 'PRESENCE_UPDATE',
+      userId,
+      status: this.masked(status),
+    });
+  }
 
   /** Called from main.ts after the HTTP server is listening. */
   attach(server: HttpServer): void {
@@ -101,8 +119,23 @@ export class EventsGateway {
 
     socket.on('message', (data) => this.onMessage(client, data));
     socket.on('pong', () => (client.alive = true));
-    socket.on('close', () => this.clients.delete(socket));
-    socket.on('error', () => this.clients.delete(socket));
+    socket.on('close', () => this.handleDisconnect(socket));
+    socket.on('error', () => this.handleDisconnect(socket));
+
+    // Track this socket under its user; the first socket brings the user online.
+    let sockets = this.userSockets.get(userId);
+    const firstConnect = !sockets || sockets.size === 0;
+    if (!sockets) {
+      sockets = new Set();
+      this.userSockets.set(userId, sockets);
+    }
+    sockets.add(socket);
+    if (firstConnect) {
+      // Come online at the user's saved preference (default ONLINE if unset/offline).
+      const initial = user.status && user.status !== 'OFFLINE' ? user.status : 'ONLINE';
+      this.presence.set(userId, initial);
+      await this.publishPresence(userId, initial);
+    }
 
     this.send(socket, {
       op: 'ready',
@@ -118,7 +151,26 @@ export class EventsGateway {
         servers: [],
       },
     });
+    // Give the fresh socket the current online set so it doesn't rely on stale DB status.
+    this.send(socket, { op: 'presence.snapshot', d: { users: this.presence.snapshot() } });
     this.logger.debug(`ws connected: user=${userId}`);
+  }
+
+  /** Remove a socket; if it was the user's last one, flip them offline and broadcast it. */
+  private handleDisconnect(socket: WebSocket): void {
+    const client = this.clients.get(socket);
+    this.clients.delete(socket);
+    if (!client) return;
+    const sockets = this.userSockets.get(client.userId);
+    if (!sockets) return;
+    sockets.delete(socket);
+    if (sockets.size === 0) {
+      this.userSockets.delete(client.userId);
+      this.presence.clear(client.userId);
+      this.publishPresence(client.userId, 'OFFLINE').catch((e) =>
+        this.logger.error('presence offline publish failed', e as Error),
+      );
+    }
   }
 
   private async onMessage(client: Client, data: RawData): Promise<void> {
@@ -165,13 +217,15 @@ export class EventsGateway {
           return;
         case 'presence.update': {
           const status = env.d?.status;
-          if (status) {
-            await this.prisma.user.update({ where: { id: client.userId }, data: { status } });
-            await this.redis.publish(EVENTS_CHANNEL, {
-              type: 'PRESENCE_UPDATE',
-              userId: client.userId,
-              status,
-            });
+          const STATUSES = ['ONLINE', 'AWAY', 'DND', 'INVISIBLE', 'OFFLINE'];
+          if (status && STATUSES.includes(status)) {
+            // Transient changes (auto-away idle flips) update live presence only; a
+            // manual choice also persists as the user's preference for next login.
+            if (!env.d?.transient) {
+              await this.prisma.user.update({ where: { id: client.userId }, data: { status } });
+            }
+            this.presence.set(client.userId, status);
+            await this.publishPresence(client.userId, status);
           }
           return;
         }
@@ -259,7 +313,7 @@ export class EventsGateway {
     for (const client of this.clients.values()) {
       if (!client.alive) {
         client.socket.terminate();
-        this.clients.delete(client.socket);
+        this.handleDisconnect(client.socket);
         continue;
       }
       client.alive = false;

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { PresenceService } from '../realtime/presence.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
 
@@ -88,6 +89,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly presence: PresenceService,
   ) {}
 
   /**
@@ -291,7 +293,7 @@ export class MessagesService {
         if (hasPermission(perms, Permission.MENTION_EVERYONE)) {
           for (const m of members) {
             if (hasEveryone) targets.add(m.userId);
-            else if (hasHere && ['ONLINE', 'AWAY', 'DND'].includes(m.user.status)) targets.add(m.userId);
+            else if (hasHere && this.presence.isActive(m.userId)) targets.add(m.userId);
           }
         }
       }

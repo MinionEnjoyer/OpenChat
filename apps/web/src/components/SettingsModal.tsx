@@ -14,6 +14,7 @@ export function SettingsModal({
   audio,
   onThemeChange,
   onSaved,
+  onStatusBroadcast,
   onClose,
 }: {
   user: User;
@@ -22,6 +23,7 @@ export function SettingsModal({
   audio: AudioControls;
   onThemeChange: (t: Theme) => void;
   onSaved: (u: User) => void;
+  onStatusBroadcast?: (status: string) => void;
   onClose: () => void;
 }) {
   const [username, setUsername] = useState(user.username);
@@ -90,6 +92,9 @@ export function SettingsModal({
         status,
       });
       onSaved(updated);
+      // Broadcast the status live over WS so friends/servers see the change immediately
+      // (REST persistence alone doesn't notify anyone).
+      if (status !== user.status) onStatusBroadcast?.(status);
       onClose();
     } catch (err: any) {
       setError(extractError(err));
