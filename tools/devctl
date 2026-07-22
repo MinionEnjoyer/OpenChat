@@ -137,6 +137,7 @@ cmd_doctor() {
     "specs/templates/T2-AUDIT-CHECKLIST.md"
     "tools/seed/seed.mjs"
     "tools/devctl"
+    "tools/devctl-README.md"
   )
   # ── Stale fixture-ids.json check: if the file exists but is older than the last DB reset,
   # ── flag it so Phase 1 E2E doesn't silently reference wrong fixture ids.
@@ -467,12 +468,17 @@ Commands:
   stack reset   Down + remove volumes + up (fresh state)
   stack logs    Tail all service logs (pass extra args to docker compose logs)
   stack health  Health-check every service; --json for machine-readable output
+  stack seed    Run seed fixtures (tools/seed/seed.mjs)
   doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
   capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
-  verify        Run full verification suite (doctor + health + char tests)
+  verify        Run full verification suite (doctor + health + codegen + contract + char); --json
+  selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
+  commit        Safe commit: fail if tree is dirty, warn about untracked files
 
 Flags:
   --json        Emit machine-readable JSON (health + verify)
+
+Docs: tools/devctl-README.md
 EOF
 }
 
