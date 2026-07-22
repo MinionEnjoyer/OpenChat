@@ -9,6 +9,10 @@ on:
   push:
     tags: ['desktop-v*']
 
+# Required so tauri-action can create the GitHub Release with the built artifacts.
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
