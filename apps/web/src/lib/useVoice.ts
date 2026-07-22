@@ -202,11 +202,19 @@ export function useVoice() {
         clearTimeout(timeoutId);
       }
       const prefs = getAudioPrefs();
-      await room.localParticipant.setMicrophoneEnabled(
-        true,
-        prefs.inputDeviceId ? { deviceId: { exact: prefs.inputDeviceId } } : undefined,
-      );
-      setMuted(false);
+      // Don't let a missing/blocked mic abort the whole join — connect muted so the
+      // user can still hear the call (e.g. no mic permission in a desktop webview).
+      try {
+        await room.localParticipant.setMicrophoneEnabled(
+          true,
+          prefs.inputDeviceId ? { deviceId: { exact: prefs.inputDeviceId } } : undefined,
+        );
+        setMuted(false);
+      } catch (micErr) {
+        console.warn('[voice] microphone unavailable — joined muted', micErr);
+        setMuted(true);
+        setLastError('Microphone unavailable — joined muted. Grant mic access and unmute to talk.');
+      }
       setChannelId(chId);
       setStatus('connected');
       console.debug('[voice] connected to', chId);
