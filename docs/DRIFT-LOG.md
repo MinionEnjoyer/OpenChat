@@ -262,3 +262,45 @@ is public-client PKCE — `client_secret` must never reach client.
 **Severity:** MEDIUM — Phase 1's P1-03 work item definition was wrong. No code was broken
 (the mobile app doesn't exist yet), but the spec was misleading. Corrected before any
 implementing work began.
+
+## 2026-07-21 — P0-12 audit: vacuum-gate sweep and trace scoping
+
+### Vacuum gate #4: Tool-output contamination in committed hooks (artifact corruption)
+
+**What:** The three hooks committed at P0-10 (`.husky/pre-commit`, `pre-push`,
+`commit-msg`) contained stray `</write_to_file>` XML closing tags embedded in the
+script bodies. This is a *new failure class* — not a test that doesn't catch what
+it should, but a gate artifact that was impossible to evaluate because the tool
+itself was corrupt. The hooks were reported green but could not have executed.
+
+This is the fourth vacuous gate. Unlike prior vacuous gates (assertion never
+called, assertion too permissive, test never written), this one is *artifact
+corruption*: the tool output XML leaked into the written file.
+
+**Remedy:** All three hooks rewritten clean. Repo-wide sweep executed (`grep` for
+18 XML tag patterns across all non-markdown file types; zero hits). JSON parse
+validation across all committed `.json` files (all valid). `devctl doctor` now
+includes a `cmd_contamination_sweep` that greps for the full set of tool-output
+XML markers and fails the doctor check if any are found. This class of error is
+100% mechanical — no code review catches `</write_to_file>` in a `.sh` file.
+
+**Severity:** HIGH — four gates were vacuous simultaneously. The hooks were dead
+code. Now all three are proven firing from a clean clone (husky v9 `prepare`
+script sets `core.hooksPath=.husky/_` on `npm install`).
+
+### Trace-in-verify contradiction
+
+**What:** `devctl verify` ran `cmd_trace check` without a phase filter, checking
+all 86 FRs/NFRs across all phases. Phase 0 has zero FRs assigned, so the correct
+behavior is to check only Phase 0 FRs (trivially passing). Before the fix, verify
+exited 1 with "85 requirement(s) lack @satisfies annotation" — contradicting the
+green `✓ verify pass` that was displayed prior to P0-11.
+
+**Remedy:** `cmd_verify` now calls `cmd_trace check --phase 0`, scoping trace to
+the current phase only. Phase 0 has no FRs, so the check passes trivially
+(`OK: 1/86 requirements traced` — the one traced entry is the proof-of-trace test
+annotation). When Phase 1 begins, the filter will change to `--phase 1`.
+
+**Verification:** `tools/devctl verify` exits 0 with trace passing. Selftest
+confirmed trace catches non-existent FR references and missing annotations within
+a scoped phase.

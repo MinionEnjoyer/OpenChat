@@ -106,6 +106,30 @@ cmd_stack_health() {
   return $failures
 }
 
+# ── Contamination sweep patterns ──
+# These regexes detect tool-output XML artifacts and markdown fences leaked into
+# non-markdown source files. This class of error is 100% mechanical — code review
+# won't catch stray `</write_to_file>` in a .sh file. Run on every doctor check.
+CONTAM_RE=$(cat <<'REGEX'
+</?write_to_file|</?invoke|</?parameter|</?task_progress|</?attempt_completion|</?read_file|</?search_files|</?replace_in_file|</?execute_command|</?list_files|</?list_code_definition_names|</?use_mcp_tool|</?ask_followup_question|</?plan_mode_respond|</?generate_explanation|</?access_mcp_resource|</?load_mcp_documentation
+REGEX
+)
+
+cmd_contamination_sweep() {
+  # Returns 0 if clean, 1 with list of hits if contamination found.
+  local hits
+  hits=$(grep -rnE "$CONTAM_RE" \
+    --include='*.sh' --include='*.mjs' --include='*.js' --include='*.ts' \
+    --include='*.yml' --include='*.yaml' --include='*.json' --include='*.py' \
+    --include='*.html' --include='*.css' --include='*.toml' --include='*.env' \
+    --include='*.conf' "$ROOT" 2>/dev/null | grep -v node_modules | grep -v '.git/')
+  if [ -n "$hits" ]; then
+    echo "$hits"
+    return 1
+  fi
+  return 0
+}
+
 cmd_doctor() {
   # Assert presence of every required artifact. Exits nonzero with JSON list of missing paths.
   # Required artifacts per docs/audits/artifact-inventory.md — keep in sync.
@@ -157,6 +181,10 @@ cmd_doctor() {
       fi
     fi
   fi
+
+  # ── Contamination sweep: detect tool-output XML artifacts in non-markdown files ──
+  local contam_hits
+  contam_hits=$(cmd_contamination_sweep) || missing+=("contamination: XML/tool artifacts found in source files (run 'grep -rnE write_to_file\|invoke\|parameter' to locate)")
 
   for p in "${paths[@]}"; do
     if [ ! -f "$ROOT/$p" ]; then
@@ -453,10 +481,11 @@ cmd_verify() {
     echo "  ✓ characterization tests pass"
   fi
 
-  # 5. Traceability — every FR must have an @satisfies annotation
+  # 5. Traceability — every FR of the CURRENT phase must have an @satisfies annotation.
+  # Phase 0 has no FRs assigned, so this passes trivially until FRs are assigned.
   if [ "$only_layer" = "" ] || [ "$only_layer" = "trace" ]; then
-    echo "[devctl] trace check — verifying every requirement has an @satisfies test…"
-    cmd_trace check || {
+    echo "[devctl] trace check — verifying Phase 0 requirements have @satisfies annotations…"
+    cmd_trace check --phase 0 || {
       echo "  ✗ trace check failed"
       exit 1
     }
