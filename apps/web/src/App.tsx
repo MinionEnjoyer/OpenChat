@@ -1246,7 +1246,15 @@ export default function App() {
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="disconnect" size={18} alt="Disconnect" /></button>
             </div>
           )}
-          <UserPanel user={withPresence(s.user)} onOpenSettings={() => setSettingsOpen(true)} />
+          <UserPanel
+            user={withPresence(s.user)}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onSetStatus={(status) => {
+              const cur = useStore.getState().user;
+              if (cur) useStore.getState().set({ user: { ...cur, status } });
+              sendPresence(status, false); // broadcasts live + persists as the saved preference
+            }}
+          />
         </div>
       </div>
 
