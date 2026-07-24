@@ -28,7 +28,7 @@ Everything environment-specific
 - **Mentions** — `@user`, plus `@here` / `@everyone` gated behind a `MENTION_EVERYONE`
   permission, with live toast + unread notifications.
 - **Voice & video** — self-hosted LiveKit SFU. Always-on voice channels, watch-party
-  integration, speaking/mute indicators, and per-user **mic + speaker + output-volume**
+  integration, multi-window stream sharing, speaking/mute indicators, push-to-talk, and per-user **mic + speaker + output-volume**
   settings.
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
