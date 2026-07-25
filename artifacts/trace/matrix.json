@@ -1,0 +1,603 @@
+{
+  "generated": "2026-07-25T06:03:36.181Z",
+  "tool": "tools/trace.mjs",
+  "summary": {
+    "total": 86,
+    "satisfied": 0,
+    "missing": 0,
+    "errors": 0
+  },
+  "errors": [],
+  "rows": [
+    {
+      "id": "FR-APP-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-APP-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-APP-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-APP-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-APP-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-APP-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-007",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-AUTH-010",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-010",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-011",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-020",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MED-030",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-007",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-008",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-009",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-010",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-011",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-012",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-013",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-014",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-015",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-016",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-MSG-020",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-NOTIF-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-NOTIF-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-NOTIF-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-NOTIF-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-ROLE-007",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SOC-007",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-007",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-008",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-009",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-SRV-010",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-001",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-002",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-003",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-004",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-005",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-006",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-007",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "FR-VOX-060",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-01",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-02",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-03",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-04",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-05",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-06",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-07",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-08",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-09",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-10",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-11",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    },
+    {
+      "id": "NFR-12",
+      "satisfied": false,
+      "locations": [],
+      "missing": false
+    }
+  ],
+  "characterizes": {
+    "auth": [
+      {
+        "file": "apps/api/test/characterization/auth.spec.ts",
+        "line": 1
+      }
+    ],
+    "dms": [
+      {
+        "file": "apps/api/test/characterization/dms-friends.spec.ts",
+        "line": 1
+      }
+    ],
+    "invites": [
+      {
+        "file": "apps/api/test/characterization/invites.spec.ts",
+        "line": 1
+      }
+    ],
+    "messages": [
+      {
+        "file": "apps/api/test/characterization/messages.spec.ts",
+        "line": 1
+      }
+    ],
+    "pins-polls": [
+      {
+        "file": "apps/api/test/characterization/pins-polls.spec.ts",
+        "line": 1
+      }
+    ],
+    "reactions": [
+      {
+        "file": "apps/api/test/characterization/reactions.spec.ts",
+        "line": 1
+      }
+    ],
+    "roles": [
+      {
+        "file": "apps/api/test/characterization/roles.spec.ts",
+        "line": 1
+      }
+    ],
+    "servers": [
+      {
+        "file": "apps/api/test/characterization/servers.spec.ts",
+        "line": 1
+      }
+    ],
+    "share": [
+      {
+        "file": "apps/api/test/characterization/share.spec.ts",
+        "line": 2
+      }
+    ],
+    "voice": [
+      {
+        "file": "apps/api/test/characterization/voice.spec.ts",
+        "line": 1
+      }
+    ],
+    "ws": [
+      {
+        "file": "apps/api/test/characterization/ws.spec.ts",
+        "line": 1
+      }
+    ],
+    "annotations,": [
+      {
+        "file": "tools/trace.mjs",
+        "line": 6
+      }
+    ]
+  }
+}

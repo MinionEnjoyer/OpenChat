@@ -18,9 +18,11 @@
       "method": "GET",
       "url": "/api/health",
       "headers": {"host": "10.0.2.2:3001"},
-      "remoteAddress": "::ffff:192.168.65.1"
+      "remoteAddress": "::ffff:192.168.65.1",
+      "statusCode": "null (request aborted — browser navigated away before response serialized)"
     },
-    "verdict": "API container received GET /api/health with Host: 10.0.2.2:3001, confirming the emulator's browser successfully navigated to that URL and the request traversed the Docker bridge to the API container."
+    "health_response_observed_separately": {"status":"ok","db":"up","redis":"up"},
+    "verdict": "API container received GET /api/health with Host: 10.0.2.2:3001 from the emulator's browser. Response status was not captured (browser aborted before pino serialized it), but the same endpoint returned 200 {\"status\":\"ok\",...} from a host-side curl during the same session."
   },
   "verdict": "10.0.2.2:3001 from inside an Android emulator reaches the Docker-published OpenChat API. Phase 1 E2E flows should use API_BASE_URL=http://10.0.2.2:3001."
 }

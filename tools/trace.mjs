@@ -66,6 +66,7 @@ function isNonProductFlow(relPath, content) {
 //   (3 columns, no phase — NFRs are cross-cutting, phase N/A)
 
 const REQ_PATH = join(ROOT, 'specs', '01-REQUIREMENTS.md');
+const EXPECTED_COUNT_PATH = join(ROOT, 'artifacts', 'trace', 'expected-count.json');
 
 function parseRequirements() {
   const text = readFileSync(REQ_PATH, 'utf8');
@@ -106,6 +107,47 @@ function parseRequirements() {
   return { frIds, nfrIds, frPhases, nfrPhases };
 }
 
+/**
+ * Assert parsed counts match committed expected-count.json.
+ * Any change in FR/NFR count that is not accompanied by an explicit update
+ * to expected-count.json is an error — the intentional-change ritual.
+ * Returns an array of error strings (empty if counts match).
+ */
+function assertExpectedCount(frIds, nfrIds) {
+  const errors = [];
+  if (!existsSync(EXPECTED_COUNT_PATH)) {
+    errors.push(
+      `Missing ${EXPECTED_COUNT_PATH} — run trace.mjs to auto-create it from the current parse, then commit it as the intentional-count baseline.`
+    );
+    // Auto-create for convenience, but still error — the file must be committed.
+    const expected = { fr: frIds.size, nfr: nfrIds.size, total: frIds.size + nfrIds.size,
+      canonical_source: 'specs/01-REQUIREMENTS.md',
+      extraction_regex: { fr: '^\\\\|\\\\s*(FR-[A-Z]+-\\\\d{3})\\\\b', nfr: '^\\\\|\\\\s*(NFR-\\\\d{2})\\\\b' },
+      last_verified: new Date().toISOString().split('T')[0],
+      note: 'Changing this file is the intentional-change ritual for adding/removing requirements. trace.mjs asserts parsed counts match these values and FAILS if they drift without an update to this file.' };
+    const outDir = dirname(EXPECTED_COUNT_PATH);
+    if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+    writeFileSync(EXPECTED_COUNT_PATH, JSON.stringify(expected, null, 2) + '\n');
+    return errors;
+  }
+  const expected = JSON.parse(readFileSync(EXPECTED_COUNT_PATH, 'utf8'));
+  if (expected.fr !== frIds.size) {
+    errors.push(
+      `FR count mismatch: parsed ${frIds.size} from ${REQ_PATH}, expected ${expected.fr} per ${EXPECTED_COUNT_PATH}. ` +
+      `If requirements were intentionally added or removed, update ${EXPECTED_COUNT_PATH} to match. ` +
+      `Otherwise, the requirement table has been corrupted.`
+    );
+  }
+  if (expected.nfr !== nfrIds.size) {
+    errors.push(
+      `NFR count mismatch: parsed ${nfrIds.size} from ${REQ_PATH}, expected ${expected.nfr} per ${EXPECTED_COUNT_PATH}. ` +
+      `If requirements were intentionally added or removed, update ${EXPECTED_COUNT_PATH} to match. ` +
+      `Otherwise, the requirement table has been corrupted.`
+    );
+  }
+  return errors;
+}
+
 // ── Annotation scanning ──────────────────────────────────────────────
 
 const SATISFIES_RE = /@satisfies\s+(FR-[A-Z]+-\d{3}|NFR-\d{2})/g;
@@ -127,8 +169,14 @@ function findFiles(dir, exts) {
   return results;
 }
 
+// @satisfies annotations are only meaningful in source and test files.
+// Scanning markdown would collect quoted annotations from prose (e.g.,
+// DRIFT-LOG.md quoting error messages containing @satisfies), producing
+// false positives. Annotations in docs/ is already blocked by INFRA_PATHS,
+// but .md files outside docs/ (e.g., README.md in root) would also be
+// false positives — so we exclude .md here at the scan level.
 function scanAnnotations() {
-  const files = findFiles(ROOT, ['.ts', '.tsx', '.mjs', '.js', '.md', '.yaml', '.yml']);
+  const files = findFiles(ROOT, ['.ts', '.tsx', '.mjs', '.js', '.yaml', '.yml']);
   const satisfies = new Map(); // FR-ID -> [{file, line}]
   const characterizes = new Map(); // label -> [{file, line}]
   const infraErrors = []; // @satisfies in non-product paths
@@ -199,10 +247,13 @@ function gate(phaseFilter) {
   const { frIds, nfrIds, frPhases, nfrPhases } = parseRequirements();
   const { satisfies, characterizes, infraErrors } = scanAnnotations();
 
+  // Assert parsed counts match committed expected-count.json
+  const countErrors = assertExpectedCount(frIds, nfrIds);
+
   const allReqIds = new Set([...frIds, ...nfrIds]);
 
   // Check for unknown FR ids referenced in annotations, plus infra-path violations
-  const errors = [...infraErrors];
+  const errors = [...countErrors, ...infraErrors];
   for (const [id] of satisfies) {
     if (!allReqIds.has(id)) {
       errors.push(`Unknown FR id "${id}" referenced in @satisfies at ${satisfies.get(id).map(r => `${r.file}:${r.line}`).join(', ')}`);

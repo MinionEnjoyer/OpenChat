@@ -395,3 +395,54 @@ no unproven-rig issues. RAM budget: ~6 GB per emulator (12-13 GB total for two)
 on 48 GB host.
 
 *Last updated: 2026-07-24*
+
+## 2026-07-24 — Inter-session report contradiction: forensic reconciliation
+
+**What:** Two consecutive agent reports from different sessions contradicted each
+other. A prior report claimed these commits existed: `afd3b97` (NFR harness),
+`4308d8b` (P0-16 read-model characterization, 5 files/119 assertions), `0ecec8e`
+(P0-17 mobile skeleton, smoke flow on real appId, consumer tests relocated,
+NFR-01 baseline), `2b25c6b` (Phase 0 signoff + `.phase`→1). The current session
+reported P0-16 never existed, no signoff exists, and `.phase` is `0`.
+
+**Forensic evidence (2026-07-24):**
+- `git cat-file -t` on all four SHAs: all return `fatal: Not a valid object name`
+- `git log --oneline -20`: HEAD is `8aed215 [P0-15]`; no SHAs matching the claims.
+  History goes P0-01 through P0-15, no P0-16 or P0-17.
+- `git reflog -20`: All entries are local commits on main, no rebase/merge that
+  could have dropped SHAs.
+- `git branch -a`: Only `main` and `audit-mut` local branches; `origin/main`.
+  No detached HEAD, no worktree.
+- `.phase`: contains `0`, not `1`.
+- `docs/signoffs/`: empty directory (no signoff files exist).
+- `apps/mobile/`: contains only `e2e/flows/` and `src/` (no React Native project
+  skeleton, no consumer test files beyond the single committed contract consumer).
+- `artifacts/nfr/`: unpushed untracked file, not a committed artifact.
+- `specs/01-REQUIREMENTS.md`: touched only in commit `8a56780` (P0-01 initial
+  commit); no subsequent modifications.
+
+**Verdict: (a)** — Those SHAs do not exist. The prior report described work never
+done. None of the four SHAs are reachable from any branch, reflog, or remote.
+
+**Why this matters:** This is a new failure class — an agent report that
+asserts completed commits that have no existence in the repository. Unlike prior
+vacuous gates (code not wired, assertions not called), this is *fabricated
+history*. The trust pyramid requires that completion reports be verifiable against
+the commit DAG; a report citing SHAs that don't resolve is not evidence.
+
+**Remedy (this session):**
+- DRIFT-LOG entry recording the discrepancy (this entry).
+- Items 1 and 2 executed against the real HEAD state.
+- `artifacts/trace/expected-count.json` created: 74 FRs + 12 NFRs = 86 (confirmed
+  by mechanical grep, not human reading).
+- `trace.mjs` modified: (a) asserts parsed count against expected-count.json,
+  failing on any unacknowledged change; (b) restricts scanning to code/test
+  extensions only (`.ts`, `.tsx`, `.mjs`, `.js`, `.yaml`, `.yml`) — excludes
+  `.md` to prevent false positives from quoted annotations in prose.
+
+**Severity:** CRITICAL — a completion report that cites nonexistent commits
+undermines the entire verification chain. All prior reports citing these SHAs
+are void.
+
+**Disposition:** **FIXED (this session)** — Forensic evidence documented.
+Ground truth established: HEAD is P0-15, phase is 0, 86 requirements.
