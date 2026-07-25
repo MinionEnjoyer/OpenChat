@@ -22,8 +22,8 @@ export interface AppConfig {
 export const ANDROID_EMULATOR_HOST = '10.0.2.2';
 
 export const DEFAULT_DEV_CONFIG: AppConfig = {
-  apiBaseUrl: `http://${ANDROID_EMULATOR_HOST}:3001/api`,
-  wsUrl: `ws://${ANDROID_EMULATOR_HOST}:3001/ws`,
+  apiBaseUrl: `http://${ANDROID_EMULATOR_HOST}:3030/api`,
+  wsUrl: `ws://${ANDROID_EMULATOR_HOST}:3030/ws`,
   e2e: false,
 };
 
