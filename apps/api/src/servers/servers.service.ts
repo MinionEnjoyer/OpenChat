@@ -268,6 +268,20 @@ export class ServersService {
     }));
   }
 
+  async listCategories(serverId: string, userId: string) {
+    await this.get(serverId, userId);
+    const categories = await this.prisma.category.findMany({
+      where: { serverId },
+      orderBy: { position: 'asc' },
+    });
+    return categories.map((c) => ({
+      id: c.id,
+      serverId: c.serverId,
+      name: c.name,
+      position: c.position,
+    }));
+  }
+
   async createChannel(
     serverId: string,
     userId: string,
@@ -304,6 +318,41 @@ export class ServersService {
     this.redis.publish('chat:events', { type: 'CHANNEL_CREATED', serverId, channel: serializedChannel }).catch(() => {});
 
     return serializedChannel;
+  }
+
+  async updateChannel(
+    serverId: string,
+    channelId: string,
+    userId: string,
+    data: { name?: string; topic?: string | null; categoryId?: string | null },
+  ): Promise<SerializedChannel> {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const channel = await this.prisma.channel.findUnique({ where: { id: channelId }, select: { serverId: true } });
+    if (!channel || channel.serverId !== serverId) throw new NotFoundException('Channel not found');
+
+    const updated = await this.prisma.channel.update({
+      where: { id: channelId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.topic !== undefined ? { topic: data.topic } : {}),
+        ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
+      },
+    });
+
+    const serialized = {
+      id: updated.id.toString(),
+      serverId: updated.serverId!.toString(),
+      categoryId: updated.categoryId ? updated.categoryId.toString() : null,
+      name: updated.name,
+      type: updated.type,
+      topic: updated.topic,
+      position: updated.position,
+      parentId: updated.parentId ? updated.parentId.toString() : null,
+    };
+
+    this.redis.publish('chat:events', { type: 'CHANNEL_UPDATED', serverId, channel: serialized }).catch(() => {});
+
+    return serialized;
   }
 
   async listMembers(serverId: string, userId: string) {

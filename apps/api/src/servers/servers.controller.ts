@@ -116,6 +116,11 @@ export class ServersController {
     return this.servers.deleteSound(serverId, soundId, user.id);
   }
 
+  @Get(':id/categories')
+  listCategories(@Param('id') serverId: string, @CurrentUser() user: User) {
+    return this.servers.listCategories(serverId, user.id);
+  }
+
   @Get(':id/channels')
   listChannels(@Param('id') serverId: string, @CurrentUser() user: User) {
     return this.servers.listChannels(serverId, user.id);
@@ -138,6 +143,21 @@ export class ServersController {
     @Body(new ZodValidationPipe(z.object({ orderedIds: z.array(z.string()) }))) body: { orderedIds: string[] },
   ) {
     return this.servers.reorderChannels(serverId, user.id, body.orderedIds);
+  }
+
+  @Patch(':id/channels/:channelId')
+  updateChannel(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      name: z.string().min(1).max(100).optional(),
+      topic: z.string().max(500).nullable().optional(),
+      categoryId: z.string().uuid().nullable().optional(),
+    }))) body: { name?: string; topic?: string | null; categoryId?: string | null },
+  ) {
+    // @satisfies FR-SRV-005
+    return this.servers.updateChannel(serverId, channelId, user.id, body);
   }
 
   @Delete(':id/channels/:channelId')

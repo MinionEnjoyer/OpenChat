@@ -31,6 +31,10 @@ import { ChatPane, PinsPanel } from '../../messages';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
 import { MemberList } from '../MemberList';
+import { ChannelList } from '../../channels/ChannelList';
+import { ChannelForm } from '../../channels/ChannelForm';
+import { ChannelReorderScreen } from '../../channels/ChannelReorderScreen';
+import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../channels/hooks';
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
@@ -69,6 +73,11 @@ export function ShellScreen(): React.JSX.Element {
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+
+  // ── Channel management (FR-SRV-004/005) ──
+  const [channelFormVisible, setChannelFormVisible] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | undefined>(undefined);
+  const [reorderVisible, setReorderVisible] = useState(false);
 
   // Drawer state lives in shared values for 60fps gesture tracking.
   const leftOpen = useSharedValue(0); // 0 = closed, 1 = open
@@ -131,6 +140,11 @@ export function ShellScreen(): React.JSX.Element {
     enabled: serverId !== null && membersQueryEnabled,
     queryFn: () => api.request<Member[]>(`/servers/${serverId}/members`),
   });
+
+  // ── Channel CRUD hooks (FR-SRV-005) ──
+  const createChannel = useCreateChannel(serverId ?? '');
+  const updateChannel = useUpdateChannel(serverId ?? '');
+  const deleteChannel = useDeleteChannel(serverId ?? '');
   // ── FR-APP-002: Cold start restore ────────────────────────────────
   //
   // Two-phase: Phase 1 selects the stored server (if different from default).
@@ -164,6 +178,51 @@ export function ShellScreen(): React.JSX.Element {
 
   const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT');
   const activeChannel = textChannels.find((c) => c.id === selectedChannelId) ?? null;
+
+  // ── Channel CRUD handlers (FR-SRV-005) ──
+  const handleCreateChannel = useCallback(() => {
+    setEditingChannel(undefined);
+    setChannelFormVisible(true);
+  }, []);
+
+  const handleEditChannel = useCallback((channel: Channel) => {
+    setEditingChannel(channel);
+    setChannelFormVisible(true);
+  }, []);
+
+  const handleDeleteChannel = useCallback(
+    (channel: Channel) => {
+      const name = channel.name;
+      Alert.alert(strings.channels.deleteConfirm, `"${name}"`, [
+        { text: strings.common.cancel, style: 'cancel' },
+        {
+          text: strings.channels.deleteConfirmOk,
+          style: 'destructive',
+          onPress: () => {
+            deleteChannel.mutate(channel.id, {
+              onSuccess: () => {
+                if (selectedChannelId === channel.id) setSelectedChannelId(null);
+              },
+            });
+          },
+        },
+      ]);
+    },
+    [deleteChannel, selectedChannelId],
+  );
+
+  const handleChannelFormSubmit = useCallback(
+    (data: { name: string; type: 'TEXT' | 'VOICE'; topic?: string | null }) => {
+      if (editingChannel) {
+        updateChannel.mutate({ channelId: editingChannel.id, ...data });
+      } else if (serverId) {
+        createChannel.mutate(data);
+      }
+      setChannelFormVisible(false);
+      setEditingChannel(undefined);
+    },
+    [editingChannel, serverId, createChannel, updateChannel],
+  );
 
   const saveDisplayName = async (): Promise<void> => {
     const draft = displayNameDraft.trim();
@@ -419,7 +478,7 @@ export function ShellScreen(): React.JSX.Element {
               </Pressable>
             </View>
 
-            {/* Channel list */}
+            {/* Channel list — FR-SRV-004/005 */}
             <View style={styles.channels} testID="channel-drawer">
               <View style={styles.channelHeader}>
                 <Text style={styles.drawerTitle} testID="channel-drawer-title">
@@ -438,32 +497,16 @@ export function ShellScreen(): React.JSX.Element {
                   </Pressable>
                 )}
               </View>
-              {textChannels.length === 0 ? (
-                <Text style={styles.muted}>
-                  {servers.data?.length === 0
-                    ? strings.shell.noServers
-                    : strings.shell.noChannels}
-                </Text>
-              ) : (
-                <FlatList
-                  data={textChannels}
-                  keyExtractor={(c) => c.id}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      style={[
-                        styles.channelRow,
-                        item.id === selectedChannelId && styles.channelRowActive,
-                      ]}
-                      onPress={() => selectChannel(item.id)}
-                      accessibilityLabel={item.name}
-                      testID={`channel-${item.name}`}
-                    >
-                      <Text style={styles.channelHash}>
-                        {strings.shell.channelHash}
-                      </Text>
-                      <Text style={styles.channelName}>{item.name}</Text>
-                    </Pressable>
-                  )}
+              {serverId && (
+                <ChannelList
+                  serverId={serverId}
+                  channels={channels.data ?? []}
+                  selectedChannelId={selectedChannelId}
+                  onSelectChannel={(channelId) => selectChannel(channelId)}
+                  onCreateChannel={handleCreateChannel}
+                  onEditChannel={handleEditChannel}
+                  onDeleteChannel={handleDeleteChannel}
+                  onReorder={() => setReorderVisible(true)}
                 />
               )}
             </View>
@@ -621,7 +664,6 @@ export function ShellScreen(): React.JSX.Element {
           onClose={() => setInvitePreviewCode(null)}
           onAccepted={(_serverId) => {
             setInvitePreviewCode(null);
-            // Refresh server list to show the newly joined server
             void servers.refetch();
           }}
         />
@@ -643,6 +685,27 @@ export function ShellScreen(): React.JSX.Element {
           serverName={activeServer.name}
           visible={inviteCreateVisible}
           onClose={() => setInviteCreateVisible(false)}
+        />
+      )}
+
+      {/* ── Channel form modal (create / edit) ── */}
+      <ChannelForm
+        visible={channelFormVisible}
+        channel={editingChannel}
+        onClose={() => {
+          setChannelFormVisible(false);
+          setEditingChannel(undefined);
+        }}
+        onSubmit={handleChannelFormSubmit}
+      />
+
+      {/* ── Channel reorder modal (FR-SRV-005) ── */}
+      {serverId && (
+        <ChannelReorderScreen
+          visible={reorderVisible}
+          serverId={serverId}
+          channels={channels.data ?? []}
+          onClose={() => setReorderVisible(false)}
         />
       )}
     </KeyboardAvoidingView>

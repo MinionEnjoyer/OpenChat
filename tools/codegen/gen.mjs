@@ -94,6 +94,31 @@ export interface Channel {
   position: number;
 }
 
+export interface Role {
+  id: string;
+  serverId: string;
+  name: string;
+  color: number;
+  permissions: string;
+  position: number;
+}
+
+/** Server-defined channel category (FR-SRV-004). */
+export interface Category {
+  id: string;
+  serverId: string;
+  name: string;
+  position: number;
+}
+
+/** Voice participant from GET /voice/:channelId/participants (FR-SRV-004). */
+export interface VoiceParticipant {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
 export interface Member {
   userId: string;
   nickname: string | null;
