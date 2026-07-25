@@ -116,11 +116,13 @@ export interface ReactionGroup {
   userIds: string[];
 }
 
+// x-added-by FR-MSG-012: corrected to match wire (multiple, not allowMultiple; added closesAt)
 export interface Poll {
   id: string;
   question: string;
   options: PollOption[];
-  allowMultiple: boolean;
+  multiple: boolean;
+  closesAt: string | null;
 }
 
 export interface PollOption {

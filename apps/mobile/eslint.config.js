@@ -33,9 +33,9 @@ module.exports = [
             {
               target: './src/domain',
               from: './src',
-              except: ['./domain'],
+              except: ['./domain', './api'],
               message:
-                'domain/ is pure logic: it may not depend on app modules (06 §2).',
+                'domain/ is pure logic: it may not depend on app modules (06 §2). It MAY import type from api/.',
             },
           ],
         },
