@@ -59,10 +59,20 @@ export interface Server {
   myPermissions: string; // BigInt serialized as decimal string
 }
 
+/** Author summary embedded in message responses (observed from API). */
+export interface AuthorBrief {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status: string | null;
+}
+
 export interface Message {
   id: string;
   channelId: string;
   authorId: string;
+  author?: AuthorBrief;
   content: string;
   nonce: string | null;
   editedAt: string | null;

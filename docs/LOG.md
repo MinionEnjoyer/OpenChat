@@ -812,3 +812,37 @@ No app code changed.
   - ✓ bob's REST message appeared live via the gateway (≤5s, no refresh)
 - Break test: changed expected bob text to `IMPOSSIBLE-e2e-bob-*` → script FAILED as expected
 - Restored → script PASSES again
+
+## 2026-07-25 — P2-02 (William B. Sexton)
+
+### P2-02 — Render real author names in message list: COMPLETE
+**Commit:** `53a88e5` — 5 files, 154 insertions, 3 deletions
+
+**Defect:** ChatPane.tsx line 301 rendered other users' messages as a raw ID fragment
+(authorId.slice(0, 8) → 'de7bf295' instead of 'bob'). This was a P2-01 placeholder.
+
+**Investigation:** Curled GET /channels/:id/messages against the running API (port 3007).
+API already embeds `author: { id, username, displayName, avatarUrl, status }` on every
+message. No backend change needed.
+
+**Fix:**
+- `apps/mobile/src/domain/authors.ts` — `resolveAuthorName()` pure function with fallback:
+  author.displayName → author.username → authorId.slice(0,8); own messages always use
+  current user's display name
+- `apps/mobile/src/api/schema.ts` — added `AuthorBrief` interface and optional `author`
+  field to `Message` (observed from API response, not invented)
+- `apps/mobile/src/features/messages/ChatPane.tsx` — replaced inline ternary with
+  `resolveAuthorName(item.authorId, item.author, user?.id, user?.displayName, user?.username)`
+
+**Tests:** `apps/mobile/src/domain/__tests__/authors.test.ts` — 6 cases (@satisfies FR-MSG-002):
+- own display name, own username fallback, other's display name, other's username fallback,
+  unknown author short-id fallback, empty-string graceful fallback
+
+**Verification:**
+- `npx tsc --noEmit` — rc=0
+- `npx eslint . --max-warnings=0` — rc=0
+- `npx jest` — 18 suites, 187 tests, all pass
+- Prove-fail: broke one assertion → test FAILED → restored → test PASSED
+- `./gradlew assembleRelease` — BUILD SUCCESSFUL, APK 82,094,739 bytes
+- `adb install -r` → Success
+- `./tools/devctl screenshot --screen morning-authornames` → 1,369,693 bytes

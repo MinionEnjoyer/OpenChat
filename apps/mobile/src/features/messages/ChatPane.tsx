@@ -24,6 +24,7 @@ import { optimisticToggle } from '../../domain/reactions';
 import { ReactionPills } from './ReactionPills';
 import { EmojiPicker } from './EmojiPicker';
 import { ReactorListSheet } from './ReactorListSheet';
+import { resolveAuthorName } from '../../domain/authors';
 import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
 import { useTyping } from '../../stores/typing';
@@ -298,9 +299,13 @@ export function ChatPane({ channelId, serverId }: {
             >
               <View style={styles.header}>
                 <Text style={styles.author}>
-                  {item.authorId === user?.id
-                    ? (user?.displayName ?? user?.username ?? '')
-                    : item.authorId.slice(0, 8)}
+                  {resolveAuthorName(
+                    item.authorId,
+                    item.author,
+                    user?.id,
+                    user?.displayName,
+                    user?.username,
+                  )}
                 </Text>
                 {item.editedAt && (
                   <Text style={styles.edited}>{strings.messages.edited}</Text>
