@@ -287,6 +287,78 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `./tools/verify-worktree.sh /Users/williambsexton/work/oc-p7-search 3002` →
   4/4 PASS, exit 0.
 - `./tools/verify-worktree.sh /Users/williambsexton/work/oc-p7-search 3001` →
-  3/4 PASS, 1 FAIL (integration: 9 failed — p7-search endpoint 404 against
-  Docker API on port conflict), exit 1. Proves gate catches failures.
+   3/4 PASS, 1 FAIL (integration: 9 failed — p7-search endpoint 404 against
+   Docker API on port conflict), exit 1. Proves gate catches failures.
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — P2-06 Reactions (mobile client, FR-MSG-006)
+
+### Commit: `af2ef7e`
+
+### Backend verification (ground truth)
+
+- **Routes:** `POST /messages/:id/reactions` (body: `{ emoji: string }`),
+  `DELETE /messages/:id/reactions/:emoji` — confirmed in
+  `apps/api/src/messages/messages.controller.ts`.
+- **Realtime:** Both `addReaction` and `removeReaction` call
+  `publishMessageUpdate(messageId)` which publishes
+  `{ type: 'MESSAGE_UPDATED', message: dto }` via Redis.
+- **Gateway relay:** `events.gateway.ts relay()` sends
+  `{ op: 'message.updated', d: { message: event.message } }` —
+  a FULL message frame (E7 confirmed correct).
+- **Wire shape:** `reactions: Array<{ emoji: string; count: number; userIds: string[] }>`
+  (pre-aggregated by the backend in `MessagesService.groupReactions`).
+
+### Schema corrections
+
+- `apps/mobile/src/api/schema.d.ts`: `Reaction { emoji; userId }` →
+  `ReactionGroup { emoji; count; userIds }` to match actual wire format.
+- `apps/mobile/src/realtime/events.d.ts`: `MessageUpdatedFrame.d` changed from
+  `Message` to `{ message: Message }` — matched the real gateway relay shape.
+
+### Files created
+
+- `apps/mobile/src/domain/reactions.ts` — Pure functions: `optimisticToggle`,
+  `hasUserReacted`, `filterEmojis`, `mergeMessageUpdate`, `isBuiltinEmoji`,
+  plus `BUILTIN_EMOJIS` dataset (16 entries with keywords). Owns
+  `ReactionGroup` and `EmojiEntry` types.
+- `apps/mobile/src/domain/__tests__/reactions.test.ts` — 20 unit tests
+  (`@satisfies FR-MSG-006`): toggle-on/off including idempotency, count
+  aggregation across users, own-reaction highlighting, picker search
+  filtering, server ack merge. Mutation-tested — confirmed test can detect
+  broken idempotency.
+- `apps/mobile/src/features/messages/EmojiPicker.tsx` — Bottom-sheet modal,
+  5-column grid, text search via `filterEmojis`.
+- `apps/mobile/src/features/messages/ReactionPills.tsx` — Inline pill row:
+  emoji + count, accent highlight when current user reacted.
+- `apps/mobile/src/features/messages/ReactorListSheet.tsx` — Bottom sheet
+  showing userIds for a selected emoji reaction.
+
+### Files modified
+
+- `apps/mobile/src/sync/messages.ts` — Added `applyUpdated()` cache writer
+  using `mergeMessageUpdate` from domain/.
+- `apps/mobile/src/sync/queryClient.ts` — Wired `message.updated` op to
+  `applyUpdated`.
+- `apps/mobile/src/features/messages/ChatPane.tsx` — Long-press opens
+  picker; ReactionPills under each message; optimistic toggle + API call;
+  ReactorListSheet integration.
+- `apps/mobile/src/ui/strings.ts` — Added `reactions.*` keys and
+  `shell.hamburgerIcon`.
+- `apps/mobile/src/features/shell/screens/ShellScreen.tsx` — Fixed
+  pre-existing JSX literal violation (hamburger "☰") and unused variable.
+- `apps/mobile/src/realtime/__tests__/gateway.test.ts` — Fixed pre-existing
+  test expecting `channelIds` → `channelId` (protocol correction from P2).
+
+### Gates
+
+- `npx tsc --noEmit`: clean
+- `npx eslint . --max-warnings=0`: clean
+- `npx jest --no-coverage`: 13/13 suites, 76/76 tests pass
+
+### Not done / out of scope
+
+- E2E two-device test (FR-MSG-006 acceptance criterion — requires running
+  infrastructure and two mobile clients; this is a work order N deliverable
+  for the client half).
+- No backend changes — purely mobile client.
