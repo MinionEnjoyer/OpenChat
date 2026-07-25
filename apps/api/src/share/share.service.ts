@@ -1,16 +1,25 @@
 import { Injectable, HttpException, HttpStatus, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Readable } from 'stream';
+import { ReadableStream as WebReadableStream } from 'stream/web';
 
 /**
- * P5-02 — Upload broker + authenticated media proxy (FR-MED-002, FR-MED-003).
+ * P5-01 + P5-02 — ShareService with Bearer-token service API (FR-MED-001) +
+ * upload broker + authenticated media proxy (FR-MED-002, FR-MED-003).
  *
- * Replaces the dead G2 code (POST /api/assets/upload-url and GET /api/assets/:id
- * — routes that do not exist on OpenShare). The web client's direct browser→Share
- * upload path is untouched (NFR-10).
+ * FR-MED-001 — Bearer-auth'd service API:
+ *   POST /api/assets          — multipart upload (Bearer SHARE_API_KEY)
+ *   GET  /api/assets/{id}     — asset metadata
+ *   GET  /api/assets/{id}/raw — raw bytes with Range/ETag
+ *   GET  /api/assets/{id}/thumb — thumbnail bytes
  *
- * OpenShare endpoints used:
- *   POST /upload          — multipart upload (source=chat)
+ * These endpoints do NOT exist on OpenShare yet (2026-07-25). This module's
+ * uploadFiles() tries the service API first; if the endpoint returns 404, it
+ * falls back to cookie-based POST /upload (P0-02a bypass). Once OpenShare
+ * implements FR-MED-001, the fallback can be removed.
+ *
+ * Cookie-based endpoints (unchanged for backward compat / web client):
+ *   POST /upload          — multipart upload (cookie session)
  *   GET  /raw/{id}        — public raw bytes
  *   GET  /thumb/{id}      — public thumbnail
  *   POST /auth/dev-login  — dev-only session bootstrap (DEV_AUTH=1)
@@ -28,6 +37,19 @@ export interface UploadedAttachment {
   durationMs: number | null;
 }
 
+/** Full asset metadata per FR-MED-001 spec (14-PHASE5-MEDIA.md P5-01). */
+export interface AssetMetadata {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  mediaType: string;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+  sha256: string;
+}
+
 interface ShareUploadResponse {
   saved: Array<{ id: string; media_type: string }>;
   rejected: Array<{ name: string; reason: string }>;
@@ -37,6 +59,7 @@ interface ShareUploadResponse {
 export class ShareService {
   private readonly logger = new Logger(ShareService.name);
   private readonly shareBaseUrl: string;
+  private readonly shareApiKey: string | undefined;
 
   /** Cached OpenShare session cookie (obtained via dev-login). Lazily initialized. */
   private shareCookie: string | null = null;
@@ -44,9 +67,21 @@ export class ShareService {
 
   constructor(private configService: ConfigService) {
     this.shareBaseUrl = this.configService.get<string>('SHARE_BASE_URL')!;
+    this.shareApiKey = this.configService.get<string>('SHARE_API_KEY');
+    if (this.shareApiKey) {
+      this.logger.log('SHARE_API_KEY configured — service API available');
+    }
   }
 
-  // ── Session management ───────────────────────────────────────────
+  // ── Bearer auth helper ─────────────────────────────────────────────
+
+  /** Returns Authorization header if SHARE_API_KEY is configured. */
+  private getBearerHeaders(): Record<string, string> | null {
+    if (!this.shareApiKey) return null;
+    return { authorization: `Bearer ${this.shareApiKey}` };
+  }
+
+  // ── Session management (cookie-based fallback) ─────────────────────
 
   private async ensureSession(): Promise<string> {
     const now = Date.now();
@@ -85,17 +120,101 @@ export class ShareService {
     return this.shareCookie;
   }
 
+  // ── FR-MED-001: Service API upload ─────────────────────────────────
+
+  /**
+   * Upload files via the Bearer-token service API (POST /api/assets).
+   *
+   * This is the FR-MED-001 target path. Returns full AssetMetadata per the spec.
+   * Falls back to null if the endpoint is not available (404).
+   *
+   * @satisfies FR-MED-001
+   */
+  private async uploadViaServiceApi(
+    files: Array<{ filename: string; buffer: Buffer; mimeType: string }>,
+  ): Promise<AssetMetadata[]> {
+    const bearerHeaders = this.getBearerHeaders();
+    if (!bearerHeaders) return []; // No API key configured — skip
+
+    const form = new FormData();
+    for (const f of files) {
+      const blob = new Blob([new Uint8Array(f.buffer)], { type: f.mimeType || 'application/octet-stream' });
+      form.append('file', blob, f.filename);
+    }
+    form.append('source', 'chat');
+
+    const resp = await fetch(`${this.shareBaseUrl}/api/assets`, {
+      method: 'POST',
+      headers: bearerHeaders,
+      body: form,
+    });
+
+    if (resp.status === 404) {
+      // Route not built yet (OpenShare pre-FR-MED-001) — caller falls back
+      this.logger.warn('POST /api/assets returned 404 — falling back to cookie-based upload');
+      return [];
+    }
+
+    if (resp.status === 401 || resp.status === 403) {
+      throw new HttpException(
+        `Share service API auth rejected (${resp.status}) — check SHARE_API_KEY`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new HttpException(
+        `Share service API upload failed (${resp.status}): ${text}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    const data: AssetMetadata = await resp.json();
+    return [data];
+  }
+
+  /**
+   * Convert AssetMetadata (from service API) to UploadedAttachment refs.
+   *
+   * @satisfies FR-MED-001
+   */
+  private metadataToAttachment(meta: AssetMetadata, original: { filename: string; buffer: Buffer; mimeType: string }): UploadedAttachment {
+    return {
+      shareAssetId: meta.id,
+      filename: meta.filename ?? original.filename,
+      mimeType: meta.mimeType ?? original.mimeType,
+      size: meta.size ?? original.buffer.length,
+      url: `/api/media/${meta.id}/raw`,
+      thumbnailUrl: `/api/media/${meta.id}/thumb`,
+      width: meta.width ?? null,
+      height: meta.height ?? null,
+      durationMs: meta.durationMs ?? null,
+    };
+  }
+
   // ── FR-MED-002: Upload broker ────────────────────────────────────
 
   /**
    * Upload files to OpenShare and return web-compatible attachment refs.
    *
-   * @param files Array of { filename, buffer, mimeType } — already parsed from multipart.
-   * @param apiBaseUrl The OpenChat API base URL used to construct proxy URLs.
+   * Tries the service API (Bearer auth, FR-MED-001) first; falls back to
+   * cookie-based POST /upload if the endpoint is not available.
+   *
+   * @satisfies FR-MED-002
    */
   async uploadFiles(
     files: Array<{ filename: string; buffer: Buffer; mimeType: string }>,
   ): Promise<UploadedAttachment[]> {
+    // Try service API first (FR-MED-001)
+    const serviceResults = await this.uploadViaServiceApi(files);
+    if (serviceResults.length > 0) {
+      return serviceResults.map((meta, i) =>
+        this.metadataToAttachment(meta, files[i]),
+      );
+    }
+
+    // Fallback: cookie-based POST /upload
     const cookie = await this.ensureSession();
 
     const form = new FormData();
@@ -143,6 +262,38 @@ export class ShareService {
       });
   }
 
+  // ── FR-MED-001: Service API metadata ──────────────────────────────
+
+  /**
+   * Fetch asset metadata via the service API (GET /api/assets/{id}).
+   *
+   * @satisfies FR-MED-001
+   */
+  async getAssetMetadata(assetId: string): Promise<AssetMetadata> {
+    const bearerHeaders = this.getBearerHeaders();
+    if (!bearerHeaders) {
+      throw new HttpException(
+        'SHARE_API_KEY not configured',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+
+    const resp = await fetch(
+      `${this.shareBaseUrl}/api/assets/${encodeURIComponent(assetId)}`,
+      { headers: { ...bearerHeaders, accept: 'application/json' } },
+    );
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new HttpException(
+        `Share metadata fetch failed (${resp.status}): ${text}`,
+        resp.status === 404 ? HttpStatus.NOT_FOUND : HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    return resp.json();
+  }
+
   // ── FR-MED-003: Media proxy ──────────────────────────────────────
 
   /**
@@ -179,7 +330,7 @@ export class ShareService {
     headers['cache-control'] = 'private, max-age=86400';
 
     // Convert web ReadableStream to Node Readable
-    const nodeStream = Readable.fromWeb(resp.body as any);
+    const nodeStream = Readable.fromWeb(resp.body as WebReadableStream);
     return { stream: nodeStream, headers, status: resp.status };
   }
 
@@ -207,7 +358,7 @@ export class ShareService {
 
     headers['cache-control'] = 'private, max-age=86400';
 
-    const nodeStream = Readable.fromWeb(resp.body as any);
+    const nodeStream = Readable.fromWeb(resp.body as WebReadableStream);
     return { stream: nodeStream, headers, status: resp.status };
   }
 }
