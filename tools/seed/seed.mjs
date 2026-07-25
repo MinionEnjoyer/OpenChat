@@ -175,23 +175,49 @@ async function main() {
   let modRoleId = roleList.find(r => r.name === 'Mod')?.id;
   let memberRoleId = roleList.find(r => r.name === 'Member')?.id;
 
+  // P7: ensure @everyone role exists (base permissions for all members)
+  let everyoneRoleId = roleList.find(r => r.name === '@everyone')?.id;
+  const EVERYONE_PERMISSIONS = (32n | 512n | 1024n).toString(); // CREATE_INVITE | SEND_MESSAGES | READ_MESSAGES
+  if (!everyoneRoleId) {
+    const r = await apiFetch(`/servers/${serverId}/roles`, { method: 'POST', body: { name: '@everyone', color: 0x99aab5, permissions: EVERYONE_PERMISSIONS }, jar: alice.jar });
+    everyoneRoleId = r.body.id;
+    console.log(`  @everyone created: ${everyoneRoleId}`);
+  } else {
+    console.log(`  @everyone exists: ${everyoneRoleId}`);
+    const patch = await apiFetch(`/servers/${serverId}/roles/${everyoneRoleId}`, { method: 'PATCH', body: { permissions: EVERYONE_PERMISSIONS }, jar: alice.jar });
+    console.log(`  @everyone PATCH -> ${patch.status}: ${JSON.stringify(patch.body)}`);
+  }
+
   if (!adminRoleId) {
     const r = await apiFetch(`/servers/${serverId}/roles`, { method: 'POST', body: { name: 'Admin', color: 0x5865f2, permissions: '255' }, jar: alice.jar });
     adminRoleId = r.body.id;
     console.log(`  Admin created: ${adminRoleId}`);
   } else { console.log(`  Admin exists: ${adminRoleId}`); }
 
+  const MOD_PERMISSIONS = (32n | 512n | 1024n).toString(); // CREATE_INVITE | SEND_MESSAGES | READ_MESSAGES
+  const MEMBER_PERMISSIONS = (512n | 1024n).toString(); // SEND_MESSAGES | READ_MESSAGES
+
   if (!modRoleId) {
-    const r = await apiFetch(`/servers/${serverId}/roles`, { method: 'POST', body: { name: 'Mod', color: 0x57f287, permissions: '32' }, jar: alice.jar });
+    const r = await apiFetch(`/servers/${serverId}/roles`, { method: 'POST', body: { name: 'Mod', color: 0x57f287, permissions: MOD_PERMISSIONS }, jar: alice.jar });
     modRoleId = r.body.id;
     console.log(`  Mod created: ${modRoleId}`);
-  } else { console.log(`  Mod exists: ${modRoleId}`); }
+  } else {
+    console.log(`  Mod exists: ${modRoleId}`);
+    // P7: ensure Mod has SEND_MESSAGES + READ_MESSAGES
+    const modPatch = await apiFetch(`/servers/${serverId}/roles/${modRoleId}`, { method: 'PATCH', body: { permissions: MOD_PERMISSIONS }, jar: alice.jar });
+    console.log(`  Mod PATCH -> ${modPatch.status}: ${JSON.stringify(modPatch.body)}`);
+  }
 
   if (!memberRoleId) {
-    const r = await apiFetch(`/servers/${serverId}/roles`, { method: 'POST', body: { name: 'Member', color: 0x99aab5, permissions: '0' }, jar: alice.jar });
+    const r = await apiFetch(`/servers/${serverId}/roles`, { method: 'POST', body: { name: 'Member', color: 0x99aab5, permissions: MEMBER_PERMISSIONS }, jar: alice.jar });
     memberRoleId = r.body.id;
     console.log(`  Member created: ${memberRoleId}`);
-  } else { console.log(`  Member exists: ${memberRoleId}`); }
+  } else {
+    console.log(`  Member exists: ${memberRoleId}`);
+    // P7: ensure Member has SEND_MESSAGES + READ_MESSAGES
+    const memberPatch = await apiFetch(`/servers/${serverId}/roles/${memberRoleId}`, { method: 'PATCH', body: { permissions: MEMBER_PERMISSIONS }, jar: alice.jar });
+    console.log(`  Member PATCH -> ${memberPatch.status}: ${JSON.stringify(memberPatch.body)}`);
+  }
 
   // Assign Admin to alice, Mod to bob, Member to carol and dave (idempotent via PUT)
   await apiFetch(`/servers/${serverId}/members/${alice.userId}/roles/${adminRoleId}`, { method: 'PUT', jar: alice.jar });

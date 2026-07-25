@@ -226,6 +226,11 @@ export class MessagesService {
     });
     if (channel?.serverId) {
       await this.servers.assertNotTimedOut(channel.serverId, userId);
+      // FR-ROLE-003: check channel-level effective permissions for SEND_MESSAGES
+      const channelPerms = await this.servers.getChannelPermissions(channel.serverId, channelId, userId);
+      if (!hasPermission(channelPerms, Permission.SEND_MESSAGES)) {
+        throw new ForbiddenException('You do not have permission to send messages in this channel');
+      }
     }
 
     // If replying, make sure the referenced message is in the same channel.
