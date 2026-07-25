@@ -99,7 +99,7 @@ describe('gateway chaos (NFR-07)', () => {
     // Resubscribe replay is exactly one subscribe frame per reconnect, one channel.
     const subs = socket.sent.filter((f) => JSON.parse(f).op === 'subscribe');
     expect(subs).toHaveLength(1);
-    expect(JSON.parse(subs[0]!).d.channelIds).toEqual(['chan-1']);
+    expect(JSON.parse(subs[0]!).d.channelId).toBe('chan-1');
   });
 
   it('resets the backoff attempt counter after a successful ready', async () => {

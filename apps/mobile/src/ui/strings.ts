@@ -24,6 +24,7 @@ export const strings = {
   },
   shell: {
     channelHash: '#',
+    hamburgerIcon: '☰',
     channelsFallbackTitle: 'Channels',
     noServers: 'No servers yet',
     noChannels: 'No channels',
@@ -37,6 +38,12 @@ export const strings = {
     composerPlaceholder: 'Message',
     send: 'Send',
     sendFailed: 'Message failed to send',
+  },
+  reactions: {
+    pickerTitle: 'Add reaction',
+    pickerSearchPlaceholder: 'Search emoji',
+    reactorListTitle: 'Reactions',
+    noReactors: '—',
   },
   connection: {
     offline: 'Offline — reconnecting…',

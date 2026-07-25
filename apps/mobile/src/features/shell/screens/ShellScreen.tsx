@@ -29,7 +29,7 @@ import { keys } from '../../../sync/keys';
 import { ChatPane } from '../../messages';
 import type { Server, Channel, Member } from '../../../api/schema';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+Dimensions.get('window'); // keep import for future use
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
 const EDGE_WIDTH = 30; // edge gesture hit-slop for swipe-from-edge
@@ -249,7 +249,7 @@ export function ShellScreen(): React.JSX.Element {
             testID="hamburger-button"
             hitSlop={8}
           >
-            <Text style={styles.topBarAction}>☰</Text>
+            <Text style={styles.topBarAction}>{strings.shell.hamburgerIcon}</Text>
           </Pressable>
           <Text style={styles.chatTitle} testID="chat-title" numberOfLines={1}>
             {activeChannel
