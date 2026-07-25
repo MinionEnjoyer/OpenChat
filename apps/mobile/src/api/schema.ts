@@ -37,6 +37,15 @@ export interface Channel {
   position: number;
 }
 
+export interface Role {
+  id: string;
+  serverId: string;
+  name: string;
+  color: number;
+  permissions: string;
+  position: number;
+}
+
 export interface Member {
   userId: string;
   nickname: string | null;

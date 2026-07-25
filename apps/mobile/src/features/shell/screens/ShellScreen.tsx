@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -26,9 +27,11 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+import { MemberList } from '../MemberList';
 import { storage } from '../../../lib/storageInstance';
+import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
-import type { Server, Channel, Member } from '../../../api/schema';
+import type { Server, Channel, Member, Role } from '../../../api/schema';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -81,6 +84,12 @@ export function ShellScreen(): React.JSX.Element {
     queryKey: keys.channels(serverId ?? 'none'),
     enabled: serverId !== null,
     queryFn: () => api.request<Channel[]>(`/servers/${serverId}/channels`),
+  });
+
+  const roles = useQuery({
+    queryKey: ['roles', serverId ?? 'none'],
+    enabled: serverId !== null && membersQueryEnabled,
+    queryFn: () => api.request<Role[]>(`/servers/${serverId}/roles`),
   });
 
   const members = useQuery({
@@ -417,17 +426,42 @@ export function ShellScreen(): React.JSX.Element {
           <View style={styles.drawerContent}>
             <View style={styles.members} testID="members-drawer">
               <Text style={styles.drawerTitle}>{strings.shell.membersTitle}</Text>
-              <FlatList
-                data={members.data ?? []}
-                keyExtractor={(m) => m.userId}
-                renderItem={({ item }) => (
-                  <Text
-                    style={styles.memberRow}
-                    testID={`member-${item.user?.username ?? item.userId}`}
-                  >
-                    {item.user?.displayName ?? item.user?.username ?? item.userId}
-                  </Text>
-                )}
+              <MemberList
+                members={members.data ?? []}
+                roles={roles.data ?? []}
+                myUserId={user?.id ?? ''}
+                myPermissions={activeServer?.myPermissions}
+                onKick={async (userId) => {
+                  if (!serverId) return;
+                  Alert.alert('', strings.members.kickConfirm, [
+                    { text: strings.common.cancel, style: 'cancel' },
+                    { text: strings.members.kickConfirmOk, style: 'destructive', onPress: async () => {
+                      try {
+                        await api.request(`/servers/${serverId}/members/${userId}`, { method: 'DELETE' });
+                        members.refetch();
+                        showToast(`${userId} ${strings.members.kick}`);
+                      } catch {
+                        showToast(strings.common.error);
+                      }
+                    } },
+                  ]);
+                }}
+                onLeave={() => {
+                  if (!serverId) return;
+                  Alert.alert('', strings.members.leaveConfirm, [
+                    { text: strings.common.cancel, style: 'cancel' },
+                    { text: strings.members.leaveConfirmOk, style: 'destructive', onPress: async () => {
+                      try {
+                        await api.request(`/servers/${serverId}/members/me`, { method: 'DELETE' });
+                        queryClient.invalidateQueries({ queryKey: keys.servers });
+                        closeRight();
+                        showToast(strings.members.leave);
+                      } catch (e: unknown) {
+                        showToast((e instanceof Error ? e.message : undefined) ?? strings.common.error);
+                      }
+                    } },
+                  ]);
+                }}
               />
               {/* Profile box (P1-07) */}
               <View style={styles.profileBox}>

@@ -135,6 +135,21 @@ export const strings = {
     cancel: 'Cancel',
     error: 'Something went wrong',
   },
+  members: {
+    title: 'Members',
+    empty: 'No members',
+    crown: '\u2655',
+    ownerBadge: 'Server Owner',
+    nickname: 'Nickname',
+    nicknameColon: 'Nickname:',
+    usernamePrefix: '@',
+    kick: 'Kick',
+    leave: 'Leave Server',
+    kickConfirm: 'Kick this member?',
+    kickConfirmOk: 'Kick',
+    leaveConfirm: 'Leave this server?',
+    leaveConfirmOk: 'Leave',
+  },
 } as const;
 
 export type Strings = typeof strings;
