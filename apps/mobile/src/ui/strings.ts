@@ -250,6 +250,12 @@ export const strings = {
     updateFailed: 'Could not update status',
     chevronDown: '\u25BC',
     checkmark: '\u2713',
+    setStatus: 'Set Status',
+    online: 'Online',
+    away: 'Away',
+    dnd: 'Do Not Disturb',
+    invisible: 'Invisible',
+    activeCheck: '\u2713',
   },
 } as const;
 
