@@ -1596,6 +1596,91 @@ paths:
           description: Search results
       x-evidence: "route exists in controller; no characterization test; requires external API key"
 
+  # ── Upload broker + media proxy (x-added-by: P5) ──
+  /uploads:
+    post:
+      operationId: uploadFiles
+      summary: Upload files through the broker (FR-MED-002)
+      tags: [uploads]
+      x-added-by: P5
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: One or more files (max 10, 100 MB each)
+      responses:
+        '201':
+          description: Array of UploadedAttachment refs (matching web Attachment shape)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadedAttachment'
+        '401':
+          description: Missing or invalid bearer token
+
+  /media/{assetId}/raw:
+    parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: proxyRaw
+      summary: Proxied raw asset download with optional Range support (FR-MED-003)
+      tags: [media]
+      x-added-by: P5
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: range
+          in: header
+          schema:
+            type: string
+          description: Byte range (RFC 7233), e.g. "bytes=0-1023"
+      responses:
+        '200':
+          description: Full file content
+        '206':
+          description: Partial content (Range request fulfilled)
+        '401':
+          description: Missing or invalid bearer token
+        '404':
+          description: Asset not found on Share backend
+
+  /media/{assetId}/thumb:
+    parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: proxyThumb
+      summary: Proxied thumbnail download (FR-MED-003)
+      tags: [media]
+      x-added-by: P5
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: JPEG thumbnail
+        '401':
+          description: Missing or invalid bearer token
+        '404':
+          description: No thumbnail available
+
   # ── Watchparty (deferred, P2 scope) ──
   /watchparty/library:
     get:
@@ -1746,6 +1831,22 @@ components:
         refreshToken: { type: string }
         expiresIn: { type: integer, enum: [3600] }
       required: [id, username, accessToken, refreshToken, expiresIn]
+
+    UploadedAttachment:
+      description: Broker attachment ref matching web Attachment shape (x-added-by: P5)
+      type: object
+      properties:
+        shareAssetId: { type: string }
+        filename: { type: string }
+        mimeType: { type: string }
+        size: { type: number }
+        url: { type: string }
+        thumbnailUrl: { type: string, nullable: true }
+        width: { type: number, nullable: true }
+        height: { type: number, nullable: true }
+        durationMs: { type: number, nullable: true }
+      required: [shareAssetId, filename, mimeType, size, url, thumbnailUrl, width, height, durationMs]
+      x-added-by: P5
 
     TokenResponse:
       type: object

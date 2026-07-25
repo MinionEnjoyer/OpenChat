@@ -918,3 +918,70 @@ channel → kill → relaunch without clearState → assert same channel shown
 - Prove-fail links: changed expected URL → FAILED → restored → PASSED
 - Flow file sanity-checked against p1-01: uses extendedWaitUntil post-kill, opens
   drawer via hamburger-button, references channel testIDs with '#'
+
+---
+
+## P5-02 — upload broker + media proxy (FR-MED-002, FR-MED-003)
+
+**Date:** 2026-07-25
+
+**Bug fix (cookie truncation):** The cookie extraction regex `([^=;]+=[^=;]+)` truncated
+OpenShare session cookies at the first `=` in base64 padding (`==`), losing the
+signature segment. Fixed to `setCookie.split(';')[0].trim()`.
+
+**Module fix:** `UploadsModule` and `MediaModule` were missing `AuthModule` import,
+causing `TokenService` to be unavailable to `AuthGuard`. Added `AuthModule` to
+both modules' imports (pattern: same as `GifsModule`).
+
+**FR-MED-002 — Upload broker:**
+- `apps/api/src/uploads/uploads.controller.ts` — `POST /api/uploads`, multipart,
+  auth via `AuthGuard` + bearer, delegates to `ShareService.uploadFiles()`
+- `apps/api/src/uploads/uploads.module.ts` — imports `AuthModule` + `ShareModule`
+- `apps/api/src/share/share.service.ts` — `ensureSession()` (dev-login to OpenShare),
+  `uploadFiles()` (streams multipart to OpenShare `/upload`, returns
+  `UploadedAttachment[]` with `/api/media/...` proxy URLs)
+
+**FR-MED-003 — Media proxy:**
+- `apps/api/src/media/media.controller.ts` — `GET /api/media/:assetId/raw` and
+  `GET /api/media/:assetId/thumb`, auth via `AuthGuard`, proxies OpenShare's
+  public `/raw/{id}` and `/thumb/{id}` with Range support and cache headers
+- `apps/api/src/media/media.module.ts` — imports `AuthModule` + `ShareModule`
+- `apps/api/src/share/share.service.ts` — `proxyRaw()` and `proxyThumb()` stream
+  from OpenShare via `fetch`, add `cache-control: private, max-age=86400`
+
+**Web shape derived** (from `apps/web/src/lib/share.ts` + `apps/web/src/lib/types.ts`):
+```ts
+interface Attachment {
+  id: string;           // shareAssetId
+  shareAssetId: string;
+  filename: string;
+  mimeType: string;
+  size: string;         // String(file.size) — broker returns number
+  url: string;          // ${shareBaseUrl}/raw/${id}
+  thumbnailUrl: string | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+}
+```
+
+**Tests:**
+- `apps/api/test/integration/p5-02-upload-media.spec.ts` — 4 cases:
+  - `@satisfies FR-MED-002` — upload returns web-compatible attachment refs
+    (exact key set + type assertions)
+  - `@satisfies FR-MED-003` — raw proxy returns exact bytes
+  - `@satisfies FR-MED-003` — Range `bytes=0-9` → 206 + correct partial bytes
+  - `@satisfies FR-MED-003` — unauthenticated → 401
+- Prove-fail: changed `size > 0` to `size === 0` → FAILED (Expected: 0, Received: 69) →
+  restored → PASSED
+
+**Contract additive** (x-added-by: P5):
+- `contracts/openapi.yaml` — added `/uploads` (POST), `/media/{assetId}/raw` (GET),
+  `/media/{assetId}/thumb` (GET); added `UploadedAttachment` schema
+- `node tools/codegen/gen.mjs` — clean generation, `--check` confirms no drift
+
+**Verification:**
+- `CHAR_API_BASE=http://localhost:3015/api npx jest --config jest-char.config.js --forceExit` —
+  11 suites, 89 tests, all pass
+- `npx tsc --noEmit` — rc=0
+- `node tools/codegen/gen.mjs --check` — matches committed
