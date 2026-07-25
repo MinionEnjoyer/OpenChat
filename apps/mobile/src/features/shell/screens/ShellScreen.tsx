@@ -30,6 +30,7 @@ import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
+import { DmsList } from '../../dms';
 import { MemberList } from '../MemberList';
 import { ChannelList } from '../../channels/ChannelList';
 import { ChannelForm } from '../../channels/ChannelForm';
@@ -38,7 +39,7 @@ import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../chan
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
-import type { Server, Channel, Member, Role } from '../../../api/schema';
+import type { Server, Channel, Member, Role, DmChannelDto } from '../../../api/schema';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 
 const LEFT_DRAWER_WIDTH = 280;
@@ -60,6 +61,7 @@ export function ShellScreen(): React.JSX.Element {
   const updateProfile = useSession((s) => s.updateProfile);
   const connection = useConnection();
 
+  const [selectedDmChannelId, setSelectedDmChannelId] = useState<string | null>(null);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
@@ -114,13 +116,20 @@ export function ShellScreen(): React.JSX.Element {
     return () => sub.remove();
   }, []);
 
+  const isDm = selectedDmChannelId !== null;
 
+  const dmsQuery = useQuery({
+    queryKey: ['dms'],
+    queryFn: () => api.request<DmChannelDto[]>('/dms'),
+  });
+
+  // ── Servers & channels ──
   const servers = useQuery({
     queryKey: keys.servers,
     queryFn: () => api.request<Server[]>('/servers'),
   });
 
-  const serverId = selectedServerId ?? servers.data?.[0]?.id ?? null;
+  const serverId = isDm ? null : (selectedServerId ?? servers.data?.[0]?.id ?? null);
   const activeServer = servers.data?.find((s) => s.id === serverId) ?? null;
 
   const channels = useQuery({
@@ -179,7 +188,18 @@ export function ShellScreen(): React.JSX.Element {
   const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT');
   const activeChannel = textChannels.find((c) => c.id === selectedChannelId) ?? null;
 
-  // ── Channel CRUD handlers (FR-SRV-005) ──
+  // In DM mode, synthesize an active channel from the selected DM
+  const activeDmChannel = (isDm && selectedDmChannelId && dmsQuery.data) ? (() => {
+    const dm = dmsQuery.data.find((d) => d.id === selectedDmChannelId);
+    if (!dm) return null;
+    const otherRecipients = dm.recipients.filter((r) => r.id !== user?.id);
+    const name = otherRecipients.map((r) => r.displayName ?? r.username).join(', ');
+    return { id: dm.id, name, type: dm.type };
+  })() : null;
+
+  // Unified active channel for title + ChatPane rendering
+  const activeChannelAny: { id: string; name: string } | null =
+    activeDmChannel ?? (activeChannel ? { id: activeChannel.id, name: activeChannel.name } : null);
   const handleCreateChannel = useCallback(() => {
     setEditingChannel(undefined);
     setChannelFormVisible(true);
@@ -348,6 +368,7 @@ export function ShellScreen(): React.JSX.Element {
   const selectChannel = useCallback(
     (channelId: string) => {
       setSelectedChannelId(channelId);
+      setSelectedDmChannelId(null);
       saveLastChannel(storage(), serverId, channelId);
       closeLeft();
     },
@@ -387,11 +408,11 @@ export function ShellScreen(): React.JSX.Element {
             <Text style={styles.topBarAction}>{strings.shell.hamburger}</Text>
           </Pressable>
           <Text style={styles.chatTitle} testID="chat-title" numberOfLines={1}>
-            {activeChannel
-              ? `${strings.shell.channelHash} ${activeChannel.name}`
+            {activeChannelAny
+              ? (isDm ? `${strings.dms.atSign} ${activeChannelAny.name}` : `${strings.shell.channelHash} ${activeChannelAny.name}`)
               : strings.shell.selectChannel}
           </Text>
-          {activeChannel && (
+          {activeChannelAny && (
             <Pressable
               onPress={() => setPinsVisible(true)}
               accessibilityLabel={strings.messages.pinsPanelTitle}
@@ -409,8 +430,8 @@ export function ShellScreen(): React.JSX.Element {
           </Pressable>
         </View>
 
-        {activeChannel ? (
-          <ChatPane channelId={activeChannel.id} serverId={serverId} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
+        {activeChannelAny ? (
+          <ChatPane channelId={activeChannelAny.id} serverId={serverId} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
         ) : (
           <View style={styles.chatBody}>
             <Text style={styles.muted} testID="chat-placeholder">
@@ -443,6 +464,23 @@ export function ShellScreen(): React.JSX.Element {
       >
         <GestureDetector gesture={leftDrawerDismiss}>
           <View style={styles.drawerContent}>
+            {/* DM list — FR-SOC-002 */}
+            <View style={styles.dmSection} testID="dm-section">
+              <DmsList
+                selectedDmChannelId={selectedDmChannelId}
+                onSelectDm={(dmChannelId) => {
+                  setSelectedDmChannelId(dmChannelId);
+                  setSelectedChannelId(null);
+                  closeLeft();
+                }}
+              />
+            </View>
+
+            {/* Separator between DMs and servers */}
+            <View style={styles.dmSeparator}>
+              <View style={styles.dmSeparatorLine} />
+            </View>
+
             {/* Server rail */}
             <View style={styles.rail} testID="server-rail">
               <FlatList
@@ -454,7 +492,7 @@ export function ShellScreen(): React.JSX.Element {
                       styles.railItem,
                       item.id === serverId && styles.railItemActive,
                     ]}
-                    onPress={() => {
+                    onPress={() => { setSelectedDmChannelId(null);
                       setSelectedServerId(item.id);
                       setSelectedChannelId(null);
                     }}
@@ -486,7 +524,7 @@ export function ShellScreen(): React.JSX.Element {
                 </Text>
                 {activeServer && (
                   <Pressable
-                    onPress={() => {
+                    onPress={() => { setSelectedDmChannelId(null);
                       setSettingsServerId(activeServer.id);
                       setShowSettingsServer(true);
                     }}
@@ -648,9 +686,9 @@ export function ShellScreen(): React.JSX.Element {
       </GestureDetector>
 
       {/* Pins panel (FR-MSG-011) */}
-      {activeChannel && (
+      {activeChannelAny && (
         <PinsPanel
-          channelId={activeChannel.id}
+          channelId={activeChannelAny.id}
           visible={pinsVisible}
           onClose={() => setPinsVisible(false)}
         />
@@ -901,5 +939,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: EDGE_WIDTH,
     zIndex: 5,
+  },
+  dmSection: {
+    paddingTop: spacing.xs,
+  },
+  dmSeparator: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  dmSeparatorLine: {
+    height: 1,
+    backgroundColor: palette.bgElevated,
   },
 });

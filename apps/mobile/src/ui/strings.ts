@@ -218,6 +218,12 @@ export const strings = {
     cancel: 'Cancel',
     error: 'Something went wrong',
   },
+  dms: {
+    title: 'Direct Messages',
+    empty: 'No direct messages yet',
+    atSign: '@',
+    openDmFailed: 'Could not open DM',
+  },
   members: {
     title: 'Members',
     empty: 'No members',

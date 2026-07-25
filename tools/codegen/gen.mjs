@@ -258,6 +258,23 @@ export interface VoiceLeaveResponse {
   success: true;
 }
 
+/** DM user from GET/POST /dms (FR-SOC-002). */
+export interface DmUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status: string;
+}
+
+/** DM channel from GET/POST /dms (FR-SOC-002). */
+export interface DmChannelDto {
+  id: string;
+  type: 'DM' | 'GROUP_DM';
+  recipients: DmUser[];
+  lastMessageAt: string | null;
+}
+
 // ── OpenShare API ──
 
 export interface SavedAsset {
