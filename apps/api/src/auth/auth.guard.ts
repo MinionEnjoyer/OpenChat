@@ -44,7 +44,7 @@ export class AuthGuard implements CanActivate {
   }
 
   private serializeUser(user: User): Omit<User, 'authSub'> {
-    const { authSub, ...safeUser } = user;
+    const { authSub: _authSub, ...safeUser } = user;
     return safeUser as unknown as Omit<User, 'authSub'>;
   }
 }

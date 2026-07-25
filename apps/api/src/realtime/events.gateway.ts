@@ -71,7 +71,7 @@ export class EventsGateway {
         socket.destroy();
         return;
       }
-      this.wss!.handleUpgrade(req, socket, head, (ws) => this.onConnection(ws, req));
+      this.wss!.handleUpgrade(req, socket, head, (ws) => { void this.onConnection(ws, req); });
     });
 
     this.subscribeToBus();
@@ -104,7 +104,7 @@ export class EventsGateway {
     const client: Client = { socket, userId, channels: new Set(), serverIds, alive: true };
     this.clients.set(socket, client);
 
-    socket.on('message', (data) => this.onMessage(client, data));
+    socket.on('message', (data) => { void this.onMessage(client, data); });
     socket.on('pong', () => (client.alive = true));
     socket.on('close', () => this.clients.delete(socket));
     socket.on('error', () => this.clients.delete(socket));

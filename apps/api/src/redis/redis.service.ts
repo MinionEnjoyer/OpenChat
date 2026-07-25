@@ -66,8 +66,8 @@ export class RedisService implements OnModuleDestroy {
     return this.client.del(key);
   }
 
-  onModuleDestroy() {
-    this.client.quit();
-    this.subscriber.quit();
+  async onModuleDestroy() {
+    await this.client.quit();
+    await this.subscriber.quit();
   }
 }

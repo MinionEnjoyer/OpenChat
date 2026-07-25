@@ -279,4 +279,37 @@ suite covers every route with a contract schema. Routes without schemas are trac
   Fix options: (a) derive expected IDs at test time from the seed's own
   deterministic content rather than a captured file, or (b) key the expected-file
   by database identity and regenerate on seed. (a) is preferable — it removes the
-  captured artifact entirely and makes the oracle portable.
+   captured artifact entirely and makes the oracle portable.
+
+---
+
+## `no-explicit-any` debt (L1b lint gate, 2026-07-25)
+
+48 sites use `any`. The lint rule is set to `'warn'` — they are visible and
+countable but do not block the gate. They must not grow. Incrementally type
+each site; when the count reaches 0, promote the rule to `'error'`.
+
+### Breakdown by file
+
+| File | Count |
+|---|---|
+| `src/realtime/events.gateway.ts` | 13 |
+| `src/messages/messages.service.ts` | 9 |
+| `src/watchparty/watchparty.service.ts` | 7 |
+| `src/friends/friends.service.ts` | 4 |
+| `src/share/share.service.ts` | 2 |
+| `src/gifs/gifs.module.ts` | 2 |
+| `src/auth/auth.service.ts` | 2 |
+| `src/audit-log/audit-log.service.ts` | 2 |
+| `src/voice/voice.service.ts` | 1 |
+| `src/servers/servers.service.ts` | 1 |
+| `src/redis/redis.service.ts` | 1 |
+| `src/overwrites/overwrites.service.ts` | 1 |
+| `src/messages/messages.controller.ts` | 1 |
+| `src/invites/invites.service.ts` | 1 |
+| `src/dms/dms.service.ts` | 1 |
+
+- **Priority:** MEDIUM — the top 3 files account for 29/48 (60%) and are the
+  highest-value targets.
+- **Phase:** Continuous. Each typed site is a self-contained improvement; no
+  orchestrated cutover required.
