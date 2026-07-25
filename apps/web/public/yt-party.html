@@ -37,17 +37,17 @@
       }
       function report(type) {
         if (!player || !ready) return;
-        try { post({ type: type, time: player.getCurrentTime() || 0, paused: isPaused() }); } catch (e) {}
+        try { post({ type: type, time: player.getCurrentTime() || 0, paused: isPaused(), muted: player.isMuted ? player.isMuted() : false }); } catch (e) {}
       }
 
       window.onYouTubeIframeAPIReady = function () {
         player = new YT.Player('player', {
           videoId: vid,
-          // Everyone gets controls so a viewer can always press play if the browser blocks
-          // programmatic autoplay; the host still drives sync and followers get corrected.
+          // Only the host gets YouTube controls. Followers are locked (controls:0) and start
+          // muted so playback can autoplay without a gesture; they unmute via a custom button.
           playerVars: {
-            autoplay: 0, controls: 1, rel: 0, modestbranding: 1,
-            playsinline: 1, fs: 1, iv_load_policy: 3,
+            autoplay: 0, controls: host ? 1 : 0, rel: 0, modestbranding: 1,
+            mute: host ? 0 : 1, playsinline: 1, fs: 1, iv_load_policy: 3,
           },
           events: {
             onReady: function () { ready = true; post({ type: 'ready' }); report('state'); },
@@ -72,6 +72,8 @@
             else { if (isPaused()) player.playVideo(); }
           } else if (d.action === 'play') {
             player.playVideo();
+          } else if (d.action === 'unmute') {
+            player.unMute(); player.setVolume(100); report('state');
           } else if (d.action === 'load' && d.v) {
             player.loadVideoById(d.v);
           }

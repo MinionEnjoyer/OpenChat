@@ -143,6 +143,7 @@ export interface WatchPartyState {
   id: string;
   channelId: string;
   hostId: string;
+  hostName: string;
   source: 'jellyfin' | 'youtube';
   itemId: string;
   youtubeId: string | null;

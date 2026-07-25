@@ -115,11 +115,13 @@ export class WatchPartyService {
   // a Jellyfin party stores the raw Jellyfin item id.
   private serialize(p: any, name?: string) {
     const ref: string = p.jellyfinItemId;
+    const hostName: string = p.host?.displayName || p.host?.username || 'Host';
     if (ref.startsWith('yt:')) {
       return {
         id: p.id,
         channelId: p.channelId,
         hostId: p.hostId,
+        hostName,
         source: 'youtube' as const,
         itemId: ref,
         youtubeId: ref.slice(3),
@@ -133,6 +135,7 @@ export class WatchPartyService {
       id: p.id,
       channelId: p.channelId,
       hostId: p.hostId,
+      hostName,
       source: 'jellyfin' as const,
       itemId: ref,
       youtubeId: null,
@@ -142,6 +145,8 @@ export class WatchPartyService {
       streamUrl: `/api/watchparty/stream/${ref}`,
     };
   }
+
+  private static readonly HOST_SELECT = { host: { select: { displayName: true, username: true } } };
 
   /** Display name for a party ref — instant for YouTube, a Jellyfin lookup otherwise. */
   private async nameFor(ref: string): Promise<string> {
@@ -158,6 +163,7 @@ export class WatchPartyService {
     const party = await this.prisma.watchParty.findFirst({
       where: { channelId, endedAt: null },
       orderBy: { createdAt: 'desc' },
+      include: WatchPartyService.HOST_SELECT,
     });
     if (!party) return null;
     const state = this.serialize(party, await this.nameFor(party.jellyfinItemId));
@@ -179,6 +185,7 @@ export class WatchPartyService {
     await this.prisma.watchParty.updateMany({ where: { channelId, endedAt: null }, data: { endedAt: new Date() } });
     const party = await this.prisma.watchParty.create({
       data: { channelId, hostId: userId, jellyfinItemId: ref, positionMs: 0, paused: true },
+      include: WatchPartyService.HOST_SELECT,
     });
     const state = this.serialize(party, await this.nameFor(ref));
     await this.publish(channelId, state);
@@ -193,6 +200,7 @@ export class WatchPartyService {
     const updated = await this.prisma.watchParty.update({
       where: { id: party.id },
       data: { positionMs: Math.max(0, Math.round(data.positionMs)), paused: !!data.paused },
+      include: WatchPartyService.HOST_SELECT,
     });
     const state = this.serialize(updated, await this.nameFor(updated.jellyfinItemId));
     await this.publish(channelId, state);

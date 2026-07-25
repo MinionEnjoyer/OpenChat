@@ -22,7 +22,10 @@ export function WatchPartyPlayer({
     <div style={{ background: '#000', borderBottom: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', color: 'var(--text-strong)', background: 'var(--panel-dark)' }}>
         <span style={{ fontWeight: 700 }}>{party.source === 'youtube' ? '📺' : '🎬'} {party.itemName}</span>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isHost ? 'You are hosting' : 'Host controls playback'}</span>
+        <span title={`${party.hostName} is hosting`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'var(--accent)', color: '#fff', whiteSpace: 'nowrap' }}>
+          👑 {isHost ? 'You' : party.hostName}
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isHost ? 'You control playback' : 'Host controls playback'}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {isHost && (
             <button onClick={onStop} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>
@@ -104,7 +107,7 @@ function JellyfinInner({ party, isHost, onState }: { party: WatchPartyState; isH
 
 function YouTubeInner({ party, isHost, onState }: { party: WatchPartyState; isHost: boolean; onState: (positionMs: number, paused: boolean) => void }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [joined, setJoined] = useState(isHost); // followers click once (autoplay gesture + join)
+  const [muted, setMuted] = useState(true); // followers start muted (so playback can autoplay)
   const lastEmit = useRef(0);
   const partyRef = useRef(party);
   partyRef.current = party;
@@ -130,10 +133,13 @@ function YouTubeInner({ party, isHost, onState }: { party: WatchPartyState; isHo
             onState(Math.round((d.time || 0) * 1000), !!d.paused);
           }
         }
-      } else if (d.type === 'ready') {
-        // Follower: apply the current shared state as soon as the player is ready.
-        const p = partyRef.current;
-        cmd({ action: 'sync', time: p.positionMs / 1000, paused: p.paused });
+      } else {
+        if (typeof d.muted === 'boolean') setMuted(d.muted);
+        // Apply the current shared state as soon as the player is ready.
+        if (d.type === 'ready') {
+          const p = partyRef.current;
+          cmd({ action: 'sync', time: p.positionMs / 1000, paused: p.paused });
+        }
       }
     };
     window.addEventListener('message', onMsg);
@@ -157,18 +163,19 @@ function YouTubeInner({ party, isHost, onState }: { party: WatchPartyState; isHo
         allowFullScreen
         style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
       />
-      {!joined && (
-        <button
-          onClick={() => {
-            setJoined(true);
-            const p = partyRef.current;
-            cmd({ action: 'sync', time: p.positionMs / 1000, paused: p.paused });
-            if (!p.paused) cmd({ action: 'play' });
-          }}
-          style={{ position: 'absolute', inset: 0, margin: 'auto', width: 220, height: 56, borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}
-        >
-          ▶ Join watch party
-        </button>
+      {!isHost && (
+        <>
+          {/* Followers can't control playback — swallow clicks to the YouTube player. */}
+          <div style={{ position: 'absolute', inset: 0 }} />
+          {muted && (
+            <button
+              onClick={() => cmd({ action: 'unmute' })}
+              style={{ position: 'absolute', bottom: 12, right: 12, zIndex: 2, padding: '8px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}
+            >
+              🔊 Unmute
+            </button>
+          )}
+        </>
       )}
     </div>
   );
