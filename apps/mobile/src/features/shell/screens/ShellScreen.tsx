@@ -28,6 +28,7 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+import { InboxScreen } from '../../inbox';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
 import { MemberList } from '../MemberList';
@@ -73,6 +74,7 @@ export function ShellScreen(): React.JSX.Element {
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+  const [inboxVisible, setInboxVisible] = useState(false);
 
   // ── Channel management (FR-SRV-004/005) ──
   const [channelFormVisible, setChannelFormVisible] = useState(false);
@@ -400,6 +402,9 @@ export function ShellScreen(): React.JSX.Element {
               <Text style={styles.topBarAction}>{strings.messages.pinIcon}</Text>
             </Pressable>
           )}
+          <Pressable onPress={() => setInboxVisible(true)} accessibilityLabel={strings.inbox.title} testID="inbox-button">
+            <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
+          </Pressable>
           <Pressable
             onPress={toggleMembers}
             accessibilityLabel={strings.shell.membersTitle}
@@ -708,6 +713,13 @@ export function ShellScreen(): React.JSX.Element {
           onClose={() => setReorderVisible(false)}
         />
       )}
+
+      {/* FR-SOC-005 — Notifications inbox */}
+      <InboxScreen
+        visible={inboxVisible}
+        onClose={() => setInboxVisible(false)}
+      />
+
     </KeyboardAvoidingView>
   );
 }

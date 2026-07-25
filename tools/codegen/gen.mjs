@@ -278,6 +278,38 @@ export interface UploadResponse {
   rejected: RejectedFile[];
 }
 
+// ── Notifications (FR-SOC-005) ──
+
+/** Friend request item embedded in GET /notifications (observed from API). */
+export interface FriendRequestItem {
+  id: string;
+  user: User;
+}
+
+/** Server invitation item embedded in GET /notifications (observed from API). */
+export interface ServerInviteItem {
+  id: string;
+  createdAt: string;
+  server: {
+    id: string;
+    name: string;
+    iconUrl: string | null;
+  };
+  inviter: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+/** GET /notifications response shape (observed from API). */
+export interface NotificationsResponse {
+  friendRequests: FriendRequestItem[];
+  serverInvites: ServerInviteItem[];
+  count: number;
+}
+
   ${genPermissions()}
 `;
 
