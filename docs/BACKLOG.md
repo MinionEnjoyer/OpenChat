@@ -280,3 +280,21 @@ suite covers every route with a contract schema. Routes without schemas are trac
   deterministic content rather than a captured file, or (b) key the expected-file
   by database identity and regenerate on seed. (a) is preferable — it removes the
   captured artifact entirely and makes the oracle portable.
+
+## Core API types are hardcoded inside the generator, not derived from the contract
+
+`tools/codegen/gen.mjs` emits `Server`, `Channel`, `Category` and `Role` from a hardcoded
+template literal (~line 85-110) rather than deriving them from `contracts/openapi.yaml`.
+`Role` was added there during the S2 rebase, consistent with the existing pattern.
+
+Consequence: for these types the generator IS the source of truth, so `openapi.yaml` can
+drift from what the client actually uses and nothing will notice. The codegen gate only
+proves `schema.ts` matches `gen.mjs` output — it does not prove either matches the contract
+or the wire.
+
+Not a regression (pre-existing design) and not currently causing a defect: the hardcoded
+shapes were checked against the Prisma models and match. Recorded because it is the same
+class of problem as DD-018 — a gate that verifies a weaker property than it appears to.
+
+Fix when convenient: declare these under `components/schemas` in `openapi.yaml` and generate
+them like everything else, so the drift gate covers contract→client for all types.
