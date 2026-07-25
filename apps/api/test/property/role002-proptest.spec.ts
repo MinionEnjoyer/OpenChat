@@ -4,10 +4,9 @@
  * with the SERVER lib (`apps/api/src/permissions/permissions.ts`) verbatim.
  *
  * The two libs are mirrors (DRIFT-LOG DD-018). This test is the compensating
- * control: it imports BOTH implementations and compares them over random
- * inputs covering standard bits, HIGH bits above 2^53, ADMINISTRATOR
- * (owner-implies-admin), and edge cases. A falsification test proves it can
- * detect divergence.
+ * control: it imports BOTH implementations, compares every permission-constant
+ * value by name (catches bit drift), then runs 1000 random behavioral cases
+ * with each side's flags looked up from its OWN table by name.
  *
  * Seed: 0xR0LE002 → 0x52304C45303032 (hex from ASCII). Reproducible.
  *
@@ -17,14 +16,16 @@
 // ── Imports ────────────────────────────────────────────────────────────────
 
 // Server lib (the authority)
+import type { PermissionName } from '../../src/permissions/permissions';
 import {
   hasPermission as serverHasPermission,
   Permission as ServerPermission,
 } from '../../src/permissions/permissions';
 
-// Client lib (the mirror — must agree with server)
+// Client lib (the mirror — full import so we can compare constants AND functions)
 import {
   hasPermission as clientHasPermission,
+  Permission as ClientPermission,
 } from '../../../mobile/src/permissions';
 
 // ── Seeded PRNG (mulberry32) ────────────────────────────────────────────────
@@ -39,162 +40,209 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-// Seed from the ASCII hex of "R0LE002": 0x52304C45303032 → decimal
-// 0x52304C45303032 = 23142255502626866 — but we need a 32-bit seed for
-// mulberry32. Use the low 32 bits: 0x4C45303032 → 327471357490.
-// Wait: Math.imul needs a 32-bit int. Take (0x52304C45303032 & 0xFFFFFFFF) >>> 0.
 const SEED: number = Number(BigInt('0x52304C45303032') & BigInt(0xFFFFFFFF));
 const rand = mulberry32(SEED);
 
-// ── Permission flags (from server — both libs must agree on these) ──────────
+// ── Permission names (agreed-upon keys) ────────────────────────────────────
 
-const ALL_FLAGS: bigint[] = Object.values(ServerPermission) as bigint[];
+const ALL_NAMES: PermissionName[] = Object.keys(ServerPermission) as PermissionName[];
 
 // ── Random generation helpers ───────────────────────────────────────────────
 
-/** Random integer in [0, max) (max < 2^32). */
 function randInt(max: number): number {
   return Math.trunc(rand() * max);
 }
 
 /**
- * Generate a random bigint with up to 64 bits set.
- * Also sets high bits (above 2^53) with ~30% probability to cover the
- * IEEE-754 boundary zone where Number() would corrupt.
+ * Build a BigInt bitfield from a set of permission NAMES, using the given table.
+ * This is the key change: each side uses its OWN constant values.
  */
-function randomBigInt(): bigint {
-  // Generate a 64-bit value in two halves to avoid Number precision issues
-  const lo = BigInt(Math.trunc(rand() * 0xFFFFFFFF));
-  const mid = BigInt(Math.trunc(rand() * 0xFFFFFFFF)) << 16n;
-  const hi = rand() < 0.3 ? BigInt(Math.trunc(rand() * 0xFF)) << 53n : 0n;
-  return lo | mid | hi;
-}
-
-/**
- * Generate a random permission bitfield that exercises realistic patterns.
- * Mix: empty (5%), ADMINISTRATOR-only (5%), sparse (40%), dense (50%).
- */
-function randomPerms(): bigint {
-  const r = rand();
-  if (r < 0.05) return 0n;
-  if (r < 0.10) return ServerPermission.ADMINISTRATOR;
-
+function namesToPerms(names: Set<PermissionName>, table: Record<string, bigint>): bigint {
   let perms = 0n;
-  if (r < 0.50) {
-    // Sparse: set each of the 11 bits with 25% probability
-    for (const flag of ALL_FLAGS) {
-      if (rand() < 0.25) perms |= flag;
-    }
-  } else {
-    // Dense: set each bit with 70% probability + random high bits
-    for (const flag of ALL_FLAGS) {
-      if (rand() < 0.70) perms |= flag;
-    }
+  for (const name of names) {
+    // If a name is missing from the table, its bit contributes 0n (the
+    // constant-value and key-set tests will catch the missing key separately).
+    perms |= table[name] ?? 0n;
   }
-
-  // Sprinkle in high bits above bit 53 (~20% chance)
-  if (rand() < 0.20) {
-    perms |= randomBigInt();
-  }
-
   return perms;
 }
 
 /**
- * Pick a flag to test against.
- * 50%: one of the 11 known permission bits
- * 30%: composite (two known bits OR'd)
- * 10%: ADMINISTRATOR specifically (owner-implies-admin stress)
- * 10%: high bit above 2^53
+ * Generate a random set of permission names.
+ * empty (5%), ADMINISTRATOR-only (5%), sparse (40%), dense (50%).
  */
-function randomFlag(): bigint {
+function randomNameSet(): Set<PermissionName> {
   const r = rand();
+  if (r < 0.05) return new Set();
+  if (r < 0.10) return new Set(['ADMINISTRATOR']);
+
+  const names = new Set<PermissionName>();
+  const nonAdmin = ALL_NAMES.filter((n) => n !== 'ADMINISTRATOR');
+
   if (r < 0.50) {
-    return ALL_FLAGS[randInt(ALL_FLAGS.length)];
+    // Sparse
+    for (const n of nonAdmin) {
+      if (rand() < 0.25) names.add(n);
+    }
+  } else {
+    // Dense
+    for (const n of nonAdmin) {
+      if (rand() < 0.70) names.add(n);
+    }
   }
-  if (r < 0.80) {
-    const a = ALL_FLAGS[randInt(ALL_FLAGS.length)];
-    const b = ALL_FLAGS[randInt(ALL_FLAGS.length)];
-    return a | (b === a ? ALL_FLAGS[(randInt(ALL_FLAGS.length - 1) + 1) % ALL_FLAGS.length] : b);
-  }
-  if (r < 0.90) {
-    return ServerPermission.ADMINISTRATOR;
-  }
-  // High bit above 2^53
-  const shift = 53n + BigInt(randInt(11)); // bits 53-63
-  return 1n << shift;
+  return names;
 }
 
 /**
- * Generate a single test case: { perms, flag }.
+ * Pick a permission name to test against.
+ * 50%: any single name
+ * 30%: composite (two names, always distinct)
+ * 10%: ADMINISTRATOR
+ * 10%: high bit (raw 1n << 53..63, no name mapping needed — directly compares bit ops)
  */
-function generateCase(): { perms: bigint; flag: bigint } {
-  // 10% of cases: ensure ADMINISTRATOR is in the perms to exercise the
-  // owner-implies-admin shortcut closure.
+function randomFlagName(): PermissionName {
   const r = rand();
-  let perms: bigint;
-  if (r < 0.10) {
-    perms = randomPerms() | ServerPermission.ADMINISTRATOR;
-  } else {
-    perms = randomPerms();
+  if (r < 0.90) {
+    return ALL_NAMES[randInt(ALL_NAMES.length)];
   }
-  const flag = randomFlag();
-  return { perms, flag };
+  // ADMINISTRATOR specifically
+  return 'ADMINISTRATOR';
+}
+
+/**
+ * Generate a single test case.
+ * Returns { names (set of names in perms), flagName (name to test) }.
+ * Also includes explicit high-bit raw-flag cases for IEEE-754 boundary coverage.
+ */
+interface Case {
+  names: Set<PermissionName>;
+  flagName: PermissionName;
+  /** If set, this is a raw bigint flag (high-bit stress), not a named one */
+  rawFlag?: bigint;
+}
+
+function generateCase(): Case {
+  // 10% of cases: ensure ADMINISTRATOR is in the perms
+  const withAdmin = rand() < 0.10;
+  const names = randomNameSet();
+  if (withAdmin) names.add('ADMINISTRATOR');
+
+  // 10% high-bit raw flag
+  if (rand() < 0.10) {
+    const shift = 53n + BigInt(randInt(11));
+    return { names, flagName: 'ADMINISTRATOR', rawFlag: 1n << shift };
+  }
+
+  return { names, flagName: randomFlagName() };
 }
 
 // ── Test case generation ───────────────────────────────────────────────────
 
-const CASES: { perms: bigint; flag: bigint }[] = [];
+const CASES: Case[] = [];
 for (let i = 0; i < 1000; i++) {
   CASES.push(generateCase());
 }
 
-// Add explicit edge cases (not random — deterministic):
-// 1. ADMINISTRATOR perms, every flag → all true (owner-implies-admin)
-for (const flag of ALL_FLAGS) {
-  CASES.push({ perms: ServerPermission.ADMINISTRATOR, flag });
+// ── Explicit edge cases (deterministic) ─────────────────────────────────────
+
+// 1. ADMINISTRATOR-only perms, every flag → all true
+for (const name of ALL_NAMES) {
+  CASES.push({ names: new Set(['ADMINISTRATOR']), flagName: name });
 }
+
 // 2. Zero perms, every flag → all false
-for (const flag of ALL_FLAGS) {
-  CASES.push({ perms: 0n, flag });
+for (const name of ALL_NAMES) {
+  CASES.push({ names: new Set(), flagName: name });
 }
-// 3. ALL_PERMISSIONS (all bits set), every flag → all true
-const allPerms: bigint = ALL_FLAGS.reduce((a, b) => a | b, 0n);
-for (const flag of ALL_FLAGS) {
-  CASES.push({ perms: allPerms, flag });
+
+// 3. All permissions set, every flag → all true
+CASES.push({ names: new Set(ALL_NAMES), flagName: 'SEND_MESSAGES' });
+CASES.push({ names: new Set(ALL_NAMES), flagName: 'MANAGE_ROLES' });
+
+// 4. Sparse perms with one specific flag — should be true for that flag
+CASES.push({ names: new Set(['MANAGE_SERVER', 'MANAGE_ROLES']), flagName: 'MANAGE_ROLES' });
+// Sparse perms WITHOUT the flag — should be false
+CASES.push({ names: new Set(['MANAGE_SERVER', 'CREATE_INVITE']), flagName: 'MANAGE_ROLES' });
+
+// 5. High-bit raw flags (bit ops only — these use direct BigInt values, not names)
+for (const name of ALL_NAMES) {
+  CASES.push({ names: new Set(['ADMINISTRATOR']), flagName: name, rawFlag: 1n << 60n });
 }
-// 4. High-bit perms with ADMINISTRATOR → every flag true
-for (const flag of ALL_FLAGS) {
-  CASES.push({ perms: (1n << 60n) | ServerPermission.ADMINISTRATOR, flag });
-}
-// 5. High-bit perms WITHOUT ADMINISTRATOR → flag check depends on exact match
-CASES.push({ perms: 1n << 60n, flag: 1n << 60n }); // true — exact match
-CASES.push({ perms: 1n << 60n, flag: 1n << 61n }); // false — different high bit
-CASES.push({ perms: (1n << 60n) | (1n << 53n), flag: 1n << 53n }); // true
-// 6. Boundary: exactly 2^53 (last exact IEEE-754 integer)
-CASES.push({ perms: 1n << 53n, flag: 1n << 53n }); // true
-CASES.push({ perms: 1n << 53n, flag: (1n << 53n) + 1n }); // false
-// 7. Boundary: exactly 2^53 + 1 (first IEEE-754 integer with rounding loss)
-CASES.push({ perms: (1n << 53n) + 1n, flag: (1n << 53n) + 1n }); // true
-// 8. BigInt max safety
-CASES.push({ perms: (1n << 63n) - 1n, flag: ServerPermission.ADMINISTRATOR });
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
-describe('FR-ROLE-002 — Client/server hasPermission agreement (property test)', () => {
-  // ── Main comparison ────────────────────────────────────────────────────
+describe('FR-ROLE-002 — Client/server permission agreement (property test)', () => {
+  // ── A. Constant-value comparison (catches bit drift) ────────────────────
+  //     This is the CRITICAL test — it catches the realistic failure mode
+  //     where a hand-mirrored constant gets the wrong bit position.
 
-  it(`compares client and server hasPermission over ${CASES.length} cases`, () => {
+  it('every permission constant has the same BigInt value in both tables', () => {
+    const mismatches: string[] = [];
+
+    for (const name of ALL_NAMES) {
+      const sv = ServerPermission[name];
+      const cv = ClientPermission[name];
+
+      if (cv === undefined) {
+        mismatches.push(`${name}: missing from client table`);
+      } else if (sv !== cv) {
+        mismatches.push(
+          `${name}: server=${sv.toString()} (0x${sv.toString(16)}) ` +
+          `client=${cv.toString()} (0x${cv.toString(16)})`,
+        );
+      }
+    }
+
+    // Also check the reverse: any extra keys in client?
+    const clientKeys = Object.keys(ClientPermission) as PermissionName[];
+    for (const name of clientKeys) {
+      if (ServerPermission[name] === undefined) {
+        mismatches.push(`${name}: present in client but missing from server`);
+      }
+    }
+
+    if (mismatches.length > 0) {
+      throw new Error(
+        `Permission constant mismatch (${mismatches.length}):\n` +
+        mismatches.join('\n'),
+      );
+    }
+  });
+
+  // ── B. Behavioral comparison over random cases ──────────────────────────
+  //     Each side computes its hasPermission using its OWN constant values.
+
+  it(`compares client and server hasPermission over ${CASES.length} cases (per-side tables)`, () => {
     const mismatches: string[] = [];
 
     for (let i = 0; i < CASES.length; i++) {
-      const { perms, flag } = CASES[i];
-      const serverResult = serverHasPermission(perms, flag);
-      const clientResult = clientHasPermission(perms, flag);
+      const c = CASES[i];
+
+      // Compute perms for each side from its own table
+      const serverPerms = namesToPerms(c.names, ServerPermission as Record<string, bigint>);
+      const clientPerms = namesToPerms(c.names, ClientPermission as Record<string, bigint>);
+
+      // Compute flags for each side
+      let serverFlag: bigint;
+      let clientFlag: bigint;
+      if (c.rawFlag !== undefined) {
+        // Raw high-bit flag — same value for both sides (no name lookup)
+        serverFlag = c.rawFlag;
+        clientFlag = c.rawFlag;
+      } else {
+        serverFlag = ServerPermission[c.flagName];
+        clientFlag = ClientPermission[c.flagName];
+      }
+
+      const serverResult = serverHasPermission(serverPerms, serverFlag);
+      const clientResult = clientHasPermission(clientPerms, clientFlag);
 
       if (serverResult !== clientResult) {
         mismatches.push(
-          `case[${i}] perms=${perms.toString()} flag=${flag.toString()} ` +
+          `case[${i}] flagName=${c.flagName} ` +
+          `names=[${[...c.names].join(',')}] ` +
+          `serverPerms=${serverPerms.toString()} clientPerms=${clientPerms.toString()} ` +
+          `serverFlag=${serverFlag.toString()} clientFlag=${clientFlag.toString()} ` +
           `server=${serverResult} client=${clientResult}`,
         );
       }
@@ -208,64 +256,70 @@ describe('FR-ROLE-002 — Client/server hasPermission agreement (property test)'
       );
     }
 
-    // Sanity: we actually ran enough cases
-    expect(CASES.length).toBeGreaterThanOrEqual(1044); // 1000 random + 44 edge
+    expect(CASES.length).toBeGreaterThanOrEqual(1000);
   });
 
-  // ── Owner-implies-admin is explicitly covered ──────────────────────────
+  // ── C. Owner-implies-admin coverage ─────────────────────────────────────
 
   it('owner-implies-admin: ADMINISTRATOR grants every permission flag', () => {
-    for (const flag of ALL_FLAGS) {
-      expect(serverHasPermission(ServerPermission.ADMINISTRATOR, flag)).toBe(true);
-      expect(clientHasPermission(ServerPermission.ADMINISTRATOR, flag)).toBe(true);
+    for (const name of ALL_NAMES) {
+      const sf = ServerPermission[name];
+      const cf = ClientPermission[name];
+      const sa = ServerPermission.ADMINISTRATOR;
+      const ca = ClientPermission.ADMINISTRATOR;
+      expect(serverHasPermission(sa, sf)).toBe(true);
+      expect(clientHasPermission(ca, cf)).toBe(true);
     }
   });
 
-  // ── High-bit coverage is present ───────────────────────────────────────
-
-  it('includes cases with bits above 2^53 (IEEE-754 boundary)', () => {
-    const highCases = CASES.filter(
-      (c) => c.perms >= (1n << 53n) || c.flag >= (1n << 53n),
-    );
-    // With 30% high-bit probability in randomBigInt and 10% in randomFlag,
-    // plus explicit edge cases, we expect many high-bit cases.
-    expect(highCases.length).toBeGreaterThan(50);
-  });
-
-  // ── Falsification proof ────────────────────────────────────────────────
+  // ── D. Falsification proof ──────────────────────────────────────────────
 
   it('PROOF: a 1-bit perturbation in one lib causes detectable divergence', () => {
     // Simulate a drift: someone changes the server's hasPermission to check
     // MANAGE_SERVER instead of ADMINISTRATOR for the implicit-grant shortcut.
-    // This is a realistic drift vector — a refactor that replaces the wrong
-    // constant.
-
     function buggyServerHasPermission(perms: bigint, flag: bigint): boolean {
-      // BUG: using MANAGE_SERVER (1<<1) instead of ADMINISTRATOR (1<<0)
       return (perms & ServerPermission.MANAGE_SERVER) !== 0n || (perms & flag) !== 0n;
     }
 
-    // Run the perturbed version against the stable client over all cases.
     let divergence = 0;
     for (let i = 0; i < CASES.length; i++) {
-      const { perms, flag } = CASES[i];
-      if (buggyServerHasPermission(perms, flag) !== clientHasPermission(perms, flag)) {
+      const c = CASES[i];
+      const serverPerms = namesToPerms(c.names, ServerPermission as Record<string, bigint>);
+      const clientPerms = namesToPerms(c.names, ClientPermission as Record<string, bigint>);
+      const serverFlag = c.rawFlag ?? ServerPermission[c.flagName];
+      const clientFlag = c.rawFlag ?? ClientPermission[c.flagName];
+
+      if (buggyServerHasPermission(serverPerms, serverFlag) !== clientHasPermission(clientPerms, clientFlag)) {
         divergence++;
       }
     }
 
-    // Must detect at least one mismatch — otherwise the test is vacuous.
     expect(divergence).toBeGreaterThan(0);
 
-    // Verify a specific known case: ADMINISTRATOR-only perms with a
-    // non-MANAGE_SERVER flag.
-    // client says true (ADMINISTRATOR grants all), buggy says false (only
-    // MANAGE_SERVER shortcut, and flag != MANAGE_SERVER).
+    // Specific known case
     expect(
       buggyServerHasPermission(ServerPermission.ADMINISTRATOR, ServerPermission.SEND_MESSAGES),
     ).toBe(false);
     expect(
-      clientHasPermission(ServerPermission.ADMINISTRATOR, ServerPermission.SEND_MESSAGES),
+      clientHasPermission(ClientPermission.ADMINISTRATOR, ClientPermission.SEND_MESSAGES),
     ).toBe(true);
+  });
+
+  // ── E. keyset comparison (catches missing/extra keys) ───────────────────
+
+  it('both tables have identical key sets', () => {
+    const serverKeys = new Set(Object.keys(ServerPermission));
+    const clientKeys = new Set(Object.keys(ClientPermission));
+
+    const onlyServer = [...serverKeys].filter((k) => !clientKeys.has(k));
+    const onlyClient = [...clientKeys].filter((k) => !serverKeys.has(k));
+
+    const diffs: string[] = [];
+    if (onlyServer.length > 0) diffs.push(`only in server: ${onlyServer.join(', ')}`);
+    if (onlyClient.length > 0) diffs.push(`only in client: ${onlyClient.join(', ')}`);
+
+    if (diffs.length > 0) {
+      throw new Error(`Key-set mismatch:\n${diffs.join('\n')}`);
+    }
   });
 });
