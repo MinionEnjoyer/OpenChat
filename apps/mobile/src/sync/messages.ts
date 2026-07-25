@@ -8,6 +8,7 @@ import { queryClient } from './queryClient';
 import { keys as baseKeys } from './keys';
 import type { Message } from '../api/schema';
 import { mergeMessageUpdate } from '../domain/reactions';
+import { mergePage } from '../domain/pagination';
 
 export const messageKeys = {
   list: (channelId: string) => ['messages', channelId] as const,
@@ -124,6 +125,16 @@ export function addPending(msg: PendingMessage): void {
 export function removePending(channelId: string, nonce: string): void {
   queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), (old) =>
     (old ?? []).filter((m) => m.nonce !== nonce || !m.pending),
+  );
+}
+
+/**
+ * Apply an older page of messages to the cache. Merges via domain/pagination
+ * mergePage (dedup by id, preserve newest-first order). FR-MSG-001.
+ */
+export function applyPage(channelId: string, incoming: Message[]): void {
+  queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), (old) =>
+    mergePage(old ?? [], incoming) as PendingMessage[],
   );
 }
 
