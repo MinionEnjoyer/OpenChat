@@ -186,6 +186,23 @@ export function ChatPane({ channelId, serverId }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canManage, doDelete]);
 
+  // ── Pin / Unpin (FR-MSG-011) ──────────────────────────────────────
+
+  const doPin = useCallback(async (msg: Message, pinned: boolean) => {
+    const optimistic = { ...msg, pinned };
+    applyUpdated(optimistic as PendingMessage);
+    try {
+      const updated = await api.request<Message>(`/messages/${msg.id}/pin`, {
+        method: 'PATCH',
+        body: { pinned },
+      });
+      applyUpdated(updated);
+    } catch {
+      applyUpdated(msg as PendingMessage);
+      showToast(strings.messages.pinFailed);
+    }
+  }, []);
+
   // ── Copy ──────────────────────────────────────────────────────────
 
   const copyText = useCallback(async (content: string) => {
@@ -205,6 +222,12 @@ export function ChatPane({ channelId, serverId }: {
       buttons.push({ text: strings.messages.edit, onPress: () => openEdit(msg) });
     }
     buttons.push({ text: strings.messages.react, onPress: () => setPickerTargetId(msg.id) });
+    if (canManage) {
+      buttons.push({
+        text: msg.pinned ? strings.messages.unpin : strings.messages.pin,
+        onPress: () => void doPin(msg, !msg.pinned),
+      });
+    }
     if (canDelete) {
       buttons.push({ text: strings.messages.delete, style: 'destructive', onPress: () => confirmDelete(msg) });
     }
@@ -212,7 +235,7 @@ export function ChatPane({ channelId, serverId }: {
     buttons.push({ text: strings.common.cancel, style: 'cancel' });
 
     Alert.alert('', '', buttons);
-  }, [user?.id, canManage, openEdit, confirmDelete, copyText]);
+  }, [user?.id, canManage, openEdit, confirmDelete, copyText, doPin]);
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -245,6 +268,9 @@ export function ChatPane({ channelId, serverId }: {
                 </Text>
                 {item.editedAt && (
                   <Text style={styles.edited}>{strings.messages.edited}</Text>
+                )}
+                {item.pinned && (
+                  <Text style={styles.pinned} testID={`pinned-${item.id}`}>{strings.messages.pinIcon}</Text>
                 )}
               </View>
               <Text style={styles.content}>{item.content}</Text>
@@ -345,6 +371,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   author: { ...typography.caption, color: palette.accent, fontWeight: '700' },
   edited: { ...typography.caption, color: palette.textMuted, fontSize: 10 },
+  pinned: { fontSize: 12 },
   content: { ...typography.body, color: palette.text },
   deletedText: { ...typography.caption, color: palette.textMuted, fontStyle: 'italic' },
   empty: { ...typography.caption, color: palette.textMuted, textAlign: 'center', padding: spacing.lg },

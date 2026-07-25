@@ -53,6 +53,13 @@ export const strings = {
     deleteConfirmOk: 'Delete',
     editFailed: 'Edit failed',
     deleteFailed: 'Delete failed',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    pinFailed: 'Pin failed',
+    pinsPanelTitle: 'Pinned messages',
+    pinsEmpty: 'No pinned messages',
+    pinIcon: '📌',
+    closeIcon: '✕',
   },
   reactions: {
     pickerTitle: 'Add reaction',

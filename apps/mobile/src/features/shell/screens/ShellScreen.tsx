@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -25,7 +26,7 @@ import { api, useSession } from '../../../stores/session';
 import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
-import { ChatPane } from '../../messages';
+import { ChatPane, PinsPanel } from '../../messages';
 import type { Server, Channel, Member } from '../../../api/schema';
 
 const LEFT_DRAWER_WIDTH = 280;
@@ -50,6 +51,7 @@ export function ShellScreen(): React.JSX.Element {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [pinsVisible, setPinsVisible] = useState(false);
 
   // Drawer state lives in shared values for 60fps gesture tracking.
   const leftOpen = useSharedValue(0); // 0 = closed, 1 = open
@@ -254,6 +256,15 @@ export function ShellScreen(): React.JSX.Element {
               ? `${strings.shell.channelHash} ${activeChannel.name}`
               : strings.shell.selectChannel}
           </Text>
+          {activeChannel && (
+            <Pressable
+              onPress={() => setPinsVisible(true)}
+              accessibilityLabel={strings.messages.pinsPanelTitle}
+              testID="pins-toggle"
+            >
+              <Text style={styles.topBarAction}>{strings.messages.pinIcon}</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={toggleMembers}
             accessibilityLabel={strings.shell.membersTitle}
@@ -428,6 +439,15 @@ export function ShellScreen(): React.JSX.Element {
       <GestureDetector gesture={rightEdgeGesture}>
         <View style={styles.rightEdgeZone} />
       </GestureDetector>
+
+      {/* Pins panel (FR-MSG-011) */}
+      {activeChannel && (
+        <PinsPanel
+          channelId={activeChannel.id}
+          visible={pinsVisible}
+          onClose={() => setPinsVisible(false)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }

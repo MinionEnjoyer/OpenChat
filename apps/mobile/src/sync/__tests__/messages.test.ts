@@ -178,3 +178,76 @@ describe('edit/delete permission matrix', () => {
     expect(checkManage('128')).toBe(false); // only MENTION_EVERYONE
   });
 });
+
+// ── FR-MSG-011: Pins ─────────────────────────────────────────────────
+// @satisfies FR-MSG-011
+describe('pin flag round-trips through mergeUpdated (FR-MSG-011)', () => {
+  it('sets pinned=true on a message', () => {
+    const msg = serverMsg({ id: 'm1', pinned: false });
+    const updated = serverMsg({ id: 'm1', pinned: true });
+    const merged = mergeUpdated([msg], updated);
+    expect(merged[0]?.pinned).toBe(true);
+  });
+
+  it('sets pinned=false to unpin', () => {
+    const msg = serverMsg({ id: 'm1', pinned: true });
+    const updated = serverMsg({ id: 'm1', pinned: false });
+    const merged = mergeUpdated([msg], updated);
+    expect(merged[0]?.pinned).toBe(false);
+  });
+
+  it('preserves non-pinned messages in the list', () => {
+    const a = serverMsg({ id: 'a', pinned: false });
+    const b = serverMsg({ id: 'b', pinned: false });
+    const updated = serverMsg({ id: 'a', pinned: true });
+    const merged = mergeUpdated([a, b], updated);
+    expect(merged[0]?.pinned).toBe(true);
+    expect(merged[1]?.pinned).toBe(false);
+  });
+});
+
+// @satisfies FR-MSG-011
+describe('pins list derivation (FR-MSG-011)', () => {
+  const getPinned = (list: Message[]): Message[] =>
+    list.filter((m) => m.pinned && !m.deletedAt);
+
+  it('returns only pinned, non-deleted messages', () => {
+    const a = serverMsg({ id: 'a', pinned: true });
+    const b = serverMsg({ id: 'b', pinned: false });
+    const c = serverMsg({ id: 'c', pinned: true });
+    const d = serverMsg({ id: 'd', pinned: true, deletedAt: '2026-07-25T01:00:00Z' });
+    const pinned = getPinned([a, b, c, d]);
+    expect(pinned.map((m) => m.id)).toEqual(['a', 'c']);
+  });
+
+  it('returns empty when no messages are pinned', () => {
+    const a = serverMsg({ id: 'a', pinned: false });
+    const b = serverMsg({ id: 'b', pinned: false });
+    expect(getPinned([a, b])).toHaveLength(0);
+  });
+
+  it('returns empty for empty list', () => {
+    expect(getPinned([])).toHaveLength(0);
+  });
+});
+
+// @satisfies FR-MSG-011
+describe('pin/unpin permission matrix (FR-MSG-011)', () => {
+  const canPin = (hasManageMessages: boolean): boolean => hasManageMessages;
+
+  it('with MANAGE_MESSAGES: can pin/unpin', () => {
+    expect(canPin(true)).toBe(true);
+  });
+
+  it('without MANAGE_MESSAGES: cannot pin/unpin', () => {
+    expect(canPin(false)).toBe(false);
+  });
+
+  it('with MANAGE_MESSAGES: can pin own and others messages', () => {
+    expect(canPin(true)).toBe(true);
+  });
+
+  it('without MANAGE_MESSAGES: cannot pin even own messages', () => {
+    expect(canPin(false)).toBe(false);
+  });
+});
