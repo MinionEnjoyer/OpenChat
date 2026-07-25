@@ -60,15 +60,17 @@ export function mergeCreated(list: PendingMessage[] | undefined, incoming: Messa
 }
 
 /**
- * Pure merge for an incoming message.updated. Replaces the message at its id
- * in place (FR-MSG-003). Unknown id is a no-op.
+ * Pure merge for an incoming message.updated (edits, deletes, reactions,
+ * pins — the backend sends the complete message for all update types).
+ * Delegates to domain/reactions.mergeMessageUpdate for field-level merging.
+ * Unknown id is a no-op — the message will be fetched on-demand if needed.
  */
 export function mergeUpdated(list: PendingMessage[] | undefined, incoming: Message): PendingMessage[] {
   const existing = list ?? [];
   const idx = existing.findIndex((m) => m.id === incoming.id);
   if (idx < 0) return existing;
   const next = [...existing];
-  next[idx] = incoming;
+  next[idx] = mergeMessageUpdate(existing[idx]!, incoming as PendingMessage);
   return next;
 }
 
@@ -93,6 +95,13 @@ export function applyCreated(incoming: Message): void {
   );
 }
 
+/**
+ * Apply a message.updated frame (edits, deletes, reactions, pins — the
+ * backend sends the complete message for all update types). Delegates to
+ * mergeUpdated, which merges via domain/reactions.mergeMessageUpdate.
+ * If the message isn't cached, ignore — it will be fetched on-demand if the
+ * user navigates to it.
+ */
 export function applyUpdated(incoming: Message): void {
   queryClient.setQueryData<PendingMessage[]>(messageKeys.list(incoming.channelId), (old) =>
     mergeUpdated(old, incoming),
@@ -116,22 +125,6 @@ export function removePending(channelId: string, nonce: string): void {
   queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), (old) =>
     (old ?? []).filter((m) => m.nonce !== nonce || !m.pending),
   );
-}
-
-/**
- * Apply a message.updated frame (reactions, edits, pins). The backend sends
- * the complete message; merge the incoming fields over the cached copy
- * (domain/reactions.mergeMessageUpdate). If the message isn't cached, ignore.
- */
-export function applyUpdated(incoming: Message): void {
-  queryClient.setQueryData<PendingMessage[]>(messageKeys.list(incoming.channelId), (old) => {
-    if (!old) return old;
-    const idx = old.findIndex((m) => m.id === incoming.id);
-    if (idx < 0) return old;
-    const next = [...old];
-    next[idx] = mergeMessageUpdate(old[idx]!, incoming as PendingMessage);
-    return next;
-  });
 }
 
 // Re-export so screens depending on messages never inline key shapes.
