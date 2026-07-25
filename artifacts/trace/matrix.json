@@ -1,13 +1,15 @@
 {
-  "generated": "2026-07-25T07:17:26.335Z",
+  "generated": "2026-07-25T07:44:32.632Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
-    "satisfied": 12,
-    "missing": 0,
-    "errors": 0
+    "satisfied": 11,
+    "missing": 1,
+    "errors": 1
   },
-  "errors": [],
+  "errors": [
+    "Phase 1: 1 requirement(s) lack @satisfies annotation: FR-AUTH-001"
+  ],
   "rows": [
     {
       "id": "FR-APP-001",
@@ -62,14 +64,9 @@
     },
     {
       "id": "FR-AUTH-001",
-      "satisfied": true,
-      "locations": [
-        {
-          "file": "apps/api/test/integration/bearer-auth.spec.ts",
-          "line": 27
-        }
-      ],
-      "missing": false
+      "satisfied": false,
+      "locations": [],
+      "missing": true
     },
     {
       "id": "FR-AUTH-002",
@@ -116,6 +113,10 @@
       "id": "FR-AUTH-005",
       "satisfied": true,
       "locations": [
+        {
+          "file": "apps/api/test/integration/bearer-auth.spec.ts",
+          "line": 27
+        },
         {
           "file": "apps/api/test/integration/bearer-auth.spec.ts",
           "line": 89

@@ -151,8 +151,23 @@ For each work item:
 
 Stop and ask rather than pushing through, if:
 - The same test fails 3 times and your fixes are guesses rather than a diagnosis.
-- A change would require modifying `apps/api/src/auth/**` or `contracts/**`
-  (auth and the wire contract are load-bearing and were expensive to get right).
+- A change would require modifying `apps/api/src/auth/**`, or **changing an
+  existing entry** in `contracts/**` (auth and the wire contract are load-bearing
+  and were expensive to get right — one wrong entry cost a full debugging cycle).
+
+  **Additive contract work is allowed and sometimes required.** Adding a new
+  schema, or replacing an `Arbitrary JSON` placeholder with the real shape, is
+  normal work item output — P3-01 explicitly calls for it. The rule is about not
+  *altering* entries other code already depends on. When you add to a contract:
+  tag it `x-added-by: P3-0X`, re-run `node tools/codegen/gen.mjs`, and confirm
+  `./tools/devctl verify` still passes the codegen drift gate.
+
+  **Derive the shape; never invent it.** The most expensive defect in this
+  project was a contract entry written from imagination rather than observation —
+  it described the wrong wire format and stayed wrong through a whole phase of
+  review, because the tests validated against the same wrong document. Before
+  writing any schema, observe the real payload: read the producing source, and
+  round-trip a real request against the running stack. Paste both.
 - A characterization test in `apps/api/test/characterization/` fails. Those pin
   existing backend behavior. If one fails you have broken the web client. Do not
   edit the test to make it pass unless the spec work item explicitly says the
@@ -178,3 +193,32 @@ write a SHA from memory), and anything you left undone.
 
 If you did not run something, write "not run". That is a fine answer. Reporting
 a test as passing when you did not run it is the one unrecoverable mistake here.
+
+## Addendum — P3-01 `serverLayout` schema (answers the first escalation)
+
+P3-01 requires capturing the `serverLayout` shape into `contracts/openapi.yaml`.
+Today that request body says `layout: description: Arbitrary layout JSON`
+(around line 229) — a placeholder. Replacing it with the real schema is additive
+work and is **in scope**, per the amended stop condition above.
+
+FR-SRV-001's oracle is "layout JSON round-trip equals **web format byte-for-byte**",
+so the schema is only correct if it matches what the existing web client writes.
+Do not design it. Observe it:
+
+1. `apps/web/src/lib/types.ts:25` — the `ServerLayout` type the web client uses.
+2. `apps/web/src/App.tsx:331` and `:334` — where it reads and writes that value
+   (note the `{ folders: [] }` default).
+3. Round-trip it live and diff:
+   ```bash
+   AT=$(curl -s -X POST localhost:3001/api/auth/dev-login \
+     -H 'content-type: application/json' -d '{"username":"alice"}' | jq -r .accessToken)
+   curl -s -X PUT localhost:3001/api/auth/server-layout -H "Authorization: Bearer $AT" \
+     -H 'content-type: application/json' \
+     -d '{"layout":{"folders":[{"id":"1","name":"Main","serverIds":[]}]}}' | jq .serverLayout
+   ```
+   Confirm what comes back is byte-identical to what went in. If the server
+   normalizes or drops anything, the schema must describe the *stored* shape and
+   your round-trip test must assert the real behavior, not the hoped-for one.
+
+Then write the integration test FR-SRV-001 asks for (byte-compare round-trip),
+prove it can fail, and proceed.
