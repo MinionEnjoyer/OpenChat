@@ -32,7 +32,7 @@ export class UploadsController {
   )
   async upload(
     @UploadedFiles() files: Array<{ originalname: string; buffer: Buffer; mimetype: string; size: number }>,
-    @CurrentUser() user: User,
+    @CurrentUser() _user: User,
   ): Promise<UploadedAttachment[]> {
     if (!files || files.length === 0) {
       throw new HttpException('No files provided', HttpStatus.BAD_REQUEST);

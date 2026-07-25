@@ -6,7 +6,7 @@
  * allows. Round-trip: mock server → typed fetch → response shape check.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 
 // ── Inline light mock (no msw dependency needed for contract validation) ──
 

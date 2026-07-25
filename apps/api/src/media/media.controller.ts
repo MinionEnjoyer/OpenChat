@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, Res, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { ShareService } from '../share/share.service';
 import type { Request, Response } from 'express';

@@ -1,5 +1,4 @@
-import { Controller, Get, Injectable, Query, UseGuards, BadRequestException } from '@nestjs/common';
-import { Module } from '@nestjs/common';
+import { Controller, Get, Injectable, Module, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthModule } from '../auth/auth.module';

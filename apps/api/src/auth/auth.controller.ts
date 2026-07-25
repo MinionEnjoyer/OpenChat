@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Patch, Put, Body, Req, Res, UseGuards, NotFoundException,
-  BadRequestException, UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -42,7 +42,7 @@ export class AuthController {
         body.redirectUri,
       );
       const tokens = await this.tokenService.issueFamily(user.id);
-      const { authSub, ...safe } = user;
+      const { authSub: _authSub, ...safe } = user;
       return { ...tokens, user: safe };
     }
     if (body?.grantType === 'refresh_token') {
@@ -86,7 +86,7 @@ export class AuthController {
         req.session.save((err) => (err ? reject(err) : resolve())),
       );
       res.redirect('/');
-    } catch (err) {
+    } catch (_err) {
       // A stale/overlapping login (e.g. OIDC state mismatch from multiple open flows) should
       // restart the login cleanly rather than 500 — Authentik's SSO session makes it instant.
       session.loginRetries = (session.loginRetries ?? 0) + 1;

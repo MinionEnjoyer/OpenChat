@@ -298,3 +298,37 @@ class of problem as DD-018 — a gate that verifies a weaker property than it ap
 
 Fix when convenient: declare these under `components/schemas` in `openapi.yaml` and generate
 them like everything else, so the drift gate covers contract→client for all types.
+   captured artifact entirely and makes the oracle portable.
+
+---
+
+## `no-explicit-any` debt (L1b lint gate, 2026-07-25)
+
+48 sites use `any`. The lint rule is set to `'warn'` — they are visible and
+countable but do not block the gate. They must not grow. Incrementally type
+each site; when the count reaches 0, promote the rule to `'error'`.
+
+### Breakdown by file
+
+| File | Count |
+|---|---|
+| `src/realtime/events.gateway.ts` | 13 |
+| `src/messages/messages.service.ts` | 9 |
+| `src/watchparty/watchparty.service.ts` | 7 |
+| `src/friends/friends.service.ts` | 4 |
+| `src/share/share.service.ts` | 2 |
+| `src/gifs/gifs.module.ts` | 2 |
+| `src/auth/auth.service.ts` | 2 |
+| `src/audit-log/audit-log.service.ts` | 2 |
+| `src/voice/voice.service.ts` | 1 |
+| `src/servers/servers.service.ts` | 1 |
+| `src/redis/redis.service.ts` | 1 |
+| `src/overwrites/overwrites.service.ts` | 1 |
+| `src/messages/messages.controller.ts` | 1 |
+| `src/invites/invites.service.ts` | 1 |
+| `src/dms/dms.service.ts` | 1 |
+
+- **Priority:** MEDIUM — the top 3 files account for 29/48 (60%) and are the
+  highest-value targets.
+- **Phase:** Continuous. Each typed site is a self-contained improvement; no
+  orchestrated cutover required.

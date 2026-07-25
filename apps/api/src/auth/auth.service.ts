@@ -39,7 +39,7 @@ export class AuthService implements OnModuleInit {
 
   private async getClient(): Promise<Client> {
     if (this.client) return this.client;
-    if (!this.discovering) {
+    if (this.discovering === undefined) {
       this.discovering = (async () => {
         const issuer = await Issuer.discover(this.config.getOrThrow<string>('OIDC_ISSUER'));
         this.client = new issuer.Client({
@@ -171,7 +171,7 @@ export class AuthService implements OnModuleInit {
       update: {},
       create: { authSub: `dev:${username}`, username, displayName: username, status: 'ONLINE' },
     });
-    const { authSub, ...safe } = user;
+    const { authSub: _authSub, ...safe } = user;
     return safe;
   }
 
@@ -193,7 +193,7 @@ export class AuthService implements OnModuleInit {
       const friendCode = await this.generateUniqueFriendCode();
       user = await this.prisma.user.update({ where: { id: userId }, data: { friendCode } });
     }
-    const { authSub, ...safe } = user;
+    const { authSub: _authSub, ...safe } = user;
     return safe;
   }
 
@@ -227,7 +227,7 @@ export class AuthService implements OnModuleInit {
         ...(data.status !== undefined ? { status: data.status as any } : {}),
       },
     });
-    const { authSub, ...safe } = user;
+    const { authSub: _authSub, ...safe } = user;
     return safe;
   }
 
@@ -237,7 +237,7 @@ export class AuthService implements OnModuleInit {
       where: { id: userId },
       data: { serverLayout: (layout ?? null) as any },
     });
-    const { authSub, ...safe } = user;
+    const { authSub: _authSub, ...safe } = user;
     return safe;
   }
 

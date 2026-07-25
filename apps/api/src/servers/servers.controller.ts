@@ -5,8 +5,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PERMISSION_LIST } from '../permissions/permissions';
-import type { User } from '@prisma/client';
-import { OverwriteTargetType } from '@prisma/client';
+import { OverwriteTargetType, type User } from '@prisma/client';
 
 const CreateServerDto = z.object({ name: z.string().min(1).max(100) });
 const UpdateServerDto = z.object({

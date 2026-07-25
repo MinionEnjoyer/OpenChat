@@ -1,9 +1,10 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
   private client: Redis;
   private subscriber: Redis;
 
@@ -32,9 +33,9 @@ export class RedisService implements OnModuleDestroy {
       },
     });
 
-    this.client.on('error', (err) => console.error('Redis Client Error:', err));
-    this.subscriber.on('error', (err) => console.error('Redis Subscriber Error:', err));
-    this.subscriber.on('message', (channel, message) => {
+    this.client.on('error', (err) => this.logger.error('Redis Client Error:', err));
+    this.subscriber.on('error', (err) => this.logger.error('Redis Subscriber Error:', err));
+    this.subscriber.on('message', (_channel, _message) => {
       // Internal handling if needed, or let the Gateway subscribe to this emitter
       // For now, we expose the clients so the Gateway can handle subscription logic
     });
@@ -65,8 +66,8 @@ export class RedisService implements OnModuleDestroy {
     return this.client.del(key);
   }
 
-  onModuleDestroy() {
-    this.client.quit();
-    this.subscriber.quit();
+  async onModuleDestroy() {
+    await this.client.quit();
+    await this.subscriber.quit();
   }
 }
