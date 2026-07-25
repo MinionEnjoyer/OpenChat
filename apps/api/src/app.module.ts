@@ -15,6 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { VoiceModule } from './voice/voice.module';
 import { WatchPartyModule } from './watchparty/watchparty.module';
 import { GifsModule } from './gifs/gifs.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 import { HealthController } from './health/health.controller';
 import { ConfigController } from './config/config.controller';
 import { validateEnv } from './config/configuration';
@@ -30,6 +31,7 @@ import { validateEnv } from './config/configuration';
     PrismaModule,
     RedisModule,
     AuthModule,
+    AuditLogModule,
     ServersModule,
     MessagesModule,
     RealtimeModule,
