@@ -5,7 +5,7 @@
  * half owns. The cookie path is deliberately untouched here — the
  * characterization suite is its regression net (NFR-10).
  */
-import { apiFetch, createJar } from '../characterization/helpers';
+import { apiFetch, createJar, WS_BASE } from '../characterization/helpers';
 
 const API = { post: 'POST' } as const;
 
@@ -96,7 +96,7 @@ describe('P1-01 — token issuance and rotation', () => {
 
     // The ticket actually works: connect and receive the ready frame.
     const WebSocket = (await import('ws')).default;
-    const ws = new WebSocket(`ws://localhost:3001/ws?ticket=${res.body.ticket}`);
+    const ws = new WebSocket(`${WS_BASE}?ticket=${res.body.ticket}`);
     const ready = await new Promise<boolean>((resolve) => {
       const timer = setTimeout(() => resolve(false), 5000);
       ws.on('message', (data: Buffer) => {

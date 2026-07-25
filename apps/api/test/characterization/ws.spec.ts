@@ -1,5 +1,5 @@
 /** @characterizes ws — handshake, 4401/4404, subscribe gating, ready payload servers:[] */
-import { wsConnect, seed, apiFetch, assertWsReadyDataShape } from './helpers';
+import { wsConnect, seed, apiFetch, assertWsReadyDataShape, WS_BASE } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -17,7 +17,7 @@ describe('ws — handshake', () => {
   });
 
   it('invalid ticket → close 4401', async () => {
-    const ws = new (require('ws'))('ws://localhost:3001/ws?ticket=bad');
+    const ws = new (require('ws'))(`${WS_BASE}?ticket=bad`);
     await new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => { ws.close(); reject(new Error('timeout')); }, 5000);
       ws.on('close', (code: number) => {
