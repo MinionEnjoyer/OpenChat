@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { User, Server, Channel, Message, Attachment as Att, DmChannel, ServerMemberInfo } from './lib/types';
 import * as api from './lib/api';
 import { listDms } from './lib/social';
-import { getConfig } from './lib/share';
+import { getConfig, uploadToShare } from './lib/share';
 import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
 import { AttachmentPicker } from './components/AttachmentPicker';
@@ -1628,6 +1628,8 @@ function Composer({
 }) {
   const [text, setText] = useState('');
   const [pending, setPending] = useState<Att[]>([]);
+  const [dropActive, setDropActive] = useState(false);
+  const [dropUploading, setDropUploading] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState<{ x: number; y: number } | null>(null);
   const [gifAnchor, setGifAnchor] = useState<{ x: number; y: number } | null>(null);
   const [pollOpen, setPollOpen] = useState(false);
@@ -1702,8 +1704,53 @@ function Composer({
     doSend(content, attachments);
   }
 
+  // Drag-and-drop files anywhere in the window (while a channel is open) to upload + stage
+  // them. Gated on a Files drag so it never interferes with channel/server reorder drags.
+  useEffect(() => {
+    if (!shareBaseUrl) return;
+    let depth = 0;
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    const onEnter = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; setDropActive(true); };
+    const onOver = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); };
+    const onLeave = (e: DragEvent) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (depth === 0) setDropActive(false); };
+    const onDrop = async (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0; setDropActive(false);
+      const files = Array.from(e.dataTransfer!.files);
+      if (!files.length) return;
+      setDropUploading(true);
+      try {
+        const { attachments, rejected } = await uploadToShare(files);
+        if (rejected.length) alert('Rejected: ' + rejected.map((r) => `${r.name} (${r.reason})`).join(', '));
+        if (attachments.length) setPending((p) => [...p, ...attachments]);
+      } catch (err) {
+        alert('Upload failed: ' + (err as Error).message);
+      } finally {
+        setDropUploading(false);
+      }
+    };
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [shareBaseUrl]);
+
   return (
     <div style={{ padding: 16, position: 'relative' }}>
+      {(dropActive || dropUploading) && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ border: '2px dashed var(--accent)', borderRadius: 16, padding: '36px 56px', background: 'var(--panel)', color: 'var(--text-strong)', fontSize: 18, fontWeight: 600, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+            {dropUploading ? 'Uploading…' : `📎 Drop files to attach${title ? ' — ' + title : ''}`}
+          </div>
+        </div>
+      )}
       {replyingTo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 12, color: 'var(--muted)' }}>
           <span>Replying to <b style={{ color: 'var(--text)' }}>{replyingTo.authorName}</b></span>

@@ -16,7 +16,6 @@ export function AttachmentPicker({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [recording, setRecording] = useState(false);
 
@@ -38,16 +37,8 @@ export function AttachmentPicker({
 
   return (
     <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        handleFiles(Array.from(e.dataTransfer.files));
-      }}
+      // Drops anywhere in the chat window are handled globally by the Composer; here we
+      // only keep clipboard paste (and the File/Recording menu below).
       onPaste={(e) => {
         const files = Array.from(e.clipboardData.files);
         if (files.length) handleFiles(files);
@@ -68,7 +59,7 @@ export function AttachmentPicker({
           disabled={uploading}
           title="Attach a file or record a sound (or drag & drop / paste)"
           style={{
-            background: dragOver ? 'var(--accent)' : 'var(--hover)',
+            background: 'var(--hover)',
             color: 'var(--accent-text)',
             border: 'none',
             borderRadius: 4,
