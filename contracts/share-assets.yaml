@@ -217,45 +217,150 @@ paths:
           description: Session cookie set
       x-evidence: share.spec.ts#dev-login
 
-  # ── Planned: Phase 5 service asset API ──
-  /api/assets/upload-url:
-    post:
-      operationId: createUploadUrl
-      summary: Get presigned upload URL (PLANNED — Phase 5)
-      description: >
-        Service-to-service endpoint for OpenChat's ShareService. Does NOT
-        exist today — POST returns 404 (confirmed by share.spec.ts#dead-path).
-        Phase 5 will implement this with a service-account bearer token.
-      tags: [service-api]
-      x-status: planned
-      x-phase: 14-PHASE5-MEDIA
-      x-skip-reason: "Route does not exist; returns 404 today. Phase 5 builds it."
-      responses:
-        '404':
-          description: Route does not exist (pre-Phase 5)
-      x-evidence: share.spec.ts#dead-path, G2
+   # ── Planned: Phase 5 service asset API (FR-MED-001) ──
+   /api/assets:
+     post:
+       operationId: createAsset
+       summary: Upload an asset (service-to-service with Bearer token)
+       description: >
+         Service-to-service endpoint for OpenChat's ShareService.
+         Auth via Bearer token (SHARE_API_KEY). Reuses the exact internal
+         save path of /upload (SHA-256 dedup preserved).
+         Does NOT exist today (2026-07-25) — POST returns 404.
+         Phase 5 will implement this endpoint.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       requestBody:
+         content:
+           multipart/form-data:
+             schema:
+               type: object
+               properties:
+                 file:
+                   type: string
+                   format: binary
+                   description: The file to upload
+                 source:
+                   type: string
+                   enum: [chat, gallery]
+                   description: "'chat' creates auto-named Chat folder"
+               required: [file]
+       responses:
+         '201':
+           description: Asset created successfully
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/AssetMetadata'
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Route does not exist (pre-Phase 5)
+       x-evidence: >
+         Spec from 14-PHASE5-MEDIA.md P5-01.
+         Verified 404 on 2026-07-25 — route not yet built.
 
-  /api/assets/{id}:
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      operationId: getAsset
-      summary: Get asset metadata (PLANNED — Phase 5)
-      description: >
-        Service-to-service endpoint for asset retrieval. Does NOT exist
-        today — GET returns 404 (confirmed by share.spec.ts#dead-path).
-      tags: [service-api]
-      x-status: planned
-      x-phase: 14-PHASE5-MEDIA
-      x-skip-reason: "Route does not exist; returns 404 today. Phase 5 builds it."
-      responses:
-        '404':
-          description: Route does not exist (pre-Phase 5)
-      x-evidence: share.spec.ts#dead-path, G2
+   /api/assets/{id}:
+     parameters:
+       - name: id
+         in: path
+         required: true
+         schema:
+           type: string
+     get:
+       operationId: getAsset
+       summary: Get asset metadata (service-to-service with Bearer token)
+       description: >
+         Returns full asset metadata. Auth via Bearer token (SHARE_API_KEY).
+         Does NOT exist today — GET returns 404.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       responses:
+         '200':
+           description: Asset metadata
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/AssetMetadata'
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Asset not found or route not yet built
+       x-evidence: Spec from 14-PHASE5-MEDIA.md P5-01
+
+   /api/assets/{id}/raw:
+     parameters:
+       - name: id
+         in: path
+         required: true
+         schema:
+           type: string
+     get:
+       operationId: getAssetRaw
+       summary: Download raw asset bytes (service-to-service with Bearer token)
+       description: >
+         Returns raw file bytes with Content-Type, ETag=sha256,
+         Accept-Ranges: bytes + Range support for video seeking.
+         Auth via Bearer token.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       responses:
+         '200':
+           description: Raw file content
+           headers:
+             ETag:
+               schema:
+                 type: string
+               description: SHA-256 hash of the file
+             Content-Type:
+               schema:
+                 type: string
+             Accept-Ranges:
+               schema:
+                 type: string
+                 enum: [bytes]
+         '206':
+           description: Partial content (Range request)
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Asset not found or route not yet built
+       x-evidence: Spec from 14-PHASE5-MEDIA.md P5-01
+
+   /api/assets/{id}/thumb:
+     parameters:
+       - name: id
+         in: path
+         required: true
+         schema:
+           type: string
+     get:
+       operationId: getAssetThumb
+       summary: Download thumbnail (service-to-service with Bearer token)
+       description: >
+         Returns JPEG thumbnail bytes. Auth via Bearer token.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       responses:
+         '200':
+           description: JPEG thumbnail
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Asset not found or no thumbnail, or route not yet built
+       x-evidence: Spec from 14-PHASE5-MEDIA.md P5-01
 
 components:
   securitySchemes:
@@ -264,6 +369,10 @@ components:
       in: cookie
       name: session
       description: OpenShare OIDC session cookie (independent from OpenChat)
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: OpenShare service API key (SHARE_API_KEY env var)
 
   schemas:
     SavedAsset:
@@ -291,3 +400,42 @@ components:
         reason:
           type: string
       x-source: E5, OpenShare/main.py:520-550
+
+    AssetMetadata:
+      type: object
+      description: Full asset metadata returned by /api/assets and /api/assets/{id}
+      properties:
+        id:
+          type: string
+          description: Unique asset identifier
+        filename:
+          type: string
+          description: Original upload filename
+        mimeType:
+          type: string
+          description: Detected MIME type
+        size:
+          type: integer
+          description: File size in bytes
+        mediaType:
+          type: string
+          enum: [image, video, audio, pdf, model, text, archive, other]
+          description: Broad media category
+        width:
+          type: integer
+          nullable: true
+          description: Image/video width in pixels (if applicable)
+        height:
+          type: integer
+          nullable: true
+          description: Image/video height in pixels (if applicable)
+        durationMs:
+          type: integer
+          nullable: true
+          description: Audio/video duration in milliseconds
+        sha256:
+          type: string
+          description: SHA-256 hash of the file content
+      required: [id, filename, mimeType, size, mediaType]
+      x-phase: 14-PHASE5-MEDIA
+      x-source: Spec from 14-PHASE5-MEDIA.md P5-01
