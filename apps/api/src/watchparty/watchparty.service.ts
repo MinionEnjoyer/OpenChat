@@ -111,17 +111,42 @@ export class WatchPartyService {
     return 'video';
   }
 
-  private serialize(p: any, itemName?: string) {
+  // A YouTube party stores its ref as "yt:<videoId>" in jellyfinItemId (no schema change);
+  // a Jellyfin party stores the raw Jellyfin item id.
+  private serialize(p: any, name?: string) {
+    const ref: string = p.jellyfinItemId;
+    if (ref.startsWith('yt:')) {
+      return {
+        id: p.id,
+        channelId: p.channelId,
+        hostId: p.hostId,
+        source: 'youtube' as const,
+        itemId: ref,
+        youtubeId: ref.slice(3),
+        itemName: name ?? 'YouTube video',
+        positionMs: p.positionMs,
+        paused: p.paused,
+        streamUrl: null,
+      };
+    }
     return {
       id: p.id,
       channelId: p.channelId,
       hostId: p.hostId,
-      itemId: p.jellyfinItemId,
-      itemName: itemName ?? p.itemName,
+      source: 'jellyfin' as const,
+      itemId: ref,
+      youtubeId: null,
+      itemName: name ?? p.itemName,
       positionMs: p.positionMs,
       paused: p.paused,
-      streamUrl: `/api/watchparty/stream/${p.jellyfinItemId}`,
+      streamUrl: `/api/watchparty/stream/${ref}`,
     };
+  }
+
+  /** Display name for a party ref — instant for YouTube, a Jellyfin lookup otherwise. */
+  private async nameFor(ref: string): Promise<string> {
+    if (ref.startsWith('yt:')) return 'YouTube video';
+    return this.itemName(ref);
   }
 
   private async publish(channelId: string, state: any | null) {
@@ -135,18 +160,27 @@ export class WatchPartyService {
       orderBy: { createdAt: 'desc' },
     });
     if (!party) return null;
-    const state = this.serialize(party, await this.itemName(party.jellyfinItemId));
+    const state = this.serialize(party, await this.nameFor(party.jellyfinItemId));
     return state;
   }
 
-  async start(channelId: string, userId: string, itemId: string) {
+  async start(channelId: string, userId: string, opts: { itemId?: string; youtubeId?: string }) {
     await this.assertAccess(channelId, userId);
+    let ref: string;
+    if (opts.youtubeId) {
+      if (!/^[A-Za-z0-9_-]{6,20}$/.test(opts.youtubeId)) throw new BadRequestException('Invalid YouTube video id');
+      ref = `yt:${opts.youtubeId}`;
+    } else if (opts.itemId) {
+      ref = opts.itemId;
+    } else {
+      throw new BadRequestException('Provide a Jellyfin item or a YouTube video');
+    }
     // End any existing active party in this channel.
     await this.prisma.watchParty.updateMany({ where: { channelId, endedAt: null }, data: { endedAt: new Date() } });
     const party = await this.prisma.watchParty.create({
-      data: { channelId, hostId: userId, jellyfinItemId: itemId, positionMs: 0, paused: true },
+      data: { channelId, hostId: userId, jellyfinItemId: ref, positionMs: 0, paused: true },
     });
-    const state = this.serialize(party, await this.itemName(itemId));
+    const state = this.serialize(party, await this.nameFor(ref));
     await this.publish(channelId, state);
     return state;
   }
@@ -160,7 +194,7 @@ export class WatchPartyService {
       where: { id: party.id },
       data: { positionMs: Math.max(0, Math.round(data.positionMs)), paused: !!data.paused },
     });
-    const state = this.serialize(updated, await this.itemName(updated.jellyfinItemId));
+    const state = this.serialize(updated, await this.nameFor(updated.jellyfinItemId));
     await this.publish(channelId, state);
     return state;
   }

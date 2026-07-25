@@ -642,6 +642,15 @@ export default function App() {
     } catch { alert('Could not start the watch party.'); }
   }
 
+  async function startWatchPartyYoutube(videoId: string) {
+    setWatchPickerOpen(false);
+    if (!s.activeChannelId) return;
+    try {
+      const state = await api.watchpartyStartYoutube(s.activeChannelId, videoId);
+      setPartyByChannel((prev) => ({ ...prev, [state.channelId]: state }));
+    } catch { alert('Could not start the watch party.'); }
+  }
+
   function pushWatchState(channelId: string, positionMs: number, paused: boolean) {
     api.watchpartyState(channelId, positionMs, paused).catch(() => {});
   }
@@ -1544,7 +1553,7 @@ export default function App() {
       )}
 
       {watchPickerOpen && s.activeChannelId && (
-        <WatchPartyPicker onPick={startWatchParty} onClose={() => setWatchPickerOpen(false)} />
+        <WatchPartyPicker onPick={startWatchParty} onPickYoutube={startWatchPartyYoutube} onClose={() => setWatchPickerOpen(false)} />
       )}
 
       {soundboardOpen && activeServer && (

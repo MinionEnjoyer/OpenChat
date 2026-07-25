@@ -139,6 +139,8 @@ export const voiceParticipants = (channelId: string) =>
 export const watchpartyGet = (channelId: string) => request<WatchPartyState | null>(`/watchparty/${channelId}`);
 export const watchpartyStart = (channelId: string, itemId: string) =>
   request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ itemId }) });
+export const watchpartyStartYoutube = (channelId: string, youtubeId: string) =>
+  request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ youtubeId }) });
 export const watchpartyState = (channelId: string, positionMs: number, paused: boolean) =>
   request<WatchPartyState>(`/watchparty/${channelId}/state`, { method: 'POST', body: JSON.stringify({ positionMs, paused }) });
 export const watchpartyStop = (channelId: string) =>

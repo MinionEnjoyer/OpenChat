@@ -7,7 +7,10 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { WatchPartyService } from './watchparty.service';
 import type { User } from '@prisma/client';
 
-const StartDto = z.object({ itemId: z.string().min(1) });
+const StartDto = z.object({
+  itemId: z.string().min(1).optional(),
+  youtubeId: z.string().min(1).optional(),
+}).refine((d) => d.itemId || d.youtubeId, { message: 'itemId or youtubeId is required' });
 const StateDto = z.object({ positionMs: z.number().nonnegative(), paused: z.boolean() });
 
 @Controller('watchparty')
@@ -42,9 +45,9 @@ export class WatchPartyController {
   start(
     @Param('channelId') channelId: string,
     @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(StartDto)) body: { itemId: string },
+    @Body(new ZodValidationPipe(StartDto)) body: { itemId?: string; youtubeId?: string },
   ) {
-    return this.wp.start(channelId, user.id, body.itemId);
+    return this.wp.start(channelId, user.id, body);
   }
 
   @Post(':channelId/state')
