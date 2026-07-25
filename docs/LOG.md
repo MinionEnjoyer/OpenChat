@@ -846,3 +846,35 @@ message. No backend change needed.
 - `./gradlew assembleRelease` — BUILD SUCCESSFUL, APK 82,094,739 bytes
 - `adb install -r` → Success
 - `./tools/devctl screenshot --screen morning-authornames` → 1,369,693 bytes
+
+## 2026-07-25 — P2-08 (William B. Sexton)
+
+### P2-08 — Mentions: parser, autocomplete, highlighting (FR-MSG-008): COMPLETE
+**Commit:** `c45c232` — 5 files, 858 insertions, 10 deletions
+
+**Canonical syntax derived from source (not invented):**
+- Web emits: `@${c.username} ` (plain text, trailing space) — `apps/web/src/App.tsx:1456`
+- Web detects for autocomplete: `/(?:^|\s)@([\w.-]*)$/` — line 1447
+- Web renders: `/@([\w.-]+)/g` — line 755
+- Server parses: `/(?:^|\s)@([\w.-]+)/g` for users, `/(^|\s)@everyone\b/` + `/(^|\s)@here\b/` — `messages.service.ts:344-349`
+- All agree: plain `@username` syntax, no markup, no delimiters.
+
+**Files created:**
+- `apps/mobile/src/domain/mentions.ts` — pure domain logic (zero RN imports): `parseMentionSegments()`, `detectMentionTrigger()`, `filterMentionCandidates()`, `insertMention()`, `buildMentionCandidates()`, `canMentionEveryone()`, `buildMemberUsernameSet()`
+- `apps/mobile/src/domain/__tests__/mentions.test.ts` — 27 tests: canonical syntax match with web/server regex, parse/serialize round-trip, @everyone/@here detection, permission gate, autocomplete filtering, non-member @ preservation, case-insensitive matching
+
+**Files modified:**
+- `apps/mobile/src/features/messages/ChatPane.tsx` — added mention autocomplete picker (FlatList above composer), keyboard navigation (ArrowUp/Down/Enter/Tab/Escape), segmented content rendering with `mentionSelf` + `mentionHighlight` styles, new props `members`, `myPermissions`, `serverOwnerId`
+- `apps/mobile/src/features/shell/screens/ShellScreen.tsx` — passes `members.data`, `activeServer?.myPermissions`, `activeServer?.ownerId` to ChatPane
+- `apps/mobile/src/ui/strings.ts` — added `mentions.everyoneLabel` and `mentions.hereLabel`
+
+**Design decisions:**
+- `domain/mentions.ts` inlines `MENTION_EVERYONE_BIT = 1n << 7n` and defines its own `MemberBrief` interface to satisfy the domain purity lint rule (no imports from `api/`)
+- @everyone/@here gated by `canMentionEveryone()` checking `myPermissions` bitfield + server ownership
+- Non-member @mentions do not split plain text segments (tested explicitly)
+
+**Verification:**
+- `npx tsc --noEmit` — rc=0
+- `npx eslint . --max-warnings=0` — rc=0
+- `npx jest` — 19 suites, 233 tests, all pass
+- Prove-fail: changed `canMentionEveryone('0', false)` expectation from `false` to `true` → test FAILED → restored → test PASSED
