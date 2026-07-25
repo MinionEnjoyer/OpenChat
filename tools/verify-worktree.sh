@@ -25,6 +25,7 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 API_DIR="$WORKTREE/apps/api"
 API_BASE="http://localhost:$PORT/api"
+WS_BASE="ws://localhost:$PORT/ws"
 RESULT_DIR="$ROOT/artifacts/verify"
 LOG_DIR="$ROOT/artifacts/verify/logs"
 
@@ -107,7 +108,7 @@ echo ""
 echo "--- Gate 1/4: characterization ---"
 cd "$API_DIR"
 set +e
-CHAR_API_BASE="$API_BASE" npx jest --config jest-char.config.js --forceExit > "$CHAR_LOG" 2>&1
+CHAR_API_BASE="$API_BASE" CHAR_WS_BASE="$WS_BASE" npx jest --config jest-char.config.js --forceExit > "$CHAR_LOG" 2>&1
 CHAR_RC=$?
 set -e
 cd "$ROOT"
@@ -155,7 +156,7 @@ echo ""
 echo "--- Gate 2/4: integration ---"
 cd "$API_DIR"
 set +e
-CHAR_API_BASE="$API_BASE" npx jest --config jest-integration.config.js --forceExit > "$INT_LOG" 2>&1
+CHAR_API_BASE="$API_BASE" CHAR_WS_BASE="$WS_BASE" npx jest --config jest-integration.config.js --forceExit > "$INT_LOG" 2>&1
 INT_RC=$?
 set -e
 cd "$ROOT"

@@ -12,7 +12,7 @@ import * as https from 'https';
 import { WebSocket } from 'ws';
 
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
-const WS_BASE = process.env.CHAR_WS_BASE ?? 'ws://localhost:3001/ws';
+export const WS_BASE = process.env.CHAR_WS_BASE ?? 'ws://localhost:3001/ws';
 const SHARE_BASE = process.env.CHAR_SHARE_BASE ?? 'http://localhost:8800';
 
 export interface ApiResponse<T = any> { status: number; headers: Record<string, string>; body: T; }
