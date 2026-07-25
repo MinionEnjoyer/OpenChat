@@ -160,6 +160,8 @@ Specs execute strictly in order; a phase starts only after the previous phase's 
 
 Provide: Authentik test realm credentials (or approve `DEV_AUTH=1` for all non-prod stacks —
 default assumption: approved), Giphy key (optional; feature degrades gracefully), Apple/Google
-signing assets at Phase 8, and macOS access for iOS device validation at milestones M1/M5/M8
-(see 17 §6). Everything else is agent-executable on a Linux host with Docker, Node 20,
-Python 3.12, JDK 17, and Android SDK/emulator.
+signing assets at Phase 8, and **Xcode installation** for iOS Simulator validation (free Apple
+ID, no signing — see DR-003). The developer machine is macOS/arm64 with Docker + HVF; iOS
+Simulator builds are unblocked once Xcode is installed. Android E2E runs on the same host
+(HVF, arm64-v8a emulators). Everything else is agent-executable with Docker, Node 20, Python
+3.12, JDK 17, and Android SDK/emulator (or macOS equivalents per `devctl doctor` host check).

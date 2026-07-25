@@ -61,8 +61,18 @@ owner acceptance script = one hour of scripted real usage across phone+web
 with priorities for v1.1. T4 signoff = ship.
 
 ## §6 Human-in-the-loop milestones (the only scheduled human dependencies)
+
 M1 (after Phase 1): Authentik prod-realm redirect registration + OIDC login sanity on a
-physical phone. M5 (after Phase 5): media sanity on physical devices (camera/gallery/save).
-M8 (this phase): macOS runner access, signing assets, store accounts, 1-hour acceptance run.
+physical phone.
+
+M5 (after Phase 5): media sanity on physical devices (camera/gallery/save). **macOS runner
+available** — the developer's machine (Apple Silicon, 48 GB RAM, Docker + HVF) can build
+and run iOS simulators. iOS test builds are unblocked at Phase 5.
+
+M8 (this phase): signing assets, store accounts, 1-hour acceptance run. **No longer
+blocked on macOS runner access** — the developer's machine satisfies the macOS requirement
+for iOS builds and App Store submission. The two-emulator Android rig also runs on this
+host (HVF, arm64-v8a system images).
+
 Each milestone's checklist lives in `docs/release/HITL-<n>.md`; agent prepares everything
 (builds, QR install links, scripts) so human time is consumption, not setup.

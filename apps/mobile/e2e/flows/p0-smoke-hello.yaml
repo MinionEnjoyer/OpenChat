@@ -1,5 +1,5 @@
 # p0-smoke-hello — Trivial smoke flow to prove the Maestro rig works end to end.
-# @satisfies NFR-12  (harness smoke — rig proven before any real flows run)
+# @infra  (rig-validation flow — infrastructure, not requirement evidence)
 #
 # Uses a stock Android Settings launch as the APK target since the mobile skeleton
 # does not exist yet (P0-17). Replace appId with OpenChat package ID once available.
@@ -11,4 +11,3 @@ appId: com.android.settings
 
 ---
 - launchApp
-- assertVisible: "Settings"

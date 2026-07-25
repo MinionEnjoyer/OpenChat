@@ -7,6 +7,13 @@ FRs: AUTH-001..007(partial-006), AUTH-010, APP-001, APP-003, APP-006(scaffold).
 Out of scope: any message rendering beyond a placeholder list; server browsing beyond a
 static rail fed by `GET /servers`; profile avatar upload (Phase 5); iOS store config.
 
+**iOS status (P0-17):** The developer machine is macOS/arm64 (Apple Silicon, 48 GB RAM)
+with Docker + HVF for Android emulation. Xcode is **not yet installed** (Command Line
+Tools only — `xcodebuild` and iOS Simulator unavailable). P0-17 will add an iOS Simulator
+lane (`expo run:ios` with free Apple ID, no signing required) once Xcode is installed,
+catching Expo config-plugin breakage starting at Phase 1 instead of Phase 5. See
+`docs/decisions/DR-003-ios-sim.md` for the decision record.
+
 ## Backend work items (additive; web client untouched behaviorally — NFR-10 gate on every one)
 
 **P1-01 [BE] Bearer token issuance — `POST /api/auth/token`**

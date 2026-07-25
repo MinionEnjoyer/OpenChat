@@ -304,3 +304,94 @@ annotation). When Phase 1 begins, the filter will change to `--phase 1`.
 **Verification:** `tools/devctl verify` exits 0 with trace passing. Selftest
 confirmed trace catches non-existent FR references and missing annotations within
 a scoped phase.
+
+### Unexamined environment assumptions (systemic)
+
+**What:** Two spec assumptions about the host environment were written into design
+documents and scripts without any gate examining them:
+
+| Assumption | Reality |
+|-----------|---------|
+| CI `e2e-android` job runs on Linux + KVM (04 §5) | Dev machine is macOS/arm64 (HVF, not KVM). `device-up.sh` originally checked only `/dev/kvm`, which would fail on macOS |
+| OIDC config exposed at `GET /api/config` (10-PHASE1, DR-002 ref) | `/api/config` returns only `{shareBaseUrl, jellyfinUrl}` — no OIDC fields. DR-002 already corrected the spec text, but the original assumption went uncaught until P1-03's work-item review |
+
+Both are the same systemic class: **environment/surface assumptions stated in prose
+but never gated mechanically**. Nobody checked whether the host could actually
+virtualize until `device-up.sh` was first run, and nobody checked whether the
+`/api/config` surface matched reality until DR-002 explicitly tested it.
+
+**Severity:** MEDIUM — both are caught now (device-up.sh has host-aware detection;
+DR-002 fixes the OIDC config gap). The systemic risk is that additional
+assumptions survive in prose form in unexecuted spec paragraphs.
+
+**Remedy:** `devctl doctor` now emits `artifacts/doctor/host.json` with OS, arch,
+virtualization path, Docker availability, Android SDK + image arch, Maestro,
+Xcode + iOS Simulator, RAM, and free disk. Phase-aware checks gate based on
+`.phase` (Docker at Phase 0, Android SDK at Phase 1+, RAM budget at Phase 2+).
+Future sessions can read `host.json` rather than re-discovering the environment.
+Also: DR-003 documents that iOS Simulator requires Xcode (one-time human action).
+
+**Verification:** `cmd_host_capability` in `tools/devctl` writes `artifacts/doctor/host.json`
+on every `devctl doctor` run. `devctl selftest` does not inject for host
+capability (the check is non-destructive; the proof is the file's existence and
+correctness on each run).
+
+### @satisfies annotation enforcement
+
+**What:** `04-TEST-AND-VERIFICATION.md §6-bis` specified that `@satisfies` may
+only appear on tests exercising product code, but trace.mjs had no mechanical
+enforcement. An `@satisfies` in a rig-validation flow (`p0-smoke-hello.yaml`,
+targeting `com.android.settings`) would have been collected as a valid requirement
+trace.
+
+**Remedy:** `trace.mjs` now identifies two categories of non-product files:
+infra paths (`tools/`, `scripts/`, `specs/`, `.husky/`, `.github/`, `docs/`) and
+non-OpenChat E2E flows (any flow under `apps/mobile/e2e/flows/` with `appId`
+matching a known non-product package like `com.android.settings`). `@satisfies`
+in either category is an error, not collected. The smoke flow now carries
+`@infra` instead.
+
+**Verification:** Re-adding `@satisfies NFR-12` to `p0-smoke-hello.yaml` produced
+`ERROR: @satisfies NFR-12 in non-product e2e flow … Use @infra for rig-validation
+flows.` Full-repo sweep found zero `@satisfies` annotations in any test file
+(the only hits are in spec docs and trace.mjs's own regex).
+
+### Annotations cleanup — NFR-12 removed from smoke flow
+
+**What:** `p0-smoke-hello.yaml` carried `@satisfies NFR-12`, claiming a reliability
+requirement was satisfied by a test that launches `com.android.settings` — never
+touching OpenChat code.
+
+**Remedy:** Annotation replaced with `@infra`. The trace tool now rejects
+`@satisfies` in non-product flows mechanically (see above).
+
+### iOS Simulator viability (DR-003)
+
+**What:** macOS/arm64 dev host makes iOS Simulator feasible from Phase 1 instead
+of waiting for Phase 5 M5 milestone. Xcode is not yet installed (Command Line
+Tools only).
+
+**Remedy:** DR-003 accepted: add iOS Simulator lane to P0-17 (`expo run:ios`,
+free Apple ID, no signing). Optional, not gated; `devctl doctor` records
+availability in `host.json`. One-time human action required: install Xcode
+(~12 GB download).
+
+**References:** `docs/decisions/DR-003-ios-sim.md`, `10-PHASE1-FOUNDATION-AUTH.md`
+(iOS status), `00-MASTER-SPEC.md §0.7` (human responsibilities updated), and
+`17-PHASE8-NOTIFICATIONS-RELEASE.md §6` (M5/M8 milestones updated).
+
+### E2E rig proven
+
+**What:** `device-up.sh`, Maestro, and the smoke flow were committed and wired
+into devctl but had never run.
+
+**Remedy:** Rig booted, smoke flow passed, gate caught a deliberately broken
+assertion (exit 1), restored, re-passed. `artifacts/e2e/last-run.json` written.
+Two-emulator rig confirmed with `-read-only` for the second instance.
+Host-aware system image selection (arm64-v8a on Apple Silicon, x86_64 on CI).
+
+**Verification:** `artifacts/e2e/last-run.json` exists. `devctl doctor` reports
+no unproven-rig issues. RAM budget: ~6 GB per emulator (12-13 GB total for two)
+on 48 GB host.
+
+*Last updated: 2026-07-24*

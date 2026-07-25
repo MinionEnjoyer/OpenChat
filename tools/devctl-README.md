@@ -86,8 +86,58 @@ Exit 1 if tree dirty (aborts), otherwise git commit exit code.
 
 `devctl doctor` checks for the presence of this README (`tools/devctl-README.md`).
 
+## Architecture: Dev Stack vs Emulator
+
+The dev stack (API, Postgres, Redis, LiveKit, OpenShare, web) runs in **Docker**
+via `docker compose`. These are container-level commands:
+
+- `devctl stack up` / `down` / `reset` / `logs` / `health` / `seed`
+
+The Android emulator runs on the **host**, not in a container. Nested
+virtualization is unavailable on macOS, so `device` and `e2e` are host-level
+commands:
+
+- `devctl device up` — boots emulators on the host via HVF (macOS) or KVM (Linux)
+- `devctl e2e` — runs Maestro flows against host emulators
+
+### How the emulator reaches the API
+
+The dev stack publishes ports on the Docker host (localhost:3001, :3000, etc.).
+From inside an Android emulator, `10.0.2.2` resolves to the host machine's
+loopback. Set `API_BASE_URL=http://10.0.2.2:3001` in E2E builds.
+
+### Host-specific image selection
+
+`device-up.sh` auto-detects the host OS and architecture:
+
+| Host | Virt | System image |
+|------|------|-------------|
+| macOS/arm64 (Apple Silicon) | HVF | `system-images;android-34;google_apis;arm64-v8a` |
+| macOS/x86_64 | HVF | `system-images;android-34;google_apis;x86_64` |
+| Linux/x86_64 (CI) | KVM | `system-images;android-34;google_apis;x86_64` |
+| Linux/aarch64 | KVM | `system-images;android-34;google_apis;arm64-v8a` |
+| Other | — | Unsupported, exits 1 with reason |
+
+### Two-emulator rig
+
+Two instances share a single AVD. The second emulator uses `-read-only` to
+share the AVD disk image. RAM cost per instance is ~6 GB on macOS/arm64 with
+`-memory 2048`. Both must fit comfortably in host RAM.
+
+### Pinned tool versions
+
+| Tool | Version | Install |
+|------|---------|---------|
+| Java | openjdk@17 | `brew install openjdk@17` |
+| Android cmdline-tools | 11076708 (12.0) | `tools/setup-android-toolchain.sh` |
+| Platform tools | 35.0.2 | `sdkmanager 'platform-tools'` |
+| Emulator | 36.6.11 | `sdkmanager 'emulator'` |
+| System image | API 34 arm64-v8a | `sdkmanager 'system-images;android-34;google_apis;arm64-v8a'` |
+| Maestro | 2.7.0 | `curl -Ls 'https://get.maestro.mobile.dev' \| bash` |
+
 ## Related Documents
 
 - `docs/audits/artifact-inventory.md` — required artifacts
 - `docs/DRIFT-LOG.md` — deviations and findings
 - `specs/05-AGENT-OPERATIONS.md` — agent authority and rules
+- `tools/setup-android-toolchain.sh` — one-shot toolchain install for macOS/arm64

@@ -67,6 +67,34 @@ canary, runs whenever `apps/api` or `contracts/` changed). Branch protection: `v
   Authentik-browser login has ONE dedicated flow (`p1-01-oidc-login`) run against a
   containerized Authentik (`goauthentik/server` with a fixture blueprint) nightly, not per-PR.
 
+## 6-bis. Annotation rules for `@satisfies` and `@infra`
+
+The `@satisfies FR-XXX-NNN` / `@satisfies NFR-NN` annotation links a test to a
+requirement from `01-REQUIREMENTS.md`. The trace tool (`tools/trace.mjs`) scans for these
+annotations to build the requirement↔test matrix.
+
+**Critical rule:** `@satisfies` may **only** appear on a test that exercises
+OpenChat/OpenShare product code. Tests that validate tooling, fixtures, the
+harness itself, or any non-product infrastructure are annotated `@infra` and
+are **ignored** by trace. Claiming a requirement is satisfied by an
+infrastructure-only test makes the trace gate theater — it reports
+requirements as met when they are not.
+
+**Enforcement (mechanical):** `trace.mjs` will error if an `@satisfies`
+annotation is found in a file under a known infra path:
+- `apps/mobile/e2e/flows/` — any flow targeting a non-OpenChat package (e.g.,
+  `com.android.settings` for rig validation)
+- `tools/` — tooling, not product code
+
+A CI-only `@satisfies` is also a violation: the test must run in the
+developer loop via `devctl`, not only in GitHub Actions.
+
+**`@infra` annotation:** placed on tests that validate the pipeline itself
+(rig smoke, seed validation, ci-only checks). Infra tests are not counted
+toward requirement satisfaction and are excluded from the trace matrix.
+An `@infra` annotation inside a product-code path is a lint error (an infra
+test declaring itself in the middle of product code).
+
 ## 7. Test taxonomy & thresholds
 - Unit: pure logic (permission calc, markdown AST, pagination merge, backoff, stores). Target:
   new/changed files ≥80% line coverage (`devctl verify` enforces via jest `--changedSince`

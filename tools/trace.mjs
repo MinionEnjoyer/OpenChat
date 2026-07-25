@@ -18,11 +18,46 @@
  */
 
 import { readFileSync, readdirSync, statSync, writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join, extname, dirname, relative, resolve } from 'path';
+import { join, extname, dirname, relative, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
+
+// ── Infra-path exclusion rules ─────────────────────────────────────────
+// Files under these paths do NOT exercise OpenChat/OpenShare product code.
+// An @satisfies annotation in any of these paths is an error (trace gate
+// would claim a requirement is met by a test that never touches the product).
+const INFRA_PATHS = [
+  'tools/',        // tooling, seed scripts, devctl, trace itself
+  'scripts/',      // deployment helper scripts
+  'specs/',        // spec documents (may narrate about @satisfies but never define it)
+  '.husky/',       // git hooks
+  '.github/',      // CI workflows
+  'docs/',         // documentation
+];
+
+// E2E flows that target non-OpenChat packages (e.g., com.android.settings)
+// are infrastructure, not product tests. We detect them by looking for
+// appId values that aren't OpenChat package IDs.
+const NON_PRODUCT_APP_IDS = [
+  'com.android.settings',  // stock Android Settings, used for rig smoke
+];
+
+function isInfraPath(relPath) {
+  for (const prefix of INFRA_PATHS) {
+    if (relPath.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+function isNonProductFlow(relPath, content) {
+  if (!relPath.startsWith('apps/mobile/e2e/flows/')) return false;
+  for (const appId of NON_PRODUCT_APP_IDS) {
+    if (content.includes(`appId: ${appId}`)) return true;
+  }
+  return false;
+}
 
 // ── Canonical FR/NFR extraction ──────────────────────────────────────
 // FR table: | ID | Requirement | Acceptance criterion | Pri | Ph |
@@ -96,13 +131,47 @@ function scanAnnotations() {
   const files = findFiles(ROOT, ['.ts', '.tsx', '.mjs', '.js', '.md', '.yaml', '.yml']);
   const satisfies = new Map(); // FR-ID -> [{file, line}]
   const characterizes = new Map(); // label -> [{file, line}]
+  const infraErrors = []; // @satisfies in non-product paths
 
   for (const file of files) {
     const rel = relative(ROOT, file);
     const text = readFileSync(file, 'utf8');
     const lines = text.split('\n');
 
+    // Check for @satisfies in infra paths before collecting
+    const fileSatisfiesHits = [];
     let lineNum = 0;
+    for (const line of lines) {
+      lineNum++;
+      let m;
+      SATISFIES_RE.lastIndex = 0;
+      while ((m = SATISFIES_RE.exec(line)) !== null) {
+        fileSatisfiesHits.push({ id: m[1], line: lineNum });
+      }
+    }
+
+    // Enforce: @satisfies in infra path = error
+    if (fileSatisfiesHits.length > 0) {
+      if (isInfraPath(rel)) {
+        for (const hit of fileSatisfiesHits) {
+          infraErrors.push(
+            `@satisfies ${hit.id} in infra path "${rel}" (line ${hit.line}) — this file does not exercise product code. Use @infra for infrastructure tests.`
+          );
+        }
+        continue; // don't collect infra-path annotations
+      }
+      if (isNonProductFlow(rel, text)) {
+        for (const hit of fileSatisfiesHits) {
+          infraErrors.push(
+            `@satisfies ${hit.id} in non-product e2e flow "${rel}" (line ${hit.line}) — targets a package that is not OpenChat. Use @infra for rig-validation flows.`
+          );
+        }
+        continue; // don't collect non-product flow annotations
+      }
+    }
+
+    // Reset for collection pass
+    lineNum = 0;
     for (const line of lines) {
       lineNum++;
       let m;
@@ -121,19 +190,19 @@ function scanAnnotations() {
     }
   }
 
-  return { satisfies, characterizes };
+  return { satisfies, characterizes, infraErrors };
 }
 
 // ── Gate logic ───────────────────────────────────────────────────────
 
 function gate(phaseFilter) {
   const { frIds, nfrIds, frPhases, nfrPhases } = parseRequirements();
-  const { satisfies, characterizes } = scanAnnotations();
+  const { satisfies, characterizes, infraErrors } = scanAnnotations();
 
   const allReqIds = new Set([...frIds, ...nfrIds]);
 
-  // Check for unknown FR ids referenced in annotations
-  const errors = [];
+  // Check for unknown FR ids referenced in annotations, plus infra-path violations
+  const errors = [...infraErrors];
   for (const [id] of satisfies) {
     if (!allReqIds.has(id)) {
       errors.push(`Unknown FR id "${id}" referenced in @satisfies at ${satisfies.get(id).map(r => `${r.file}:${r.line}`).join(', ')}`);

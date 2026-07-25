@@ -204,6 +204,9 @@ cmd_doctor() {
   local contam_hits
   contam_hits=$(cmd_contamination_sweep) || missing+=("contamination: XML/tool artifacts found in source files (run 'grep -rnE write_to_file\|invoke\|parameter' to locate)")
 
+  # ── Host capability check: verify this machine can run the current phase's requirements ──
+  cmd_host_capability "$phase_val" || true  # records host.json; does not block doctor on its own
+
   for p in "${paths[@]}"; do
     if [ ! -f "$ROOT/$p" ]; then
       missing+=("$p")
@@ -423,6 +426,130 @@ _resolve_evidence() {
     return 1
   fi
   echo ""
+  return 0
+}
+
+cmd_host_capability() {
+  # ── Host-capability check ──────────────────────────────────────────
+  # Emits artifacts/doctor/host.json with OS, arch, virtualization path,
+  # Docker, Android SDK, Maestro, Xcode, RAM, free disk.
+  # Fails with named reasons if the environment cannot support what the
+  # CURRENT phase requires.
+  local phase="${1:-0}"
+  local issues=()
+  local out_dir="$ROOT/artifacts/doctor"
+  mkdir -p "$out_dir"
+
+  local os_name arch virt_path
+  os_name=$(uname -s)
+  arch=$(uname -m)
+  virt_path=""
+  case "$os_name-$arch" in
+    Darwin-arm64) virt_path="hvf";;
+    Darwin-x86_64) virt_path="hvf";;
+    Linux-x86_64) virt_path="kvm";;
+    Linux-aarch64) virt_path="kvm";;
+    *) virt_path="unsupported";;
+  esac
+
+  # ── Docker ──
+  local docker_ok="false" docker_version=""
+  if command -v docker &>/dev/null && docker info &>/dev/null 2>&1; then
+    docker_ok="true"
+    docker_version=$(docker info --format '{{.ServerVersion}}' 2>/dev/null || echo "unknown")
+  fi
+
+  # ── Android SDK / Emulator ──
+  local android_sdk_ok="false" android_image_arch=""
+  if [ -n "${ANDROID_HOME:-}" ] && command -v emulator &>/dev/null && command -v adb &>/dev/null; then
+    android_sdk_ok="true"
+    # Detect installed image arch
+    if [ -d "$ANDROID_HOME/system-images/android-34/google_apis/arm64-v8a" ]; then
+      android_image_arch="arm64-v8a"
+    elif [ -d "$ANDROID_HOME/system-images/android-34/google_apis/x86_64" ]; then
+      android_image_arch="x86_64"
+    fi
+  fi
+
+  # ── Maestro ──
+  local maestro_ok="false" maestro_version=""
+  if command -v maestro &>/dev/null; then
+    maestro_ok="true"
+    maestro_version=$(maestro --version 2>&1 | head -1)
+  fi
+
+  # ── Xcode / iOS Simulator ──
+  local xcode_ok="false" xcode_version="" ios_sim="unavailable"
+  if command -v xcodebuild &>/dev/null; then
+    xcode_ok="true"
+    xcode_version=$(xcodebuild -version 2>&1 | head -1)
+    if xcrun simctl list runtimes 2>/dev/null | grep -q 'iOS'; then
+      ios_sim="available"
+    fi
+  fi
+
+  # ── RAM / Disk ──
+  local ram_gb="0" free_disk_gb="0"
+  if [[ "$os_name" == "Darwin" ]]; then
+    ram_gb=$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1/1024/1024/1024}')
+    free_disk_gb=$(df -g . 2>/dev/null | awk 'NR==2{print $4}')
+  else
+    ram_gb=$(free -g 2>/dev/null | awk 'NR==2{print $2}')
+    free_disk_gb=$(df -BG . 2>/dev/null | awk 'NR==2{print $4}' | tr -d 'G')
+  fi
+
+  # ── Phase-aware checks ──
+  # Phase 0: Docker must be present
+  if [ "$docker_ok" != "true" ]; then
+    issues+=("docker unavailable: Docker daemon is not running or not installed")
+  fi
+
+  # Phase 1+: Android SDK + emulator + Maestro required
+  if [ "$phase" -ge 1 ]; then
+    if [ "$android_sdk_ok" != "true" ]; then
+      issues+=("android_sdk: Android SDK, emulator, and adb required for Phase 1+ E2E (run tools/setup-android-toolchain.sh)")
+    fi
+    if [ "$maestro_ok" != "true" ]; then
+      issues+=("maestro: Maestro CLI required for Phase 1+ E2E (curl -Ls https://get.maestro.mobile.dev | bash)")
+    fi
+  fi
+
+  # Phase 2+: Two-emulator rig requires ~14 GB free RAM (2×6 GB + Docker stack)
+  if [ "$phase" -ge 2 ] && [ "$ram_gb" != "0" ] && [ "$ram_gb" -lt 14 ]; then
+    issues+=("ram: ${ram_gb}GB available — Phase 2+ two-emulator rig requires ≥14GB free RAM")
+  fi
+
+  # iOS Simulator: optional, not required; recorded for traceability
+  if [ "$xcode_ok" != "true" ]; then
+    ios_sim="unavailable"
+  fi
+
+  # ── Build and emit host.json ──
+  local host_json
+  host_json=$(cat <<JSON
+{
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "phase": $phase,
+  "os": "$os_name",
+  "arch": "$arch",
+  "virt": "$virt_path",
+  "ram_gb": $ram_gb,
+  "free_disk_gb": $free_disk_gb,
+  "docker": {"available": $docker_ok, "version": "$docker_version"},
+  "android_sdk": {"available": $android_sdk_ok, "image_arch": "$android_image_arch"},
+  "maestro": {"available": $maestro_ok, "version": "$maestro_version"},
+  "xcode": {"available": $xcode_ok, "version": "$xcode_version", "ios_simulator": "$ios_sim"},
+  "issues": $(printf '%s\n' "${issues[@]}" | jq -R . | jq -s .)
+}
+JSON
+)
+  echo "$host_json" > "$out_dir/host.json"
+
+  if [ ${#issues[@]} -gt 0 ]; then
+    echo "  ⚠ host capability issues:"
+    for issue in "${issues[@]}"; do echo "    - $issue"; done
+    return 1
+  fi
   return 0
 }
 
