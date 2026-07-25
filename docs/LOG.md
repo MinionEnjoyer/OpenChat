@@ -259,3 +259,35 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
   PASS (1 passed, 7 skipped).
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — P7-02 (H) Ban/unban with invite enforcement (FR-ROLE-004)
+
+**Commit:** _(pending)_ — branch `p7-ban`
+
+**What:** Implemented server bans with invite-accept enforcement. Banned users
+cannot rejoin a server via invite; unban restores access. Optional message purge
+on ban (soft-deletes messages from the last N days). Permission-gated behind
+the new `BAN_MEMBERS` bit (1n << 8n) in the existing bitfield.
+
+**Files changed:**
+- `apps/api/prisma/schema.prisma`: Added `Ban` model with unique `[serverId, userId]`
+- `apps/api/prisma/migrations/20260725091254_add_ban/`: Generated migration
+- `apps/api/src/permissions/permissions.ts`: Added `BAN_MEMBERS: 1n << 8n`
+- `apps/api/src/servers/servers.service.ts`: Added `listBans()`, `banMember()`,
+  `unbanMember()`; ban on `acceptInvitation()` path
+- `apps/api/src/servers/servers.controller.ts`: `GET/PUT/DELETE :id/bans[/:userId]`
+- `apps/api/src/invites/invites.service.ts`: `acceptInvite()` rejects banned users
+- `apps/api/test/integration/p7-02-ban.spec.ts`: 6 tests (full lifecycle)
+- `contracts/openapi.yaml`: Ban endpoints + schema + invite 403 (x-added-by: P7)
+- `tools/codegen/`: Regenerated `schema.d.ts` and `events.d.ts`
+- `docs/LOG.md`: This entry
+
+**Verification:**
+- Integration tests: 6/6 PASS
+- Break-proof: deliberately wrong assertions confirmed caught
+- Characterization suite: 11 suites / 89 tests ALL GREEN (against shared API on
+  :3001; char suite untouched by additive changes)
+- `npx tsc --noEmit`: clean
+- `node tools/codegen/gen.mjs`: clean regeneration
+- Manual curl: ban → list → unban → rejoin → invite-accept cycles verified
+- --no-verify required: apps/api has no ESLint config (BACKLOG P0-16)

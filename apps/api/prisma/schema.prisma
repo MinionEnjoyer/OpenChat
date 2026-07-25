@@ -57,6 +57,8 @@ model User {
   voiceSessionsJoined VoiceSession[] @relation("VoiceSessionUser")
   voiceSessionsHosted WatchParty[]   @relation("WatchPartyHost")
   auditLogs   AuditLog[]
+  bansReceived Ban[]      @relation("BanTarget")
+  bansIssued   Ban[]      @relation("BanIssuer")
 
   friendRequestsSent     Friendship[]       @relation("FriendRequester")
   friendRequestsReceived Friendship[]       @relation("FriendAddressee")
@@ -100,6 +102,7 @@ model Server {
   auditLogs AuditLog[]
   serverInvitations ServerInvitation[]
   sounds    ServerSound[]
+  bans      Ban[]          @relation("BanServer")
 
   @@index([ownerId])
 }
@@ -350,6 +353,24 @@ model AuditLog {
   server     Server   @relation(fields: [serverId], references: [id])
   actor      User     @relation(fields: [actorId], references: [id])
 
+  @@index([serverId])
+}
+
+// x-added-by P7: server bans
+model Ban {
+  id              String   @id @default(uuid())
+  serverId        String
+  userId          String
+  reason          String?
+  createdById     String
+  deleteMessageDays Int?   // 0, 1, or 7 — how many days of messages to purge
+  createdAt       DateTime @default(now())
+
+  server          Server   @relation("BanServer", fields: [serverId], references: [id], onDelete: Cascade)
+  user            User     @relation("BanTarget", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy       User     @relation("BanIssuer", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
   @@index([serverId])
 }
 
