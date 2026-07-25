@@ -24,6 +24,7 @@ export interface SerializedRole {
   color: number;
   permissions: string;
   position: number;
+  mentionable: boolean;
 }
 
 export interface SerializedChannel {
@@ -65,6 +66,7 @@ export class ServersService {
       color: r.color,
       permissions: r.permissions.toString(),
       position: r.position,
+      mentionable: r.mentionable ?? true,
     };
   }
 
@@ -405,7 +407,7 @@ export class ServersService {
   async createRole(
     serverId: string,
     userId: string,
-    data: { name: string; color?: number; permissions?: string },
+    data: { name: string; color?: number; permissions?: string; mentionable?: boolean },
   ): Promise<SerializedRole> {
     await this.assertPermission(serverId, userId, Permission.MANAGE_ROLES);
     const top = await this.prisma.role.findFirst({
@@ -419,6 +421,7 @@ export class ServersService {
         color: data.color ?? 0,
         permissions: this.sanitizePerms(data.permissions ?? '0'),
         position: (top?.position ?? 0) + 1,
+        mentionable: data.mentionable ?? true,
       },
     });
 
@@ -436,7 +439,7 @@ export class ServersService {
     serverId: string,
     roleId: string,
     userId: string,
-    data: { name?: string; color?: number; permissions?: string },
+    data: { name?: string; color?: number; permissions?: string; mentionable?: boolean },
   ): Promise<SerializedRole> {
     await this.assertPermission(serverId, userId, Permission.MANAGE_ROLES);
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
@@ -447,6 +450,7 @@ export class ServersService {
         ...(data.name !== undefined ? { name: data.name.trim() || role.name } : {}),
         ...(data.color !== undefined ? { color: data.color } : {}),
         ...(data.permissions !== undefined ? { permissions: this.sanitizePerms(data.permissions) } : {}),
+        ...(data.mentionable !== undefined ? { mentionable: data.mentionable } : {}),
       },
     });
 

@@ -345,20 +345,38 @@ export class MessagesService {
     return this.publishMessageUpdate(poll.message.id);
   }
 
-  /** Parse @user / @everyone / @here from content and ping the mentioned members. */
+  /** Parse @user / @everyone / @here / @role from content and ping the mentioned members. @satisfies FR-ROLE-007 */
   private async dispatchMentions(channelId: string, content: string, authorId: string, messageId: string) {
+
     const hasEveryone = /(^|\s)@everyone\b/.test(content);
     const hasHere = /(^|\s)@here\b/.test(content);
     const userMentions = [...content.matchAll(/(?:^|\s)@([\w.-]+)/g)]
       .map((m) => m[1].toLowerCase())
       .filter((u) => u !== 'everyone' && u !== 'here');
-    if (!hasEveryone && !hasHere && userMentions.length === 0) return;
 
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId },
       select: { serverId: true, name: true },
     });
     if (!channel) return;
+
+    // Detect role mentions in server channels (FR-ROLE-007)
+    let mentionedRoles: Array<{ id: string; name: string }> = [];
+    if (channel.serverId) {
+      const mentionableRoles = await this.prisma.role.findMany({
+        where: { serverId: channel.serverId, mentionable: true },
+        select: { id: true, name: true },
+      });
+      for (const role of mentionableRoles) {
+        const escaped = role.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(?:^|\\s)@${escaped}\\b`, 'i');
+        if (re.test(content)) {
+          mentionedRoles.push(role);
+        }
+      }
+    }
+
+    if (!hasEveryone && !hasHere && userMentions.length === 0 && mentionedRoles.length === 0) return;
 
     const targets = new Set<string>();
     let authorName = 'Someone';
@@ -386,6 +404,14 @@ export class MessagesService {
       for (const u of userMentions) {
         const m = members.find((mm) => mm.user.username.toLowerCase() === u);
         if (m) targets.add(m.userId);
+      }
+      // FR-ROLE-007: fan-out to all members with a mentioned role
+      for (const role of mentionedRoles) {
+        for (const m of members) {
+          if (m.roles.some((r) => r.id === role.id)) {
+            targets.add(m.userId);
+          }
+        }
       }
     } else {
       const recips = await this.prisma.channelRecipient.findMany({ where: { channelId }, include: { user: true } });

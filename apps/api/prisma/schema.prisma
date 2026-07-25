@@ -142,6 +142,7 @@ model Role {
   color       Int      @default(0)
   permissions BigInt   @default(0)
   position    Int
+  mentionable Boolean  @default(true)
 
   server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
   members     ServerMember[]
