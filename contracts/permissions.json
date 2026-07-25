@@ -12,7 +12,10 @@
     { "name": "MANAGE_MEMBERS",   "bit": "16",  "label": "Kick Members" },
     { "name": "CREATE_INVITE",    "bit": "32",  "label": "Create Invites" },
     { "name": "MANAGE_MESSAGES",  "bit": "64",  "label": "Manage Messages" },
-    { "name": "MENTION_EVERYONE", "bit": "128", "label": "Mention @everyone / @here" }
+    { "name": "MENTION_EVERYONE", "bit": "128", "label": "Mention @everyone / @here" },
+    { "name": "BAN_MEMBERS",      "bit": "256", "label": "Ban Members",                    "x-added-by": "P7" },
+    { "name": "SEND_MESSAGES",    "bit": "512", "label": "Send Messages",                  "x-added-by": "P7" },
+    { "name": "READ_MESSAGES",    "bit": "1024","label": "Read Messages",                  "x-added-by": "P7" }
   ],
   "defaults": {
     "member": ["CREATE_INVITE"],

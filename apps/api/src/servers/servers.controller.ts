@@ -6,6 +6,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PERMISSION_LIST } from '../permissions/permissions';
 import type { User } from '@prisma/client';
+import { OverwriteTargetType } from '@prisma/client';
 
 const CreateServerDto = z.object({ name: z.string().min(1).max(100) });
 const UpdateServerDto = z.object({
@@ -282,5 +283,49 @@ export class ServersController {
     @CurrentUser() user: User,
   ) {
     return this.servers.setMemberRole(serverId, targetUserId, roleId, user.id, false);
+  }
+
+  // ---- Channel permission overwrites (FR-ROLE-003) x-added-by P7 ----
+
+  @Get(':id/channels/:channelId/overwrites')
+  listOverwrites(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.listOverwrites(serverId, channelId, user.id);
+  }
+
+  @Put(':id/channels/:channelId/overwrites/:targetType/:targetId')
+  upsertOverwrite(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @Param('targetType') targetType: string,
+    @Param('targetId') targetId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      allow: z.string().regex(/^\d+$/).optional(),
+      deny: z.string().regex(/^\d+$/).optional(),
+    }))) body: { allow?: string; deny?: string },
+  ) {
+    if (targetType !== 'ROLE' && targetType !== 'MEMBER') {
+      throw new Error('targetType must be ROLE or MEMBER');
+    }
+    return this.servers.upsertOverwrite(serverId, channelId, user.id, {
+      targetType: targetType as OverwriteTargetType,
+      targetId,
+      allow: body.allow,
+      deny: body.deny,
+    });
+  }
+
+  @Delete(':id/channels/:channelId/overwrites/:overwriteId')
+  deleteOverwrite(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @Param('overwriteId') overwriteId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.deleteOverwrite(serverId, channelId, overwriteId, user.id);
   }
 }

@@ -1,11 +1,12 @@
 import {
-  Injectable, NotFoundException, ForbiddenException, BadRequestException,
+  Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { Server, ChannelType, Role } from '@prisma/client';
+import { OverwritesService } from '../overwrites/overwrites.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
-import { Permission, ALL_PERMISSIONS, hasPermission } from '../permissions/permissions';
+import { Permission, ALL_PERMISSIONS, hasPermission, resolveEffectivePermissions, DEFAULT_MEMBER_PERMISSIONS } from '../permissions/permissions';
 
 export interface SerializedServer extends Omit<Server, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'> {
   id: string;
@@ -41,6 +42,7 @@ export class ServersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    @Inject(forwardRef(() => OverwritesService)) private readonly overwrites: OverwritesService,
     private readonly auditLog: AuditLogService,
   ) {}
 
@@ -114,6 +116,17 @@ export class ServersService {
         data: {
           name: data.name,
           ownerId: userId,
+        },
+      });
+
+      // Default "@everyone" role — base permissions for all members (FR-ROLE-003).
+      await tx.role.create({
+        data: {
+          serverId: server.id,
+          name: '@everyone',
+          color: 0x99aab5,
+          permissions: DEFAULT_MEMBER_PERMISSIONS,
+          position: 0,
         },
       });
 
@@ -790,5 +803,79 @@ return { success: true };
       });
 
     return { success: true };
+  }
+
+  // ---- Channel permission overwrites (FR-ROLE-003) x-added-by P7 ----
+
+  async listOverwrites(serverId: string, channelId: string, userId: string) {
+    return this.overwrites.list(serverId, channelId, userId);
+  }
+
+  async upsertOverwrite(
+    serverId: string,
+    channelId: string,
+    userId: string,
+    data: { targetType: 'ROLE' | 'MEMBER'; targetId: string; allow?: string; deny?: string },
+  ) {
+    return this.overwrites.upsert(serverId, channelId, userId, data);
+  }
+
+  async deleteOverwrite(serverId: string, channelId: string, overwriteId: string, userId: string) {
+    return this.overwrites.delete(serverId, channelId, overwriteId, userId);
+  }
+
+  /**
+   * Compute effective permissions for a user on a specific channel,
+   * incorporating channel permission overwrites.
+   * Returns the effective BigInt permission bitfield.
+   */
+  async getChannelPermissions(serverId: string, channelId: string, userId: string): Promise<bigint> {
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+    if (!server) throw new NotFoundException('Server not found');
+
+    const isOwner = server.ownerId === userId;
+
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      include: { roles: true },
+    });
+    if (!member) throw new ForbiddenException('Not a member of this server');
+
+    // Find @everyone role for base permissions
+    const everyoneRole = await this.prisma.role.findFirst({
+      where: { serverId, name: '@everyone' },
+    });
+    const everyonePermissions = everyoneRole?.permissions ?? 0n;
+
+    // Union of all non-@everyone role permissions
+    const rolePermissions = member.roles
+      .filter((r) => r.name !== '@everyone')
+      .reduce((acc, r) => acc | r.permissions, 0n);
+
+    const memberRoleIds = new Set(member.roles.map((r) => r.id));
+
+    // Load channel overwrites
+    const overwriteRecords = await this.prisma.channelOverwrite.findMany({
+      where: { channelId },
+    });
+
+    const overwrites = overwriteRecords.map((ow) => ({
+      targetType: ow.targetType as 'ROLE' | 'MEMBER',
+      targetId: ow.targetId,
+      allow: ow.allow,
+      deny: ow.deny,
+    }));
+
+    return resolveEffectivePermissions({
+      everyonePermissions,
+      rolePermissions,
+      memberRoleIds,
+      userId,
+      overwrites,
+      isOwner,
+    });
   }
 }

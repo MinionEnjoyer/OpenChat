@@ -184,9 +184,30 @@ model Channel {
   invites     Invite[]
   voiceSessions VoiceSession[]
   watchParties WatchParty[]
+  overwrites  ChannelOverwrite[]
 
   @@index([serverId])
   @@index([categoryId])
+}
+
+// x-added-by P7: channel-level permission overwrites (FR-ROLE-003)
+enum OverwriteTargetType {
+  ROLE
+  MEMBER
+}
+
+model ChannelOverwrite {
+  id          String             @id @default(uuid())
+  channelId   String
+  targetType  OverwriteTargetType
+  targetId    String
+  allow       BigInt             @default(0)
+  deny        BigInt             @default(0)
+
+  channel     Channel            @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, targetType, targetId])
+  @@index([channelId])
 }
 
 model Message {

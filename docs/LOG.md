@@ -918,3 +918,35 @@ channel → kill → relaunch without clearState → assert same channel shown
 - Prove-fail links: changed expected URL → FAILED → restored → PASSED
 - Flow file sanity-checked against p1-01: uses extendedWaitUntil post-kill, opens
   drawer via hamburger-button, references channel testIDs with '#'
+
+## 2026-07-25 — P7-03 Channel permission overwrites (William B. Sexton)
+
+### FR-ROLE-003 Channel overwrites: COMPLETE
+
+- Added migration `20260725153850_add_channel_overwrites`:
+  - `ChannelOverwrite` table with targetType (ROLE/MEMBER), targetId, allow, deny
+  - Unique constraint on (channelId, targetType, targetId)
+- Added `Permission.SEND_MESSAGES` (bit 9) and `Permission.READ_MESSAGES` (bit 10)
+- Added pure function `resolveEffectivePermissions()` in `src/permissions/permissions.ts`
+  - Discord precedence: Tier 0 (@everyone + roles) → Tier 1 (role overwrites) → Tier 2 (member overwrites)
+  - Owner and ADMINISTRATOR bypass return ALL_PERMISSIONS
+  - Within each tier: deny beats allow
+- `OverwritesService`: CRUD operations for channel overwrites (list, upsert, delete)
+  - Gated behind MANAGE_ROLES or MANAGE_CHANNELS permission
+  - Endpoints: GET/PUT/DELETE `/servers/:id/channels/:channelId/overwrites`
+- `getChannelPermissions()` on ServersService resolves effective permissions per-channel
+- `messages.service.ts` create() now gates on SEND_MESSAGES via getChannelPermissions
+- Server creation now includes @everyone role with default SEND+READ+INVITE permissions
+- Updated seed to include SEND_MESSAGES + READ_MESSAGES in Mod, Member, and @everyone roles
+- Golden table: 26 tests covering owner, ADMINISTRATOR, @everyone, role/member allow/deny, multi-role union
+- Integration tests: 6 tests for overwrite enforcement (CRUD + 403 on deny + restore)
+- Characterization: 11 suites / 89 tests PASS (unchanged)
+- Contract: permissions.json updated with new bits (x-added-by: P7); codegen no drift
+- Prove-fail: broke C05 golden test (expected 0n → got 512n) → restored → all 26 pass
+
+### Known: non-overwrite integration test failures
+
+- `p7-05-message-search.spec.ts` and `p2-16-around.spec.ts` fail with 404/403
+  - Root cause: these tests hardcode channel IDs or read fixture-ids.json, which
+    contain the shared stack's IDs — not this branch's isolated DB IDs
+  - Not overwrite-related; seeding/environment mismatch only
