@@ -209,7 +209,28 @@ suite covers every route with a contract schema. Routes without schemas are trac
 
 ---
 
-*Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild, P0-10)*
+*Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild, P0-10); updated 2026-07-25 (P3 Task 0)*
+
+---
+
+## UNBUILT-001: FR-AUTH-001 client half unbuilt (OIDC PKCE)
+
+- **Evidence:** `bearer-auth.spec.ts:27` (before P3 fix) carried
+  `@satisfies FR-AUTH-001` on a test that only proves bearer tokens work via
+  **dev-login**. FR-AUTH-001 requires native OIDC login via the system browser
+  with PKCE — `expo-auth-session` is not installed, the client PKCE flow is
+  not implemented, and no E2E test exercises system-browser OIDC login.
+  The annotation was corrected to `@satisfies FR-AUTH-005` (ws-ticket via
+  bearer) which the test genuinely proves.
+- **User-visible impact:** There is no OIDC login path. Users cannot log in
+  via Authentik or any IdP. The backend exchange endpoint (`POST /api/auth/token`
+  with grant `authorization_code`) exists and is tested, but the client half
+  is missing.
+- **Priority:** HIGH — this is a Phase 1 requirement that blocks real auth.
+- **Phase:** Phase 1 (Auth) — needs `expo-auth-session` PKCE against
+  `GET /api/auth/oidc-metadata`.
+
+---
 
 ## Tooling debt (P0-16)
 

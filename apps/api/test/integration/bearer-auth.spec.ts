@@ -24,7 +24,7 @@ function bearer(token: string) {
 }
 
 describe('P1-01 — token issuance and rotation', () => {
-  // @satisfies FR-AUTH-001
+  // @satisfies FR-AUTH-005
   it('issues bearer tokens usable on guarded routes without any cookie', async () => {
     const { accessToken } = await devLoginBearer('p1-auth-001');
     const me = await apiFetch('/auth/me', { headers: bearer(accessToken) });
