@@ -62,6 +62,7 @@ export const strings = {
     pinsEmpty: 'No pinned messages',
     pinIcon: '📌',
     closeIcon: '✕',
+    announcementReadOnly: 'You do not have permission to send in this announcement channel',
     reply: 'Reply',
     replyingTo: 'Replying to',
     replyCancel: 'Cancel reply',
@@ -199,6 +200,7 @@ export const strings = {
     deleteAction: '\u2715',
     moveUpAction: '\u25B2',
     moveDownAction: '\u25BC',
+    typeAnnouncement: '📢 ANNOUNCEMENT',
   },
   roles: {
     title: 'Roles',

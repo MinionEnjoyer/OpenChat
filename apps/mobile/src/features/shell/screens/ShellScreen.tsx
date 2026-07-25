@@ -173,12 +173,13 @@ export function ShellScreen(): React.JSX.Element {
     if (!pref) return;
     if (pref.serverId !== serverId) return; // wrong server — channels will reload
     const ch = (channels.data as Channel[]).find(
-      (c) => c.id === pref.channelId && c.type === 'TEXT',
+      (c) => c.id === pref.channelId && (c.type === 'TEXT' || c.type === 'ANNOUNCEMENT'),
     );
     if (ch) setSelectedChannelId(ch.id);
   }, [channels.data, selectedChannelId, serverId]);
 
-  const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT');
+  // FR-SRV-010: include ANNOUNCEMENT channels alongside TEXT for chat pane
+  const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT' || c.type === 'ANNOUNCEMENT');
   const activeChannel = textChannels.find((c) => c.id === selectedChannelId) ?? null;
 
   // ── Channel CRUD handlers (FR-SRV-005) ──
@@ -431,7 +432,7 @@ export function ShellScreen(): React.JSX.Element {
         </View>
 
         {activeChannel ? (
-          <ChatPane channelId={activeChannel.id} serverId={serverId} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
+          <ChatPane channelId={activeChannel.id} serverId={serverId} channelType={activeChannel.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
         ) : (
           <View style={styles.chatBody}>
             <Text style={styles.muted} testID="chat-placeholder">

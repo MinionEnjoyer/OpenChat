@@ -201,6 +201,11 @@ export interface VoiceLeaveResponse {
   success: true;
 }
 
+/** Channel permissions for current user (GET /servers/:id/channels/:channelId/permissions/me). @satisfies FR-SRV-010 */
+export interface ChannelPermissionsResponse {
+  permissions: string; // BigInt serialized as decimal string
+}
+
 // ── OpenShare API ──
 
 export interface SavedAsset {
