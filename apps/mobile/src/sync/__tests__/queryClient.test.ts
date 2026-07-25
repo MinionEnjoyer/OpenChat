@@ -7,15 +7,6 @@
  * @satisfies FR-NOTIF-004
  */
 
-// ── Mock showToast before any imports ──
-const toastCalls: { message: string; retry?: () => void }[] = [];
-
-jest.mock('../../ui/Toast', () => ({
-  showToast: (message: string, retry?: () => void) => {
-    toastCalls.push({ message, retry });
-  },
-}));
-
 import { applyEvent } from '../queryClient';
 import {
   _setAppStateForTest,
@@ -26,6 +17,15 @@ import type {
   NotifyFrame,
   CallRingFrame,
 } from '../../realtime/events.d';
+
+// ── Mock showToast after all imports (Jest hoists jest.mock above imports) ──
+const toastCalls: { message: string; retry?: () => void }[] = [];
+
+jest.mock('../../ui/Toast', () => ({
+  showToast: (message: string, retry?: () => void) => {
+    toastCalls.push({ message, retry });
+  },
+}));
 
 beforeEach(() => {
   toastCalls.length = 0;

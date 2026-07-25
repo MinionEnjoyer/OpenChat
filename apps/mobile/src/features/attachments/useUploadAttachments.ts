@@ -8,7 +8,7 @@
  */
 import { useCallback, useState } from 'react';
 import { useSession } from '../../stores/session';
-import { DEFAULT_DEV_CONFIG, resolveConfig } from '../../lib/config';
+import { resolveConfig } from '../../lib/config';
 import { compressImage } from './imageCompression';
 import { expoImageProcessor } from './expoImageProcessor';
 import { useCompression } from './useCompression';

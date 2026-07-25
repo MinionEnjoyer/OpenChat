@@ -29,7 +29,7 @@ import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
 import { InboxScreen } from '../../inbox';
-import type { NotificationsResponse } from '../../../api/schema';
+import type { NotificationsResponse, Server, Channel, Member, Role, User, DmChannelDto } from '../../../api/schema';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
 import { DmsList } from '../../dms';
@@ -41,7 +41,6 @@ import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../chan
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
-import type { Server, Channel, Member, Role, User, DmChannelDto } from '../../../api/schema';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 import { StatusPicker, type SettableStatus } from '../../presence';
 import { AvatarPicker, useAvatarUpload } from '../../avatars';

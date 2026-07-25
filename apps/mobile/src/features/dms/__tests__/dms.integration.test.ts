@@ -3,88 +3,136 @@
  * Integration test: DMs — POST /dms idempotency and shape (FR-SOC-002).
  *
  * Tests against the real running API (localhost:3030).
+ * Uses node:http because jest-expo mocks fetch (the mock does not actually
+ * issue network requests).
+ *
  * - Creates two test users, establishes friendship
  * - POST /dms creates or returns existing DM channel (idempotent)
  * - Verifies response shape matches DmChannelDto contract
  * - Verifies GET /dms lists the DM channel, sorted by activity
  */
 import { describe, it, expect, beforeAll } from '@jest/globals';
+import http from 'node:http';
 import type { DmChannelDto } from '../../../api/schema';
 
-const API = 'http://localhost:3030/api';
+const HOST = 'localhost';
+const PORT = 3030;
+const BASE = '/api';
 
-function withCookie(
-  setCookie: string | null | undefined,
-  extra: Record<string, string> = {},
-): Record<string, string> {
-  const headers: Record<string, string> = { ...extra };
-  const cookie = setCookie?.split(';')[0];
-  if (cookie) headers.cookie = cookie;
-  return headers;
+// ── HTTP helper ──
+
+interface RequestOpts {
+  cookie?: string;
+  body?: Record<string, unknown>;
 }
 
+interface RequestResult {
+  status: number;
+  body: unknown;
+  headers: http.IncomingHttpHeaders;
+}
+
+function apiReq(method: string, path: string, opts: RequestOpts = {}): Promise<RequestResult> {
+  return new Promise((resolve, reject) => {
+    const url = `http://${HOST}:${PORT}${BASE}${path}`;
+    const parsed = new URL(url);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (opts.cookie) {
+      headers['Cookie'] = opts.cookie;
+    }
+    const bodyStr = opts.body ? JSON.stringify(opts.body) : undefined;
+    if (bodyStr) {
+      headers['Content-Length'] = String(Buffer.byteLength(bodyStr));
+    }
+
+    const req = http.request(
+      {
+        hostname: parsed.hostname,
+        port: Number(parsed.port) || PORT,
+        path: parsed.pathname + parsed.search,
+        method,
+        headers,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          let parsed: unknown;
+          try {
+            parsed = raw.length > 0 ? JSON.parse(raw) : undefined;
+          } catch {
+            parsed = raw;
+          }
+          resolve({ status: res.statusCode ?? 0, body: parsed, headers: res.headers });
+        });
+      },
+    );
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+
+function extractCookie(setCookie: string | string[] | undefined): string {
+  const raw = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+  if (!raw) return '';
+  return raw.split(';')[0] ?? '';
+}
+
+// ── Tests ──
+
 describe('FR-SOC-002 integration — POST /dms', () => {
-  let aliceHeaders: Record<string, string>;
-  let bobHeaders: Record<string, string>;
+  let aliceCookie: string;
+  let bobCookie: string;
   let aliceId: string;
   let bobId: string;
 
   beforeAll(async () => {
     // Login as alice
-    const aliceLogin = await fetch(`${API}/auth/dev-login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'alice' }),
+    const aliceLogin = await apiReq('POST', '/auth/dev-login', {
+      body: { username: 'alice' },
     });
-    aliceHeaders = withCookie(aliceLogin.headers.get('set-cookie'), {
-      'content-type': 'application/json',
+    aliceCookie = extractCookie(aliceLogin.headers['set-cookie']);
+    aliceId = (aliceLogin.body as Record<string, unknown>).id as string;
+
+    // Login as eve (fresh user, no pre-existing relationship with alice)
+    const bobLogin = await apiReq('POST', '/auth/dev-login', {
+      body: { username: 'eve' },
     });
+    bobCookie = extractCookie(bobLogin.headers['set-cookie']);
+    bobId = (bobLogin.body as Record<string, unknown>).id as string;
 
-    const aliceMe = await fetch(`${API}/auth/me`, { headers: aliceHeaders });
-    aliceId = (await aliceMe.json()).id;
-
-    // Login as bob
-    const bobLogin = await fetch(`${API}/auth/dev-login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'bob' }),
-    });
-    bobHeaders = withCookie(bobLogin.headers.get('set-cookie'), {
-      'content-type': 'application/json',
-    });
-
-    const bobMe = await fetch(`${API}/auth/me`, { headers: bobHeaders });
-    bobId = (await bobMe.json()).id;
-
-    // Ensure alice → bob friendship exists
+    // Ensure alice → eve friendship exists
     // Send friend request
-    await fetch(`${API}/friends/requests`, {
-      method: 'POST',
-      headers: aliceHeaders,
-      body: JSON.stringify({ username: 'bob' }),
+    await apiReq('POST', '/friends/requests', {
+      cookie: aliceCookie,
+      body: { username: 'eve' },
     });
 
-    // Accept as bob — get the request ID from bob's incoming
-    const bobIncoming = await fetch(`${API}/friends/requests`, { headers: bobHeaders });
-    const { incoming } = await bobIncoming.json();
+    // Accept as bob
+    const bobIncoming = await apiReq('GET', '/friends/requests', {
+      cookie: bobCookie,
+    });
+    const incoming = (bobIncoming.body as { incoming?: { id: string }[] }).incoming;
     if (incoming && incoming.length > 0) {
-      await fetch(`${API}/friends/requests/${incoming[0].id}/accept`, {
-        method: 'POST',
-        headers: bobHeaders,
+      await apiReq('POST', `/friends/requests/${incoming[0]!.id}/accept`, {
+        cookie: bobCookie,
       });
     }
   });
 
   it('POST /dms returns DmChannelDto shape for friends', async () => {
-    const res = await fetch(`${API}/dms`, {
-      method: 'POST',
-      headers: aliceHeaders,
-      body: JSON.stringify({ userId: bobId }),
+    const res = await apiReq('POST', '/dms', {
+      cookie: aliceCookie,
+      body: { userId: bobId },
     });
 
     expect(res.status).toBeLessThan(400);
 
-    const dm = await res.json();
+    const dm = res.body as DmChannelDto;
 
     // DmChannelDto shape assertions
     expect(typeof dm.id).toBe('string');
@@ -109,19 +157,17 @@ describe('FR-SOC-002 integration — POST /dms', () => {
   });
 
   it('POST /dms is idempotent — same userId returns same channel', async () => {
-    const res1 = await fetch(`${API}/dms`, {
-      method: 'POST',
-      headers: aliceHeaders,
-      body: JSON.stringify({ userId: bobId }),
+    const res1 = await apiReq('POST', '/dms', {
+      cookie: aliceCookie,
+      body: { userId: bobId },
     });
-    const dm1 = await res1.json();
+    const dm1 = res1.body as DmChannelDto;
 
-    const res2 = await fetch(`${API}/dms`, {
-      method: 'POST',
-      headers: aliceHeaders,
-      body: JSON.stringify({ userId: bobId }),
+    const res2 = await apiReq('POST', '/dms', {
+      cookie: aliceCookie,
+      body: { userId: bobId },
     });
-    const dm2 = await res2.json();
+    const dm2 = res2.body as DmChannelDto;
 
     expect(dm1.id).toBe(dm2.id);
     expect(dm1.type).toBe(dm2.type);
@@ -129,39 +175,38 @@ describe('FR-SOC-002 integration — POST /dms', () => {
   });
 
   it('GET /dms lists the DM channel sorted by activity', async () => {
-    const res = await fetch(`${API}/dms`, { headers: aliceHeaders });
+    const res = await apiReq('GET', '/dms', { cookie: aliceCookie });
     expect(res.status).toBe(200);
 
-    const dms = await res.json();
+    const dms = res.body as DmChannelDto[];
     expect(Array.isArray(dms)).toBe(true);
 
     // Find our DM channel
-    const ourDm = dms.find((d: DmChannelDto) => d.id !== undefined && d.recipients?.some((r: { id: string }) => r.id === bobId));
+    const ourDm = dms.find(
+      (d) =>
+        d.id !== undefined &&
+        d.recipients?.some((r: { id: string }) => r.id === bobId),
+    );
     expect(ourDm).toBeDefined();
 
     // Verify sort order: if multiple, lastMessageAt should be descending
-    if (dms.length >= 2 && dms[0].lastMessageAt && dms[1].lastMessageAt) {
-      const t0 = new Date(dms[0].lastMessageAt).getTime();
-      const t1 = new Date(dms[1].lastMessageAt).getTime();
+    if (dms.length >= 2 && dms[0]!.lastMessageAt && dms[1]!.lastMessageAt) {
+      const t0 = new Date(dms[0]!.lastMessageAt).getTime();
+      const t1 = new Date(dms[1]!.lastMessageAt).getTime();
       expect(t0).toBeGreaterThanOrEqual(t1);
     }
   });
 
   it('POST /dms with non-friend returns 403', async () => {
     // Use carol who has no friends
-    const carolLogin = await fetch(`${API}/auth/dev-login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'carol' }),
+    const carolLogin = await apiReq('POST', '/auth/dev-login', {
+      body: { username: 'carol' },
     });
-    const carolHeaders = withCookie(carolLogin.headers.get('set-cookie'), {
-      'content-type': 'application/json',
-    });
+    const carolCookie = extractCookie(carolLogin.headers['set-cookie']);
 
-    const res = await fetch(`${API}/dms`, {
-      method: 'POST',
-      headers: carolHeaders,
-      body: JSON.stringify({ userId: aliceId }),
+    const res = await apiReq('POST', '/dms', {
+      cookie: carolCookie,
+      body: { userId: aliceId },
     });
 
     expect(res.status).toBe(403);
