@@ -893,7 +893,16 @@ const styles = StyleSheet.create({
     color: palette.text,
     paddingVertical: spacing.xs,
   },
-  profileBox: { marginTop: 'auto' },
+  profileBox: { marginTop: 'auto', marginBottom: spacing.sm },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  statusText: {
+    ...typography.caption,
+    color: palette.textMuted,
+  },
   profileLabel: {
     ...typography.caption,
     color: palette.textMuted,
