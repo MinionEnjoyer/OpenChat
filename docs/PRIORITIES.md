@@ -21,6 +21,25 @@ Remaining as of 2026-07-25 (27 of 74 FRs):
 Recommended order: **Social → Media → Voice**. Social is the largest gap in perceived
 completeness and parallelizes across ~4 agents. Voice last because it needs two devices.
 
+## 1a. Milestone sign-offs — GATE between priority 1 and priority 2
+
+Owner's instruction: sign off the phases already worked on **after priority 1 completes**
+and **after a merge plan exists**, but **BEFORE the merge is actually conducted**.
+
+Sequence, strictly:
+
+1. Priority 1 done — all remaining FRs implemented at a basic level on Android.
+2. Produce the upstream **divergence report + merge plan** (see §2). Planning only.
+3. **T4 sign-offs for Phases 1, 2 and 3.** Only Phase 0 is signed off today
+   (`docs/signoffs/`). Each needs: full gate on the merged result, device verification,
+   the T4 judgment gates, DRIFT-LOG triage, and any open escalation surfaced to the owner
+   (E-01 is open and needs a decision).
+4. **Only then** execute the upstream merge.
+
+Rationale: signing off before the merge means the fork's own state is a known-good,
+attributable baseline. If sign-off happened after, a defect could never be cleanly
+attributed to our work versus the reconciliation.
+
 ## 2. Merge with the upstream MinionEnjoyer/OpenChat branch
 
 Honor the **upstream API contracts**. Where this fork diverged, upstream wins by default.
@@ -56,3 +75,10 @@ The architect does NOT write product code. Agents write code and unit tests; the
 writes work orders, runs gates, adjudicates, and merges. See
 `~/workspace/workflows/codewhale-fanout/` for the operating method, verification model, and
 the trap list. Keep the fleet saturated — an idle fleet is the main failure mode.
+
+## Note from Will the human
+
+I want to make something clear. Your bandwidth is highly constrained, your limits are miniscule, and the deepseek agents are effectively free. The price difference is on the order of 50x. We want to use the deepseek agents for everything they can possibly be used for, and use you for only what is absolutely necesarry. Loading a uiautomator dump into context and analyzing it is a monumental waste of tokens, looking at a screenshot makes more sense.
+
+
+I want you to really drill in how important delegation is. the cost per task on the artificial analysis index for deepseek is $0.04 while yours is north of $2. You are right alot, but Deepseek can iterate and brute force. limit your tokens and go fucking nuts with subagents. I honestly don't care if you spin up 20-30 at a time I want to maximize the ratio of subagent tokens to your tokens used per task while delivering results. 
