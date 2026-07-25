@@ -36,6 +36,8 @@ import { resolveAuthorName } from '../../domain/authors';
 import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
 import { useTyping } from '../../stores/typing';
+import { useBlockedStore, useRevealedStore } from '../blocked-messages';
+
 import { formatTyping } from '../../domain/typing';
 import { buildMessageLink } from '../../domain/links';
 import type { Message, Server } from '../../api/schema';
@@ -113,11 +115,20 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
     void useServerConfig.getState().fetch();
     void useGifFeature.getState().probe();
   }, []);
+  // FR-SOC-007: fetch blocked users once on mount
+  useEffect(() => {
+    void useBlockedStore.getState().fetch();
+  }, []);
   // Poll state
   const [showPollCreate, setShowPollCreate] = useState(false);
   // Reply state (FR-MSG-005)
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const flatListRef = useRef<FlatList<MessageOrDivider>>(null);
+
+  // FR-SOC-007: blocked-message collapse
+  const blockedIds = useBlockedStore((s) => s.blockedIds);
+  const revealedIds = useRevealedStore((s) => s.revealedIds);
+  const reveal = useRevealedStore((s) => s.reveal);
 
   const canManage = hasManageMessages(serverId);
 
@@ -496,6 +507,20 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
               </View>
             );
           }
+
+          // FR-SOC-007: collapse blocked users' messages
+          if (blockedIds.has(msg.authorId) && !revealedIds.has(msg.id)) {
+            return (
+              <Pressable
+                style={[styles.row, styles.rowDeleted]}
+                onPress={() => reveal(msg.id)}
+                testID={`blocked-msg-${msg.id}`}
+              >
+                <Text style={styles.deletedText}>{strings.blockedMessages.collapsed}</Text>
+              </Pressable>
+            );
+          }
+
           return (
             <Pressable
               style={[styles.row, msg.pending && styles.rowPending]}

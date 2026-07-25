@@ -233,6 +233,9 @@ export const strings = {
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
   },
+  blockedMessages: {
+    collapsed: 'Blocked message — tap to show',
+  },
 } as const;
 
 export type Strings = typeof strings;

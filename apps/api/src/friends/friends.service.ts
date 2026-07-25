@@ -194,6 +194,14 @@ export class FriendsService {
     });
   }
 
+  async listBlocked(userId: string): Promise<Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status'>[]> {
+    const blocked = await this.prisma.friendship.findMany({
+      where: { requesterId: userId, status: 'BLOCKED' },
+      include: { addressee: true },
+    });
+    return blocked.map((f) => this.toUserDTO(f.addressee));
+  }
+
   async block(userId: string, otherUserId: string): Promise<void> {
     await this.prisma.friendship.upsert({
       where: {
