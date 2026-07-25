@@ -540,6 +540,68 @@ export class ServersService {
     return { success: true };
   }
 
+  // ---- Timeout (FR-ROLE-005) ----
+
+  /** Set or update a timeout for a member (gated: MANAGE_MEMBERS). */
+  async setTimeout(serverId: string, targetUserId: string, until: Date, actorId: string) {
+    await this.assertPermission(serverId, actorId, Permission.MANAGE_MEMBERS);
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+    if (!server) throw new NotFoundException('Server not found');
+    if (server.ownerId === targetUserId) throw new ForbiddenException('Cannot timeout the server owner');
+
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      select: { timedOutUntil: true },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    // Cap at 28 days from now
+    const max = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000);
+    const capped = until > max ? max : until;
+    if (capped <= new Date()) throw new BadRequestException('Timeout must be in the future');
+
+    await this.prisma.serverMember.update({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      data: { timedOutUntil: capped },
+    });
+
+    return { timedOutUntil: capped.toISOString() };
+  }
+
+  /** Clear a member's timeout (gated: MANAGE_MEMBERS). */
+  async clearTimeout(serverId: string, targetUserId: string, actorId: string) {
+    await this.assertPermission(serverId, actorId, Permission.MANAGE_MEMBERS);
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      select: { timedOutUntil: true },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    await this.prisma.serverMember.update({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      data: { timedOutUntil: null },
+    });
+
+    return { success: true };
+  }
+
+  /** Check whether a user is timed out in a given server. Throws 403 if so. */
+  async assertNotTimedOut(serverId: string, userId: string): Promise<void> {
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      select: { timedOutUntil: true },
+    });
+    if (member?.timedOutUntil && member.timedOutUntil > new Date()) {
+      throw new ForbiddenException({
+        message: 'You are timed out',
+        code: 'timed_out',
+      });
+    }
+  }
+
   async leave(serverId: string, userId: string) {
     const server = await this.prisma.server.findUnique({
       where: { id: serverId },

@@ -259,3 +259,33 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
   PASS (1 passed, 7 skipped).
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — P7-05 Timeout enforcement (FR-ROLE-005)
+
+**Commit:** `[P7-05]` — 7 files, 1 migration
+
+**Prisma migration:** `20260725091229_add_timeout` — adds `timedOutUntil` to `ServerMember`.
+
+**What:** Role-gated timeout (FR-ROLE-005). Members with MANAGE_MEMBERS can set
+a timeout (capped at 28 days) on another member. Timed-out users get 403 with
+code `timed_out` on send — enforced in both REST `POST /channels/:id/messages`
+and WebSocket `message.send` via shared `MessagesService.create()`. Past-dated
+timeouts are ignored (implicit expiry, no cleanup cron). Server owner cannot be
+timed out.
+
+**Changes:**
+- `apps/api/prisma/schema.prisma`: Added `timedOutUntil DateTime?` to `ServerMember`
+- `apps/api/src/servers/servers.service.ts`: `setTimeout`, `clearTimeout`, `assertNotTimedOut`
+- `apps/api/src/servers/servers.controller.ts`: `PUT`/`DELETE /servers/:id/members/:userId/timeout`
+- `apps/api/src/messages/messages.service.ts`: Calls `assertNotTimedOut` before send
+- `apps/api/src/messages/messages.module.ts`: Adds `ServersModule` import
+- `contracts/openapi.yaml`: Timeout path (x-added-by: P7)
+- `apps/api/test/integration/p7-timeout.spec.ts`: 6 integration tests
+
+**Verification:**
+- 6/6 P7 integration tests PASS (API on :3006, isolated PG :5443)
+- Characterization: 11 suites / 89 tests (2 voice failures: fake LiveKit env — expected)
+- `npx tsc --noEmit` clean
+- `node tools/codegen/gen.mjs` — no drift
+- Break-and-restore: assertion broken → fail (Expected 999, Received 403) → restored → pass
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)

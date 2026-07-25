@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { ServersService } from '../servers/servers.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
 
@@ -88,6 +89,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly servers: ServersService,
   ) {}
 
   /**
@@ -143,6 +145,15 @@ export class MessagesService {
     const validated = CreateMessageSchema.parse(data);
 
     await this.assertChannelAccess(channelId, userId);
+
+    // FR-ROLE-005: reject sends when the author is timed out
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { serverId: true },
+    });
+    if (channel?.serverId) {
+      await this.servers.assertNotTimedOut(channel.serverId, userId);
+    }
 
     // If replying, make sure the referenced message is in the same channel.
     if (validated.replyToId) {
