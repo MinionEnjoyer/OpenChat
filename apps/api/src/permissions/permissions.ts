@@ -12,6 +12,7 @@ export const Permission = {
   CREATE_INVITE: 1n << 5n, // generate invite codes
   MANAGE_MESSAGES: 1n << 6n, // delete others' messages
   MENTION_EVERYONE: 1n << 7n, // ping @everyone / @here
+  BAN_MEMBERS: 1n << 8n, // ban/unban members, view ban list
 } as const;
 
 export type PermissionName = keyof typeof Permission;
@@ -37,4 +38,5 @@ export const PERMISSION_LIST: { name: PermissionName; bit: string; label: string
   { name: 'CREATE_INVITE', bit: Permission.CREATE_INVITE.toString(), label: 'Create Invites' },
   { name: 'MANAGE_MESSAGES', bit: Permission.MANAGE_MESSAGES.toString(), label: 'Manage Messages' },
   { name: 'MENTION_EVERYONE', bit: Permission.MENTION_EVERYONE.toString(), label: 'Mention @everyone / @here' },
+  { name: 'BAN_MEMBERS', bit: Permission.BAN_MEMBERS.toString(), label: 'Ban Members' },
 ];

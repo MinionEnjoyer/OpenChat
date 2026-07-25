@@ -27,6 +27,10 @@ const UpdateRoleDto = z.object({
   color: z.number().int().optional(),
   permissions: z.string().regex(/^\d+$/).optional(),
 });
+const BanMemberDto = z.object({
+  reason: z.string().max(512).optional(),
+  deleteMessageDays: z.number().int().min(0).max(7).optional(),
+});
 
 @Controller('servers')
 @UseGuards(AuthGuard)
@@ -170,6 +174,36 @@ export class ServersController {
     @CurrentUser() user: User,
   ) {
     return this.servers.kickMember(serverId, targetUserId, user.id);
+  }
+
+  // ---- Bans (P7) ----
+
+  @Get(':id/bans')
+  listBans(@Param('id') serverId: string, @CurrentUser() user: User) {
+    return this.servers.listBans(serverId, user.id);
+  }
+
+  @Put(':id/bans/:userId')
+  banMember(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(BanMemberDto))
+    body: { reason?: string; deleteMessageDays?: number },
+  ) {
+    return this.servers.banMember(serverId, targetUserId, user.id, {
+      reason: body.reason,
+      deleteMessageDays: body.deleteMessageDays,
+    });
+  }
+
+  @Delete(':id/bans/:userId')
+  unbanMember(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.unbanMember(serverId, targetUserId, user.id);
   }
 
   // ---- Roles ----

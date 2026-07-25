@@ -688,6 +688,100 @@ paths:
           description: Characterized edge case
       x-evidence: servers.spec.ts#kick, E3
 
+  # ── Bans (x-added-by P7) ──
+  /servers/{id}/bans:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listBans
+      summary: List server bans
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of ban objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ban'
+        '403':
+          description: Missing BAN_MEMBERS permission
+      x-added-by: P7
+      x-evidence: integration/p7-02-ban.spec.ts
+
+  /servers/{id}/bans/{userId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: banMember
+      summary: Ban a member from the server
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 512
+                deleteMessageDays:
+                  type: integer
+                  minimum: 0
+                  maximum: 7
+      responses:
+        '200':
+          description: Ban applied; member removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ban'
+        '400':
+          description: Already banned, or self-ban
+        '403':
+          description: Missing BAN_MEMBERS permission, or cannot ban owner
+      x-added-by: P7
+      x-evidence: integration/p7-02-ban.spec.ts
+    delete:
+      operationId: unbanMember
+      summary: Unban a member from the server
+      tags: [servers]
+      responses:
+        '200':
+          description: Unbanned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                required: [success]
+        '403':
+          description: Missing BAN_MEMBERS permission
+        '404':
+          description: Ban not found
+      x-added-by: P7
+      x-evidence: integration/p7-02-ban.spec.ts
+
   /servers/{id}/roles:
     parameters:
       - name: id
@@ -944,7 +1038,9 @@ paths:
       responses:
         '200':
           description: Joined server
-      x-evidence: invites.spec.ts#accept, E3
+        '403':
+          description: User is banned from the server (x-added-by P7)
+      x-evidence: invites.spec.ts#accept, E3, integration/p7-02-ban.spec.ts
 
   # ── Server Invitations (notification-driven) ──
   /server-invitations/{id}/accept:
@@ -1880,3 +1976,51 @@ components:
           items:
             $ref: '#/components/schemas/SearchResult'
       required: [total, results]
+    Ban:
+      description: A server ban (x-added-by P7)
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        serverId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          nullable: true
+        createdById:
+          type: string
+          format: uuid
+        deleteMessageDays:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+            displayName:
+              type: string
+              nullable: true
+            avatarUrl:
+              type: string
+              nullable: true
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+      x-added-by: P7

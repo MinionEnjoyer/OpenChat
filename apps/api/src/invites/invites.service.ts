@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import type { User } from '@prisma/client';
@@ -97,6 +97,14 @@ export class InvitesService {
 
     if (invite.maxUses !== null && invite.uses >= invite.maxUses) {
       throw new BadRequestException('Invite usage limit reached');
+    }
+
+    // P7: reject banned users
+    const ban = await this.prisma.ban.findUnique({
+      where: { serverId_userId: { serverId: invite.serverId, userId } },
+    });
+    if (ban) {
+      throw new ForbiddenException('You are banned from this server');
     }
 
     const existingMember = await this.prisma.serverMember.findUnique({

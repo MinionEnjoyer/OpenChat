@@ -656,6 +656,116 @@ return { success: true };
     }
   }
 
+
+  // ---- Bans (P7 add_ban) ----
+
+  async listBans(serverId: string, userId: string) {
+    await this.assertPermission(serverId, userId, Permission.BAN_MEMBERS);
+    const bans = await this.prisma.ban.findMany({
+      where: { serverId },
+      include: {
+        user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        createdBy: { select: { id: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return bans.map((b) => ({
+      id: b.id,
+      userId: b.userId,
+      serverId: b.serverId,
+      reason: b.reason,
+      createdById: b.createdById,
+      deleteMessageDays: b.deleteMessageDays,
+      createdAt: b.createdAt.toISOString(),
+      user: b.user,
+      createdBy: b.createdBy,
+    }));
+  }
+
+  async banMember(
+    serverId: string,
+    targetUserId: string,
+    actorId: string,
+    opts: { reason?: string; deleteMessageDays?: number },
+  ) {
+    await this.assertPermission(serverId, actorId, Permission.BAN_MEMBERS);
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+    if (!server) throw new NotFoundException('Server not found');
+    if (server.ownerId === targetUserId) throw new ForbiddenException('Cannot ban the server owner');
+    if (targetUserId === actorId) throw new BadRequestException('You cannot ban yourself');
+
+    // Check if already banned
+    const existing = await this.prisma.ban.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+    });
+    if (existing) throw new BadRequestException('User is already banned');
+
+    const deleteMessageDays = opts.deleteMessageDays !== undefined
+      ? Math.max(0, Math.min(7, opts.deleteMessageDays))
+      : undefined;
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Purge messages if requested
+      if (deleteMessageDays && deleteMessageDays > 0) {
+        const cutoff = new Date(Date.now() - deleteMessageDays * 24 * 60 * 60 * 1000);
+        const channels = await tx.channel.findMany({
+          where: { serverId },
+          select: { id: true },
+        });
+        const channelIds = channels.map((c) => c.id);
+        if (channelIds.length > 0) {
+          await tx.message.updateMany({
+            where: {
+              channelId: { in: channelIds },
+              authorId: targetUserId,
+              createdAt: { gte: cutoff },
+            },
+            data: { deletedAt: new Date() },
+          });
+        }
+      }
+
+      // Remove from server members
+      await tx.serverMember.deleteMany({
+        where: { serverId, userId: targetUserId },
+      });
+
+      // Create ban record
+      const ban = await tx.ban.create({
+        data: {
+          serverId,
+          userId: targetUserId,
+          reason: opts.reason ?? null,
+          createdById: actorId,
+          deleteMessageDays: deleteMessageDays ?? null,
+        },
+        include: {
+          user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          createdBy: { select: { id: true, username: true } },
+        },
+      });
+
+      return ban;
+    });
+
+    return { ...result, createdAt: result.createdAt.toISOString() };
+  }
+
+  async unbanMember(serverId: string, targetUserId: string, actorId: string) {
+    await this.assertPermission(serverId, actorId, Permission.BAN_MEMBERS);
+    const ban = await this.prisma.ban.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+    });
+    if (!ban) throw new NotFoundException('Ban not found');
+    await this.prisma.ban.delete({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+    });
+    return { success: true };
+  }
+
   async leave(serverId: string, userId: string) {
     const server = await this.prisma.server.findUnique({
       where: { id: serverId },
