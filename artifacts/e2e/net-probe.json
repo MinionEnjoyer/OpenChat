@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-07-25T02:37:00Z",
+  "probe": "emulator-to-host HTTP connectivity",
+  "method": "adb shell am start + ping",
+  "source": "emulator-5554 (Android API 34, arm64-v8a)",
+  "target": "10.0.2.2:3001 (Docker host published port, OpenChat API)",
+  "ping": {
+    "packets_sent": 2,
+    "packets_received": 2,
+    "loss_pct": 0,
+    "rtt_min_ms": 0.416,
+    "rtt_avg_ms": 0.505,
+    "rtt_max_ms": 0.594
+  },
+  "http": {
+    "intent": "android.intent.action.VIEW http://10.0.2.2:3001/api/health",
+    "result": "Starting: Intent { act=android.intent.action.VIEW dat=http://10.0.2.2:3001/... }",
+    "host_health_response": {"status":"ok","db":"up","redis":"up"}
+  },
+  "verdict": "10.0.2.2 reaches the Docker host's published port 3001 from inside the emulator. Phase 1 E2E flows should use API_BASE_URL=http://10.0.2.2:3001."
+}
