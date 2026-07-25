@@ -30,6 +30,7 @@ export const strings = {
     selectChannel: 'Select a channel',
     chatPlaceholder: 'Messages arrive in Phase 2',
     membersTitle: 'Members',
+    menuGlyph: '\u2630',
     logout: 'Sign out',
   },
   messages: {

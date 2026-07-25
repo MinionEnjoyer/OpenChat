@@ -323,3 +323,56 @@ filter, and cursor pagination. Snippets use `ts_headline` with HTML highlighting
 - Characterization suite: 89/89 PASS (untouched)
 - `npx tsc --noEmit`: clean
 - `node tools/codegen/gen.mjs`: no drift
+## 2026-07-25 — WORK ORDER D: worktree bootstrap + verify harness (William B. Sexton)
+
+**Commit:** (see below) — 4 files
+
+**What:** Two infrastructure scripts for reproducible agent verification.
+
+**Files created:**
+- `tools/worktree-up.sh` — Idempotent worktree bootstrap. Writes `apps/api/.env`
+  from canonical dev values (derived from `docker-compose.dev.yml` +
+  `.env.dev`), runs `npm ci` if needed, runs `prisma generate`, and confirms
+  `.env` is gitignored before finishing. DATABASE_URL / REDIS_URL point at
+  the shared dev stack on localhost (not Docker service names). Never prints
+  secret values and never commits `.env`.
+- `tools/verify-worktree.sh` — Independent accept-gate. Bootstraps a worktree,
+  starts its API on the given port, waits for health, and runs 4 gates:
+  characterization (11 suites / 89 tests), integration, `tsc --noEmit`, and
+  `codegen --check`. Stops the API on exit. Writes machine-readable result to
+  `artifacts/verify/<branch>.json`. Exit 0 only if all gates pass.
+- `artifacts/verify/p7-search.json` — Verification result for branch p7-search:
+  4/4 gates passed, observed 11/11 suites and 89/89 tests (NOT the "6/6"
+  claimed by the branch author — the harness caught a partial-run claim).
+- `artifacts/verify/logs/` — Per-gate logs for reproducibility.
+
+**Verification:**
+- `./tools/verify-worktree.sh /Users/williambsexton/work/oc-p7-search 3002` →
+  4/4 PASS, exit 0.
+- `./tools/verify-worktree.sh /Users/williambsexton/work/oc-p7-search 3001` →
+  3/4 PASS, 1 FAIL (integration: 9 failed — p7-search endpoint 404 against
+  Docker API on port conflict), exit 1. Proves gate catches failures.
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — WORK ORDER J: Repair base branch (William B. Sexton)
+
+### Branch: base-repair
+
+**Reason:** `phase0/review` was RED with 1 test failure + 1 eslint error, poisoning every agent's run.
+
+### Failure 1 — gateway.test.ts: wrong wire shape
+- Server `events.gateway.ts:124` confirms singular `channelId` per subscribe frame (`if (env.d?.channelId) client.channels.add(env.d.channelId)`)
+- `gateway.ts` sends `{ channelId }` singular; reconnect replays one frame per channel
+- Test asserted `d.channelIds` (plural array) — changed to `d.channelId` (singular string)
+- **Commit:** `dc0d457` — `[FIX] gateway test asserts corrected singular channelId protocol`
+- **Proof:** broken assertion → `Expected: "chan-99" / Received: "chan-1"`; restored → pass
+
+### Failure 2 — NFR-11: literal glyph + unused variable
+- `ShellScreen.tsx:252` rendered `"☰"` inline — moved to `strings.ts` as `shell.menuGlyph`
+- `ShellScreen.tsx:32` had unused `SCREEN_WIDTH` — removed
+- **Commit:** `4c0b681` — `[FIX] NFR-11: move menu glyph to strings module`
+
+### DoD verification
+- `npx jest` → 12 suites, 52 tests, all pass
+- `npx eslint . --max-warnings=0` → clean
+- `npx tsc --noEmit` → clean
