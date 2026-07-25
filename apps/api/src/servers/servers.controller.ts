@@ -21,11 +21,13 @@ const CreateRoleDto = z.object({
   name: z.string().min(1).max(60),
   color: z.number().int().optional(),
   permissions: z.string().regex(/^\d+$/).optional(),
+  mentionable: z.boolean().optional(),
 });
 const UpdateRoleDto = z.object({
   name: z.string().min(1).max(60).optional(),
   color: z.number().int().optional(),
   permissions: z.string().regex(/^\d+$/).optional(),
+  mentionable: z.boolean().optional(),
 });
 const BanMemberDto = z.object({
   reason: z.string().max(512).optional(),
@@ -238,7 +240,7 @@ export class ServersController {
     @Param('id') serverId: string,
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(CreateRoleDto))
-    body: { name: string; color?: number; permissions?: string },
+    body: { name: string; color?: number; permissions?: string; mentionable?: boolean },
   ) {
     return this.servers.createRole(serverId, user.id, body);
   }
@@ -249,7 +251,7 @@ export class ServersController {
     @Param('roleId') roleId: string,
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(UpdateRoleDto))
-    body: { name?: string; color?: number; permissions?: string },
+    body: { name?: string; color?: number; permissions?: string; mentionable?: boolean },
   ) {
     return this.servers.updateRole(serverId, roleId, user.id, body);
   }
