@@ -22,6 +22,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
+import { PresenceDot, presenceLabel, StatusPicker } from '../../presence';
 import { showToast } from '../../../ui/Toast';
 import { api, useSession } from '../../../stores/session';
 import { useConnection } from '../../../stores/connection';
@@ -75,6 +76,7 @@ export function ShellScreen(): React.JSX.Element {
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+  const [statusPickerVisible, setStatusPickerVisible] = useState(false);
 
   // ── Channel management (FR-SRV-004/005) ──
   const [channelFormVisible, setChannelFormVisible] = useState(false);
@@ -590,6 +592,20 @@ export function ShellScreen(): React.JSX.Element {
 
               {/* Profile box (P1-07) */}
               <View style={styles.profileBox}>
+                {/* FR-SOC-004: own status indicator + picker */}
+                <Pressable
+                  style={styles.statusRow}
+                  onPress={() => setStatusPickerVisible(true)}
+                  accessibilityLabel={`${strings.presence.setStatus}: ${presenceLabel(user?.status ?? 'OFFLINE')}`}
+                  testID="status-indicator"
+                >
+                  <PresenceDot
+                    userId={user?.id ?? ''}
+                    fallback={user?.status ?? 'OFFLINE'}
+                    size={10}
+                  />
+                  <Text style={styles.statusText}>{presenceLabel(user?.status ?? 'OFFLINE')}</Text>
+                </Pressable>
                 <Text style={styles.profileLabel}>
                   {strings.profile.displayNameLabel}
                 </Text>
