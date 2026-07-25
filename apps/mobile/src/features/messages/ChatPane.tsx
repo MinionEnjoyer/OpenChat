@@ -31,6 +31,8 @@ import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
 import { useGifFeature } from './gifFeature';
 import { useServerConfig } from './serverConfig';
+import { useAttachments, AttachPicker, AttachmentTray } from '../attachments';
+import type { UploadedAttachment } from '../attachments';
 import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
 import { resolveAuthorName } from '../../domain/authors';
 import { queryClient } from '../../sync/queryClient';
@@ -115,6 +117,9 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   }, []);
   // Poll state
   const [showPollCreate, setShowPollCreate] = useState(false);
+  // Attachments state (FR-MED-010)
+  const attach = useAttachments();
+  const [showAttachPicker, setShowAttachPicker] = useState(false);
   // Reply state (FR-MSG-005)
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const flatListRef = useRef<FlatList<MessageOrDivider>>(null);
@@ -236,11 +241,32 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
     setDraft('');
     setReplyTarget(null);
     try {
+      // FR-MED-010: upload attachments before sending
+      let uploaded: UploadedAttachment[] = [];
+      if (attach.attachments.length > 0) {
+        uploaded = await attach.uploadAll();
+      }
       const created = await api.request<Message>(`/channels/${channelId}/messages`, {
         method: 'POST',
-        body: { content, nonce, replyToId },
+        body: {
+          content,
+          nonce,
+          replyToId,
+          attachments: uploaded.map((a) => ({
+            shareAssetId: a.shareAssetId,
+            filename: a.filename,
+            mimeType: a.mimeType,
+            size: a.size,
+            url: a.url,
+            thumbnailUrl: a.thumbnailUrl,
+            width: a.width,
+            height: a.height,
+            durationMs: a.durationMs,
+          })),
+        },
       });
       applyCreated({ ...created, nonce: created.nonce ?? nonce });
+      attach.clear();
     } catch {
       removePending(channelId, nonce);
       showToast(strings.messages.sendFailed, () => void send(content));
@@ -625,6 +651,16 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
         </View>
       )}
 
+      {/* FR-MED-010: attachment tray */}
+      <AttachmentTray
+        attachments={attach.attachments}
+        isUploading={attach.isUploading}
+        sendOriginal={attach.sendOriginal}
+        onToggleOriginal={attach.setSendOriginal}
+        onRemove={attach.removeAttachment}
+        onCancel={attach.cancelUpload}
+      />
+
       <View style={styles.composer}>
         {replyTarget && (
           <View style={styles.replyChip}>
@@ -687,6 +723,15 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
           accessibilityLabel={strings.messages.composerPlaceholder}
           testID="composer-input"
         />
+        {/* FR-MED-010: attach button */}
+        <Pressable
+          style={styles.attachBtn}
+          onPress={() => setShowAttachPicker(true)}
+          accessibilityLabel={strings.attachments.attach}
+          testID="composer-attach"
+        >
+          <Text style={styles.attachBtnText}>{strings.attachments.attach}</Text>
+        </Pressable>
         {gifEnabled === true && (
           <Pressable
             style={styles.gifBtn}
@@ -745,6 +790,15 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
         channelId={channelId}
         onClose={() => setShowPollCreate(false)}
         onCreated={handlePollCreated}
+      />
+
+      {/* FR-MED-010: attachment picker */}
+      <AttachPicker
+        visible={showAttachPicker}
+        onSelectLibrary={() => void attach.pickFromLibrary()}
+        onSelectCamera={() => void attach.pickFromCamera()}
+        onSelectFiles={() => void attach.pickFiles()}
+        onClose={() => setShowAttachPicker(false)}
       />
 
       {/* ── Edit modal ──────────────────────────────────────────────── */}
@@ -854,6 +908,9 @@ const styles = StyleSheet.create({
   },
   gifBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
   gifBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
+  // FR-MED-010: attach button
+  attachBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
+  attachBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
   send: { backgroundColor: palette.accent, borderRadius: 8, paddingHorizontal: spacing.md, justifyContent: 'center' },
   sendText: { ...typography.body, color: palette.text, fontWeight: '700' },
   pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },

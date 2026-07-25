@@ -221,6 +221,19 @@ export interface UploadResponse {
   rejected: RejectedFile[];
 }
 
+// x-added-by P5: broker attachment ref (matches web Attachment shape)
+export interface UploadedAttachment {
+  shareAssetId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl: string | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+}
+
   // ── Permissions (from contracts/permissions.json) ──
 // Server permission bitfield names and values. Source: apps/api/src/permissions/permissions.ts. This file is derived from the single source of truth in TypeScript; codegen copies it.
 
