@@ -29,7 +29,7 @@ import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
 import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
-import { AttachmentGrid } from '../attachments';
+import { AttachmentGrid, useAttachments, AttachPicker } from '../attachments';
 import { useGifFeature } from './gifFeature';
 import { useServerConfig } from './serverConfig';
 import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
@@ -37,6 +37,8 @@ import { resolveAuthorName } from '../../domain/authors';
 import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
 import { useTyping } from '../../stores/typing';
+import { useBlockedStore, useRevealedStore } from '../blocked-messages';
+
 import { formatTyping } from '../../domain/typing';
 import { buildMessageLink } from '../../domain/links';
 import type { Message, Server, ChannelPermissionsResponse } from '../../api/schema';
@@ -112,16 +114,29 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
   }, [shareBaseUrl]);
   const gifEnabled = useGifFeature((s) => s.enabled);
 
+  // Attachments state (FR-MED-010)
+  const attach = useAttachments();
+  const [showAttachPicker, setShowAttachPicker] = useState(false);
+
   // Trigger config fetch + GIF probe once
   useEffect(() => {
     void useServerConfig.getState().fetch();
     void useGifFeature.getState().probe();
+  }, []);
+  // FR-SOC-007: fetch blocked users once on mount
+  useEffect(() => {
+    void useBlockedStore.getState().fetch();
   }, []);
   // Poll state
   const [showPollCreate, setShowPollCreate] = useState(false);
   // Reply state (FR-MSG-005)
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const flatListRef = useRef<FlatList<MessageOrDivider>>(null);
+
+  // FR-SOC-007: blocked-message collapse
+  const blockedIds = useBlockedStore((s) => s.blockedIds);
+  const revealedIds = useRevealedStore((s) => s.revealedIds);
+  const reveal = useRevealedStore((s) => s.reveal);
 
   const canManage = hasManageMessages(serverId);
 
@@ -516,6 +531,20 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
               </View>
             );
           }
+
+          // FR-SOC-007: collapse blocked users' messages
+          if (blockedIds.has(msg.authorId) && !revealedIds.has(msg.id)) {
+            return (
+              <Pressable
+                style={[styles.row, styles.rowDeleted]}
+                onPress={() => reveal(msg.id)}
+                testID={`blocked-msg-${msg.id}`}
+              >
+                <Text style={styles.deletedText}>{strings.blockedMessages.collapsed}</Text>
+              </Pressable>
+            );
+          }
+
           return (
             <Pressable
               style={[styles.row, msg.pending && styles.rowPending]}
@@ -774,6 +803,15 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         onCreated={handlePollCreated}
       />
 
+      {/* FR-MED-010: attachment picker */}
+      <AttachPicker
+        visible={showAttachPicker}
+        onSelectLibrary={() => void attach.pickFromLibrary()}
+        onSelectCamera={() => void attach.pickFromCamera()}
+        onSelectFiles={() => void attach.pickFiles()}
+        onClose={() => setShowAttachPicker(false)}
+      />
+
       {/* ── Edit modal ──────────────────────────────────────────────── */}
       <Modal
         visible={editingMessage !== null}
@@ -888,6 +926,8 @@ const styles = StyleSheet.create({
   },
   gifBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
   gifBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
+  attachBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
+  attachBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
   send: { backgroundColor: palette.accent, borderRadius: 8, paddingHorizontal: spacing.md, justifyContent: 'center' },
   sendText: { ...typography.body, color: palette.text, fontWeight: '700' },
   pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },

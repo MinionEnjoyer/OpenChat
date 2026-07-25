@@ -28,8 +28,11 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+import { InboxScreen } from '../../inbox';
+import type { NotificationsResponse, Server, Channel, Member, Role, User, DmChannelDto } from '../../../api/schema';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
+import { DmsList } from '../../dms';
 import { MemberList } from '../MemberList';
 import { ChannelList } from '../../channels/ChannelList';
 import { ChannelForm } from '../../channels/ChannelForm';
@@ -38,9 +41,12 @@ import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../chan
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
-import type { Server, Channel, Member, Role, User } from '../../../api/schema';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 import { StatusPicker, type SettableStatus } from '../../presence';
+import { AvatarPicker, useAvatarUpload } from '../../avatars';
+import { resolveConfig } from '../../../lib/config';
+import { NotificationSettingsScreen } from '../../notif-settings';
+import { FriendsScreen } from '../../friends';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -60,7 +66,9 @@ export function ShellScreen(): React.JSX.Element {
   const logout = useSession((s) => s.logout);
   const updateProfile = useSession((s) => s.updateProfile);
   const connection = useConnection();
+  const avatar = useAvatarUpload(resolveConfig().apiBaseUrl);
 
+  const [selectedDmChannelId, setSelectedDmChannelId] = useState<string | null>(null);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [statusBusy, setStatusBusy] = useState(false);
@@ -69,12 +77,17 @@ export function ShellScreen(): React.JSX.Element {
   // Server create / settings overlay state
   const [showCreateServer, setShowCreateServer] = useState(false);
   const [showSettingsServer, setShowSettingsServer] = useState(false);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
   const [settingsServerId, setSettingsServerId] = useState<string | null>(null);
 
   // FR-SRV-006 — Invite state
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+  const [inboxVisible, setInboxVisible] = useState(false);
+
+  // FR-SOC-001 — Friends screen
+  const [friendsVisible, setFriendsVisible] = useState(false);
 
   // ── Channel management (FR-SRV-004/005) ──
   const [channelFormVisible, setChannelFormVisible] = useState(false);
@@ -116,13 +129,20 @@ export function ShellScreen(): React.JSX.Element {
     return () => sub.remove();
   }, []);
 
+  const isDm = selectedDmChannelId !== null;
 
+  const dmsQuery = useQuery({
+    queryKey: ['dms'],
+    queryFn: () => api.request<DmChannelDto[]>('/dms'),
+  });
+
+  // ── Servers & channels ──
   const servers = useQuery({
     queryKey: keys.servers,
     queryFn: () => api.request<Server[]>('/servers'),
   });
 
-  const serverId = selectedServerId ?? servers.data?.[0]?.id ?? null;
+  const serverId = isDm ? null : (selectedServerId ?? servers.data?.[0]?.id ?? null);
   const activeServer = servers.data?.find((s) => s.id === serverId) ?? null;
 
   const channels = useQuery({
@@ -142,6 +162,14 @@ export function ShellScreen(): React.JSX.Element {
     enabled: serverId !== null && membersQueryEnabled,
     queryFn: () => api.request<Member[]>(`/servers/${serverId}/members`),
   });
+
+  // FR-SOC-005 — notifications badge (lightweight fetch for count)
+  const notifications = useQuery({
+    queryKey: keys.notifications,
+    queryFn: () => api.request<NotificationsResponse>('/notifications'),
+    staleTime: 30_000,
+  });
+  const inboxCount = notifications.data?.count ?? 0;
 
   // ── Channel CRUD hooks (FR-SRV-005) ──
   const createChannel = useCreateChannel(serverId ?? '');
@@ -182,7 +210,18 @@ export function ShellScreen(): React.JSX.Element {
   const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT' || c.type === 'ANNOUNCEMENT');
   const activeChannel = textChannels.find((c) => c.id === selectedChannelId) ?? null;
 
-  // ── Channel CRUD handlers (FR-SRV-005) ──
+  // In DM mode, synthesize an active channel from the selected DM
+  const activeDmChannel = (isDm && selectedDmChannelId && dmsQuery.data) ? (() => {
+    const dm = dmsQuery.data.find((d) => d.id === selectedDmChannelId);
+    if (!dm) return null;
+    const otherRecipients = dm.recipients.filter((r) => r.id !== user?.id);
+    const name = otherRecipients.map((r) => r.displayName ?? r.username).join(', ');
+    return { id: dm.id, name, type: dm.type };
+  })() : null;
+
+  // Unified active channel for title + ChatPane rendering
+  const activeChannelAny: { id: string; name: string } | null =
+    activeDmChannel ?? (activeChannel ? { id: activeChannel.id, name: activeChannel.name } : null);
   const handleCreateChannel = useCallback(() => {
     setEditingChannel(undefined);
     setChannelFormVisible(true);
@@ -257,6 +296,17 @@ export function ShellScreen(): React.JSX.Element {
     },
     [statusBusy, updateProfile],
   );
+
+  const handleAvatarPick = async (): Promise<void> => {
+    const result = await avatar.pickAndUpload();
+    if (!result?.thumbnailUrl) return;
+    try {
+      await updateProfile({ avatarUrl: result.thumbnailUrl } as Parameters<typeof updateProfile>[0]);
+      showToast(strings.avatars.avatarSaved);
+    } catch {
+      showToast(strings.avatars.saveFailed, () => void handleAvatarPick());
+    }
+  };
 
   // ── Drawer controls ──────────────────────────────────────────────
 
@@ -370,6 +420,7 @@ export function ShellScreen(): React.JSX.Element {
   const selectChannel = useCallback(
     (channelId: string) => {
       setSelectedChannelId(channelId);
+      setSelectedDmChannelId(null);
       saveLastChannel(storage(), serverId, channelId);
       closeLeft();
     },
@@ -409,11 +460,11 @@ export function ShellScreen(): React.JSX.Element {
             <Text style={styles.topBarAction}>{strings.shell.hamburger}</Text>
           </Pressable>
           <Text style={styles.chatTitle} testID="chat-title" numberOfLines={1}>
-            {activeChannel
-              ? `${strings.shell.channelHash} ${activeChannel.name}`
+            {activeChannelAny
+              ? (isDm ? `${strings.dms.atSign} ${activeChannelAny.name}` : `${strings.shell.channelHash} ${activeChannelAny.name}`)
               : strings.shell.selectChannel}
           </Text>
-          {activeChannel && (
+          {activeChannelAny && (
             <Pressable
               onPress={() => setPinsVisible(true)}
               accessibilityLabel={strings.messages.pinsPanelTitle}
@@ -422,6 +473,16 @@ export function ShellScreen(): React.JSX.Element {
               <Text style={styles.topBarAction}>{strings.messages.pinIcon}</Text>
             </Pressable>
           )}
+          <Pressable onPress={() => setInboxVisible(true)} accessibilityLabel={strings.inbox.title} testID="inbox-button">
+            <View style={styles.inboxIconContainer}>
+              <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
+              {inboxCount > 0 && (
+                <View style={styles.inboxBadge} testID="inbox-badge">
+                  <Text style={styles.inboxBadgeText}>{inboxCount > 99 ? '99+' : String(inboxCount)}</Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
           <Pressable
             onPress={toggleMembers}
             accessibilityLabel={strings.shell.membersTitle}
@@ -431,8 +492,8 @@ export function ShellScreen(): React.JSX.Element {
           </Pressable>
         </View>
 
-        {activeChannel ? (
-          <ChatPane channelId={activeChannel.id} serverId={serverId} channelType={activeChannel.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
+        {activeChannelAny ? (
+          <ChatPane channelId={activeChannelAny.id} serverId={serverId} channelType={activeChannel?.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
         ) : (
           <View style={styles.chatBody}>
             <Text style={styles.muted} testID="chat-placeholder">
@@ -465,6 +526,23 @@ export function ShellScreen(): React.JSX.Element {
       >
         <GestureDetector gesture={leftDrawerDismiss}>
           <View style={styles.drawerContent}>
+            {/* DM list — FR-SOC-002 */}
+            <View style={styles.dmSection} testID="dm-section">
+              <DmsList
+                selectedDmChannelId={selectedDmChannelId}
+                onSelectDm={(dmChannelId) => {
+                  setSelectedDmChannelId(dmChannelId);
+                  setSelectedChannelId(null);
+                  closeLeft();
+                }}
+              />
+            </View>
+
+            {/* Separator between DMs and servers */}
+            <View style={styles.dmSeparator}>
+              <View style={styles.dmSeparatorLine} />
+            </View>
+
             {/* Server rail */}
             <View style={styles.rail} testID="server-rail">
               <FlatList
@@ -476,7 +554,7 @@ export function ShellScreen(): React.JSX.Element {
                       styles.railItem,
                       item.id === serverId && styles.railItemActive,
                     ]}
-                    onPress={() => {
+                    onPress={() => { setSelectedDmChannelId(null);
                       setSelectedServerId(item.id);
                       setSelectedChannelId(null);
                     }}
@@ -498,6 +576,15 @@ export function ShellScreen(): React.JSX.Element {
               >
                 <Text style={styles.railItemText}>{strings.servers.createButtonNav}</Text>
               </Pressable>
+              {/* FR-SOC-001 — Friends button */}
+              <Pressable
+                style={styles.railItem}
+                onPress={() => setFriendsVisible(true)}
+                accessibilityLabel={strings.friends.title}
+                testID="rail-friends"
+              >
+                <Text style={styles.railItemText}>{strings.friends.icon}</Text>
+              </Pressable>
             </View>
 
             {/* Channel list — FR-SRV-004/005 */}
@@ -507,16 +594,30 @@ export function ShellScreen(): React.JSX.Element {
                   {activeServer?.name ?? strings.shell.channelsFallbackTitle}
                 </Text>
                 {activeServer && (
-                  <Pressable
-                    onPress={() => {
-                      setSettingsServerId(activeServer.id);
-                      setShowSettingsServer(true);
-                    }}
-                    accessibilityLabel={strings.servers.settingsButton}
-                    testID="server-settings-button"
-                  >
-                    <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
-                  </Pressable>
+                  <>
+                    <Pressable
+                      onPress={() => {
+                        setSelectedDmChannelId(null);
+                        setSettingsServerId(activeServer.id);
+                        setShowSettingsServer(true);
+                      }}
+                      accessibilityLabel={strings.servers.settingsButton}
+                      testID="server-settings-button"
+                    >
+                      <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setShowNotifSettings(true);
+                      }}
+                      accessibilityLabel="Notification settings"
+                      testID="notif-settings-button"
+                      style={{ marginLeft: 8 }}
+                    >
+                      <Text style={styles.settingsGlyph}>{strings.shell.notifBell}</Text>
+                    </Pressable>
+                  </>
+
                 )}
               </View>
               {serverId && (
@@ -588,6 +689,14 @@ export function ShellScreen(): React.JSX.Element {
               {/* FR-AUTH-007 — Presence status picker */}
               {user && <StatusPicker user={user} onUpdate={handleStatusUpdate} />}
 
+              {/* Avatar picker (FR-MED-020) */}
+              <AvatarPicker
+                currentUrl={user?.avatarUrl ? (user.avatarUrl.startsWith('/') ? resolveConfig().apiBaseUrl + user.avatarUrl : user.avatarUrl) : null}
+                label={strings.avatars.avatarLabel}
+                onPick={() => void handleAvatarPick()}
+                busy={avatar.busy}
+                error={avatar.error}
+              />
               {/* Profile box (P1-07) */}
               <View style={styles.profileBox}>
                 <Text style={styles.profileLabel}>
@@ -664,6 +773,17 @@ export function ShellScreen(): React.JSX.Element {
         </View>
       )}
 
+      {/* ── Notification settings overlay ── (FR-NOTIF-003) */}
+      {showNotifSettings && (
+        <View style={styles.overlay}>
+          <NotificationSettingsScreen
+            servers={servers.data ?? []}
+            channelsByServer={new Map([[serverId ?? '', channels.data ?? []]])}
+            onDone={() => setShowNotifSettings(false)}
+          />
+        </View>
+      )}
+
       {/* Edge gesture zones (invisible strips at screen edges) */}
       <GestureDetector gesture={leftEdgeGesture}>
         <View style={styles.leftEdgeZone} />
@@ -673,9 +793,9 @@ export function ShellScreen(): React.JSX.Element {
       </GestureDetector>
 
       {/* Pins panel (FR-MSG-011) */}
-      {activeChannel && (
+      {activeChannelAny && (
         <PinsPanel
-          channelId={activeChannel.id}
+          channelId={activeChannelAny.id}
           visible={pinsVisible}
           onClose={() => setPinsVisible(false)}
         />
@@ -733,6 +853,18 @@ export function ShellScreen(): React.JSX.Element {
           onClose={() => setReorderVisible(false)}
         />
       )}
+
+      {/* ── Friends screen (FR-SOC-001) ── */}
+      <FriendsScreen
+        visible={friendsVisible}
+        onClose={() => setFriendsVisible(false)}
+      />
+      {/* FR-SOC-005 — Notifications inbox */}
+      <InboxScreen
+        visible={inboxVisible}
+        onClose={() => setInboxVisible(false)}
+      />
+
     </KeyboardAvoidingView>
   );
 }
@@ -769,6 +901,27 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
   },
   topBarAction: { ...typography.body, color: palette.accent },
+  inboxIconContainer: {
+    position: 'relative',
+  },
+  inboxBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: palette.danger,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  inboxBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '700',
+  },
   chatBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { ...typography.caption, color: palette.textMuted },
 
@@ -926,5 +1079,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: EDGE_WIDTH,
     zIndex: 5,
+  },
+  dmSection: {
+    paddingTop: spacing.xs,
+  },
+  dmSeparator: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  dmSeparatorLine: {
+    height: 1,
+    backgroundColor: palette.bgElevated,
   },
 });

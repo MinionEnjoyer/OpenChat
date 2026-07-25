@@ -138,6 +138,9 @@ export interface Server {
   id: string;
   name: string;
   ownerId: string;
+  iconUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
   myPermissions: string; // BigInt serialized as decimal string
 }
 
@@ -263,6 +266,32 @@ export interface ChannelPermissionsResponse {
   permissions: string; // BigInt serialized as decimal string
 }
 
+/** Per-server or per-channel notification level override (FR-NOTIF-003). */
+export interface NotificationSetting {
+  id: string;
+  userId: string;
+  scope: 'SERVER' | 'CHANNEL';
+  scopeId: string;
+  level: 'ALL' | 'MENTIONS' | 'NONE';
+  mutedUntil: string | null;
+}
+/** DM user from GET/POST /dms (FR-SOC-002). */
+export interface DmUser {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status: string;
+}
+
+/** DM channel from GET/POST /dms (FR-SOC-002). */
+export interface DmChannelDto {
+  id: string;
+  type: 'DM' | 'GROUP_DM';
+  recipients: DmUser[];
+  lastMessageAt: string | null;
+}
+
 // ── OpenShare API ──
 
 export interface SavedAsset {
@@ -281,6 +310,50 @@ export interface RejectedFile {
 export interface UploadResponse {
   saved: SavedAsset[];
   rejected: RejectedFile[];
+}
+
+// x-added-by P5: broker attachment ref (matches web Attachment shape)
+export interface UploadedAttachment {
+  shareAssetId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  thumbnailUrl: string | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+}
+// ── Notifications (FR-SOC-005) ──
+
+/** Friend request item embedded in GET /notifications (observed from API). */
+export interface FriendRequestItem {
+  id: string;
+  user: User;
+}
+
+/** Server invitation item embedded in GET /notifications (observed from API). */
+export interface ServerInviteItem {
+  id: string;
+  createdAt: string;
+  server: {
+    id: string;
+    name: string;
+    iconUrl: string | null;
+  };
+  inviter: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+}
+
+/** GET /notifications response shape (observed from API). */
+export interface NotificationsResponse {
+  friendRequests: FriendRequestItem[];
+  serverInvites: ServerInviteItem[];
+  count: number;
 }
 
   ${genPermissions()}

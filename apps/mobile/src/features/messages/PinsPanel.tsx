@@ -1,9 +1,11 @@
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { api } from '../../stores/session';
 import { keys } from '../../sync/keys';
+import { useBlockedStore, useRevealedStore } from '../blocked-messages';
 import type { Message } from '../../api/schema';
 
 /**
@@ -16,6 +18,15 @@ export function PinsPanel({ channelId, visible, onClose }: {
   visible: boolean;
   onClose: () => void;
 }): React.JSX.Element {
+  // FR-SOC-007: fetch blocked users once on mount
+  useEffect(() => {
+    void useBlockedStore.getState().fetch();
+  }, []);
+
+  const blockedIds = useBlockedStore((s) => s.blockedIds);
+  const revealedIds = useRevealedStore((s) => s.revealedIds);
+  const reveal = useRevealedStore((s) => s.reveal);
+
   const pins = useQuery({
     queryKey: keys.pins(channelId),
     queryFn: () => api.request<Message[]>(`/channels/${channelId}/pins`),
@@ -41,16 +52,30 @@ export function PinsPanel({ channelId, visible, onClose }: {
           <FlatList
             data={pins.data ?? []}
             keyExtractor={(m) => m.id}
-            renderItem={({ item }) => (
-              <View style={styles.row} testID={`pins-item-${item.id}`}>
-                <Text style={styles.author} numberOfLines={1}>
-                  {item.authorId.slice(0, 8)}
-                </Text>
-                <Text style={styles.content} numberOfLines={3}>
-                  {item.content}
-                </Text>
-              </View>
-            )}
+            renderItem={({ item }) => {
+              // FR-SOC-007: collapse blocked users' messages
+              if (blockedIds.has(item.authorId) && !revealedIds.has(item.id)) {
+                return (
+                  <Pressable
+                    style={[styles.row, styles.rowBlocked]}
+                    onPress={() => reveal(item.id)}
+                    testID={`blocked-pin-${item.id}`}
+                  >
+                    <Text style={styles.blockedText}>{strings.blockedMessages.collapsed}</Text>
+                  </Pressable>
+                );
+              }
+              return (
+                <View style={styles.row} testID={`pins-item-${item.id}`}>
+                  <Text style={styles.author} numberOfLines={1}>
+                    {item.authorId.slice(0, 8)}
+                  </Text>
+                  <Text style={styles.content} numberOfLines={3}>
+                    {item.content}
+                  </Text>
+                </View>
+              );
+            }}
             ListEmptyComponent={
               <Text style={styles.empty}>{strings.messages.pinsEmpty}</Text>
             }
@@ -92,6 +117,10 @@ const styles = StyleSheet.create({
   },
   author: { ...typography.caption, color: palette.accent, fontWeight: '700', marginBottom: spacing.xs },
   content: { ...typography.body, color: palette.text },
+  rowBlocked: {
+    opacity: 0.5,
+  },
+  blockedText: { ...typography.caption, color: palette.textMuted },
   empty: {
     ...typography.caption,
     color: palette.textMuted,
