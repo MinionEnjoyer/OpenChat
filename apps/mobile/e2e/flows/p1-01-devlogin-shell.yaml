@@ -84,9 +84,15 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'member-alice'
 
-# 5. Tap scrim to close the drawer.
+# 5. Tap left side of scrim to close the right drawer.
+#    The right drawer occupies [450,132][1080,2400] at zIndex 20 (above the
+#    scrim's zIndex 10). Tapping the scrim's left half (x < 450) avoids the
+#    drawer intercepting the tap.  Toggle-close does not remove the drawer
+#    from uiautomator's raw hierarchy (RN accessibilityElementsHidden isn't
+#    respected by the Android view dumper), but the scrim's closeBoth path
+#    triggers a re-render that does flush it.  Verified manually.
 - tapOn:
-    id: 'drawer-scrim'
+    point: '20%,50%'
 - assertNotVisible:
     id: 'right-drawer'
 
