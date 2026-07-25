@@ -1,7 +1,7 @@
 {
-  "generated": "2026-07-25T06:36:30.109Z",
+  "generated": "2026-07-25T06:45:23.836Z",
   "tool": "tools/nfr/nfr-runner.mjs",
-  "sha": "cc67af3",
+  "sha": "e79639f",
   "phase": "1",
   "summary": {
     "total": 12,

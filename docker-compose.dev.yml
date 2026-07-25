@@ -50,6 +50,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-chat}:${POSTGRES_PASSWORD:-chat}@postgres:5432/${POSTGRES_DB:-chat}
       REDIS_URL: redis://redis:6379
       SESSION_SECRET: dev-dev-dev-dev-16
+      JWT_SECRET: dev-jwt-secret-not-for-prod
       SHARE_BASE_URL: http://openshare:8800
       SHARE_API_KEY: dev-share-key
       LIVEKIT_API_KEY: devkey

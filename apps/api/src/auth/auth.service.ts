@@ -88,28 +88,72 @@ export class AuthService implements OnModuleInit {
     });
     if (!tokenSet.access_token) throw new UnauthorizedException('No access token returned');
     const claims = await client.userinfo(tokenSet.access_token);
+    const user = await this.loginFromClaims(claims);
 
+    delete (session as Session & { oidc?: OidcSession }).oidc;
+    return { userId: user.id, idToken: tokenSet.id_token ?? '' };
+  }
+
+  /**
+   * P1-01: the single claims→user code path, shared by the web callback above
+   * and the native code exchange below so the two flows cannot drift.
+   */
+  async loginFromClaims(claims: {
+    sub: string;
+    preferred_username?: string;
+    email?: string;
+    name?: string;
+    picture?: string;
+  }) {
     const username =
-      (claims.preferred_username as string | undefined) ??
+      claims.preferred_username ??
       claims.email?.split('@')[0] ??
       `user_${claims.sub.slice(0, 8)}`;
 
-    const user = await this.prisma.user.upsert({
+    // NOTE: `update` is intentionally empty — once a user has customized their
+    // nickname/display name/avatar in Chat, we must NOT overwrite it from
+    // Authentik claims on every subsequent login.
+    return this.prisma.user.upsert({
       where: { authSub: claims.sub },
       update: {},
       create: {
         authSub: claims.sub,
         username,
-        displayName: (claims.name as string | undefined) ?? username,
-        avatarUrl: (claims.picture as string | undefined) ?? null,
+        displayName: claims.name ?? username,
+        avatarUrl: claims.picture ?? null,
       },
     });
-    // NOTE: `update` is intentionally empty above — once a user has customized their
-    // nickname/display name/avatar in Chat, we must NOT overwrite it from Authentik claims
-    // on every subsequent login.
+  }
 
-    delete (session as Session & { oidc?: OidcSession }).oidc;
-    return { userId: user.id, idToken: tokenSet.id_token ?? '' };
+  /**
+   * P1-01: native authorization_code exchange (FR-AUTH-001). The mobile app runs
+   * PKCE in the system browser against the NATIVE redirect URI and posts the
+   * code here; the server finishes the exchange with its client_secret.
+   */
+  async exchangeNativeCode(code: string, codeVerifier: string, redirectUri: string) {
+    const expected = this.config.get<string>('NATIVE_REDIRECT_URI') ?? 'openchat://auth';
+    if (redirectUri !== expected) {
+      throw new BadRequestException('redirectUri does not match the registered native redirect');
+    }
+    const client = await this.getClient();
+    const tokenSet = await client.callback(
+      redirectUri,
+      { code },
+      { code_verifier: codeVerifier },
+    );
+    if (!tokenSet.access_token) throw new UnauthorizedException('No access token returned');
+    const claims = await client.userinfo(tokenSet.access_token);
+    return this.loginFromClaims(claims);
+  }
+
+  /** P1-03 (DR-002 option D): public OIDC metadata for native clients. No secrets. */
+  oidcMetadata() {
+    return {
+      issuer: this.config.get<string>('OIDC_ISSUER') ?? null,
+      clientId: this.config.get<string>('OIDC_CLIENT_ID') ?? null,
+      nativeRedirectUri: this.config.get<string>('NATIVE_REDIRECT_URI') ?? 'openchat://auth',
+      scopes: ['openid', 'profile', 'email'],
+    };
   }
 
   async endSessionUrl(idToken: string): Promise<string> {

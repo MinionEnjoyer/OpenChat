@@ -12,6 +12,20 @@ export interface User {
   friendCode: string | null; // lazily backfilled; may be null
 }
 
+export interface TokenResponse {
+  accessToken: string;
+  expiresIn: 3600;
+  refreshToken: string;
+  user: User;
+}
+
+export interface OidcMetadata {
+  issuer: string | null;
+  clientId: string | null;
+  nativeRedirectUri: string;
+  scopes: string[];
+}
+
 export interface Server {
   id: string;
   name: string;

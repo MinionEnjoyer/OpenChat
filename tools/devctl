@@ -616,6 +616,19 @@ cmd_verify() {
     echo "  ✓ contract tests pass"
   fi
 
+  # 3b. Integration tests — phase work-item acceptance oracles (new behavior),
+  # distinct from characterization (pre-existing behavior). Empty dir = skip.
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "integration" ]; then
+    if ls "$ROOT/apps/api/test/integration"/*.spec.ts >/dev/null 2>&1; then
+      echo "[devctl] running integration tests…"
+      (cd "$ROOT/apps/api" && npx jest --config jest-integration.config.js --forceExit --json 2>&1 >/dev/null) || {
+        echo "  ✗ integration tests failed"
+        exit 1
+      }
+      echo "  ✓ integration tests pass"
+    fi
+  fi
+
   # 4. Characterization tests
   if [ "$only_layer" = "" ] || [ "$only_layer" = "char" ]; then
     echo "[devctl] running characterization tests…"

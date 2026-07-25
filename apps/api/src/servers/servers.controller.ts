@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ServersService } from './servers.service';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PERMISSION_LIST } from '../permissions/permissions';
@@ -29,7 +29,7 @@ const UpdateRoleDto = z.object({
 });
 
 @Controller('servers')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class ServersController {
   constructor(private readonly servers: ServersService) {}
 

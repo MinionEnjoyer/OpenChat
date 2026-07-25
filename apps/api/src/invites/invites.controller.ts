@@ -1,6 +1,6 @@
 import { Body, Controller, Get, NotFoundException, Param, Post } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '@prisma/client';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -18,7 +18,7 @@ export type CreateInviteDto = {
 };
 
 @Controller()
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class InvitesController {
   constructor(private readonly invitesService: InvitesService) {}
 

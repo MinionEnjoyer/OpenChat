@@ -12,6 +12,7 @@ servers:
 
 security:
   - cookieAuth: []
+  - bearerAuth: []
 
 paths:
   # ── Health ──
@@ -104,15 +105,68 @@ paths:
       responses:
         '201':
           description: >
-            Returns user object with standard shape. Characterized: returns 201.
-            Sets session cookie.
+            Returns user object with standard shape PLUS bearer tokens
+            (x-added-by P1-02). Sets session cookie.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/DevLoginResponse'
         '404':
           description: Not found in production (route gated by DEV_AUTH)
-      x-evidence: auth.spec.ts#dev-login, E1
+      x-evidence: auth.spec.ts#dev-login, integration/bearer-auth.spec.ts, E1
+
+  /auth/token:
+    post:
+      operationId: issueToken
+      summary: Bearer token issuance for native clients (x-added-by P1-01)
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grantType: { type: string, enum: [authorization_code, refresh_token] }
+                code: { type: string }
+                codeVerifier: { type: string }
+                redirectUri: { type: string }
+                refreshToken: { type: string }
+              required: [grantType]
+      responses:
+        '201':
+          description: Tokens issued (refresh rotation with family revocation on reuse)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Unknown grantType or missing fields
+        '401':
+          description: Invalid, spent, or family-revoked refresh token
+      x-evidence: integration/bearer-auth.spec.ts
+
+  /auth/oidc-metadata:
+    get:
+      operationId: getOidcMetadata
+      summary: Public OIDC metadata for native clients (x-added-by P1-03, DR-002)
+      tags: [auth]
+      security: []
+      responses:
+        '200':
+          description: Issuer/clientId/nativeRedirectUri/scopes. Never contains secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issuer: { type: string, nullable: true }
+                  clientId: { type: string, nullable: true }
+                  nativeRedirectUri: { type: string }
+                  scopes: { type: array, items: { type: string } }
+                required: [issuer, clientId, nativeRedirectUri, scopes]
+      x-evidence: integration/bearer-auth.spec.ts
 
   /auth/me:
     get:
@@ -1251,8 +1305,41 @@ components:
       in: cookie
       name: connect.sid
       description: Express session cookie (dev-login or OIDC sets this)
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from POST /auth/token or dev-login (x-added-by P1)
 
   schemas:
+    DevLoginResponse:
+      description: User fields plus bearer tokens (x-added-by P1-02; explicit rather than allOf so exact-key validation holds)
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        friendCode: { type: string, nullable: true }
+        serverLayout: { nullable: true }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, enum: [3600] }
+      required: [id, username, accessToken, refreshToken, expiresIn]
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresIn: { type: integer, enum: [3600] }
+        refreshToken: { type: string }
+        user:
+          $ref: '#/components/schemas/User'
+      required: [accessToken, expiresIn, refreshToken, user]
+
     User:
       type: object
       properties:

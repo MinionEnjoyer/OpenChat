@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { FriendsService } from './friends.service';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '@prisma/client';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -16,7 +16,7 @@ const SendFriendRequestSchema = z
   });
 
 @Controller('friends')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class FriendsController {
   constructor(private readonly friendsService: FriendsService) {}
 

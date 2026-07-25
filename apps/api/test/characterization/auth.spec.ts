@@ -8,7 +8,13 @@ describe('auth — dev-login', () => {
     const res = await apiFetch('/auth/dev-login', { method: 'POST', body: { username: uname }, jar });
     // characterizes: dev-login returns 201 Created
     expect(res.status).toBe(201);
-    assertUserShape(res.body);
+    // [P1-02] INTENTIONAL CHANGE: dev-login now ALSO returns bearer tokens for
+    // the mobile test path (spec 10 §P1-02). User fields are unchanged.
+    const { accessToken, refreshToken, expiresIn, ...userFields } = res.body;
+    expect(typeof accessToken).toBe('string');
+    expect(typeof refreshToken).toBe('string');
+    expect(expiresIn).toBe(3600);
+    assertUserShape(userFields);
     // characterizes: displayName defaults to username
     expect(res.body.displayName).toBe(uname);
     // characterizes: status is ONLINE after dev-login

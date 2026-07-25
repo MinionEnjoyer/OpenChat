@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { NotificationsService } from './notifications.service';
 import { ServersService } from '../servers/servers.service';
 import type { User } from '@prisma/client';
 
 @Controller()
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class NotificationsController {
   constructor(
     private readonly notifications: NotificationsService,

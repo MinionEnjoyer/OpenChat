@@ -38,6 +38,42 @@ const User = {
   required: ['id', 'username'],
 };
 
+// [P1-02] dev-login now ALSO returns bearer tokens (intentional contract change).
+const DevLoginResponse = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    ...User.properties,
+    accessToken: { type: 'string' },
+    refreshToken: { type: 'string' },
+    expiresIn: { type: 'integer', enum: [3600] },
+  },
+  required: ['id', 'username', 'accessToken', 'refreshToken', 'expiresIn'],
+};
+
+// [P1-01] POST /auth/token response.
+const TokenResponse = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    accessToken: { type: 'string' },
+    expiresIn: { type: 'integer', enum: [3600] },
+    refreshToken: { type: 'string' },
+    user: User,
+  },
+  required: ['accessToken', 'expiresIn', 'refreshToken', 'user'],
+};
+
+// [P1-03] Public OIDC metadata (DR-002 option D).
+const OidcMetadata = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    issuer: { type: 'string', nullable: true },
+    clientId: { type: 'string', nullable: true },
+    nativeRedirectUri: { type: 'string' },
+    scopes: { type: 'array', items: { type: 'string' } },
+  },
+  required: ['issuer', 'clientId', 'nativeRedirectUri', 'scopes'],
+};
+
 const Server = {
   type: 'object', additionalProperties: false,
   properties: {
@@ -159,7 +195,9 @@ const VoiceJoinResponse = {
 
 // ── Compile validators ──
 const validators: Record<string, any> = {
-  devLogin: ajv.compile(User),
+  devLogin: ajv.compile(DevLoginResponse),
+  issueToken: ajv.compile(TokenResponse),
+  getOidcMetadata: ajv.compile(OidcMetadata),
   getMe: ajv.compile(User),
   updateMe: ajv.compile(User),
   logout: ajv.compile(LogoutResponse),
@@ -292,6 +330,28 @@ describe('Phase 1 — Auth (contract-validated)', () => {
     const r = await api('/auth/ws-ticket');
     expect(r.status).toBe(200);
     const { ok, error } = validateResponse('getWsTicket', r.body);
+    expect({ ok, error }).toEqual({ ok: true, error: null });
+  });
+
+  it('POST /auth/token (refresh grant) → TokenResponse schema [P1-01]', async () => {
+    cookies = [];
+    const login = await api('/auth/dev-login', { method: 'POST', body: JSON.stringify({ username: 'contract-token' }) });
+    const r = await api('/auth/token', {
+      method: 'POST',
+      body: JSON.stringify({ grantType: 'refresh_token', refreshToken: login.body.refreshToken }),
+    });
+    cookies = [aliceJar];
+    expect(r.status).toBe(201);
+    const { ok, error } = validateResponse('issueToken', r.body);
+    expect({ ok, error }).toEqual({ ok: true, error: null });
+  });
+
+  it('GET /auth/oidc-metadata → OidcMetadata schema, no auth [P1-03]', async () => {
+    cookies = [];
+    const r = await api('/auth/oidc-metadata');
+    cookies = [aliceJar];
+    expect(r.status).toBe(200);
+    const { ok, error } = validateResponse('getOidcMetadata', r.body);
     expect({ ok, error }).toEqual({ ok: true, error: null });
   });
 });

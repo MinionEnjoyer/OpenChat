@@ -1,15 +1,64 @@
 import {
   Controller, Get, Post, Patch, Put, Body, Req, Res, UseGuards, NotFoundException,
+  BadRequestException, UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { SessionGuard } from './session.guard';
+import { TokenService } from './token.service';
+import { AuthGuard } from './auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { User } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tokenService: TokenService,
+  ) {}
+
+  /**
+   * P1-01 — Bearer token issuance (FR-AUTH-001/002).
+   * Grants: authorization_code (native PKCE code posted by the app; server
+   * finishes the exchange) and refresh_token (rotation; reuse kills the family).
+   */
+  @Post('token')
+  async token(
+    @Body()
+    body: {
+      grantType?: string;
+      code?: string;
+      codeVerifier?: string;
+      redirectUri?: string;
+      refreshToken?: string;
+    },
+  ) {
+    if (body?.grantType === 'authorization_code') {
+      if (!body.code || !body.codeVerifier || !body.redirectUri) {
+        throw new BadRequestException('code, codeVerifier and redirectUri are required');
+      }
+      const user = await this.authService.exchangeNativeCode(
+        body.code,
+        body.codeVerifier,
+        body.redirectUri,
+      );
+      const tokens = await this.tokenService.issueFamily(user.id);
+      const { authSub, ...safe } = user;
+      return { ...tokens, user: safe };
+    }
+    if (body?.grantType === 'refresh_token') {
+      if (!body.refreshToken) throw new BadRequestException('refreshToken is required');
+      const { userId, ...tokens } = await this.tokenService.refresh(body.refreshToken);
+      const user = await this.authService.getCurrentUser(userId);
+      return { ...tokens, user };
+    }
+    throw new BadRequestException('grantType must be authorization_code or refresh_token');
+  }
+
+  /** P1-03 — public OIDC metadata for native clients (DR-002 option D). No auth, no secrets. */
+  @Get('oidc-metadata')
+  oidcMetadata() {
+    return this.authService.oidcMetadata();
+  }
 
   @Get('login')
   async login(@Req() req: Request, @Res() res: Response) {
@@ -55,8 +104,18 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Req() req: Request, @Res() res: Response) {
+  async logout(@Req() req: Request, @Res() res: Response, @Body() body?: { refreshToken?: string }) {
+    // P1-02: a bearer client sends its refreshToken; revoke the whole family
+    // (FR-AUTH-004) — then fall through to the session teardown, which is a
+    // no-op for cookie-less requests and keeps the web path byte-identical.
+    if (body?.refreshToken) {
+      await this.tokenService.revokeFamilyOf(body.refreshToken);
+    }
     const session = req.session as typeof req.session & { idToken?: string };
+    if (!session?.idToken && body?.refreshToken) {
+      req.session?.destroy(() => res.json({}));
+      return;
+    }
     let endSessionUrl = '/';
     try {
       endSessionUrl = await this.authService.endSessionUrl(session.idToken ?? '');
@@ -74,18 +133,20 @@ export class AuthController {
     }
     const user = await this.authService.devLogin(username || 'dev');
     (req.session as typeof req.session & { userId?: string }).userId = user.id;
-    return user;
+    // P1-02: also hand out bearer tokens — the mobile test path (still 404 in prod).
+    const tokens = await this.tokenService.issueFamily(user.id);
+    return { ...user, ...tokens };
   }
 
   @Get('me')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   me(@CurrentUser() user: Omit<User, 'authSub'>) {
     // getCurrentUser also lazily backfills the friend code for pre-existing users.
     return this.authService.getCurrentUser(user.id);
   }
 
   @Patch('me')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   updateMe(
     @CurrentUser() user: Omit<User, 'authSub'>,
     @Body() body: { username?: string; displayName?: string; avatarUrl?: string; status?: string },
@@ -99,13 +160,13 @@ export class AuthController {
   }
 
   @Put('server-layout')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   updateServerLayout(@CurrentUser() user: Omit<User, 'authSub'>, @Body() body: { layout: unknown }) {
     return this.authService.updateServerLayout(user.id, body?.layout);
   }
 
   @Get('ws-ticket')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   wsTicket(@CurrentUser() user: Omit<User, 'authSub'>) {
     return this.authService.mintWsTicket(user.id);
   }

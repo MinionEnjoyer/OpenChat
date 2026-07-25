@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Param, Query, Body, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { WatchPartyService } from './watchparty.service';
@@ -11,7 +11,7 @@ const StartDto = z.object({ itemId: z.string().min(1) });
 const StateDto = z.object({ positionMs: z.number().nonnegative(), paused: z.boolean() });
 
 @Controller('watchparty')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class WatchPartyController {
   constructor(private readonly wp: WatchPartyService) {}
 

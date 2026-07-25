@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { MessagesService } from './messages.service';
 import type { User } from '@prisma/client';
@@ -33,7 +33,7 @@ const UpdateMessageDto = z.object({ content: z.string().min(1).max(4000) });
 const ReadDto = z.object({ lastReadMessageId: z.string().uuid() });
 
 @Controller()
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 

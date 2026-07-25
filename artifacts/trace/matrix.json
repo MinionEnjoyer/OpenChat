@@ -1,9 +1,9 @@
 {
-  "generated": "2026-07-25T06:36:26.508Z",
+  "generated": "2026-07-25T06:45:20.266Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
-    "satisfied": 0,
+    "satisfied": 4,
     "missing": 0,
     "errors": 0
   },
@@ -47,14 +47,24 @@
     },
     {
       "id": "FR-AUTH-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/bearer-auth.spec.ts",
+          "line": 27
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-AUTH-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/bearer-auth.spec.ts",
+          "line": 47
+        }
+      ],
       "missing": false
     },
     {
@@ -65,14 +75,24 @@
     },
     {
       "id": "FR-AUTH-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/bearer-auth.spec.ts",
+          "line": 75
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-AUTH-005",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/bearer-auth.spec.ts",
+          "line": 89
+        }
+      ],
       "missing": false
     },
     {
