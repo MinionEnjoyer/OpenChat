@@ -261,6 +261,28 @@ export const strings = {
     iconLabel: 'Server icon',
     iconSaved: 'Server icon updated',
   },
+  // FR-MED-010 — compose attachments
+  attachments: {
+    pickerTitle: 'Add attachment',
+    photoLibrary: 'Photo Library',
+    photoLibraryIcon: '\u{1F4F7}',
+    camera: 'Camera',
+    cameraIcon: '\u{1F4F8}',
+    files: 'Files',
+    filesIcon: '\u{1F4C1}',
+    cancel: 'Cancel',
+    remove: 'Remove',
+    closeIcon: '\u2715',
+    doneIcon: '\u2713',
+    fileIcon: '\u{1F4C4}',
+    originalToggle: 'Original',
+    cancelUpload: 'Cancel upload',
+    attach: '+',
+    uploadFailed: 'Upload failed',
+    uploading: 'Uploading\u2026',
+    tooManyFiles: 'Maximum 10 files per message',
+    fileTooLarge: 'File too large (100 MB)',
+  },
 } as const;
 
 export type Strings = typeof strings;

@@ -29,7 +29,8 @@ import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
 import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
-import { AttachmentGrid } from '../attachments';
+import { AttachmentGrid, useAttachments, AttachPicker, AttachmentTray } from '../attachments';
+import type { UploadedAttachment } from '../attachments';
 import { useGifFeature } from './gifFeature';
 import { useServerConfig } from './serverConfig';
 import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
@@ -111,6 +112,10 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
     try { return new URL(shareBaseUrl).hostname; } catch { return ''; }
   }, [shareBaseUrl]);
   const gifEnabled = useGifFeature((s) => s.enabled);
+
+  // Attachments state (FR-MED-010)
+  const attach = useAttachments();
+  const [showAttachPicker, setShowAttachPicker] = useState(false);
 
   // Trigger config fetch + GIF probe once
   useEffect(() => {
@@ -736,6 +741,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
             <Text style={styles.sendText}>{strings.messages.send}</Text>
           </Pressable>
         </View>
+        </>
       ) : (
         <View style={styles.composerReadOnly} testID="composer-readonly">
           <Text style={styles.composerReadOnlyText}>{strings.messages.announcementReadOnly}</Text>
@@ -772,6 +778,15 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         channelId={channelId}
         onClose={() => setShowPollCreate(false)}
         onCreated={handlePollCreated}
+      />
+
+      {/* FR-MED-010: attachment picker */}
+      <AttachPicker
+        visible={showAttachPicker}
+        onSelectLibrary={() => void attach.pickFromLibrary()}
+        onSelectCamera={() => void attach.pickFromCamera()}
+        onSelectFiles={() => void attach.pickFiles()}
+        onClose={() => setShowAttachPicker(false)}
       />
 
       {/* ── Edit modal ──────────────────────────────────────────────── */}
@@ -888,6 +903,8 @@ const styles = StyleSheet.create({
   },
   gifBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
   gifBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
+  attachBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
+  attachBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
   send: { backgroundColor: palette.accent, borderRadius: 8, paddingHorizontal: spacing.md, justifyContent: 'center' },
   sendText: { ...typography.body, color: palette.text, fontWeight: '700' },
   pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },
