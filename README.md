@@ -32,7 +32,7 @@ Everything environment-specific
   settings.
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
-- **Watch parties** — synchronized Jellyfin playback inside a voice channel.
+- **Watch parties** — synchronized Jellyfin or YouTube playback inside a voice channel.
 - **Roles & permissions** — bitfield permissions with a data-driven role editor.
 - **Real-time everything** — WebSocket gateway + Redis pub/sub; presence, typing,
   notifications, and friend/member lists update live (optimistic UI throughout).
