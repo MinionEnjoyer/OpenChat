@@ -1,53 +1,73 @@
-# OpenChat Desktop (Tauri)
+# OpenChat Desktop (Tauri v2)
 
-A thin Tauri shell around the OpenChat web app (`apps/web`). Frameless window with a
-custom title bar, system tray + close-to-tray, and (planned) native notifications and
-global hotkeys. Authenticates with a bearer **app token** (Settings → 🔑 Tokens on the
-web app) against a configurable server URL — no browser cookie needed.
+A native desktop client for **Windows, macOS, and Linux** that bundles the OpenChat web app
+(`apps/web`) in a Tauri v2 shell — the same UI as the web app, plus native niceties: system
+tray, OS notifications, global push-to-talk, drag-and-drop uploads, and signed auto-updates.
 
 ## How it fits together
-- The frontend is the built web app (`apps/web/dist`), loaded locally by Tauri.
-- The web app reads its server origin + token from `lib/serverConfig` (first-run setup
-  screen, or a build-time `VITE_SERVER_URL`), so the bundled app talks to a remote API.
-- `withGlobalTauri` exposes `window.__TAURI__`, which the title bar uses for window
-  controls (no Tauri dependency in the web bundle).
+- The frontend is the built web app (`apps/web/dist`), loaded locally by Tauri (`frontendDist`),
+  built fresh in `beforeBuildCommand`.
+- On first launch a setup screen collects the **server URL** and signs you in — one-click
+  **browser SSO** with an `openchat://` deep-link token handoff, or a manual **app token**
+  (web app → Settings → 🔑 Tokens). The app authenticates with a bearer token against the
+  configured server, so no browser cookie is needed.
+- `withGlobalTauri` exposes `window.__TAURI__`; the web layer calls a few custom Rust commands
+  through it (`open_external`, `notify`, `run_update`, `register_ptt`/`unregister_ptt`) — there
+  is no Tauri dependency in the web bundle.
 
-## Build & release (Windows)
-Cross-building Windows from macOS/Linux isn't supported — builds run on a Windows CI
-runner. The workflow signs the build and publishes a GitHub Release with the installer
-and the updater manifest.
+## Native features
+- **Custom title bar** on Windows/Linux (frameless); macOS keeps native window chrome.
+- **System tray** + close-to-tray (notifications keep flowing when the window is closed).
+- **Native notifications** for DMs, mentions, and incoming calls when unfocused.
+- **Global push-to-talk** — a system-wide hotkey that works even when the app is unfocused
+  (global-shortcut plugin); pick it in Settings → 🎙 Voice.
+- **Drag-and-drop** file uploads onto the window (Tauri's own drop capture is disabled via
+  `dragDropEnabled: false` so the webview's HTML5 handler runs).
+- **Auto-update** — checks the release's `latest.json` on launch and updates in place behind a
+  progress splash; signed with the updater key.
+
+## Platforms & bundles
+| OS | Bundle | Auto-update |
+|----|--------|-------------|
+| Windows | NSIS `.exe` installer | ✅ |
+| macOS | universal `.dmg` / `.app` (Intel + Apple Silicon) | ✅ |
+| Linux | `.AppImage` + `.deb` | ✅ AppImage · `.deb` is a manual install |
+
+Per-platform bundle targets live in `tauri.conf.json` (base / Windows NSIS),
+`tauri.macos.conf.json`, and `tauri.linux.conf.json` — Tauri v2 auto-merges the file matching
+the build OS. Builds are **not** OS-code-signed, so first launch shows a trust prompt
+(Windows: *More info → Run anyway*; macOS: *right-click → Open*; Linux AppImage: `chmod +x` then run).
+
+> On Linux the `openchat://` deep link (browser-SSO handoff) can be flaky depending on AppImage
+> desktop integration — the manual **app token** entry on the setup screen is the fallback.
+
+## Build & release
+Each OS builds on its own CI runner (`.github/workflows/desktop-release.yml`: Windows + macOS +
+Linux, `max-parallel: 1` so they don't race on `latest.json`). Pushing a `desktop-v*` tag creates
+a draft release, builds + signs each platform into it, then publishes.
 
 ### One-time setup (signing keys — required)
-An updater signing keypair already exists locally at `~/.tauri/openchat-updater.key`
-(private) and `.pub` (public, committed in `tauri.conf.json`). Add the **private** key
-as a repo secret so CI can sign:
+The updater signing keypair lives locally at `~/.tauri/openchat-updater.key` (private) and `.pub`
+(public, committed in `tauri.conf.json`). Add the **private** key as a repo secret so CI can sign:
 
-1. Copy the private key: `cat ~/.tauri/openchat-updater.key` (keep it secret).
-2. GitHub → repo **Settings → Secrets and variables → Actions**:
+1. `cat ~/.tauri/openchat-updater.key` (keep it secret).
+2. GitHub → **Settings → Secrets and variables → Actions**:
    - Secret `TAURI_SIGNING_PRIVATE_KEY` = the contents from step 1.
    - Secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = empty (the key has no password).
-   - (Optional) Variable `SERVER_URL` = your server origin, to skip the first-run URL field.
+   - (Optional) Variable `SERVER_URL` = your server origin, to prefill the first-run URL field.
 
-> Keep `~/.tauri/openchat-updater.key` safe — losing it means installed clients can no
-> longer receive signed updates.
+> Keep the private key safe — losing it means installed clients can no longer receive signed updates.
 
-### Cut a release (installer + auto-update)
-1. Bump `version` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
-2. Tag and push: `git tag desktop-v0.1.0 && git push origin desktop-v0.1.0`.
-3. CI builds, signs, and publishes a GitHub Release. Download the `.exe` from the release
-   and install. Installed clients auto-check that release's `latest.json` on launch and
-   update themselves when a newer version is published.
+### Cut a release
+1. Bump `version` in **all three**: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
+2. Tag + push, e.g. `git tag desktop-v0.8.2 && git push origin desktop-v0.8.2`.
+3. CI builds all three platforms, signs, and publishes a GitHub Release with the installers +
+   `latest.json`. Installed clients auto-update on next launch.
 
-- **Just installers, no release:** Actions → **desktop-release** → Run workflow →
-  download the `openchat-windows-latest` / `openchat-macos-latest` artifacts.
-- **Local dev** (needs Rust + Tauri prereqs): `cd apps/desktop && npm install && npm run dev`.
+## Local dev
+Needs the Rust toolchain + your OS's Tauri prerequisites. On Linux, install the WebKitGTK/GTK/xdo
+deps (see the *Install Linux build dependencies* step in the release workflow).
 
-**Platform chrome:** Windows/Linux use a custom frameless title bar; macOS uses native
-window chrome (`tauri.macos.conf.json`). macOS builds are a universal binary (Intel +
-Apple Silicon). Neither build is OS-code-signed, so first launch shows a warning —
-Windows: *More info → Run anyway*; macOS: *right-click → Open* (Gatekeeper).
-
-## Status
-Phase 1 MVP: shell + custom title bar + tray + close-to-tray + first-run setup.
-Planned: native notifications, dock/taskbar badge, global mute hotkey, deep links,
-auto-update, OIDC-in-browser login (see the local desktop plan).
+```bash
+cd apps/desktop && npm install && npm run dev
+```
