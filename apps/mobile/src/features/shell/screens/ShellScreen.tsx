@@ -749,6 +749,14 @@ export function ShellScreen(): React.JSX.Element {
           onClose={() => setReorderVisible(false)}
         />
       )}
+
+      {/* ── Status picker modal (FR-SOC-004) ── */}
+      {statusPickerVisible && (
+        <StatusPicker
+          currentStatus={user?.status ?? 'OFFLINE'}
+          onClose={() => setStatusPickerVisible(false)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
