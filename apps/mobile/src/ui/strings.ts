@@ -244,6 +244,7 @@ export const strings = {
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
   },
+<<<<<<< HEAD
   presence: {
     title: 'Set Status',
     statusLabel: 'Presence status',
@@ -282,6 +283,15 @@ export const strings = {
     uploading: 'Uploading\u2026',
     tooManyFiles: 'Maximum 10 files per message',
     fileTooLarge: 'File too large (100 MB)',
+=======
+  attachments: {
+    /** @satisfies FR-MED-030 */
+    originalLabel: 'Original',
+    /** @satisfies FR-MED-030 */
+    compressing: 'Compressing\u2026',
+    /** @satisfies FR-MED-030 */
+    compressFailed: 'Compression failed',
+>>>>>>> med-compress
   },
 } as const;
 
