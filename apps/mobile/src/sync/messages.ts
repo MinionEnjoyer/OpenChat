@@ -134,7 +134,7 @@ export function removePending(channelId: string, nonce: string): void {
  */
 export function applyPage(channelId: string, incoming: Message[]): void {
   queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), (old) =>
-    mergePage(old ?? [], incoming) as PendingMessage[],
+    mergePage(old ?? [], incoming),
   );
 }
 

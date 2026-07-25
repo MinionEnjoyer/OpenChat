@@ -4,16 +4,7 @@
  * Page merge, day dividers, and author grouping — all pure functions,
  * testable without a renderer.
  */
-/**
- * Minimal message shape needed for pagination operations.
- * Structural typing means real Message / PendingMessage objects from the
- * API layer satisfy this interface automatically.
- */
-export interface Message {
-  id: string;
-  authorId: string;
-  createdAt: string;
-}
+import type { Message } from '../api/schema';
 
 // ── Page merge ─────────────────────────────────────────────────────────
 
@@ -25,11 +16,11 @@ export interface Message {
  * @param incoming  The next older page (newest-first).
  * @returns         Merged list, newest-first, no duplicates.
  */
-export function mergePage(
-  existing: readonly Message[],
+export function mergePage<T extends Message>(
+  existing: readonly T[],
   incoming: readonly Message[],
-): Message[] {
-  if (existing.length === 0) return [...incoming];
+): T[] {
+  if (existing.length === 0) return incoming as T[];
   if (incoming.length === 0) return [...existing];
 
   const existingIds = new Set(existing.map((m) => m.id));
@@ -37,7 +28,7 @@ export function mergePage(
 
   // Incoming is older, so it goes after existing (at the end of
   // the newest-first list).
-  return [...existing, ...novel];
+  return [...existing, ...(novel as T[])];
 }
 
 // ── Day dividers ───────────────────────────────────────────────────────

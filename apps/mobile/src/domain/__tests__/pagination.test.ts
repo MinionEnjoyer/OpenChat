@@ -6,11 +6,12 @@
  *
  * // @satisfies FR-MSG-001
  */
-import { mergePage, insertDayDividers, computeAuthorGroups, type DayDivider, type Message } from '../pagination';
+import type { Message, Attachment, ReactionGroup, Poll } from '../../api/schema';
+import { mergePage, insertDayDividers, computeAuthorGroups, type DayDivider } from '../pagination';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-/** Full message shape for test construction (superset of domain/pagination Message). */
+/** Full message shape for test construction (matches api/schema Message). */
 interface TestMsg {
   id: string;
   channelId?: string;
@@ -19,10 +20,10 @@ interface TestMsg {
   nonce?: string | null;
   editedAt?: string | null;
   deletedAt?: string | null;
-  attachments?: unknown[];
-  reactions?: unknown[];
+  attachments?: Attachment[];
+  reactions?: ReactionGroup[];
   pinned?: boolean;
-  poll?: unknown;
+  poll?: Poll | null;
   createdAt?: string;
 }
 
@@ -40,7 +41,7 @@ function msg(over: Partial<TestMsg> & { id: string }): Message {
     pinned: over.pinned ?? false,
     poll: over.poll ?? null,
     createdAt: over.createdAt ?? '2026-07-25T10:00:00.000Z',
-  } as unknown as Message;
+  };
 }
 
 function div(date: string): DayDivider {

@@ -30,13 +30,6 @@ module.exports = [
               message:
                 'ui/ is a leaf: design-system primitives may not depend on app modules (06 §2).',
             },
-            {
-              target: './src/domain',
-              from: './src',
-              except: ['./domain'],
-              message:
-                'domain/ is pure logic: it may not depend on app modules (06 §2).',
-            },
           ],
         },
       ],
@@ -71,10 +64,10 @@ module.exports = [
     },
   },
   {
-    // ── 06 §2: domain/ is pure — zero React Native imports ──
+    // ── 06 §2: domain/ is pure — zero React Native imports; type-only api/ ok ──
     files: ['src/domain/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': [
+      '@typescript-eslint/no-restricted-imports': [
         'error',
         {
           paths: [
@@ -85,6 +78,32 @@ module.exports = [
             {
               name: 'react',
               message: 'domain/ must stay pure: no React imports (06 §2).',
+            },
+          ],
+          patterns: [
+            {
+              group: ['../api', '../api/*', '../../api', '../../api/*'],
+              message: 'domain/ may only use type-only imports from src/api (import type { … }).',
+              allowTypeImports: true,
+            },
+            {
+              group: [
+                '../features', '../features/*',
+                '../lib', '../lib/*',
+                '../navigation', '../navigation/*',
+                '../realtime', '../realtime/*',
+                '../stores', '../stores/*',
+                '../sync', '../sync/*',
+                '../ui', '../ui/*',
+                '../../features', '../../features/*',
+                '../../lib', '../../lib/*',
+                '../../navigation', '../../navigation/*',
+                '../../realtime', '../../realtime/*',
+                '../../stores', '../../stores/*',
+                '../../sync', '../../sync/*',
+                '../../ui', '../../ui/*',
+              ],
+              message: 'domain/ must stay pure: no app-level value imports (06 §2).',
             },
           ],
         },
