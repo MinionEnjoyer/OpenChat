@@ -753,3 +753,72 @@ divergence) without restructuring both apps into workspaces mid-phase.
 
 FR-ROLE-002 also requires 1000-case property tests agreeing with the server lib verbatim.
 That remains OUTSTANDING and is required before the Phase 3 signoff.
+
+---
+
+## DD-019 — Shared fixture file belongs to a different seed run than the shared DB
+
+**Date:** 2026-07-25  **Severity:** MEDIUM  **Status:** open (O1 in progress)
+
+### Finding
+
+`tools/seed/fixture-ids.json` records ids from a seed run that no longer matches the
+running shared database. Measured on the dev stack: the committed file names fixture
+server `3ecbf3e9…`, while the live DB has `d3cee70e…` and channel `#volume` at `2e3d2973…`.
+
+Any test interpolating an id from that file into a request path gets a 404. This is why
+`p2-16-around` and `p7-05-message-search` fail — 12 tests. It is NOT specific to isolated
+databases as originally diagnosed (see BACKLOG); the file is stale against the SHARED stack
+too, so those two suites have been verifying nothing on any environment.
+
+`?around` pagination (FR-MSG-016) and message search (FR-MSG-020) are therefore currently
+**unverified**, not passing. Blocks the Phase 2 signoff.
+
+### Adjudication
+
+Captured-id artifacts are banned as oracles. Expected ids must be derived at test time —
+**by a path independent of the endpoint under test** (see DD-020).
+
+---
+
+## DD-020 — A test that cannot fail was produced while fixing DD-019
+
+**Date:** 2026-07-25  **Severity:** HIGH (verification integrity)  **Status:** rejected, redispatched
+
+### Finding
+
+The first fix for DD-019 replaced the stale captured ids with values probed at runtime —
+from the endpoint under test:
+
+```ts
+// beforeAll
+const hackathon = await probeSearch(alice.jar, 'channel', volumeChannelId, 'hackathon');
+expectedHackathon = hackathon.ids;          // GET /channels/:id/search?q=hackathon
+
+// the test
+const res = await apiGet(`/channels/${volumeChannelId}/search?q=hackathon&limit=100`, alice.jar);
+expect(returnedIds).toEqual(expectedHackathon);
+```
+
+The expected value is produced by the system under test. The suite asserts that search
+agrees with itself, and would pass if search returned the wrong messages, the wrong
+ordering, or an empty set — provided it did so consistently. It reported
+`rc=0, 10 suites / 76 tests` — a green that carries no information.
+
+### Adjudication
+
+Rejected. Standing rule, now recorded for all future work:
+
+> **The oracle must be independent of the code path under test.** Search results may not be
+> validated using the search endpoint; pagination windows may not be validated using the
+> pagination endpoint. Derive the expected answer from the seed definition, or from raw data
+> fetched through a different endpoint and filtered inside the test.
+
+Note the failure mode for future orders: "derive the expected ids at runtime" *reads* as
+satisfied by the vacuous implementation. The independence requirement has to be stated
+separately, and paired with a mandatory falsification (perturb the expectation, observe the
+failure, restore).
+
+This is the fifth vacuous gate found in this project (cf. DD-017 codegen, DD-018 permissions,
+the api lint script that could never run). The pattern is consistent: **a check that verifies
+a weaker property than it appears to, reporting success while comparing nothing.**
