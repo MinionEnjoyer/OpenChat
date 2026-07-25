@@ -309,6 +309,9 @@ export const strings = {
     mentionToast: '{author} mentioned you in #{channel}: {preview}',
     callRingToast: '{caller} is calling\u2026',
   },
+  blockedMessages: {
+    collapsed: 'Blocked message — tap to show',
+  },
 } as const;
 
 export type Strings = typeof strings;

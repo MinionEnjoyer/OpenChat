@@ -1543,6 +1543,22 @@ paths:
         '200':
           description: Blocked
       x-evidence: dms-friends.spec.ts#block
+  /friends/blocked:
+    get:
+      operationId: listBlocked
+      summary: List blocked users
+      tags: [friends]
+      responses:
+        '200':
+          description: Array of blocked user objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+      x-evidence: FR-SOC-007
+      x-fr: FR-SOC-007
 
   # ── Notifications ──
   /notifications:
