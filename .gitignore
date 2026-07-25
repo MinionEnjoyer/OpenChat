@@ -36,3 +36,4 @@ redis-data/
 # NFR per-sha archives — regenerated each run; report.json is the tracked pointer
 artifacts/nfr/*.json
 !artifacts/nfr/report.json
+tools/seed/fixture-ids.local.json

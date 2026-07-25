@@ -2,96 +2,186 @@
  * P7-05 — Message search integration tests (FR-MSG-020)
  *
  * Runs against the live dev stack with a seeded corpus of 1000 deterministic
- * messages in #volume. Expected result IDs were pre-computed from the database
- * using the same PostgreSQL FTS query the service executes, so assertions are
- * EXACT — not counts-greater-than-zero.
+ * messages in #volume. Expected result IDs are derived INDEPENDENTLY: all
+ * messages are fetched via the plain pagination endpoint (NOT the search
+ * endpoint), then filtered and sorted locally. Search is asserted to return
+ * exactly the independently-computed sequence, so a genuine search bug
+ * (wrong ordering, missing results, wrong total) fails the test.
  *
- * // @satisfies FR-MSG-020
+ * @satisfies FR-MSG-020
  */
 import { apiFetch, createJar, devLogin } from '../characterization/helpers';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-
-// ── Pre-computed expected ID sets ──
-// Generated from the seeded DB via:
-//   SELECT m.id FROM "Message" m WHERE ... ORDER BY ts_rank(...) DESC, m."createdAt" DESC
-
-const EXPECTED_HACKATHON = readFileSync(
-  resolve(__dirname, '../../../../artifacts/trace/expected-hackathon.txt'),
-  'utf-8',
-)
-  .split('\n')
-  .map((l) => l.trim())
-  .filter(Boolean);
-
-const EXPECTED_COFFEE = readFileSync(
-  resolve(__dirname, '../../../../artifacts/trace/expected-coffee.txt'),
-  'utf-8',
-)
-  .split('\n')
-  .map((l) => l.trim())
-  .filter(Boolean);
-
-const EXPECTED_FOO_ALICE = readFileSync(
-  resolve(__dirname, '../../../../artifacts/trace/expected-foo-alice.txt'),
-  'utf-8',
-)
-  .split('\n')
-  .map((l) => l.trim())
-  .filter(Boolean);
-
-const EXPECTED_DINNER_SERVER = readFileSync(
-  resolve(__dirname, '../../../../artifacts/trace/expected-dinner-server.txt'),
-  'utf-8',
-)
-  .split('\n')
-  .map((l) => l.trim())
-  .filter(Boolean);
-
-// ── Fixture IDs ──
-const FIXTURES = JSON.parse(
-  readFileSync(resolve(__dirname, '../../../../tools/seed/fixture-ids.json'), 'utf-8'),
-);
-const VOLUME_CHANNEL = FIXTURES.volumeChannelId;
-const FIXTURE_SERVER = FIXTURES.server.fixtureGuild;
-const ALICE_ID = FIXTURES.users.alice;
 
 // ── Helpers ──
+
 function apiGet(path: string, jar: any) {
   return apiFetch(path, { jar });
+}
+
+/**
+ * Fetch ALL messages from a channel via plain pagination (NOT search).
+ * Returns newest-first (as the API does).
+ */
+async function fetchAllChannelMessages(
+  jar: any,
+  channelId: string,
+): Promise<Array<{ id: string; content: string; authorId: string; createdAt: string }>> {
+  const all: Array<{ id: string; content: string; authorId: string; createdAt: string }> = [];
+  let cursor: string | undefined;
+
+  while (true) {
+    const url = `/channels/${channelId}/messages?limit=100${cursor ? `&before=${cursor}` : ''}`;
+    const res = await apiGet(url, jar);
+    if (res.status !== 200 || !Array.isArray(res.body) || res.body.length === 0) break;
+
+    for (const m of res.body) {
+      all.push({
+        id: m.id,
+        content: m.content,
+        authorId: m.authorId,
+        createdAt: m.createdAt,
+      });
+    }
+
+    cursor = res.body[res.body.length - 1]?.id;
+    if (res.body.length < 100) break; // last page
+  }
+
+  return all;
+}
+
+/**
+ * Build an independent oracle for a search query:
+ * 1. Fetch all messages via plain pagination
+ * 2. Filter by content substring (case-insensitive) and optionally by author
+ * 3. Sort by createdAt DESC (newest first — matches search ordering when
+ *    ts_rank is uniform, which it is for simple single-word queries)
+ * 4. Return { total, ids }
+ */
+async function buildOracle(
+  allMessages: Array<{ id: string; content: string; authorId: string; createdAt: string }>,
+  q: string,
+  authorId?: string,
+): Promise<{ total: number; ids: string[] }> {
+  const qLower = q.toLowerCase();
+
+  let filtered = allMessages.filter((m) =>
+    m.content.toLowerCase().includes(qLower),
+  );
+
+  if (authorId) {
+    filtered = filtered.filter((m) => m.authorId === authorId);
+  }
+
+  // Sort newest-first — matches the API's `ORDER BY ... m."createdAt" DESC`
+  // when all matches have equal ts_rank (true for simple single-word queries).
+  filtered.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  return {
+    total: filtered.length,
+    ids: filtered.map((m) => m.id),
+  };
 }
 
 describe('P7-05 — Message Search (FR-MSG-020)', () => {
   let alice: Awaited<ReturnType<typeof devLogin>>;
 
+  // ── Runtime-derived IDs (discovered by name, not from fixture-ids.json) ──
+  let volumeChannelId: string;
+  let fixtureServerId: string;
+  let aliceId: string;
+
+  // ── Full message corpus from #volume (fetched once) ──
+  let allVolumeMessages: Array<{ id: string; content: string; authorId: string; createdAt: string }>;
+
+  // ── Independent oracles (computed locally from the full message list) ──
+  let expectedHackathon: string[];
+  let expectedCoffee: string[];
+  let expectedFooAlice: string[];
+  let expectedDinnerServer: string[];
+  let hackathonTotal: number;
+  let coffeeTotal: number;
+  let fooAliceTotal: number;
+  let dinnerServerTotal: number;
+
   beforeAll(async () => {
     alice = await devLogin('alice');
-  });
+    aliceId = alice.userId;
+
+    // Discover the Fixture Guild server by name
+    const serversRes = await apiGet('/servers', alice.jar);
+    if (serversRes.status !== 200 || !Array.isArray(serversRes.body)) {
+      throw new Error('Failed to list servers');
+    }
+    const fixtureGuild = serversRes.body.find((s: any) => s.name === 'Fixture Guild');
+    if (!fixtureGuild) throw new Error('Fixture Guild server not found');
+    fixtureServerId = fixtureGuild.id;
+    console.log(`[discovery] fixtureServerId=${fixtureServerId}`);
+
+    // Discover the #volume channel by name within Fixture Guild
+    const channelsRes = await apiGet(`/servers/${fixtureServerId}/channels`, alice.jar);
+    if (channelsRes.status !== 200 || !Array.isArray(channelsRes.body)) {
+      throw new Error('Failed to list channels');
+    }
+    const volumeCh = channelsRes.body.find((c: any) => c.name === '#volume');
+    if (!volumeCh) throw new Error('#volume channel not found');
+    volumeChannelId = volumeCh.id;
+    console.log(`[discovery] volumeChannelId=${volumeChannelId}`);
+
+    // ── INDEPENDENT ORACLE: fetch ALL messages via plain pagination ──
+    allVolumeMessages = await fetchAllChannelMessages(alice.jar, volumeChannelId);
+    console.log(`[oracle] fetched ${allVolumeMessages.length} messages from #volume`);
+
+    // Build oracles for each query by filtering + sorting locally
+    const hackathon = await buildOracle(allVolumeMessages, 'hackathon');
+    expectedHackathon = hackathon.ids;
+    hackathonTotal = hackathon.total;
+    console.log(`[oracle] hackathon: total=${hackathonTotal}, ids=${hackathon.ids.length}`);
+
+    const coffee = await buildOracle(allVolumeMessages, 'coffee');
+    expectedCoffee = coffee.ids;
+    coffeeTotal = coffee.total;
+    console.log(`[oracle] coffee: total=${coffeeTotal}, ids=${coffee.ids.length}`);
+
+    const fooAlice = await buildOracle(allVolumeMessages, 'foo', aliceId);
+    expectedFooAlice = fooAlice.ids;
+    fooAliceTotal = fooAlice.total;
+    console.log(`[oracle] foo+alice: total=${fooAliceTotal}, ids=${fooAlice.ids.length}`);
+
+    // Server search: #volume is the only channel with messages,
+    // so the server-scoped oracle is identical to the channel-scoped one.
+    const dinnerServer = await buildOracle(allVolumeMessages, 'dinner');
+    expectedDinnerServer = dinnerServer.ids;
+    dinnerServerTotal = dinnerServer.total;
+    console.log(`[oracle] dinner(server): total=${dinnerServerTotal}, ids=${dinnerServer.ids.length}`);
+  }, 60_000);
 
   // ──── Channel-scoped search ────
 
   it('channel search returns exact expected IDs for "hackathon"', async () => {
     // @satisfies FR-MSG-020
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=hackathon&limit=100`,
+      `/channels/${volumeChannelId}/search?q=hackathon&limit=100`,
       alice.jar,
     );
     expect(res.status).toBe(200);
-    expect(res.body.total).toBe(EXPECTED_HACKATHON.length);
+    expect(res.body.total).toBe(hackathonTotal);
     const returnedIds: string[] = res.body.results.map((r: any) => r.id);
-    expect(returnedIds).toEqual(EXPECTED_HACKATHON);
+    expect(returnedIds).toEqual(expectedHackathon);
   });
 
   it('channel search returns exact expected IDs for "coffee"', async () => {
     // @satisfies FR-MSG-020
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=coffee&limit=100`,
+      `/channels/${volumeChannelId}/search?q=coffee&limit=100`,
       alice.jar,
     );
     expect(res.status).toBe(200);
-    expect(res.body.total).toBe(EXPECTED_COFFEE.length);
+    expect(res.body.total).toBe(coffeeTotal);
     const returnedIds: string[] = res.body.results.map((r: any) => r.id);
-    expect(returnedIds).toEqual(EXPECTED_COFFEE);
+    expect(returnedIds).toEqual(expectedCoffee);
   });
 
   // ──── Author filter ────
@@ -99,13 +189,13 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   it('channel search with author filter returns exact expected IDs', async () => {
     // @satisfies FR-MSG-020
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=foo&author=${ALICE_ID}&limit=100`,
+      `/channels/${volumeChannelId}/search?q=foo&author=${aliceId}&limit=100`,
       alice.jar,
     );
     expect(res.status).toBe(200);
-    expect(res.body.total).toBe(EXPECTED_FOO_ALICE.length);
+    expect(res.body.total).toBe(fooAliceTotal);
     const returnedIds: string[] = res.body.results.map((r: any) => r.id);
-    expect(returnedIds).toEqual(EXPECTED_FOO_ALICE);
+    expect(returnedIds).toEqual(expectedFooAlice);
   });
 
   // ──── Server-scoped search ────
@@ -113,13 +203,13 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   it('server search returns exact expected IDs for "dinner"', async () => {
     // @satisfies FR-MSG-020
     const res = await apiGet(
-      `/servers/${FIXTURE_SERVER}/search?q=dinner&limit=100`,
+      `/servers/${fixtureServerId}/search?q=dinner&limit=100`,
       alice.jar,
     );
     expect(res.status).toBe(200);
-    expect(res.body.total).toBe(EXPECTED_DINNER_SERVER.length);
+    expect(res.body.total).toBe(dinnerServerTotal);
     const returnedIds: string[] = res.body.results.map((r: any) => r.id);
-    expect(returnedIds).toEqual(EXPECTED_DINNER_SERVER);
+    expect(returnedIds).toEqual(expectedDinnerServer);
   });
 
   // ──── Pagination ────
@@ -127,17 +217,17 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   it('respects limit parameter', async () => {
     // @satisfies FR-MSG-020
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=hackathon&limit=5`,
+      `/channels/${volumeChannelId}/search?q=hackathon&limit=5`,
       alice.jar,
     );
     expect(res.status).toBe(200);
     // total is still the full count
-    expect(res.body.total).toBe(EXPECTED_HACKATHON.length);
+    expect(res.body.total).toBe(hackathonTotal);
     // but results are capped
     expect(res.body.results.length).toBe(5);
     // first 5 match the expected order
     expect(res.body.results.map((r: any) => r.id)).toEqual(
-      EXPECTED_HACKATHON.slice(0, 5),
+      expectedHackathon.slice(0, 5),
     );
   });
 
@@ -146,7 +236,7 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   it('each result has the required fields', async () => {
     // @satisfies FR-MSG-020
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=hackathon&limit=1`,
+      `/channels/${volumeChannelId}/search?q=hackathon&limit=1`,
       alice.jar,
     );
     expect(res.status).toBe(200);
@@ -170,7 +260,7 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   it('returns 401 without auth', async () => {
     const jar = createJar();
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=test`,
+      `/channels/${volumeChannelId}/search?q=test`,
       jar,
     );
     expect(res.status).toBe(401);
@@ -178,7 +268,7 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
 
   it('returns empty results for no-match query', async () => {
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=xyznonexistent12345&limit=100`,
+      `/channels/${volumeChannelId}/search?q=xyznonexistent12345&limit=100`,
       alice.jar,
     );
     expect(res.status).toBe(200);
@@ -188,9 +278,23 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
 
   it('returns validation error for empty query', async () => {
     const res = await apiGet(
-      `/channels/${VOLUME_CHANNEL}/search?q=`,
+      `/channels/${volumeChannelId}/search?q=`,
       alice.jar,
     );
     expect(res.status).toBe(400);
+  });
+
+  // ──── Independent content verification ────
+
+  it('every "hackathon" result content contains "hackathon"', async () => {
+    const res = await apiGet(
+      `/channels/${volumeChannelId}/search?q=hackathon&limit=100`,
+      alice.jar,
+    );
+    expect(res.status).toBe(200);
+    for (const r of res.body.results) {
+      const txt = (r.content + ' ' + r.snippet).toLowerCase();
+      expect(txt).toContain('hackathon');
+    }
   });
 });

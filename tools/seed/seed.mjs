@@ -29,6 +29,14 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
 
+// Parse CLI flags
+const args = process.argv.slice(2);
+function getFlag(flag) {
+  const idx = args.indexOf(flag);
+  return idx >= 0 && idx + 1 < args.length ? args[idx + 1] : null;
+}
+const IDS_OUTPUT = getFlag('--ids-output') ?? path.join(__dirname, 'fixture-ids.json');
+
 // ── Seeded RNG (deterministic) ──
 let _rng = 42;
 function seededRandom() {
@@ -267,7 +275,7 @@ async function main() {
   const volumeChannelId = textChannelIds['volume'];
 
   const existingMessages = await apiFetch(`/channels/${volumeChannelId}/messages?limit=1`, { jar: alice.jar });
-  const existingMsgCount = Array.isArray(existingMessages.body) ? 1 : 0; // just check if any exist
+  const existingMsgCount = Array.isArray(existingMessages.body) ? existingMessages.body.length : 0;
 
   const messageStarters = [
     "Just thinking about", "Has anyone seen", "I love", "Can't believe",
@@ -391,9 +399,8 @@ async function main() {
     volumeChannelId,
   };
 
-  const outputPath = path.join(__dirname, 'fixture-ids.json');
-  fs.writeFileSync(outputPath, JSON.stringify(fixtureIds, null, 2));
-  console.log(`\n[seed] fixture-ids.json written to ${outputPath}`);
+  fs.writeFileSync(IDS_OUTPUT, JSON.stringify(fixtureIds, null, 2));
+  console.log(`\n[seed] fixture-ids written to ${IDS_OUTPUT}`);
   console.log('[seed] DONE');
 }
 
