@@ -33,11 +33,6 @@ interface ShareUploadResponse {
   rejected: Array<{ name: string; reason: string }>;
 }
 
-interface ShareDevLoginResponse {
-  sub: string;
-  username: string;
-}
-
 @Injectable()
 export class ShareService {
   private readonly logger = new Logger(ShareService.name);

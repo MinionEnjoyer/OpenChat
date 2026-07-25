@@ -6,7 +6,7 @@
  *
  * @satisfies FR-SRV-009
  */
-import { apiFetch, wsConnect, WsClient } from '../characterization/helpers';
+import { apiFetch, wsConnect, type WsClient } from '../characterization/helpers';
 
 // This test must run with CHAR_API_BASE + CHAR_WS_BASE pointing to port 3017.
 // Example: CHAR_API_BASE=http://localhost:3017/api CHAR_WS_BASE=ws://localhost:3017/ws npx jest ...
@@ -38,7 +38,7 @@ async function setup(): Promise<TestContext> {
   const serverId = srv.body.id;
 
   // Add bob as member (creates PENDING invitation)
-  const invRes = await apiFetch(`/servers/${serverId}/members`, { method: 'POST', body: { userId: bob.userId }, jar: alice.jar });
+    await apiFetch(`/servers/${serverId}/members`, { method: 'POST', body: { userId: bob.userId }, jar: alice.jar });
   // Accept invitation as bob via notifications
   const bobNotifs = await apiFetch('/notifications', { jar: bob.jar });
   expect(bobNotifs.status).toBe(200);
@@ -72,7 +72,6 @@ describe('P3-09 — granular guild-structure realtime events (FR-SRV-009)', () =
 
   // Helper: wait for event on member WS, assert NOT on non-member WS
   async function assertMemberEvent(op: string, action: () => Promise<any>) {
-    const bobBefore = ctx.bobWs.frames.length;
     const carolBefore = ctx.carolWs.frames.length;
 
     await action();

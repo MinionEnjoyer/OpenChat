@@ -4,9 +4,7 @@
  * Tests: set timeout → REST send 403 → WS send rejected → clear timeout → send succeeds;
  * past-dated timeout does not block; non-privileged actor cannot set a timeout (403).
  */
-import { apiFetch, devLogin, wsConnect, WsClient, createJar } from '../characterization/helpers';
-
-const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3006/api';
+import { apiFetch, devLogin, wsConnect, type createJar } from '../characterization/helpers';
 
 describe('P7 — Timeout enforcement (FR-ROLE-005)', () => {
   let serverId: string;

@@ -53,7 +53,7 @@ export class FriendsService {
 
     if (reverseRequest) {
       // Accept the reverse request automatically
-      const updated = await this.prisma.friendship.update({
+      await this.prisma.friendship.update({
         where: { id: reverseRequest.id },
         data: { status: 'ACCEPTED' },
       });
@@ -75,7 +75,7 @@ export class FriendsService {
       throw new BadRequestException('Friend request already sent or accepted');
     }
 
-    const friendship = await this.prisma.friendship.upsert({
+    await this.prisma.friendship.upsert({
       where: {
         requesterId_addresseeId: {
           requesterId: userId,

@@ -7,7 +7,7 @@
  * Also covers: owner bypass, role overwrite deny, member overwrite deny/allow,
  * overwrite CRUD, role assignment.
  */
-import { apiFetch, devLogin, createJar } from '../characterization/helpers';
+import { apiFetch, devLogin, type createJar } from '../characterization/helpers';
 
 let alice: { username: string; userId: string; jar: ReturnType<typeof createJar> };
 let bob: { username: string; userId: string; jar: ReturnType<typeof createJar> };
