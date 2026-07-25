@@ -1,12 +1,13 @@
 # @infra  Connectivity probe: emulator→host via 10.0.2.2
-# Hit the API health endpoint from inside the emulator.
-# Assert the JSON payload is visible in the browser.
+# Hit the API health endpoint from inside the emulator via Chrome,
+# then assert the response JSON is visible on screen.
+#
+# Requires: emulator booted, Docker stack running, API on 10.0.2.2:3001
 appId: com.android.chrome
-# If Chrome is not installed, fall back to Browser
-# Chrome is included in google_apis system images.
 ---
 - launchApp:
-    appId: com.android.chrome
-    optional: true
-- openLink: http://10.0.2.2:3001/api/health
-- assertVisible: .*"status".*
+    clearState: true
+- assertVisible: "Chrome"
+- inputText: "http://10.0.2.2:3001/api/health"
+- pressKey: Enter
+- assertVisible: "ok"
