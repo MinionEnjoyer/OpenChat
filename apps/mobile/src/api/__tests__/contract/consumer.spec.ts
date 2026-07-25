@@ -6,11 +6,28 @@
  * allows. Round-trip: mock server → typed fetch → response shape check.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 
 // ── Inline light mock (no msw dependency needed for contract validation) ──
 
 const API = 'http://localhost:3001/api';
+
+/**
+ * Builds a header record from a Set-Cookie response header.
+ *
+ * Written as a mutated Record rather than a conditional object literal: the
+ * latter produces a union whose non-cookie arm carries `cookie?: undefined`,
+ * which is not assignable to HeadersInit under strict mode.
+ */
+function withCookie(
+  setCookie: string | null | undefined,
+  extra: Record<string, string> = {},
+): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const cookie = setCookie?.split(';')[0];
+  if (cookie) headers.cookie = cookie;
+  return headers;
+}
 
 describe('P0-09 consumer — User shape from /auth/me', () => {
   it('response matches User schema contract', async () => {
@@ -50,8 +67,9 @@ describe('P0-09 consumer — Message shape from /channels/:id/messages', () => {
       body: JSON.stringify({ username: 'consumer-msg' }),
     });
     expect(loginRes.status).toBe(201);
-    const cookie = loginRes.headers.get('set-cookie')?.split(';')[0];
-    const headers = cookie ? { cookie, 'content-type': 'application/json' } : { 'content-type': 'application/json' };
+    const headers = withCookie(loginRes.headers.get('set-cookie'), {
+      'content-type': 'application/json',
+    });
 
     const srv = await fetch(`${API}/servers`, { method: 'POST', headers, body: JSON.stringify({ name: 'Consumer Guild' }) });
     const serverId = (await srv.json()).id;
@@ -63,7 +81,7 @@ describe('P0-09 consumer — Message shape from /channels/:id/messages', () => {
     await fetch(`${API}/channels/${channelId}/messages`, { method: 'POST', headers, body: JSON.stringify({ content: 'hello contract' }) });
 
     // List
-    const listRes = await fetch(`${API}/channels/${channelId}/messages`, { headers: { cookie } });
+    const listRes = await fetch(`${API}/channels/${channelId}/messages`, { headers });
     expect(listRes.status).toBe(200);
     const messages = await listRes.json();
     expect(Array.isArray(messages)).toBe(true);
@@ -113,8 +131,7 @@ describe('P0-09 consumer — Server shape contract', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username: 'consumer-srv' }),
     });
-    const cookie = loginRes.headers.get('set-cookie')?.split(';')[0];
-    const headers = cookie ? { cookie } : {};
+    const headers = withCookie(loginRes.headers.get('set-cookie'));
 
     const res = await fetch(`${API}/servers`, { headers });
     expect(res.status).toBe(200);

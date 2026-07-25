@@ -185,3 +185,54 @@ whenever tracked files differ from HEAD, which is true of every commit — it
 cannot actually be used to commit.
 
 **Next:** P0-17 — Expo skeleton (06 §7), then Phase 0 signoff (T4) and `.phase`→1.
+
+## 2026-07-24 — P0-17 (William B. Sexton)
+
+### P0-17 — Expo skeleton: COMPLETE
+
+The app now builds, installs, launches, and is asserted on a real device.
+
+**Stack (DR-004):** Expo SDK 57.0.8, RN 0.86.0, React 19.2.3, TypeScript 6.0.3.
+The TS version deviates from 00 §0.6's `^5.4` pin because 06 §1 mandates
+latest-stable Expo, whose type definitions require TS 6 — recorded as a
+Decision Record rather than silently absorbed.
+
+**Built:**
+- `apps/mobile` Expo project merged around the pre-existing generated types and
+  E2E flows. `android/` and `ios/` stay gitignored (prebuild workflow).
+- §2 layout scaffolded with per-directory READMEs stating each module's rule.
+- ESLint boundaries **proven to catch** all five violations: ui→app-level import,
+  cross-feature deep import, `setQueryData` outside sync/, react-native import in
+  domain/, and console.log. Plus `react/jsx-no-literals` for NFR-11.
+- `lib/clock.ts` (freezable, timers fire in due order), `lib/logger.ts` (2000-event
+  ring buffer per 04 §10), `lib/config.ts` (validates, defaults to 10.0.2.2 per
+  P0-15), `lib/storage.ts` (swappable backend; MMKV lazily required), `ui/strings.ts`.
+  **30 unit tests, all green.**
+- Hello screen, `e2e/flows/p0-17-hello.yaml` on the real appId
+  (`com.openchat.mobile`), `devctl screenshot --screen hello`.
+- `tools/env.sh` — one definition of JAVA_HOME/ANDROID_HOME. Neither was on PATH
+  for non-interactive shells (JDK 17 is an unlinked Homebrew keg); `prove-rig.sh`
+  now sources it instead of carrying its own copy.
+
+**Verification (all observed, none inferred):**
+- `expo prebuild` → `./gradlew assembleRelease` → BUILD SUCCESSFUL in 2m46s.
+- `adb install` → Success; `am start -W` → COLD, TotalTime 329ms.
+- `devctl e2e p0-17-hello.yaml` → passed. Broke the title assertion → exit 1;
+  restored → passed. The flow is not vacuous.
+- `devctl screenshot --screen hello` → 44,235-byte PNG, visually confirmed.
+- `devctl verify` → green across all seven layers.
+
+**NFRs armed by this work item:** NFR-08 (api 0 + mobile 0 tsc errors, 0 explicit
+`any` — full scope now that a mobile tsconfig exists) and NFR-11 (0 literal JSX
+strings). NFR-03 records a baseline: universal APK 66.8MB, est. per-ABI 26.6MB,
+JS bundle 1.1MB — see BACKLOG, the delivery artifact must be decided before it
+can gate at Phase 1.
+
+**Defect found:** `apps/mobile/src/api/__tests__/contract/consumer.spec.ts` did
+not typecheck (5 errors) — same root cause as the P0-16 finding, a test file that
+Jest transpiled but no compiler ever checked. It had no tsconfig until now.
+
+**Retired:** `p0-smoke-hello.yaml`, which launched `com.android.settings` because
+no OpenChat APK existed. Its stated replacement condition is met.
+
+**Next:** Phase 0 signoff (T4), `.phase`→1, then Phase 1.

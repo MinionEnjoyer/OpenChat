@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "OpenChat",
+    "slug": "openchat-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "openchat",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.openchat.mobile"
+    },
+    "android": {
+      "package": "com.openchat.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#313338",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    }
+  }
+}

@@ -84,6 +84,14 @@ comment block at the top of each script for its phase rationale.
 
 Exit 0 if nothing is armed-failing, overdue, or errored; 1 otherwise.
 
+### `screenshot --screen <name>`
+Captures the connected emulator's screen to `artifacts/e2e/screens/<name>.png`
+(06 §7). Verifies the PNG magic bytes and deletes the file if they are wrong —
+a zero-byte or truncated capture must not look like a successful run.
+
+Requires a connected emulator (`devctl device up`). Exit 1 if no device, if
+`adb screencap` fails, or if the result is not a PNG.
+
 ### `selftest`
 Deliberately breaks one thing per layer (doctor, contamination, contract, char,
 trace, nfr) and asserts the corresponding gate fails with nonzero exit.
@@ -106,6 +114,7 @@ Exit 1 if tree dirty (aborts), otherwise git commit exit code.
 | capabilities | All valid | Errors found |
 | verify | All gates pass | Any gate failed |
 | nfr | No breach, overdue, or error | Any breach, overdue NFR, or script error |
+| screenshot | PNG artifact written | No device, capture failed, or not a PNG |
 | selftest | All layers caught | Any layer missed |
 | commit | Commit succeeded | Tree dirty or git failure |
 

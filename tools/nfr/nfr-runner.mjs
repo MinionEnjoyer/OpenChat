@@ -94,6 +94,7 @@ function runAll() {
     summary: {
       total: results.length,
       armed: results.filter(r => r.status === 'armed').length,
+      baseline: results.filter(r => r.status === 'baseline').length,
       blocked: results.filter(r => r.status === 'blocked').length,
       overdue: results.filter(r => r.status === 'overdue').length,
       error: results.filter(r => r.status === 'error').length,
@@ -115,14 +116,21 @@ function runAll() {
     const s = report.summary;
     console.log(
       `NFR harness @ phase ${report.phase} (${sha}): ` +
-        `${s.armed} armed, ${s.blocked} blocked, ${s.overdue} overdue, ${s.error} error`,
+        `${s.armed} armed, ${s.baseline} baseline, ${s.blocked} blocked, ` +
+        `${s.overdue} overdue, ${s.error} error`,
     );
     for (const r of results) {
       const mark =
-        r.status === 'armed' ? (r.pass ? '✓' : '✗') : r.status === 'blocked' ? '—' : '✗';
-      // Only an armed entry is described by its value; for overdue/blocked/error
-      // the reason is the point (an overdue entry may carry a stale partial value).
-      const detail = r.status === 'armed' ? r.value || '' : r.reason || '';
+        r.status === 'armed' ? (r.pass ? '✓' : '✗')
+        : r.status === 'blocked' ? '—'
+        : r.status === 'baseline' ? '·'
+        : '✗';
+      // An armed entry is described by its value and a baseline by the number it
+      // recorded; for overdue/blocked/error the reason is the point.
+      const detail =
+        r.status === 'armed' ? r.value || ''
+        : r.status === 'baseline' ? r.value || r.reason || ''
+        : r.reason || '';
       console.log(`  ${mark} ${r.id} [${r.status}] ${detail}`);
     }
     if (failing.length > 0) {

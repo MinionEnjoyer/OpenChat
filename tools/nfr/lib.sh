@@ -136,6 +136,37 @@ nfr_stub() {
   fi
 }
 
+# nfr_emit_baseline <value> [<evidence-json>] — measured, recorded, not yet gating.
+#
+# For budgets whose number can be read today but whose subject is not yet the
+# thing the requirement is really about (e.g. APK size before the delivery
+# artifact is decided). The number goes on the record instead of hiding behind
+# "blocked", and the ratchet still applies: past ARM_AT_PHASE a baseline is no
+# longer enough and the entry reports overdue.
+nfr_emit_baseline() {
+  local value="$1" evidence="${2:-{\}}"
+  local phase
+  phase="$(nfr_phase)"
+
+  if [ "$phase" -gt "$NFR_ARM_AT_PHASE" ]; then
+    _nfr_base_json | jq \
+      --arg value "$value" \
+      --argjson evidence "$evidence" \
+      '. + {status: "overdue", pass: false, value: $value, evidence: $evidence,
+            reason: ("a baseline measurement is recorded but phase \(.observed_phase) is past " +
+                     "arm_at_phase \(.arm_at_phase) — this budget must gate now")}'
+    return
+  fi
+
+  _nfr_base_json | jq \
+    --arg value "$value" \
+    --arg blocked_by "${NFR_BLOCKED_BY:-}" \
+    --argjson evidence "$evidence" \
+    '. + {status: "baseline", value: $value, evidence: $evidence,
+          reason: ("measured and recorded, not gating until phase \(.arm_at_phase)" +
+                   (if $blocked_by == "" then "" else ": " + $blocked_by end))}'
+}
+
 # nfr_emit_armed <value> <pass:true|false> [<evidence-json>] — a real measurement.
 # If NFR_SCOPE_COMPLETE=false and .phase has reached ARM_AT_PHASE, the partial
 # measurement is not enough and the entry is reported overdue.

@@ -676,6 +676,8 @@ Commands:
                 NFR left unarmed past the phase it was promised in (--json)
   device up     Boot Android emulator(s) (Pixel 6a, API 34); provisions AVD if needed
   e2e           Run Maestro E2E flows against connected emulator(s) [--json] [<flow>]
+  screenshot    Capture the emulator screen to artifacts/e2e/screens/<name>.png
+                (--screen <name>; verifies PNG magic bytes)
   commit        Safe commit: fail if tree is dirty, warn about untracked files
 
 Flags:
@@ -690,6 +692,54 @@ cmd_nfr() {
   # NFR left unarmed after the phase it was promised in (the ratchet in
   # tools/nfr/lib.sh) — a blocked stub cannot stay green across a phase bump.
   node "$ROOT/tools/nfr/nfr-runner.mjs" "$@"
+}
+
+cmd_screenshot() {
+  # Capture the connected emulator's screen to an artifact (06 §7).
+  # Verifies the PNG magic bytes: a truncated or empty capture that still
+  # produced a file would otherwise look like a successful run.
+  local screen=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --screen) screen="${2:-}"; shift 2;;
+      *) shift;;
+    esac
+  done
+  if [ -z "$screen" ]; then
+    echo "✗ devctl screenshot: --screen <name> is required"
+    return 1
+  fi
+
+  # shellcheck source=tools/env.sh
+  source "$ROOT/tools/env.sh"
+
+  local devices
+  devices=$(adb devices 2>/dev/null | grep -cE '\sdevice$' || true)
+  if [ "$devices" -lt 1 ]; then
+    echo "✗ devctl screenshot: no emulator connected (run: devctl device up)"
+    return 1
+  fi
+
+  local out_dir="$ROOT/artifacts/e2e/screens"
+  mkdir -p "$out_dir"
+  local out="$out_dir/$screen.png"
+  adb exec-out screencap -p > "$out" 2>/dev/null || {
+    echo "✗ devctl screenshot: adb screencap failed"
+    return 1
+  }
+
+  # PNG magic: 89 50 4E 47
+  local magic
+  magic=$(head -c 4 "$out" | od -An -tx1 | tr -d ' \n')
+  if [ "$magic" != "89504e47" ]; then
+    echo "✗ devctl screenshot: $out is not a PNG (magic=$magic) — capture failed"
+    rm -f "$out"
+    return 1
+  fi
+
+  local bytes
+  bytes=$(wc -c < "$out" | tr -d ' ')
+  echo "  ✓ screenshot: artifacts/e2e/screens/$screen.png ($bytes bytes)"
 }
 
 cmd_trace() {
@@ -963,6 +1013,7 @@ case "${1:-}" in
   selftest)      cmd_selftest "$@";;
   trace)         shift; cmd_trace "$@";;
   nfr)           shift; cmd_nfr "$@";;
+  screenshot)    shift; cmd_screenshot "$@";;
   device)        shift; cmd_device_up "$@";;
   e2e)           cmd_e2e "$@";;
   commit)        shift; cmd_commit "$@";;

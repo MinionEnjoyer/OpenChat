@@ -1,15 +1,16 @@
 {
-  "generated": "2026-07-25T06:05:31.697Z",
+  "generated": "2026-07-25T06:28:17.387Z",
   "tool": "tools/nfr/nfr-runner.mjs",
-  "sha": "82860d5",
+  "sha": "be7610e",
   "phase": "0",
   "summary": {
     "total": 12,
-    "armed": 1,
-    "blocked": 11,
+    "armed": 2,
+    "baseline": 1,
+    "blocked": 9,
     "overdue": 0,
     "error": 0,
-    "pass": 1,
+    "pass": 2,
     "fail": 0
   },
   "results": [
@@ -24,7 +25,7 @@
       "blocked_by": "no APK and no channel list — P0-17 builds the skeleton, P1-06 the shell",
       "evidence": {
         "apk_search": "apps/mobile/**/*.apk",
-        "apk_found": "none"
+        "apk_found": "/Users/williambsexton/work/OpenChat/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
       },
       "reason": "not yet measurable at phase 0; must be armed during phase 1",
       "script": "nfr-01-cold-start.sh"
@@ -39,7 +40,7 @@
       "status": "blocked",
       "blocked_by": "no message list — Phase 2 (the #volume 1000-msg channel already seeds via P0-06)",
       "evidence": {
-        "apk_found": "none",
+        "apk_found": "/Users/williambsexton/work/OpenChat/apps/mobile/android/app/build/outputs/apk/release/app-release.apk",
         "seeded_volume_channel": "tools/seed/seed.mjs #volume (1000 msgs)"
       },
       "reason": "not yet measurable at phase 0; must be armed during phase 2",
@@ -49,16 +50,20 @@
       "id": "NFR-03",
       "name": "release APK size",
       "budget": "≤60MB APK, ≤12MB JS bundle",
-      "tool": "stat on gradle outputs + JS bundle analysis",
+      "tool": "stat on gradle outputs + per-ABI breakdown from the APK's lib/ entries",
       "arm_at_phase": 1,
       "observed_phase": 0,
-      "status": "blocked",
-      "blocked_by": "no APK — P0-17 produces the first release build",
+      "status": "baseline",
+      "value": "universal APK 66.8MB; est. per-ABI 26.6MB; JS bundle 1.1MB",
       "evidence": {
-        "apk_search": "apps/mobile/**/*.apk",
-        "apk_found": "none"
+        "apk_path": "apps/mobile/android/app/build/outputs/apk/release/app-release.apk",
+        "universal_apk_mb": "66.8",
+        "js_bundle_mb": "1.1",
+        "abi_breakdown": "x86=15.8MB armeabi-v7a=10.2MB x86_64=15.2MB arm64-v8a=14.8MB ",
+        "est_per_abi_mb": "26.6",
+        "budget_note": "universal 66.8MB exceeds the 60MB budget; est. per-ABI 26.6MB is within it"
       },
-      "reason": "not yet measurable at phase 0; must be armed during phase 1",
+      "reason": "measured and recorded, not gating until phase 1: delivery artifact not decided (universal vs per-ABI split) — see BACKLOG",
       "script": "nfr-03-apk-size.sh"
     },
     {
@@ -119,7 +124,7 @@
       "status": "blocked",
       "blocked_by": "no gateway client — P1-05 builds the reconnect loop",
       "evidence": {
-        "mobile_realtime_dir": "events.d.ts ",
+        "mobile_realtime_dir": "README.md events.d.ts ",
         "note": "generated event types only; no client implementation"
       },
       "reason": "not yet measurable at phase 0; must be armed during phase 1",
@@ -133,14 +138,14 @@
       "arm_at_phase": 1,
       "observed_phase": 0,
       "status": "armed",
-      "value": "apps/api: 0 tsc errors",
+      "value": "api 0 errors; mobile 0 errors; 0 explicit any",
       "pass": true,
       "evidence": {
-        "checked": "apps/api (tsc --noEmit)",
-        "mobile_tsconfig": "absent",
-        "mobile_src_files": "3"
+        "api_tsc_errors": "0",
+        "mobile_tsc_errors": "0",
+        "explicit_any": "0",
+        "mobile_tsconfig": "/Users/williambsexton/work/OpenChat/apps/mobile/tsconfig.json"
       },
-      "scope_pending": "apps/mobile/src — no tsconfig.json yet (P0-17); no-any lint rule not yet enforceable",
       "script": "nfr-08-types.sh"
     },
     {
@@ -153,7 +158,7 @@
       "status": "blocked",
       "blocked_by": "no product UI and no core flows to re-run — P0-17 then Phase 1/2",
       "evidence": {
-        "mobile_src_files": "3",
+        "mobile_src_files": "16",
         "e2e_flows_present": "2",
         "note": "existing flows are rig validation (@infra), not product flows"
       },
@@ -181,17 +186,17 @@
       "id": "NFR-11",
       "name": "i18n readiness (no literal JSX strings)",
       "budget": "no literal JSX strings; all user-facing text via the strings module",
-      "tool": "eslint rule over apps/mobile/src",
+      "tool": "eslint react/jsx-no-literals over apps/mobile",
       "arm_at_phase": 1,
       "observed_phase": 0,
-      "status": "blocked",
-      "blocked_by": "no JSX in apps/mobile/src — only generated .d.ts and a contract consumer test",
+      "status": "armed",
+      "value": "0 literal JSX strings",
+      "pass": true,
       "evidence": {
-        "mobile_src_files": "3",
-        "mobile_tsx_files": "0",
-        "eslint_config": "absent"
+        "rule": "react/jsx-no-literals (noStrings)",
+        "scope": "apps/mobile",
+        "strings_module": "src/ui/strings.ts"
       },
-      "reason": "not yet measurable at phase 0; must be armed during phase 1",
       "script": "nfr-11-i18n.sh"
     },
     {

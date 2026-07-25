@@ -5,13 +5,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
-export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$HOME/.maestro/bin:$PATH"
+# shellcheck source=tools/env.sh
+source "$ROOT/tools/env.sh"
+export PATH="$HOME/.maestro/bin:$PATH"
 
 AVD_NAME="OpenChat_Pixel6a_API34"
-FLOW_FILE="$ROOT/apps/mobile/e2e/flows/p0-smoke-hello.yaml"
+FLOW_FILE="$ROOT/apps/mobile/e2e/flows/p0-17-hello.yaml"
 ARTIFACTS_DIR="$ROOT/artifacts/e2e"
 
 echo "===== PROVE THE RIG ====="
@@ -76,7 +75,7 @@ fi
 
 # ── 2. Run smoke flow (should pass) ──
 echo ""
-echo "=== 2. Running smoke flow: p0-smoke-hello.yaml ==="
+echo "=== 2. Running smoke flow: p0-17-hello.yaml ==="
 E2E=1 maestro test "$FLOW_FILE" 2>&1 || {
   echo "  ✗ Smoke flow FAILED — rig is broken"
   exit 1
@@ -87,8 +86,8 @@ echo "  ✓ Smoke flow PASSED"
 echo ""
 echo "=== 3. Proving gate catches failure ==="
 cp "$FLOW_FILE" "$FLOW_FILE.prove-bak"
-# Replace assertVisible "Settings" with "DefinitelyNotVisible"
-sed -i '' 's/assertVisible: "Settings"/assertVisible: "DefinitelyNotVisible"/' "$FLOW_FILE"
+# Break the title assertion so the flow must fail.
+sed -i '' "s/assertVisible: 'OpenChat'/assertVisible: 'DefinitelyNotVisible'/" "$FLOW_FILE"
 
 echo "  Running with broken assertion…"
 set +e
@@ -119,7 +118,7 @@ mkdir -p "$ARTIFACTS_DIR"
 cat > "$ARTIFACTS_DIR/last-run.json" <<JSON
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "flow": "p0-smoke-hello",
+  "flow": "p0-17-hello",
   "device": "emulator-5554",
   "result": "pass",
   "host": {
