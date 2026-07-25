@@ -563,6 +563,136 @@ export class MessagesService {
     };
   }
 
+  /**
+   * Search messages by text, optionally scoped to a channel or server, with
+   * optional author filter and cursor pagination. Uses PostgreSQL full-text
+   * search (to_tsvector / plainto_tsquery) with ts_headline snippets.
+   *
+   * // @satisfies FR-MSG-020
+   */
+  async search(params: {
+    channelId?: string;
+    serverId?: string;
+    query: string;
+    authorId?: string;
+    before?: string; // cursor: createdAt ISO string
+    limit?: number;
+    userId: string; // authenticated user for access checks
+  }): Promise<{
+    results: Array<{
+      id: string;
+      channelId: string;
+      content: string;
+      snippet: string;
+      createdAt: string;
+      author: { id: string; username: string; displayName: string | null; avatarUrl: string | null };
+    }>;
+    total: number;
+  }> {
+    const limit = Math.min(params.limit ?? 25, 100);
+    const query = params.query.trim();
+    if (!query) return { results: [], total: 0 };
+
+    // Verify server membership for server-scoped search
+    if (params.serverId) {
+      const member = await this.prisma.serverMember.findUnique({
+        where: { serverId_userId: { serverId: params.serverId, userId: params.userId } },
+      });
+      if (!member) throw new ForbiddenException('Not a member of this server');
+    }
+
+    // Build the WHERE clauses
+    const conditions: string[] = ['m."deletedAt" IS NULL'];
+    const bindings: any[] = [];
+
+    // Scope
+    if (params.channelId) {
+      conditions.push(`m."channelId" = $${bindings.length + 1}`);
+      bindings.push(params.channelId);
+      // Verify channel access
+      await this.assertChannelAccess(params.channelId, params.userId);
+    }
+    if (params.serverId) {
+      conditions.push(`m."channelId" IN (SELECT c.id FROM "Channel" c WHERE c."serverId" = $${bindings.length + 1})`);
+      bindings.push(params.serverId);
+    }
+
+    // Full-text search
+    conditions.push(`to_tsvector('english', m."content") @@ plainto_tsquery('english', $${bindings.length + 1})`);
+    bindings.push(query);
+
+    // Author filter
+    if (params.authorId) {
+      conditions.push(`m."authorId" = $${bindings.length + 1}`);
+      bindings.push(params.authorId);
+    }
+
+    // Cursor pagination
+    if (params.before) {
+      conditions.push(`m."createdAt" < $${bindings.length + 1}::timestamptz`);
+      bindings.push(params.before);
+    }
+
+    const where = conditions.join(' AND ');
+
+    // Count total matches
+    const countResult = await this.prisma.$queryRawUnsafe<Array<{ count: bigint }>>(
+      `SELECT COUNT(*)::bigint as count FROM "Message" m WHERE ${where}`,
+      ...bindings,
+    );
+    const total = Number(countResult[0]?.count ?? 0);
+
+    // Fetch results with ranking + snippet
+    const results = await this.prisma.$queryRawUnsafe<Array<{
+      id: string;
+      channelId: string;
+      content: string;
+      snippet: string;
+      createdAt: Date;
+      authorId: string;
+      authorUsername: string;
+      authorDisplayName: string | null;
+      authorAvatarUrl: string | null;
+    }>>(
+      `SELECT
+        m."id",
+        m."channelId",
+        m."content",
+        ts_headline('english', m."content", plainto_tsquery('english', $${bindings.length + 1}),
+          'StartSel=<b>, StopSel=</b>, MaxWords=40, MinWords=15, ShortWord=3, MaxFragments=2, FragmentDelimiter=…'
+        ) as snippet,
+        m."createdAt",
+        u."id" as "authorId",
+        u."username" as "authorUsername",
+        u."displayName" as "authorDisplayName",
+        u."avatarUrl" as "authorAvatarUrl"
+      FROM "Message" m
+      JOIN "User" u ON u."id" = m."authorId"
+      WHERE ${where}
+      ORDER BY ts_rank(to_tsvector('english', m."content"), plainto_tsquery('english', $${bindings.length + 1})) DESC, m."createdAt" DESC
+      LIMIT ${limit}`,
+      ...bindings,
+      query,
+    );
+
+    return {
+      total,
+      results: results.map((r) => ({
+        id: r.id,
+        channelId: r.channelId,
+        content: r.content,
+        snippet: r.snippet,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        author: {
+          id: r.authorId,
+          username: r.authorUsername,
+          displayName: r.authorDisplayName,
+          avatarUrl: r.authorAvatarUrl,
+        },
+      })),
+    };
+  }
+
   private groupReactions(reactions: Array<{ emoji: string; userId: string }>) {
     const map = new Map<string, string[]>();
     for (const r of reactions) {
