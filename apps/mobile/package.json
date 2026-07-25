@@ -19,13 +19,9 @@
     "expo": "~57.0.8",
     "expo-build-properties": "~57.0.7",
     "expo-clipboard": "^57.0.1",
-<<<<<<< HEAD
     "expo-document-picker": "~57.0.1",
-    "expo-image-manipulator": "~57.0.6",
-    "expo-image-picker": "~57.0.6",
-=======
     "expo-image-manipulator": "~57.0.8",
->>>>>>> med-compress
+    "expo-image-picker": "~57.0.6",
     "expo-secure-store": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.1",
