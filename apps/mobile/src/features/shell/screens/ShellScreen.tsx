@@ -29,6 +29,7 @@ import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
 import { InboxScreen } from '../../inbox';
+import type { NotificationsResponse } from '../../../api/schema';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
 import { MemberList } from '../MemberList';
@@ -142,6 +143,14 @@ export function ShellScreen(): React.JSX.Element {
     enabled: serverId !== null && membersQueryEnabled,
     queryFn: () => api.request<Member[]>(`/servers/${serverId}/members`),
   });
+
+  // FR-SOC-005 — notifications badge (lightweight fetch for count)
+  const notifications = useQuery({
+    queryKey: keys.notifications,
+    queryFn: () => api.request<NotificationsResponse>('/notifications'),
+    staleTime: 30_000,
+  });
+  const inboxCount = notifications.data?.count ?? 0;
 
   // ── Channel CRUD hooks (FR-SRV-005) ──
   const createChannel = useCreateChannel(serverId ?? '');
@@ -403,7 +412,14 @@ export function ShellScreen(): React.JSX.Element {
             </Pressable>
           )}
           <Pressable onPress={() => setInboxVisible(true)} accessibilityLabel={strings.inbox.title} testID="inbox-button">
-            <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
+            <View style={styles.inboxIconContainer}>
+              <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
+              {inboxCount > 0 && (
+                <View style={styles.inboxBadge} testID="inbox-badge">
+                  <Text style={styles.inboxBadgeText}>{inboxCount > 99 ? '99+' : String(inboxCount)}</Text>
+                </View>
+              )}
+            </View>
           </Pressable>
           <Pressable
             onPress={toggleMembers}
@@ -756,6 +772,27 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
   },
   topBarAction: { ...typography.body, color: palette.accent },
+  inboxIconContainer: {
+    position: 'relative',
+  },
+  inboxBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: palette.error,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  inboxBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '700',
+  },
   chatBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { ...typography.caption, color: palette.textMuted },
 
