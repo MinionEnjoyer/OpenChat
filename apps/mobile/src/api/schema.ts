@@ -181,7 +181,21 @@ export interface UploadResponse {
   rejected: RejectedFile[];
 }
 
-// ── Permissions (shared lib — apps/api/src/permissions/permissions.ts) ──
-// FR-ROLE-002: client and server semantics must be identical.
-export { Permission, ALL_PERMISSIONS, DEFAULT_MEMBER_PERMISSIONS, hasPermission, PERMISSION_LIST } from '../permissions';
-export type { PermissionName } from '../permissions';
+  // ── Permissions (from contracts/permissions.json) ──
+// Server permission bitfield names and values. Source: apps/api/src/permissions/permissions.ts. This file is derived from the single source of truth in TypeScript; codegen copies it.
+
+export const Permission = {
+  ADMINISTRATOR: 1n << 0n,
+  MANAGE_SERVER: 1n << 1n,
+  MANAGE_CHANNELS: 1n << 2n,
+  MANAGE_ROLES: 1n << 3n,
+  MANAGE_MEMBERS: 1n << 4n,
+  CREATE_INVITE: 1n << 5n,
+  MANAGE_MESSAGES: 1n << 6n,
+  MENTION_EVERYONE: 1n << 7n,
+  BAN_MEMBERS: 1n << 8n,
+  SEND_MESSAGES: 1n << 9n,
+  READ_MESSAGES: 1n << 10n,
+} as const;
+
+export type PermissionName = keyof typeof Permission;
