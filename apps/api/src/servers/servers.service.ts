@@ -396,8 +396,10 @@ export class ServersService {
     } catch {
       throw new BadRequestException('Invalid permissions value');
     }
-    // Drop any bits that aren't real permissions.
-    return value & ALL_PERMISSIONS;
+    // FR-ROLE-001: must NOT mask against ALL_PERMISSIONS — BigInt round-trip
+    // must be exact for any valid BigInt. Permission checking happens at
+    // authorization time via hasPermission(), not at persist time.
+    return value;
   }
 
   async createRole(

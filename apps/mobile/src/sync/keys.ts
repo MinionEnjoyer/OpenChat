@@ -6,5 +6,7 @@ export const keys = {
   members: (serverId: string) => ['members', serverId] as const,
   categories: (serverId: string) => ['categories', serverId] as const,
   voiceParticipants: (channelId: string) => ['voiceParticipants', channelId] as const,
+  roles: (serverId: string) => ['roles', serverId] as const,
+  permissionCatalog: ['permissions'] as const,
   pins: (channelId: string) => ['pins', channelId] as const,
 };
