@@ -233,6 +233,14 @@ export const strings = {
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
   },
+  attachments: {
+    /** @satisfies FR-MED-030 */
+    originalLabel: 'Original',
+    /** @satisfies FR-MED-030 */
+    compressing: 'Compressing\u2026',
+    /** @satisfies FR-MED-030 */
+    compressFailed: 'Compression failed',
+  },
 } as const;
 
 export type Strings = typeof strings;
