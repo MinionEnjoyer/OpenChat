@@ -35,6 +35,7 @@ export const strings = {
     menuGlyph: '\u2630',
     settingsGear: '\u2699',
     logout: 'Sign out',
+    notifBell: '\u{1F514}',
   },
   messages: {
     empty: 'No messages yet',
@@ -252,6 +253,23 @@ export const strings = {
     compressing: 'Compressing\u2026',
     /** @satisfies FR-MED-030 */
     compressFailed: 'Compression failed',
+  },
+  notifSettings: {
+    title: 'Notification Settings',
+    serverLabel: 'Servers',
+    channelLabel: 'Channels',
+    levelAll: 'All',
+    levelMentions: 'Mentions',
+    levelNone: 'None',
+    mutePlaceholder: 'Mute',
+    mute15m: '15 min',
+    mute1h: '1 hour',
+    mute8h: '8 hours',
+    mute24h: '24 hours',
+    muteForever: 'Until I turn it back on',
+    unmute: 'Unmute',
+    saved: 'Saved',
+    saveFailed: 'Failed to save',
   },
   members: {
     title: 'Members',

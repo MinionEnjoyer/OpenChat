@@ -43,6 +43,7 @@ import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 import { StatusPicker, type SettableStatus } from '../../presence';
 import { AvatarPicker, useAvatarUpload } from '../../avatars';
 import { resolveConfig } from '../../../lib/config';
+import { NotificationSettingsScreen } from '../../notif-settings';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -72,6 +73,7 @@ export function ShellScreen(): React.JSX.Element {
   // Server create / settings overlay state
   const [showCreateServer, setShowCreateServer] = useState(false);
   const [showSettingsServer, setShowSettingsServer] = useState(false);
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
   const [settingsServerId, setSettingsServerId] = useState<string | null>(null);
 
   // FR-SRV-006 — Invite state
@@ -521,16 +523,28 @@ export function ShellScreen(): React.JSX.Element {
                   {activeServer?.name ?? strings.shell.channelsFallbackTitle}
                 </Text>
                 {activeServer && (
-                  <Pressable
-                    onPress={() => {
-                      setSettingsServerId(activeServer.id);
-                      setShowSettingsServer(true);
-                    }}
-                    accessibilityLabel={strings.servers.settingsButton}
-                    testID="server-settings-button"
-                  >
-                    <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
-                  </Pressable>
+                  <>
+                    <Pressable
+                      onPress={() => {
+                        setSettingsServerId(activeServer.id);
+                        setShowSettingsServer(true);
+                      }}
+                      accessibilityLabel={strings.servers.settingsButton}
+                      testID="server-settings-button"
+                    >
+                      <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setShowNotifSettings(true);
+                      }}
+                      accessibilityLabel="Notification settings"
+                      testID="notif-settings-button"
+                      style={{ marginLeft: 8 }}
+                    >
+                      <Text style={styles.settingsGlyph}>{strings.shell.notifBell}</Text>
+                    </Pressable>
+                  </>
                 )}
               </View>
               {serverId && (
@@ -683,6 +697,17 @@ export function ShellScreen(): React.JSX.Element {
               />
             );
           })()}
+        </View>
+      )}
+
+      {/* ── Notification settings overlay ── (FR-NOTIF-003) */}
+      {showNotifSettings && (
+        <View style={styles.overlay}>
+          <NotificationSettingsScreen
+            servers={servers.data ?? []}
+            channelsByServer={new Map([[serverId ?? '', channels.data ?? []]])}
+            onDone={() => setShowNotifSettings(false)}
+          />
         </View>
       )}
 
