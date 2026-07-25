@@ -290,3 +290,26 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
   3/4 PASS, 1 FAIL (integration: 9 failed — p7-search endpoint 404 against
   Docker API on port conflict), exit 1. Proves gate catches failures.
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — WORK ORDER J: Repair base branch (William B. Sexton)
+
+### Branch: base-repair
+
+**Reason:** `phase0/review` was RED with 1 test failure + 1 eslint error, poisoning every agent's run.
+
+### Failure 1 — gateway.test.ts: wrong wire shape
+- Server `events.gateway.ts:124` confirms singular `channelId` per subscribe frame (`if (env.d?.channelId) client.channels.add(env.d.channelId)`)
+- `gateway.ts` sends `{ channelId }` singular; reconnect replays one frame per channel
+- Test asserted `d.channelIds` (plural array) — changed to `d.channelId` (singular string)
+- **Commit:** `dc0d457` — `[FIX] gateway test asserts corrected singular channelId protocol`
+- **Proof:** broken assertion → `Expected: "chan-99" / Received: "chan-1"`; restored → pass
+
+### Failure 2 — NFR-11: literal glyph + unused variable
+- `ShellScreen.tsx:252` rendered `"☰"` inline — moved to `strings.ts` as `shell.menuGlyph`
+- `ShellScreen.tsx:32` had unused `SCREEN_WIDTH` — removed
+- **Commit:** `4c0b681` — `[FIX] NFR-11: move menu glyph to strings module`
+
+### DoD verification
+- `npx jest` → 12 suites, 52 tests, all pass
+- `npx eslint . --max-warnings=0` → clean
+- `npx tsc --noEmit` → clean
