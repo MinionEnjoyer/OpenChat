@@ -635,3 +635,51 @@ placeholder, and bitfield permission gating.
 - Proved tests can fail: broke `mergeUpdated` content assertion, observed
   `Expected: "BROKEN" Received: "hello world"`, restored and re-ran → all pass
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
+
+## 2026-07-25 — WORK ORDER R: FR-MSG-011 pins client (William B. Sexton)
+
+**Commit:** (below)
+
+**What:** Mobile client implementation of message pins (FR-MSG-011). Long-press
+menu gains Pin/Unpin (permission-gated on MANAGE_MESSAGES), pinned indicator
+(📌) on messages, pins panel per channel (opens from chat header as bottom
+sheet). All cache writes go through the unified `applyUpdated` in sync/ which
+handles edits, reactions, and pins from one `message.updated` frame.
+
+**Backend ground truth:**
+- `PATCH /messages/:id/pin` with `{pinned: boolean}` — pinned flag toggled,
+  broadcast as full `MESSAGE_UPDATED` event via `publishMessageUpdate()`
+- `GET /channels/:id/pins` — returns `MessageWithRelations[]`, newest first
+- Gateway `relay()`: `MESSAGE_UPDATED` sent as `{op:'message.updated', d:{message}}`
+- Permission: MANAGE_MESSAGES required in server channels; DM participants can
+  always pin. This is a CLIENT task — backend was not modified.
+
+**Files created:**
+- `apps/mobile/src/features/messages/PinsPanel.tsx` — Bottom-sheet modal listing
+  pinned messages for a channel. Uses `keys.pins(channelId)` query key.
+  Tapping a message is a no-op for now (jump-to-message is FR-MSG-016).
+
+**Files modified:**
+- `apps/mobile/src/sync/keys.ts` — Added `pins: (channelId) => ['pins', channelId]`
+- `apps/mobile/src/ui/strings.ts` — Added 7 new strings: pin, unpin, pinFailed,
+  pinsPanelTitle, pinsEmpty, pinIcon, closeIcon.
+- `apps/mobile/src/features/messages/ChatPane.tsx` — Added `doPin` callback
+  (optimistic PATCH then applyUpdated on ack, rollback on error). Added
+  Pin/Unpin button to long-press action sheet when `canManage` is true. Added
+  📌 indicator on pinned messages.
+- `apps/mobile/src/features/messages/index.ts` — Exports `PinsPanel`.
+- `apps/mobile/src/features/shell/screens/ShellScreen.tsx` — Added 📌 pins
+  button in chat header (visible when a channel is active), renders `PinsPanel`.
+  Fixed pre-existing missing `Dimensions` import.
+- `apps/mobile/src/sync/__tests__/messages.test.ts` — 10 new unit tests:
+  pinned flag round-trip through `mergeUpdated` (3), pins list derivation (3),
+  pin/unpin permission matrix (4). All tagged `// @satisfies FR-MSG-011`.
+
+**Verification:**
+- `npx tsc --noEmit`: rc=0
+- `npx eslint . --max-warnings=0`: rc=0
+- `npx jest --no-coverage`: 168/168 pass (15 suites, 0 failures)
+- Proved tests can fail: broke `sets pinned=true` to expect `false`,
+  observed `Expected: false Received: true`, restored → all pass
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
+
