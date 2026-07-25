@@ -27,6 +27,32 @@ export function Lightbox({
 
   const isVideo = mimeType.startsWith('video/');
 
+  // The media is cross-origin (Share), so a plain <a download> is ignored and would just
+  // navigate the webview to the raw file (trapping a frameless window). Instead fetch it as
+  // a blob and save it (web), or hand the URL to the OS browser (desktop).
+  async function download(e: React.MouseEvent) {
+    e.stopPropagation();
+    const t = (window as any).__TAURI__;
+    if (t?.core?.invoke) {
+      t.core.invoke('open_external', { url: src }).catch(() => {});
+      return;
+    }
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+    } catch {
+      window.open(src, '_blank', 'noopener');
+    }
+  }
+
   return createPortal(
     <div
       onMouseDown={(e) => { pressedOnBackdrop.current = e.target === e.currentTarget; }}
@@ -39,19 +65,24 @@ export function Lightbox({
       {isVideo ? (
         <video src={src} controls autoPlay style={{ maxWidth: '95vw', maxHeight: '92vh', borderRadius: 6 }} />
       ) : (
-        <img src={src} alt={filename} style={{ maxWidth: '95vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 6 }} />
+        // Clicking the image also closes (in addition to the backdrop, ✕, and Esc) so the
+        // viewer is never a trap.
+        <img
+          src={src}
+          alt={filename}
+          onClick={onClose}
+          style={{ maxWidth: '95vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 6, cursor: 'zoom-out' }}
+        />
       )}
 
       <div style={{ position: 'fixed', top: 14, right: 14, display: 'flex', gap: 8 }}>
-        <a
-          href={src}
-          download={filename}
-          onClick={(e) => e.stopPropagation()}
+        <button
+          onClick={download}
           title="Download"
-          style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', fontSize: 17 }}
+          style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           ⬇
-        </a>
+        </button>
         <button
           onClick={onClose}
           title="Close (Esc)"
