@@ -271,6 +271,12 @@ export const strings = {
     saved: 'Saved',
     saveFailed: 'Failed to save',
   },
+  dms: {
+    title: 'Direct Messages',
+    empty: 'No direct messages yet',
+    atSign: '@',
+    openDmFailed: 'Could not open DM',
+  },
   members: {
     title: 'Members',
     empty: 'No members',
