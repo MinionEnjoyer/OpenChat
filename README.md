@@ -69,7 +69,7 @@ docker-compose.yml  postgres + redis + api + web + livekit
 livekit.yaml.tmpl   LiveKit config template (rendered to livekit.yaml from .env)
 .env.example        the ONE config file — copy to .env and fill in
 scripts/            setup.sh (render config) · check-secrets.sh (pre-push) · deploy.sh (pull+build)
-docs/               SETUP.md · DEPLOY.md · ARCHITECTURE.md · SPEC.md · architecture/
+docs/               SETUP.md · DEPLOY.md · ARCHITECTURE.md
 ```
 
 ## Quick start

@@ -146,12 +146,12 @@ graph TB
         Workers[BullMQ Workers]
         
         subgraph State ["Redis 7"]
-            Cache[(Cache/Session)]
-            PubSub[(Pub/Sub)]
-            Streams[(Streams/Jobs)]
+            Cache[("Cache/Session")]
+            PubSub[("Pub/Sub")]
+            Streams[("Streams/Jobs")]
         end
         
-        DB[(PostgreSQL 16)]
+        DB[("PostgreSQL 16")]
     end
 
     subgraph Voice ["LiveKit SFU"]
@@ -159,9 +159,9 @@ graph TB
     end
 
     subgraph ExternalServices ["Existing Ecosystem"]
-        Authentik[Authentik (OIDC Provider)]
-        Share[share.example.com (Files/Previews)]
-        Jellyfin[Jellyfin (Media)]
+        Authentik["Authentik (OIDC Provider)"]
+        Share["share.example.com (Files/Previews)"]
+        Jellyfin["Jellyfin (Media)"]
     end
 
     Client -->|HTTPS/WSS| NPM
@@ -198,40 +198,40 @@ The system is deployed via Docker Compose on the host. It sits behind Nginx Prox
 ```mermaid
 graph TB
     subgraph "Client Layer"
-        Browser[Web Client<br/>React + Vite + PWA]
-        Mobile[Mobile App<br/>Future Phase]
+        Browser["Web Client<br/>React + Vite + PWA"]
+        Mobile["Mobile App<br/>Future Phase"]
     end
 
     subgraph "Network Edge (Host)"
-        NPM[Nginx Proxy Manager<br/>TLS Termination & Routing]
+        NPM["Nginx Proxy Manager<br/>TLS Termination & Routing"]
     end
 
     subgraph "Chat Services (Docker Compose)"
         direction TB
         
         subgraph "Frontend"
-            Static[Static Assets<br/>Nginx Container]
+            Static["Static Assets<br/>Nginx Container"]
         end
 
         subgraph "Backend Core"
-            API[NestJS API Gateway<br/>REST + WebSocket]
-            Workers[BullMQ Workers<br/>Background Jobs]
+            API["NestJS API Gateway<br/>REST + WebSocket"]
+            Workers["BullMQ Workers<br/>Background Jobs"]
         end
 
         subgraph "Real-time & State"
-            Redis[(Redis 7)<br/>Pub/Sub, Cache, Rate Limit]
+            Redis[("Redis 7<br/>Pub/Sub, Cache, Rate Limit")]
         end
 
         subgraph "Persistence"
-            PG[(PostgreSQL 16)]
+            PG[("PostgreSQL 16")]
         end
     end
 
     subgraph "External Services (Existing)"
-        Auth[Authentik<br/>OIDC Provider]
-        Share[Share Platform<br/>File Storage & Previews]
-        Jellyfin[Jellyfin<br/>Media Streaming]
-        LiveKit[LiveKit SFU<br/>Voice/Video Signaling & Media]
+        Auth["Authentik<br/>OIDC Provider"]
+        Share["Share Platform<br/>File Storage & Previews"]
+        Jellyfin["Jellyfin<br/>Media Streaming"]
+        LiveKit["LiveKit SFU<br/>Voice/Video Signaling & Media"]
     end
 
     subgraph "Observability (Shared)"
@@ -302,7 +302,7 @@ This flow demonstrates the separation of concerns: Chat handles message metadata
 
 ```mermaid
 sequenceDiagram
-    participant C as Client (React)
+    participant C as "Client (React)"
     participant WS as WebSocket Gateway
     participant API as NestJS API
     participant DB as PostgreSQL
@@ -460,7 +460,7 @@ sequenceDiagram
     participant NPM as Nginx Proxy Manager
     participant ChatApp as NestJS Backend
     participant Redis as Redis Cache
-    participant Authentik as Authentik (OIDC Provider)
+    participant Authentik as "Authentik (OIDC Provider)"
 
     User->>NPM: GET /auth/login
     NPM->>ChatApp: Redirect to Authentik Auth URL
@@ -543,7 +543,7 @@ sequenceDiagram
     participant User as Browser Client
     participant ChatApp as NestJS Backend
     participant ShareAPI as share.example.com API
-    participant Storage as Share Storage (S3/Local)
+    participant Storage as "Share Storage (S3/Local)"
 
     User->>ChatApp: Request Upload Pre-Signed URL / Metadata
     Note right of ChatApp: Validate User Auth & Permissions
@@ -661,7 +661,7 @@ To prevent race conditions, one user is designated the **Host** for each active 
 
 ```mermaid
 sequenceDiagram
-    participant ClientA as User A (Host)
+    participant ClientA as "User A (Host)"
     participant ChatWS as WebSocket Gateway
     participant Redis as Redis Pub/Sub
     participant ClientB as User B
@@ -804,7 +804,7 @@ sequenceDiagram
     participant Client as Browser/App
     participant ChatAPI as NestJS Backend
     participant LiveKit as LiveKit SFU
-    participant Redis as Redis (Auth/State)
+    participant Redis as "Redis (Auth/State)"
 
     Note over Client, LiveKit: Phase 1: Join Voice Channel
     
@@ -1466,27 +1466,27 @@ graph TB
     end
 
     subgraph "Host (Ubuntu 24.04)"
-        NPM[Nginx Proxy Manager<br/>TLS Termination & Routing]
+        NPM["Nginx Proxy Manager<br/>TLS Termination & Routing"]
         
         subgraph "Docker Compose Stack (/opt/chat/)"
-            Backend[Chat API<br/>NestJS + Prisma]
-            WS[WS Gateway<br/>NestJS WebSocket]
-            Worker[BullMQ Workers<br/>Background Jobs]
+            Backend["Chat API<br/>NestJS + Prisma"]
+            WS["WS Gateway<br/>NestJS WebSocket"]
+            Worker["BullMQ Workers<br/>Background Jobs"]
             
-            PG[(PostgreSQL 16<br/>Persistent Volume)]
-            Redis[(Redis 7<br/>Cache/PubSub/RateLimit)]
+            PG[("PostgreSQL 16<br/>Persistent Volume")]
+            Redis[("Redis 7<br/>Cache/PubSub/RateLimit")]
             
-            LiveKit[LiveKit SFU<br/>Voice Media Relay]
+            LiveKit["LiveKit SFU<br/>Voice Media Relay"]
         end
 
         subgraph "External Services (Same Network or Host)"
             Authentik[Authentik OIDC Provider]
-            Share[share.example.com<br/>File API & Storage]
-            Jellyfin[jellyfin.watch.example.com<br/>Media API]
+            Share["share.example.com<br/>File API & Storage"]
+            Jellyfin["jellyfin.watch.example.com<br/>Media API"]
             
-            Prometheus[Prometheus<br/>Metrics Scraping]
-            Grafana[Grafana<br/>Dashboards]
-            Loki[Loki<br/>Log Aggregation]
+            Prometheus["Prometheus<br/>Metrics Scraping"]
+            Grafana["Grafana<br/>Dashboards"]
+            Loki["Loki<br/>Log Aggregation"]
         end
     end
 
