@@ -609,6 +609,38 @@ paths:
           description: Deleted
       x-evidence: servers.spec.ts#channel-delete, E3
 
+  /servers/{id}/channels/{channelId}/permissions/me:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMyChannelPermissions
+      summary: Get effective channel permissions for current user (post-overwrites)
+      tags: [servers]
+      responses:
+        '200':
+          description: Permissions bitfield for current user on this channel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permissions:
+                    type: string
+                    description: BigInt permission bitfield as decimal string
+                required: [permissions]
+      x-added-by: FR-SRV-010
+
   /servers/{id}/members:
     parameters:
       - name: id
@@ -2192,6 +2224,16 @@ components:
             id:
               type: string
               format: uuid
-            username:
+             username:
               type: string
       x-added-by: P7
+
+    ChannelPermissionsResponse:
+      description: Effective channel permissions for current user (post-overwrites)
+      x-added-by: FR-SRV-010
+      type: object
+      properties:
+        permissions:
+          type: string
+          description: BigInt permission bitfield as decimal string
+      required: [permissions]

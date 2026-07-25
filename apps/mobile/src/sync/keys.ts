@@ -9,4 +9,6 @@ export const keys = {
   roles: (serverId: string) => ['roles', serverId] as const,
   permissionCatalog: ['permissions'] as const,
   pins: (channelId: string) => ['pins', channelId] as const,
+  /** Channel-level effective permissions for current user (FR-SRV-010). */
+  channelPermissions: (serverId: string, channelId: string) => ['channelPermissions', serverId, channelId] as const,
 };

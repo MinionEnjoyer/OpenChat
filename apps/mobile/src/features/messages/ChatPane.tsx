@@ -38,8 +38,9 @@ import { keys } from '../../sync/keys';
 import { useTyping } from '../../stores/typing';
 import { formatTyping } from '../../domain/typing';
 import { buildMessageLink } from '../../domain/links';
-import type { Message, Server } from '../../api/schema';
+import type { Message, Server, ChannelPermissionsResponse } from '../../api/schema';
 import { Permission } from '../../api/schema';
+import { useQuery } from '@tanstack/react-query';
 import {
   buildMentionCandidates,
   detectMentionTrigger,
@@ -52,6 +53,7 @@ import {
   type MemberBrief,
 } from '../../domain/mentions';
 import { usePaginatedMessages } from './usePaginatedMessages';
+import { canSendInChannel } from './announceReadOnly';
 import { insertDayDividers, computeAuthorGroups, type MessageOrDivider } from '../../domain/pagination';
 import { resolveReplyPreview } from '../../domain/reply';
 
@@ -74,9 +76,10 @@ function hasManageMessages(serverId: string | null): boolean {
  * retry (FR-APP-006), edit (FR-MSG-003), delete (FR-MSG-004),
  * reactions (FR-MSG-006), and mentions (FR-MSG-008).
  */
-export function ChatPane({ channelId, serverId, members, myPermissions, serverOwnerId }: {
+export function ChatPane({ channelId, serverId, channelType, members, myPermissions, serverOwnerId }: {
   channelId: string;
   serverId: string | null;
+  channelType?: string;
   members?: MemberBrief[];
   myPermissions?: string;
   serverOwnerId?: string;
@@ -120,6 +123,22 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   const flatListRef = useRef<FlatList<MessageOrDivider>>(null);
 
   const canManage = hasManageMessages(serverId);
+
+  // ── Announcement channel send check (FR-SRV-010) ──────────────────
+  // Fetch channel-level permissions (post-overwrites) for ANNOUNCEMENT channels.
+  const isAnnouncement = channelType === 'ANNOUNCEMENT';
+  const channelPermsQ = useQuery({
+    queryKey: serverId && isAnnouncement
+      ? keys.channelPermissions(serverId, channelId)
+      : ['channelPermissions', '__skip__'],
+    queryFn: () => api.request<ChannelPermissionsResponse>(
+      `/servers/${serverId}/channels/${channelId}/permissions/me`,
+    ),
+    enabled: !!serverId && isAnnouncement,
+    staleTime: 30_000,
+  });
+
+  const canSend = useMemo(() => canSendInChannel(channelType, channelPermsQ.data), [channelType, channelPermsQ.data]);
 
   // ── Mentions (FR-MSG-008) ──────────────────────────────────────────
 
@@ -625,95 +644,101 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
         </View>
       )}
 
-      <View style={styles.composer}>
-        {replyTarget && (
-          <View style={styles.replyChip}>
-            <Text style={styles.replyChipText} numberOfLines={1}>
-              {strings.messages.replyingTo} {resolveAuthorName(
-                replyTarget.authorId,
-                replyTarget.author,
-                user?.id,
-                user?.displayName,
-                user?.username,
-              )}
-            </Text>
+      {/* FR-SRV-010: hide composer for announcement channels when user lacks SEND_MESSAGES */}
+      {canSend ? (
+        <View style={styles.composer}>
+          {replyTarget && (
+            <View style={styles.replyChip}>
+              <Text style={styles.replyChipText} numberOfLines={1}>
+                {strings.messages.replyingTo} {resolveAuthorName(
+                  replyTarget.authorId,
+                  replyTarget.author,
+                  user?.id,
+                  user?.displayName,
+                  user?.username,
+                )}
+              </Text>
+              <Pressable
+                onPress={() => setReplyTarget(null)}
+                accessibilityLabel={strings.messages.replyCancel}
+                testID="reply-cancel"
+              >
+                <Text style={styles.replyChipCancel}>{strings.messages.closeIcon}</Text>
+              </Pressable>
+            </View>
+          )}
+          <TextInput
+            style={styles.input}
+            placeholder={strings.messages.composerPlaceholder}
+            placeholderTextColor={palette.textMuted}
+            value={draft}
+            onChangeText={(text) => {
+              onComposerChange(text);
+            }}
+            onSelectionChange={(e) => {
+              updateMention(draft, e.nativeEvent.selection.start);
+            }}
+            onKeyPress={({ nativeEvent }) => {
+              if (mentionTrigger && mentionMatches.length > 0) {
+                if (nativeEvent.key === 'ArrowDown') {
+                  setMentionIndex((i) => (i + 1) % mentionMatches.length);
+                  return;
+                }
+                if (nativeEvent.key === 'ArrowUp') {
+                  setMentionIndex(
+                    (i) => (i - 1 + mentionMatches.length) % mentionMatches.length,
+                  );
+                  return;
+                }
+                if (nativeEvent.key === 'Enter' || nativeEvent.key === 'Tab') {
+                  insertMentionCandidate(mentionMatches[mentionIndex]!);
+                  return;
+                }
+                if (nativeEvent.key === 'Escape') {
+                  setMentionTrigger(null);
+                  return;
+                }
+              }
+            }}
+            onSubmitEditing={() => {
+              if (mentionTrigger && mentionMatches.length > 0) return;
+              void send(draft);
+            }}
+            accessibilityLabel={strings.messages.composerPlaceholder}
+            testID="composer-input"
+          />
+          {gifEnabled === true && (
             <Pressable
-              onPress={() => setReplyTarget(null)}
-              accessibilityLabel={strings.messages.replyCancel}
-              testID="reply-cancel"
+              style={styles.gifBtn}
+              onPress={() => setGifPickerVisible(true)}
+              accessibilityLabel={strings.gifs.button}
+              testID="composer-gif"
             >
-              <Text style={styles.replyChipCancel}>{strings.messages.closeIcon}</Text>
+              <Text style={styles.gifBtnText}>{strings.gifs.button}</Text>
             </Pressable>
-          </View>
-        )}
-        <TextInput
-          style={styles.input}
-          placeholder={strings.messages.composerPlaceholder}
-          placeholderTextColor={palette.textMuted}
-          value={draft}
-          onChangeText={(text) => {
-            onComposerChange(text);
-            // We need a microtask-like read of cursor — use a ref-based approach
-          }}
-          onSelectionChange={(e) => {
-            updateMention(draft, e.nativeEvent.selection.start);
-          }}
-          onKeyPress={({ nativeEvent }) => {
-            if (mentionTrigger && mentionMatches.length > 0) {
-              if (nativeEvent.key === 'ArrowDown') {
-                setMentionIndex((i) => (i + 1) % mentionMatches.length);
-                return;
-              }
-              if (nativeEvent.key === 'ArrowUp') {
-                setMentionIndex(
-                  (i) => (i - 1 + mentionMatches.length) % mentionMatches.length,
-                );
-                return;
-              }
-              if (nativeEvent.key === 'Enter' || nativeEvent.key === 'Tab') {
-                insertMentionCandidate(mentionMatches[mentionIndex]!);
-                return;
-              }
-              if (nativeEvent.key === 'Escape') {
-                setMentionTrigger(null);
-                return;
-              }
-            }
-          }}
-          onSubmitEditing={() => {
-            if (mentionTrigger && mentionMatches.length > 0) return;
-            void send(draft);
-          }}
-          accessibilityLabel={strings.messages.composerPlaceholder}
-          testID="composer-input"
-        />
-        {gifEnabled === true && (
+          )}
           <Pressable
-            style={styles.gifBtn}
-            onPress={() => setGifPickerVisible(true)}
-            accessibilityLabel={strings.gifs.button}
-            testID="composer-gif"
+            style={styles.pollBtn}
+            onPress={() => setShowPollCreate(true)}
+            accessibilityLabel={strings.poll.createTitle}
+            testID="composer-poll"
           >
-            <Text style={styles.gifBtnText}>{strings.gifs.button}</Text>
+            <Text style={styles.pollBtnText}>{strings.poll.chartIcon}</Text>
           </Pressable>
-        )}
-        <Pressable
-          style={styles.pollBtn}
-          onPress={() => setShowPollCreate(true)}
-          accessibilityLabel={strings.poll.createTitle}
-          testID="composer-poll"
-        >
-          <Text style={styles.pollBtnText}>{strings.poll.chartIcon}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.send}
-          onPress={() => void send(draft)}
-          accessibilityLabel={strings.messages.send}
-          testID="composer-send"
-        >
-          <Text style={styles.sendText}>{strings.messages.send}</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            style={styles.send}
+            onPress={() => void send(draft)}
+            accessibilityLabel={strings.messages.send}
+            testID="composer-send"
+          >
+            <Text style={styles.sendText}>{strings.messages.send}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.composerReadOnly} testID="composer-readonly">
+          <Text style={styles.composerReadOnlyText}>{strings.messages.announcementReadOnly}</Text>
+        </View>
+      )}
 
       <EmojiPicker
         visible={pickerTargetId !== null}
@@ -847,6 +872,13 @@ const styles = StyleSheet.create({
   },
   composer: {
     flexDirection: 'row', padding: spacing.sm, borderTopWidth: 1, borderTopColor: palette.bgElevated,
+  },
+  // FR-SRV-010: read-only composer for announcement channels
+  composerReadOnly: {
+    padding: spacing.md, borderTopWidth: 1, borderTopColor: palette.bgElevated, alignItems: 'center',
+  },
+  composerReadOnlyText: {
+    ...typography.caption, color: palette.textMuted, fontStyle: 'italic',
   },
   input: {
     ...typography.body, flex: 1, backgroundColor: palette.bgElevated, color: palette.text,

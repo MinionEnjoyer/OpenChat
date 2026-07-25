@@ -304,6 +304,21 @@ export class ServersController {
     return this.servers.setMemberRole(serverId, targetUserId, roleId, user.id, false);
   }
 
+  // ---- Channel permissions (FR-SRV-010) ----
+
+  /** Returns the effective permissions for the current user on this channel (post-overwrites). */
+  @Get(':id/channels/:channelId/permissions/me')
+  getMyChannelPermissions(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+  ) {
+    // @satisfies FR-SRV-010
+    return this.servers.getChannelPermissions(serverId, channelId, user.id).then(
+      (perms) => ({ permissions: perms.toString() }),
+    );
+  }
+
   // ---- Channel permission overwrites (FR-ROLE-003) x-added-by P7 ----
 
   @Get(':id/channels/:channelId/overwrites')
