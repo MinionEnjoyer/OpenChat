@@ -259,3 +259,25 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
   PASS (1 passed, 7 skipped).
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — P2-16 Jump-to-message ?around pagination (FR-MSG-016)
+
+**Commit:** `cd7a3e7` — 4 files, 259 insertions, 3 deletions
+
+**What:** Added `?around=<messageId>` query parameter to `GET /channels/:id/messages`
+for jump-to-message pagination. Returns a window centered on the target message,
+split roughly limit/2 newer and limit/2 older, newest-first. Near channel edges,
+the short side is padded from the other side.
+
+**Changes:**
+- `apps/api/src/messages/messages.controller.ts`: Added `around` to Zod query schema and handler type.
+- `apps/api/src/messages/messages.service.ts`: Implemented around-pagination logic: find target (404 if not found/wrong channel), fetch newer (asc→reversed) and older (desc), pad deficits, return `[...newer, target, ...older]`.
+- `contracts/openapi.yaml`: Added `around` query parameter documentation (x-added-by: P2).
+- `apps/api/test/integration/p2-16-around.spec.ts`: 6 integration tests — middle of channel (exact ID sequence), oldest edge (pad from newer), newest edge (pad from older), 404 for nonexistent, custom limit, and ?before regression.
+
+**Verification:**
+- `npx jest --config jest-integration.config.js --testPathPattern="p2-16-around"` → 6 passed, 6 total
+- `npx jest --config jest-char.config.js` → 11 suites, 89 tests, all passing (no regression)
+- `node tools/codegen/gen.mjs --check` → generated types match committed files
+- Prove-fail cycle: broke target ID → 2 failures (404); restored → 6 passed
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
