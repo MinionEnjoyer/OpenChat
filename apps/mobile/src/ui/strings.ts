@@ -251,6 +251,16 @@ export const strings = {
     chevronDown: '\u25BC',
     checkmark: '\u2713',
   },
+  avatars: {
+    placeholder: '?',
+    pickButton: 'Choose image',
+    uploadFailed: 'Upload failed',
+    saveFailed: 'Could not save avatar',
+    avatarSaved: 'Avatar updated',
+    avatarLabel: 'Avatar',
+    iconLabel: 'Server icon',
+    iconSaved: 'Server icon updated',
+  },
 } as const;
 
 export type Strings = typeof strings;

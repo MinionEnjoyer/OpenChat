@@ -138,6 +138,9 @@ export interface Server {
   id: string;
   name: string;
   ownerId: string;
+  iconUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
   myPermissions: string; // BigInt serialized as decimal string
 }
 
