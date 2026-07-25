@@ -61,6 +61,10 @@ export const strings = {
     pinsEmpty: 'No pinned messages',
     pinIcon: '📌',
     closeIcon: '✕',
+    reply: 'Reply',
+    replyingTo: 'Replying to',
+    replyCancel: 'Cancel reply',
+    replyNotFound: 'Original message not found',
   },
   mentions: {
     everyoneLabel: '@everyone',

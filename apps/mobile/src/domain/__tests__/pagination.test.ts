@@ -36,6 +36,8 @@ function msg(over: Partial<TestMsg> & { id: string }): Message {
     nonce: over.nonce ?? null,
     editedAt: over.editedAt ?? null,
     deletedAt: over.deletedAt ?? null,
+    replyToId: (over as any).replyToId ?? null,
+    replyTo: (over as any).replyTo ?? null,
     attachments: over.attachments ?? [],
     reactions: over.reactions ?? [],
     pinned: over.pinned ?? false,

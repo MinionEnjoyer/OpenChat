@@ -23,6 +23,7 @@ export function makePending(input: {
   content: string;
   nonce: string;
   authorId: string;
+  replyToId?: string | null;
 }): PendingMessage {
   return {
     id: `pending-${input.nonce}`,
@@ -30,6 +31,8 @@ export function makePending(input: {
     authorId: input.authorId,
     content: input.content,
     nonce: input.nonce,
+    replyToId: input.replyToId ?? null,
+    replyTo: null,
     editedAt: null,
     deletedAt: null,
     attachments: [],
@@ -136,6 +139,14 @@ export function applyPage(channelId: string, incoming: Message[]): void {
   queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), (old) =>
     mergePage(old ?? [], incoming),
   );
+}
+
+/**
+ * Replace the entire cache with a page centred on a target message (FR-MSG-016).
+ * Used for ?around= pagination when jumping to a specific message.
+ */
+export function applyAround(channelId: string, incoming: Message[]): void {
+  queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), incoming as PendingMessage[]);
 }
 
 // Re-export so screens depending on messages never inline key shapes.

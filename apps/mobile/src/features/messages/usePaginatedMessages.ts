@@ -7,7 +7,7 @@
 import { useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../stores/session';
-import { messageKeys, applyPage, type PendingMessage } from '../../sync/messages';
+import { messageKeys, applyPage, applyAround, type PendingMessage } from '../../sync/messages';
 import type { Message } from '../../api/schema';
 
 export interface PaginatedMessages {
@@ -21,6 +21,8 @@ export interface PaginatedMessages {
   hasMore: boolean;
   /** Fetch the next older page. No-op if already fetching or no more. */
   fetchOlder: () => void;
+  /** Fetch a page centred on a target message (FR-MSG-016 ?around=). */
+  fetchAround: (messageId: string) => void;
 }
 
 export function usePaginatedMessages(
@@ -68,6 +70,23 @@ export function usePaginatedMessages(
       });
   }, [channelId, pageSize, query.data]);
 
+  // FR-MSG-016: fetch a page centred on a target message via ?around=.
+  const fetchAround = useCallback(
+    (messageId: string) => {
+      api
+        .request<Message[]>(
+          `/channels/${channelId}/messages?limit=${pageSize}&around=${messageId}`,
+        )
+        .then((page) => {
+          applyAround(channelId, page as PendingMessage[]);
+        })
+        .catch(() => {
+          // Silently ignore
+        });
+    },
+    [channelId, pageSize],
+  );
+
   // hasMore: if the last fetch returned exactly pageSize messages (or more
   // from the limit+1 behavior), there are likely more. The initial query
   // fetches pageSize but the service may return pageSize+1. We check the
@@ -82,5 +101,6 @@ export function usePaginatedMessages(
     isFetchingMore: fetchingMore.current,
     hasMore,
     fetchOlder,
+    fetchAround,
   };
 }

@@ -4,7 +4,8 @@ import type { Message } from '../../api/schema';
 const serverMsg = (over: Partial<Message>): Message =>
   ({
     id: 'm1', channelId: 'c1', authorId: 'u1', content: 'hi', nonce: null,
-    editedAt: null, deletedAt: null, attachments: [], reactions: [],
+    editedAt: null, deletedAt: null, replyToId: null, replyTo: null,
+    attachments: [], reactions: [],
     pinned: false, poll: null, createdAt: '2026-07-25T00:00:00Z',
     ...over,
   }) as Message;
