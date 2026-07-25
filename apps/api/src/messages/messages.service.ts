@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
 
@@ -88,6 +89,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   /**
@@ -387,6 +389,17 @@ export class MessagesService {
       throw new ForbiddenException('Insufficient permissions to delete this message');
     }
 
+    // Audit-log moderator-delete (only when not the author)
+    if (!isAuthor && message.channel?.serverId) {
+      await this.auditLog.write({
+        serverId: message.channel.serverId,
+        actorId: userId,
+        action: 'MESSAGE_DELETE',
+        targetType: 'message',
+        targetId: messageId,
+      });
+    }
+
     const deleted = await this.prisma.message.update({
       where: { id: messageId },
       data: {
@@ -436,6 +449,17 @@ export class MessagesService {
     }
 
     await this.prisma.message.update({ where: { id: messageId }, data: { pinned } });
+
+    if (message.channel?.serverId) {
+      await this.auditLog.write({
+        serverId: message.channel.serverId,
+        actorId: userId,
+        action: pinned ? 'MESSAGE_PIN' : 'MESSAGE_UNPIN',
+        targetType: 'message',
+        targetId: messageId,
+      });
+    }
+
     return this.publishMessageUpdate(messageId);
   }
 

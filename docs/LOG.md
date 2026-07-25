@@ -259,3 +259,33 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
   PASS (1 passed, 7 skipped).
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — P7-06 Audit Log (William B. Sexton)
+
+### P7-06 — Audit log read API + mod-action write coverage (FR-ROLE-006): COMPLETE
+
+**Commit:** TBD
+
+**New files:**
+- `apps/api/src/audit-log/audit-log.module.ts` — @Global module exporting AuditLogService
+- `apps/api/src/audit-log/audit-log.service.ts` — write() for AuditLog entries, read() with MANAGE_SERVER permission gate
+- `apps/api/src/audit-log/audit-log.controller.ts` — `GET /servers/:id/audit-log` with query params (before, limit, action, actorId)
+- `apps/api/test/integration/audit-log.spec.ts` — 26 tests covering 14 mod actions + 3 permission gate tests
+
+**Modified files:**
+- `apps/api/src/app.module.ts` — imported AuditLogModule
+- `apps/api/src/config/configuration.ts` — added JWT_SECRET env var
+- `apps/api/src/invites/invites.service.ts` — MEMBER_JOIN audit log on invite accept
+- `apps/api/src/messages/messages.service.ts` — MESSAGE_DELETE, MESSAGE_PIN, MESSAGE_UNPIN audit logs
+- `apps/api/src/servers/servers.module.ts` — imported AuditLogModule
+- `apps/api/src/servers/servers.service.ts` — audit logs for CHANNEL_CREATE, CHANNEL_DELETE, ROLE_CREATE, ROLE_UPDATE, ROLE_DELETE, ROLE_ASSIGN, ROLE_UNASSIGN, SERVER_UPDATE, KICK, MEMBER_LEAVE
+- `contracts/openapi.yaml` — added `/servers/{id}/audit-log` (x-added-by: P7)
+
+**Bug Fix:**
+- `invites.service.ts`: MEMBER_JOIN audit log was dead code (placed after `return` inside transaction callback). Moved after the transaction block.
+
+**DoD verification:**
+- Integration tests: 26/26 PASS (against port 3003)
+- Characterization suite: 89/89 PASS (untouched)
+- `npx tsc --noEmit`: clean
+- `node tools/codegen/gen.mjs`: no drift

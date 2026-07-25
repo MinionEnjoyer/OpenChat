@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import type { User } from '@prisma/client';
 
 @Injectable()
 export class InvitesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auditLog: AuditLogService) {}
 
   async createInvite(
     serverId: string,
@@ -134,6 +135,14 @@ export class InvitesService {
       return tx.server.findUniqueOrThrow({
         where: { id: invite.serverId },
       });
+    });
+
+    await this.auditLog.write({
+      serverId: invite.serverId,
+      actorId: userId,
+      action: 'MEMBER_JOIN',
+      targetType: 'member',
+      targetId: userId,
     });
 
     return {

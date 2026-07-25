@@ -425,6 +425,113 @@ paths:
       x-note: "PATCH has same guard as POST+DELETE but no dedicated characterization test"
       x-evidence: "route exists in controller; no characterization test"
 
+  /servers/{id}/audit-log:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listAuditLog
+      summary: List audit log entries for a server
+      description: >
+        Returns audit log entries for the server in reverse-chronological order.
+        Requires MANAGE_SERVER permission (or server ownership). Non-privileged
+        members receive 403.
+      tags: [servers]
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        serverId:
+                          type: string
+                          format: uuid
+                        actor:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            username:
+                              type: string
+                            displayName:
+                              type: string
+                              nullable: true
+                            avatarUrl:
+                              type: string
+                              nullable: true
+                        action:
+                          type: string
+                          enum:
+                            - KICK
+                            - ROLE_CREATE
+                            - ROLE_UPDATE
+                            - ROLE_DELETE
+                            - ROLE_ASSIGN
+                            - ROLE_UNASSIGN
+                            - CHANNEL_CREATE
+                            - CHANNEL_DELETE
+                            - SERVER_UPDATE
+                            - MEMBER_JOIN
+                            - MEMBER_LEAVE
+                            - MESSAGE_DELETE
+                            - MESSAGE_PIN
+                            - MESSAGE_UNPIN
+                        targetType:
+                          type: string
+                          nullable: true
+                        targetId:
+                          type: string
+                          nullable: true
+                          format: uuid
+                        metadata: {}
+                        createdAt:
+                          type: string
+                          format: date-time
+        '403':
+          description: Missing MANAGE_SERVER permission or not a server member
+      x-added-by: P7
+      x-evidence: "audit-log.spec.ts (integration), FR-ROLE-006"
+
   /servers/{id}/channels:
     parameters:
       - name: id

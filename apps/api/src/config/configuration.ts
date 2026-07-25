@@ -30,6 +30,7 @@ const envSchema = z.object({
   LIVEKIT_API_URL: z.string().url().optional(),
   // GIF search via Giphy. Optional — the GIF picker degrades gracefully if unset.
   GIPHY_API_KEY: z.string().optional(),
+  JWT_SECRET: z.string().min(1),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

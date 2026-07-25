@@ -4,6 +4,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { Server, ChannelType, Role } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { Permission, ALL_PERMISSIONS, hasPermission } from '../permissions/permissions';
 
 export interface SerializedServer extends Omit<Server, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'> {
@@ -40,6 +41,7 @@ export class ServersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   private serializeServer(server: Server, myPermissions: bigint = 0n): SerializedServer {
@@ -271,6 +273,11 @@ export class ServersService {
       },
     });
 
+    await this.auditLog.write({
+      serverId, actorId: userId, action: "CHANNEL_CREATE",
+      targetType: "channel", targetId: channel.id,
+    });
+
     return {
       id: channel.id.toString(),
       serverId: channel.serverId.toString(),
@@ -347,7 +354,13 @@ export class ServersService {
         position: (top?.position ?? 0) + 1,
       },
     });
-    return this.serializeRole(role);
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: 'ROLE_CREATE',
+      targetType: 'role', targetId: role.id,
+      metadata: { name: role.name, permissions: role.permissions.toString() },
+    });
+return this.serializeRole(role);
   }
 
   async updateRole(
@@ -367,7 +380,13 @@ export class ServersService {
         ...(data.permissions !== undefined ? { permissions: this.sanitizePerms(data.permissions) } : {}),
       },
     });
-    return this.serializeRole(updated);
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: 'ROLE_UPDATE',
+      targetType: 'role', targetId: roleId,
+      metadata: { changes: data },
+    });
+return this.serializeRole(updated);
   }
 
   async deleteRole(serverId: string, roleId: string, userId: string): Promise<{ success: true }> {
@@ -375,7 +394,12 @@ export class ServersService {
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
     if (!role || role.serverId !== serverId) throw new NotFoundException('Role not found');
     await this.prisma.role.delete({ where: { id: roleId } });
-    return { success: true };
+      await this.auditLog.write({
+        serverId, actorId: userId, action: 'ROLE_DELETE',
+        targetType: 'role', targetId: roleId,
+        metadata: { name: role.name },
+      });
+return { success: true };
   }
 
   async setMemberRole(
@@ -396,7 +420,14 @@ export class ServersService {
       where: { serverId_userId: { serverId, userId: targetUserId } },
       data: { roles: assign ? { connect: { id: roleId } } : { disconnect: { id: roleId } } },
     });
-    return { success: true };
+
+    const action = assign ? 'ROLE_ASSIGN' as const : 'ROLE_UNASSIGN' as const;
+    await this.auditLog.write({
+      serverId, actorId: userId, action,
+      targetType: 'member', targetId: targetUserId,
+      metadata: { roleId, roleName: role.name },
+    });
+return { success: true };
   }
 
   // ---- Members / server management ----
@@ -488,6 +519,12 @@ export class ServersService {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId }, select: { serverId: true } });
     if (!channel || channel.serverId !== serverId) throw new NotFoundException('Channel not found');
     await this.prisma.channel.delete({ where: { id: channelId } });
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: "CHANNEL_DELETE",
+      targetType: "channel", targetId: channelId,
+    });
+
     return { success: true };
   }
 
@@ -503,7 +540,17 @@ export class ServersService {
     await this.prisma.serverMember.delete({
       where: { serverId_userId: { serverId, userId: targetUserId } },
     });
-    return { success: true };
+
+    await this.auditLog.write({
+      serverId,
+      actorId: userId,
+      action: 'KICK',
+      targetType: 'member',
+      targetId: targetUserId,
+    });
+
+
+return { success: true };
   }
 
   async updateServer(
@@ -519,6 +566,13 @@ export class ServersService {
         ...(data.iconUrl !== undefined ? { iconUrl: data.iconUrl || null } : {}),
       },
     });
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: 'SERVER_UPDATE',
+      targetType: 'server', targetId: serverId,
+      metadata: { changes: data },
+    });
+
     const perms = await this.getMemberPermissions(serverId, userId);
     return this.serializeServer(server, perms);
   }
@@ -554,6 +608,15 @@ export class ServersService {
     await this.prisma.serverMember.delete({
       where: { serverId_userId: { serverId, userId } },
     });
+
+      await this.auditLog.write({
+        serverId,
+        actorId: userId,
+        action: "MEMBER_LEAVE",
+        targetType: "member",
+        targetId: userId,
+      });
+
     return { success: true };
   }
 }
