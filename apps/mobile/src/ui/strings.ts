@@ -218,6 +218,14 @@ export const strings = {
     cancel: 'Cancel',
     error: 'Something went wrong',
   },
+  attachments: {
+    imageGrid: 'Image attachments',
+    imageLabel: 'Image',
+    closeGallery: 'Close gallery',
+    closeIcon: '\u2715',
+    share: 'Share',
+    shareIcon: '\u2B06',
+  },
   members: {
     title: 'Members',
     empty: 'No members',
