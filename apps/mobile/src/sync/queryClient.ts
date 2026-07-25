@@ -7,7 +7,7 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
-import { applyCreated } from './messages';
+import { applyCreated, applyUpdated } from './messages';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,11 +27,15 @@ export function applyEvent(frame: S2CFrame): void {
       applyCreated(msg);
       break;
     }
+    case 'message.updated':
+      // Reactions, edits, pins arrive as a full message.updated frame.
+      applyUpdated(frame.d.message);
+      break;
     case 'notify':
       void queryClient.invalidateQueries();
       break;
     default:
-      // Remaining ops (typing/presence/updated/deleted) land later in Phase 2+.
+      // Remaining ops (typing/presence/deleted) land later in Phase 2+.
       break;
   }
 }

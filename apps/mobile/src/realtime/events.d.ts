@@ -42,7 +42,7 @@ export interface ReadyFrame {
 export interface ErrorFrame { op: 'error'; d: { message: string } }
 
 export interface MessageCreatedFrame { op: 'message.created'; d: { message: Message; nonce?: string } }  // P2 correction: relay wraps in {message}
-export interface MessageUpdatedFrame { op: 'message.updated'; d: Message }
+export interface MessageUpdatedFrame { op: 'message.updated'; d: { message: Message } }
 export interface MessageDeletedFrame { op: 'message.deleted'; d: { id: string; channelId: string } }
 
 export interface TypingFrame { op: 'typing'; d: { channelId: string; userId: string } }
