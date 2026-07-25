@@ -70,6 +70,12 @@ export const strings = {
     saved: 'Profile updated',
     saveFailed: 'Could not update profile',
   },
+  typing: {
+    one: 'is typing\u2026',
+    two: 'are typing\u2026',
+    twoConjunction: 'and',
+    many: 'Several people are typing\u2026',
+  },
   common: {
     retry: 'Retry',
     cancel: 'Cancel',
