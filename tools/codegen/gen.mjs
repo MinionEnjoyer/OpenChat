@@ -161,8 +161,23 @@ export interface WsTicketResponse {
 export interface InviteResponse {
   code: string;
   serverId: string;
-  expiresAt: string;
-  maxUses: number;
+  expiresAt: string | null;
+  maxUses: number | null;
+}
+
+/** Invite preview returned by GET /invites/:code (public, no auth). */
+export interface InvitePreview {
+  code: string;
+  expiresAt: string | null;
+  server: {
+    id: string;
+    name: string;
+    iconUrl: string | null;
+  };
+  inviter: {
+    id: string;
+    username: string;
+  };
 }
 
 export interface VoiceJoinResponse {

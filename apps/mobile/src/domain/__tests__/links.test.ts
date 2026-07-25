@@ -1,5 +1,5 @@
-// @satisfies FR-MSG-015
-import { buildMessageLink } from '../links';
+// @satisfies FR-MSG-015, FR-SRV-006
+import { buildMessageLink, parseInviteLink, buildInviteLink } from '../links';
 
 describe('buildMessageLink (FR-MSG-015 copy link)', () => {
   // @satisfies FR-MSG-015
@@ -25,5 +25,73 @@ describe('buildMessageLink (FR-MSG-015 copy link)', () => {
     expect(() => new URL(link)).not.toThrow();
     const parsed = new URL(link);
     expect(parsed.protocol).toBe('openchat:');
+  });
+});
+
+// @satisfies FR-SRV-006, FR-APP-005
+describe('parseInviteLink (FR-SRV-006 deep-link parsing)', () => {
+  // @satisfies FR-SRV-006
+  it('parses openchat://invite/<code>', () => {
+    const result = parseInviteLink('openchat://invite/ABC12345');
+    expect(result.inviteCode).toBe('ABC12345');
+    expect(result.error).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('parses https://<host>/invite/<code>', () => {
+    const result = parseInviteLink('https://chat.example.com/invite/XYZ99999');
+    expect(result.inviteCode).toBe('XYZ99999');
+    expect(result.error).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('parses http://<host>/invite/<code>', () => {
+    const result = parseInviteLink('http://localhost:3000/invite/CODE123');
+    expect(result.inviteCode).toBe('CODE123');
+    expect(result.error).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('returns malformed for completely invalid URL', () => {
+    const result = parseInviteLink('not-a-valid-url-at-all');
+    expect(result.error).toBe('malformed');
+    expect(result.inviteCode).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('returns empty_code for invite path with no code', () => {
+    const result = parseInviteLink('openchat://invite/');
+    expect(result.error).toBe('empty_code');
+    expect(result.inviteCode).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('returns empty_code for invite path with no code (https)', () => {
+    const result = parseInviteLink('https://chat.example.com/invite/');
+    expect(result.error).toBe('empty_code');
+    expect(result.inviteCode).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('returns malformed for non-invite openchat path', () => {
+    const result = parseInviteLink('openchat://chat/ch-123/msg-456');
+    expect(result.error).toBe('malformed');
+    expect(result.inviteCode).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('returns wrong_scheme for non-openchat non-http scheme', () => {
+    const result = parseInviteLink('ftp://example.com/invite/ABC');
+    expect(result.error).toBe('wrong_scheme');
+    expect(result.inviteCode).toBeUndefined();
+  });
+
+  // @satisfies FR-SRV-006
+  it('handles code with special characters via buildInviteLink round-trip', () => {
+    const code = 'ab-CD_12';
+    const link = buildInviteLink(code);
+    const result = parseInviteLink(link);
+    expect(result.inviteCode).toBe(code);
+    expect(result.error).toBeUndefined();
   });
 });
