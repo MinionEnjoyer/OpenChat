@@ -8,7 +8,8 @@
  *  2. Toggling one permission changes exactly that bit and no other.
  *  3. Assign role to member and re-query to confirm assignment.
  */
-import { apiFetch, devLogin, createJar } from '../characterization/helpers';
+import type { createJar } from '../characterization/helpers';
+import { apiFetch, devLogin } from '../characterization/helpers';
 
 // A high bit — 1n << 60n = 1152921504606846976, well above 2^53 (9007199254740992)
 const HIGH_BIT_STR = '1152921504606846976'; // 1n << 60n

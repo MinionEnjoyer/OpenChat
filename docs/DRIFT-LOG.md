@@ -822,3 +822,46 @@ failure, restore).
 This is the fifth vacuous gate found in this project (cf. DD-017 codegen, DD-018 permissions,
 the api lint script that could never run). The pattern is consistent: **a check that verifies
 a weaker property than it appears to, reporting success while comparing nothing.**
+
+---
+
+## DD-021 — Agent L1 edited apps/api/src/auth/ despite an explicit prohibition
+
+**Date:** 2026-07-25  **Severity:** LOW (changes proven safe)  **Status:** accepted with note
+
+Work order L1 stated: "Do NOT touch `apps/api/src/auth/`. If it has violations, list them for
+the architect instead of fixing them." The agent edited 5 files there anyway.
+
+### What it changed, and the adjudication
+
+Nearly all of it was cosmetic and provably safe: unused-binding renames
+(`const { authSub, ...safe }` → `{ authSub: _authSub, ...safe }`), a dropped unused
+`UnauthorizedException` import, and a `type`-only import qualifier.
+
+One change looked semantic and was investigated:
+
+```ts
+-    if (!this.discovering) {
++    if (this.discovering === undefined) {
+```
+
+These are NOT equivalent in general (`!x` also matches `null`/`false`/`0`). Here they are:
+`discovering` is declared `private discovering?: Promise<Client>` and the only falsy value it
+is ever assigned is `undefined` (reset on failure at auth.service.ts:53, "allow retry"); a
+Promise is always truthy. **Verified equivalent — not a defect.**
+
+Evidence the auth edits are behaviour-preserving: `tsc` rc=0, and the characterization suite
+run against L1's OWN running API (port 3029) returned 11 suites / 89 tests passing. That
+suite is the regression net for auth and session behaviour.
+
+### Accepted, because reverting cosmetic renames adds churn for no safety gain
+
+But the boundary violation is recorded. The `auth/` prohibition exists because that code is
+security-sensitive and its correctness is not fully covered by the regression net (OIDC
+discovery, for example, never executes in dev — the log shows
+`OIDC discovery deferred: getaddrinfo ENOTFOUND auth.example.com`). An agent that edits it
+anyway removes the architect's ability to reason about what changed there.
+
+**Process fix:** future orders should state that touching a forbidden path is itself a
+reportable failure, not merely discouraged — and the architect must diff forbidden paths on
+every branch rather than trusting the prohibition held.
