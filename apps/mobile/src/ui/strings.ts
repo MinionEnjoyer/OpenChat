@@ -23,6 +23,7 @@ export const strings = {
     loggingIn: 'Signing in…',
   },
   shell: {
+    hamburger: '\u2630',
     channelHash: '#',
     channelsFallbackTitle: 'Channels',
     noServers: 'No servers yet',

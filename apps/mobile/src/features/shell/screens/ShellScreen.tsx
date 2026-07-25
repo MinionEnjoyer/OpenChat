@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -29,7 +28,6 @@ import { keys } from '../../../sync/keys';
 import { ChatPane } from '../../messages';
 import type { Server, Channel, Member } from '../../../api/schema';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
 const EDGE_WIDTH = 30; // edge gesture hit-slop for swipe-from-edge
@@ -249,7 +247,7 @@ export function ShellScreen(): React.JSX.Element {
             testID="hamburger-button"
             hitSlop={8}
           >
-            <Text style={styles.topBarAction}>☰</Text>
+              <Text style={styles.topBarAction}>{strings.shell.hamburger}</Text>
           </Pressable>
           <Text style={styles.chatTitle} testID="chat-title" numberOfLines={1}>
             {activeChannel
@@ -277,7 +275,11 @@ export function ShellScreen(): React.JSX.Element {
       </View>
 
       {/* Scrim (overlay behind drawers) */}
-      <Animated.View style={[styles.scrim, scrimStyle]}>
+      <Animated.View
+        style={[styles.scrim, scrimStyle]}
+        importantForAccessibility={leftOpenJS || rightOpenJS ? 'yes' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!(leftOpenJS || rightOpenJS)}
+      >
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={closeBoth}
@@ -286,7 +288,13 @@ export function ShellScreen(): React.JSX.Element {
       </Animated.View>
 
       {/* ── Left drawer (rail + channel list) ── */}
-      <Animated.View style={[styles.leftDrawer, leftDrawerStyle]} testID="left-drawer">
+      <Animated.View
+        style={[styles.leftDrawer, leftDrawerStyle]}
+        testID="left-drawer"
+        importantForAccessibility={leftOpenJS ? 'yes' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!leftOpenJS}
+        pointerEvents={leftOpenJS ? 'auto' : 'none'}
+      >
         <GestureDetector gesture={leftDrawerDismiss}>
           <View style={styles.drawerContent}>
             {/* Server rail */}
@@ -354,7 +362,13 @@ export function ShellScreen(): React.JSX.Element {
       </Animated.View>
 
       {/* ── Right drawer (members + profile) ── */}
-      <Animated.View style={[styles.rightDrawer, rightDrawerStyle]} testID="right-drawer">
+      <Animated.View
+        style={[styles.rightDrawer, rightDrawerStyle]}
+        testID="right-drawer"
+        importantForAccessibility={rightOpenJS ? 'yes' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!rightOpenJS}
+        pointerEvents={rightOpenJS ? 'auto' : 'none'}
+      >
         <GestureDetector gesture={rightDrawerDismiss}>
           <View style={styles.drawerContent}>
             <View style={styles.members} testID="members-drawer">
@@ -577,9 +591,12 @@ const styles = StyleSheet.create({
   },
 
   // ── Edge gesture zones ──
+  // top: 100 keeps them below the top bar so the hamburger + members
+  // buttons are not occluded (P3-T1 fix — edge GestureDetector was
+  // intercepting Pressable taps).
   leftEdgeZone: {
     position: 'absolute',
-    top: 0,
+    top: 100,
     left: 0,
     bottom: 0,
     width: EDGE_WIDTH,
@@ -587,7 +604,7 @@ const styles = StyleSheet.create({
   },
   rightEdgeZone: {
     position: 'absolute',
-    top: 0,
+    top: 100,
     right: 0,
     bottom: 0,
     width: EDGE_WIDTH,

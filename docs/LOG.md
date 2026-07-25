@@ -290,3 +290,49 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
   3/4 PASS, 1 FAIL (integration: 9 failed — p7-search endpoint 404 against
   Docker API on port conflict), exit 1. Proves gate catches failures.
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — WORK ORDER A3: drawer a11y fix commit (Codewhale)
+
+**Commit:** (see below) — 3 files
+
+**What:** Committed the P3-T1 drawer a11y fix that was implemented but uncommitted.
+
+**Files staged:**
+- `apps/mobile/src/features/shell/screens/ShellScreen.tsx` — Scrim + both drawers
+  get `importantForAccessibility` / `accessibilityElementsHidden` / `pointerEvents`
+  keyed off `leftOpenJS` / `rightOpenJS`. Edge gesture zones changed from `top: 0`
+  to `top: 100` so hamburger + members buttons aren't occluded. Removed unused
+  `Dimensions` import and `SCREEN_WIDTH` constant.
+- `apps/mobile/src/ui/strings.ts` — Added `hamburger: '\u2630'` to `shell` object;
+  the literal glyph was moved from JSX into strings (NFR-11 i18n readiness).
+- `apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml` — Fixed step 5 (scrim tap)
+  to use `point: '20%,50%'` instead of `id: 'drawer-scrim'`.  The right drawer
+  occupies `[450,132][1080,2400]` at zIndex 20 (above scrim's zIndex 10), so
+  tapping the scrim id hits the drawer instead.  Tapping the left 20% avoids this.
+  Also noted that toggle-close does NOT remove the drawer from uiautomator's raw
+  hierarchy (React Native `accessibilityElementsHidden` is not respected by the
+  Android view dumper), but the scrim's `closeBoth` path triggers a re-render
+  that does flush it.
+
+**E2E flow:** p1-01-devlogin-shell.yaml
+- PASS (all 28 steps, exit 0)
+- Failure proved: changed `member-alice` → `member-NO-SUCH-USER`, got exit 1
+
+**Measured a11y node presence (adb shell uiautomator dump):**
+| State            | Bytes  | left-drawer | right-drawer |
+|------------------|--------|-------------|--------------|
+| Initial (closed) | 6,483  | 0           | 0            |
+| Left drawer open | 28,201 | 1           | 0            |
+| Right drawer open| 12,591 | 0           | 1            |
+| Scrim-tap closed | 6,483  | 0           | 0            |
+
+**Gates:**
+- `npx tsc --noEmit` — PASS (clean)
+- `npx eslint . --max-warnings=0` — PASS (clean)
+- `npx jest` — 11/12 suites pass. 1 pre-existing flaky failure: `gateway chaos
+  (NFR-07) › survives 20 socket kills` (`Expected: ["chan-1"], Received: undefined`).
+  Unrelated to our changes (no files in `src/realtime/` were touched).
+
+**Screenshots:**
+- `artifacts/e2e/screens/p3-shell-closed.png` (43,147 bytes)
+- `artifacts/e2e/screens/p3-shell-open.png` (112,782 bytes)
