@@ -8,6 +8,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
 import { applyCreated, applyUpdated, applyDeleted } from './messages';
+import { useTyping } from '../stores/typing';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,11 +36,17 @@ export function applyEvent(frame: S2CFrame): void {
       // FR-MSG-004: Gateway sends d: {id, channelId}.
       applyDeleted(frame.d.channelId, frame.d.id);
       break;
+    case 'typing': {
+      // FR-MSG-009: record the typist in the typing store.
+      const td = frame.d as { channelId: string; userId: string };
+      useTyping.getState().recordTyping(td.channelId, td.userId);
+      break;
+    }
     case 'notify':
       void queryClient.invalidateQueries();
       break;
     default:
-      // Remaining ops (typing/presence/deleted) land later in Phase 2+.
+      // Remaining ops (presence/deleted) land later in Phase 2+.
       break;
   }
 }

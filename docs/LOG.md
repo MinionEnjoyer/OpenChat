@@ -748,3 +748,46 @@ handles edits, reactions, and pins from one `message.updated` frame.
   observed `Expected: false Received: true`, restored → all pass
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
 
+
+## 2026-07-25 — P2-09 Typing indicators (FR-MSG-009) (William B. Sexton)
+
+**Commit:** `ae86de8`
+
+### Requirement
+FR-MSG-009 | Typing indicators (throttled ≥3s send interval; multi-user
+aggregation) | Integration: two senders -> 'A and B are typing…' | P0 | 2
+
+### Ground truth derived from source
+- c2s op: `typing.start` with `d: { channelId: string }` (events.gateway.ts:141-149)
+- s2c op: `typing` with `d: { channelId: string, userId: string }` (events.gateway.ts:229-231)
+- No `typing.stop` op — expiry is the client's job (5s TTL, 06 §3)
+
+### Files created
+- `apps/mobile/src/domain/typing.ts` — Pure aggregation function `formatTyping(names, fragments)`:
+  1 user → "X is typing…", 2 → "X and Y are typing…", 3+ → "Several people are typing…".
+  Takes `TypingFragments` parameter (domain/ must not import ui/strings — 06 §2).
+- `apps/mobile/src/domain/__tests__/typing.test.ts` — 5 tests (`@satisfies FR-MSG-009`)
+- `apps/mobile/src/stores/typing.ts` — Zustand store: per-channel userId→lastTypingAt map,
+  5s TTL expiry via `clock.setTimeout`, 3s outbound throttle via `shouldSendTyping`/`markSent`.
+  All time reads through `lib/clock`.
+- `apps/mobile/src/stores/__tests__/typing.test.ts` — 8 tests: record/add, self-exclusion,
+  TTL expiry (frozen clock advance), TTL refresh on re-record, throttle predicate,
+  throttle window. All `@satisfies FR-MSG-009`.
+
+### Files modified
+- `apps/mobile/src/ui/strings.ts` — Added `typing` section: `one`, `two`, `twoConjunction`, `many`.
+- `apps/mobile/src/sync/queryClient.ts` — Added `typing` case to `applyEvent`:
+  forwards `{ channelId, userId }` to `useTyping.getState().recordTyping`.
+- `apps/mobile/src/realtime/gateway.ts` — Made `send()` public so features can
+  emit ops like `typing.start`.
+- `apps/mobile/src/features/messages/ChatPane.tsx` — Wired composer `onChangeText`
+  to outbound throttle; active typist resolution from message cache; typing
+  indicator text rendered below FlatList.
+
+### Verification
+- `npx tsc --noEmit`: only pre-existing `Dimensions` error in ShellScreen.tsx (not touched)
+- `npx eslint . --max-warnings=0`: clean
+- `npx jest`: 171/171 pass (17 suites)
+- Proved tests can fail: broke domain 1-user assertion (`Expected: "WRONG TEXT" Received: "Alice is typing…"`)
+  and store throttle assertion (`Expected: true Received: false`); restored → all pass
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)

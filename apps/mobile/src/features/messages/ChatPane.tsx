@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -26,6 +26,8 @@ import { EmojiPicker } from './EmojiPicker';
 import { ReactorListSheet } from './ReactorListSheet';
 import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
+import { useTyping } from '../../stores/typing';
+import { formatTyping } from '../../domain/typing';
 import type { Message, Server } from '../../api/schema';
 import { Permission } from '../../api/schema';
 
@@ -65,6 +67,40 @@ export function ChatPane({ channelId, serverId }: {
   const [editDraft, setEditDraft] = useState('');
 
   const canManage = hasManageMessages(serverId);
+
+  // ── Typing indicators (FR-MSG-009) ──────────────────────────────────
+  // Re-render when the typist count for this channel changes.
+  const typingCount = useTyping(
+    (s) => Object.keys(s.typists[channelId] ?? {}).length,
+  );
+  const activeTypistIds = useMemo(() => {
+    void typingCount; // trigger recomputation when typist set changes
+    if (!user) return [];
+    return useTyping.getState().getActiveTypistIds(channelId, user.id);
+  }, [typingCount, channelId, user]);
+
+  // Resolve typist userIds → display names from the message cache.
+  const typistNames = useMemo(() => {
+    const cache = queryClient.getQueryData<PendingMessage[]>(messageKeys.list(channelId));
+    return activeTypistIds.map((uid) => {
+      const msg = cache?.find((m) => m.authorId === uid);
+      return msg?.authorId ? `@${msg.authorId.slice(0, 8)}` : `@${uid.slice(0, 8)}`;
+    });
+  }, [activeTypistIds, channelId]);
+
+  const typingText = useMemo(
+    () => formatTyping(typistNames, strings.typing),
+    [typistNames],
+  );
+
+  /** Outbound throttle: send typing.start at most once per 3s per channel. */
+  const onComposerChange = useCallback((text: string) => {
+    setDraft(text);
+    if (text.length > 0 && useTyping.getState().shouldSendTyping(channelId)) {
+      useTyping.getState().markSent(channelId);
+      gateway.send('typing.start', { channelId });
+    }
+  }, [channelId]);
 
   useEffect(() => {
     gateway.subscribe(channelId);
@@ -291,13 +327,18 @@ export function ChatPane({ channelId, serverId }: {
           </Text>
         }
       />
+      {typingText !== '' && (
+        <Text style={styles.typing} testID="typing-indicator">
+          {typingText}
+        </Text>
+      )}
       <View style={styles.composer}>
         <TextInput
           style={styles.input}
           placeholder={strings.messages.composerPlaceholder}
           placeholderTextColor={palette.textMuted}
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={onComposerChange}
           onSubmitEditing={() => void send(draft)}
           accessibilityLabel={strings.messages.composerPlaceholder}
           testID="composer-input"
@@ -375,6 +416,7 @@ const styles = StyleSheet.create({
   content: { ...typography.body, color: palette.text },
   deletedText: { ...typography.caption, color: palette.textMuted, fontStyle: 'italic' },
   empty: { ...typography.caption, color: palette.textMuted, textAlign: 'center', padding: spacing.lg },
+  typing: { ...typography.caption, color: palette.textMuted, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
   composer: {
     flexDirection: 'row', padding: spacing.sm, borderTopWidth: 1, borderTopColor: palette.bgElevated,
   },

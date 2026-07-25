@@ -68,7 +68,8 @@ export class GatewayClient {
     this.deps.onStateChange(state);
   }
 
-  private send(op: string, d: unknown): void {
+  /** Send a frame to the server. Public so features can emit ops like typing.start. */
+  send(op: string, d: unknown): void {
     if (this.ws?.readyState === 1 /* OPEN */) {
       this.ws.send(JSON.stringify({ op, d }));
     }
