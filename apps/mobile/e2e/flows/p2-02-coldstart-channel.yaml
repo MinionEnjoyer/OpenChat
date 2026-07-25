@@ -1,0 +1,67 @@
+# p2-02-coldstart-channel — login → select channel → kill → relaunch → same channel shown.
+# @satisfies FR-APP-002
+#
+# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# This flow does its own login so it can run independently.
+# clearState on first launch gives a fresh vault. After channel selection + kill,
+# relaunching WITHOUT clearState tests that the stored lastChannel is restored.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login and select a channel ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Open left drawer and select #general in Fixture Guild
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+
+# Channel selected — left drawer closes, chat title shows the channel
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible: '# #general'
+
+# ── Phase 2: Kill and relaunch WITHOUT clearState ──
+- killApp
+- launchApp
+
+# Session restore + data load can take several seconds; extendedWaitUntil
+# avoids racing on the default assertVisible timeout.
+- extendedWaitUntil:
+    visible:
+      id: 'shell-screen'
+    timeout: 30000
+- assertNotVisible:
+    id: 'login-screen'
+- assertVisible:
+    id: 'hamburger-button'
+
+# Channel title restored from cold start — same #general as before kill
+- extendedWaitUntil:
+    visible: '# #general'
+    timeout: 30000
+
+- takeScreenshot: artifacts/e2e/screens/p2-coldstart

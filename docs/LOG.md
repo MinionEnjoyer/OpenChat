@@ -872,9 +872,49 @@ message. No backend change needed.
 - `domain/mentions.ts` inlines `MENTION_EVERYONE_BIT = 1n << 7n` and defines its own `MemberBrief` interface to satisfy the domain purity lint rule (no imports from `api/`)
 - @everyone/@here gated by `canMentionEveryone()` checking `myPermissions` bitfield + server ownership
 - Non-member @mentions do not split plain text segments (tested explicitly)
+---
+
+## [P2-02] Cold-start channel restore + copy actions (FR-APP-002, FR-MSG-015)
+
+**Commit:** 77dea2e
+
+**FR-APP-002 — Cold-start channel restore:**
+- `apps/mobile/src/features/shell/coldstart.ts` — `saveLastChannel()` persists
+  `{serverId, channelId}` to `ui.lastChannel` key; `resolveLastChannel()` validates
+  stored preference against live server/channel lists with fallback (server gone,
+  channel deleted, voice channel ignored)
+- `apps/mobile/src/features/shell/screens/ShellScreen.tsx` — two-phase restore:
+  Phase 1 selects stored server on boot; Phase 2 selects stored channel once
+  channels load for that server
+- `apps/mobile/src/lib/storageInstance.ts` — shared Storage singleton with
+  `configureStorageInstance()` for test injection
+
+**FR-MSG-015 — Copy actions:**
+- `apps/mobile/src/domain/links.ts` — `buildMessageLink()` generates
+  `openchat://chat/{channelId}/{messageId}` (forward-compatible with FR-APP-005)
+- `apps/mobile/src/features/messages/ChatPane.tsx` — copyText + copyLink in
+  long-press action sheet; imports `buildMessageLink`
+- `apps/mobile/src/ui/strings.ts` — added `copyText` and `copyLink` string keys
+
+**Tests:**
+- `apps/mobile/src/features/shell/__tests__/coldstart.test.ts` — 7 cases:
+  save/restore round-trip, null serverId guard, resolution when server exists,
+  server-gone fallback, channel-deleted fallback, voice-channel ignored,
+  full round-trip (@satisfies FR-APP-002)
+- `apps/mobile/src/domain/__tests__/links.test.ts` — 3 cases: format correctness,
+  UUID handling, valid URI with openchat scheme (@satisfies FR-MSG-015)
+
+**E2E flow:** `apps/mobile/e2e/flows/p2-02-coldstart-channel.yaml` — login → select
+channel → kill → relaunch without clearState → assert same channel shown
 
 **Verification:**
 - `npx tsc --noEmit` — rc=0
 - `npx eslint . --max-warnings=0` — rc=0
 - `npx jest` — 19 suites, 233 tests, all pass
 - Prove-fail: changed `canMentionEveryone('0', false)` expectation from `false` to `true` → test FAILED → restored → test PASSED
+- `npx jest` — 20 suites, 197 tests, all pass
+- `grep -c 'export function applyUpdated' src/sync/messages.ts` — 1
+- Prove-fail coldstart: changed expected channelId → FAILED → restored → PASSED
+- Prove-fail links: changed expected URL → FAILED → restored → PASSED
+- Flow file sanity-checked against p1-01: uses extendedWaitUntil post-kill, opens
+  drawer via hamburger-button, references channel testIDs with '#'

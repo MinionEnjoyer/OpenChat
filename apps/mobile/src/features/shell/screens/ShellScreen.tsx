@@ -26,6 +26,8 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+import { storage } from '../../../lib/storageInstance';
+import { saveLastChannel } from '../coldstart';
 import type { Server, Channel, Member } from '../../../api/schema';
 
 const LEFT_DRAWER_WIDTH = 280;
@@ -66,6 +68,7 @@ export function ShellScreen(): React.JSX.Element {
     return () => gateway.stop();
   }, []);
 
+
   const servers = useQuery({
     queryKey: keys.servers,
     queryFn: () => api.request<Server[]>('/servers'),
@@ -85,6 +88,36 @@ export function ShellScreen(): React.JSX.Element {
     enabled: serverId !== null && membersQueryEnabled,
     queryFn: () => api.request<Member[]>(`/servers/${serverId}/members`),
   });
+  // ── FR-APP-002: Cold start restore ────────────────────────────────
+  //
+  // Two-phase: Phase 1 selects the stored server (if different from default).
+  // Phase 2 selects the stored channel once channels load for that server.
+  // This avoids the stale-data race when the channels query key changes.
+
+  // Phase 1: restore server preference on initial boot.
+  useEffect(() => {
+    if (!servers.data) return;
+    if (selectedServerId !== null) return; // already explicitly chosen
+    const pref = storage().getJson<{ serverId: string }>('ui.lastChannel');
+    if (!pref) return;
+    if (pref.serverId === serverId) return; // already the default
+    if (servers.data.some((s) => s.id === pref.serverId)) {
+      setSelectedServerId(pref.serverId);
+    }
+  }, [servers.data, selectedServerId, serverId]);
+
+  // Phase 2: restore channel once channels for the current server load.
+  useEffect(() => {
+    if (selectedChannelId !== null) return; // already have a channel
+    if (!channels.data || channels.data.length === 0) return;
+    const pref = storage().getJson<{ serverId: string; channelId: string }>('ui.lastChannel');
+    if (!pref) return;
+    if (pref.serverId !== serverId) return; // wrong server — channels will reload
+    const ch = (channels.data as Channel[]).find(
+      (c) => c.id === pref.channelId && c.type === 'TEXT',
+    );
+    if (ch) setSelectedChannelId(ch.id);
+  }, [channels.data, selectedChannelId, serverId]);
 
   const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT');
   const activeChannel = textChannels.find((c) => c.id === selectedChannelId) ?? null;
@@ -213,9 +246,10 @@ export function ShellScreen(): React.JSX.Element {
   const selectChannel = useCallback(
     (channelId: string) => {
       setSelectedChannelId(channelId);
+      saveLastChannel(storage(), serverId, channelId);
       closeLeft();
     },
-    [closeLeft],
+    [closeLeft, serverId],
   );
 
   // ── Render ──────────────────────────────────────────────────────

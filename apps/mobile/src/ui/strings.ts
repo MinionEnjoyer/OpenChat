@@ -46,6 +46,7 @@ export const strings = {
     edit: 'Edit',
     delete: 'Delete',
     copyText: 'Copy text',
+    copyLink: 'Copy link',
     editTitle: 'Edit message',
     editSave: 'Save',
     editCancel: 'Cancel',
