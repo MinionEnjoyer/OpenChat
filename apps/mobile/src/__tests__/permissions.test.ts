@@ -13,6 +13,7 @@ import {
   isServerOwner,
   ALL_PERMISSIONS,
 } from '../permissions';
+import { Permission as GeneratedPermission } from '../api/schema';
 
 describe('Permission bitfield constants', () => {
   it('ADMINISTRATOR is bit 0', () => {
@@ -106,5 +107,39 @@ describe('isServerOwner', () => {
 
   it('returns false when both are undefined', () => {
     expect(isServerOwner(undefined, undefined)).toBe(false);
+  });
+});
+
+/**
+ * @satisfies FR-ROLE-002 — codegen emits every permission from contracts/permissions.json
+ *
+ * This guards against the generator silently dropping permissions (as happened
+ * when gen.mjs only hardcoded bits 0-7, dropping BAN_MEMBERS, SEND_MESSAGES,
+ * and READ_MESSAGES).
+ */
+describe('Generated schema.ts matches server-derived permissions lib', () => {
+  it('contains all 11 permission names', () => {
+    const generatedNames = Object.keys(GeneratedPermission);
+    expect(generatedNames).toHaveLength(11);
+    expect(generatedNames).toEqual([
+      'ADMINISTRATOR',
+      'MANAGE_SERVER',
+      'MANAGE_CHANNELS',
+      'MANAGE_ROLES',
+      'MANAGE_MEMBERS',
+      'CREATE_INVITE',
+      'MANAGE_MESSAGES',
+      'MENTION_EVERYONE',
+      'BAN_MEMBERS',
+      'SEND_MESSAGES',
+      'READ_MESSAGES',
+    ]);
+  });
+
+  it('each bit position matches the server-derived Permission lib exactly', () => {
+    const generatedNames = Object.keys(GeneratedPermission) as (keyof typeof GeneratedPermission)[];
+    for (const name of generatedNames) {
+      expect(GeneratedPermission[name]).toBe(Permission[name]);
+    }
   });
 });

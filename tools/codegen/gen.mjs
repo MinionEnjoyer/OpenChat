@@ -22,6 +22,34 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const checkMode = process.argv.includes('--check');
 
 // ════════════════════════════════════════════════════════════════════
+// Permissions block (derived from contracts/permissions.json)
+// ════════════════════════════════════════════════════════════════════
+
+function genPermissions() {
+  const permsPath = path.join(ROOT, 'contracts', 'permissions.json');
+  const raw = fs.readFileSync(permsPath, 'utf-8');
+  const data = JSON.parse(raw);
+
+  const entries = data.permissions.map(p => {
+    const bitVal = Number(p.bit);
+    const shift = Math.log2(bitVal);
+    if (!Number.isInteger(shift)) {
+      throw new Error(`Permission ${p.name} has non-power-of-2 bit: ${p.bit}`);
+    }
+    return `  ${p.name}: 1n << ${shift}n,`;
+  }).join('\n');
+
+  return `// ── Permissions (from contracts/permissions.json) ──
+// ${data.description}
+
+export const Permission = {
+${entries}
+} as const;
+
+export type PermissionName = keyof typeof Permission;`;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // REST types from OpenAPI schemas
 // ════════════════════════════════════════════════════════════════════
 
@@ -225,20 +253,7 @@ export interface UploadResponse {
   rejected: RejectedFile[];
 }
 
-// ── Permissions (from contracts/permissions.json) ──
-
-export const Permission = {
-  ADMINISTRATOR:    1n << 0n,
-  MANAGE_SERVER:    1n << 1n,
-  MANAGE_CHANNELS:  1n << 2n,
-  MANAGE_ROLES:     1n << 3n,
-  MANAGE_MEMBERS:   1n << 4n,
-  CREATE_INVITE:    1n << 5n,
-  MANAGE_MESSAGES:  1n << 6n,
-  MENTION_EVERYONE: 1n << 7n,
-} as const;
-
-export type PermissionName = keyof typeof Permission;
+  ${genPermissions()}
 `;
 
   const outDir = path.join(ROOT, 'apps', 'mobile', 'src', 'api');
