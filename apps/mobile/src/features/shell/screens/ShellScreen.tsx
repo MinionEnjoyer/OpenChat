@@ -28,6 +28,8 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+import { InboxScreen } from '../../inbox';
+import type { NotificationsResponse } from '../../../api/schema';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
 import { parseInviteLink } from '../../../domain/links';
 import { MemberList } from '../MemberList';
@@ -81,6 +83,7 @@ export function ShellScreen(): React.JSX.Element {
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+  const [inboxVisible, setInboxVisible] = useState(false);
 
   // FR-SOC-001 — Friends screen
   const [friendsVisible, setFriendsVisible] = useState(false);
@@ -151,6 +154,14 @@ export function ShellScreen(): React.JSX.Element {
     enabled: serverId !== null && membersQueryEnabled,
     queryFn: () => api.request<Member[]>(`/servers/${serverId}/members`),
   });
+
+  // FR-SOC-005 — notifications badge (lightweight fetch for count)
+  const notifications = useQuery({
+    queryKey: keys.notifications,
+    queryFn: () => api.request<NotificationsResponse>('/notifications'),
+    staleTime: 30_000,
+  });
+  const inboxCount = notifications.data?.count ?? 0;
 
   // ── Channel CRUD hooks (FR-SRV-005) ──
   const createChannel = useCreateChannel(serverId ?? '');
@@ -442,6 +453,16 @@ export function ShellScreen(): React.JSX.Element {
               <Text style={styles.topBarAction}>{strings.messages.pinIcon}</Text>
             </Pressable>
           )}
+          <Pressable onPress={() => setInboxVisible(true)} accessibilityLabel={strings.inbox.title} testID="inbox-button">
+            <View style={styles.inboxIconContainer}>
+              <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
+              {inboxCount > 0 && (
+                <View style={styles.inboxBadge} testID="inbox-badge">
+                  <Text style={styles.inboxBadgeText}>{inboxCount > 99 ? '99+' : String(inboxCount)}</Text>
+                </View>
+              )}
+            </View>
+          </Pressable>
           <Pressable
             onPress={toggleMembers}
             accessibilityLabel={strings.shell.membersTitle}
@@ -799,6 +820,11 @@ export function ShellScreen(): React.JSX.Element {
         visible={friendsVisible}
         onClose={() => setFriendsVisible(false)}
       />
+      {/* FR-SOC-005 — Notifications inbox */}
+      <InboxScreen
+        visible={inboxVisible}
+        onClose={() => setInboxVisible(false)}
+      />
 
     </KeyboardAvoidingView>
   );
@@ -836,6 +862,27 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
   },
   topBarAction: { ...typography.body, color: palette.accent },
+  inboxIconContainer: {
+    position: 'relative',
+  },
+  inboxBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: palette.danger,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  inboxBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '700',
+  },
   chatBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { ...typography.caption, color: palette.textMuted },
 

@@ -12,4 +12,5 @@ export const keys = {
   /** Channel-level effective permissions for current user (FR-SRV-010). */
   channelPermissions: (serverId: string, channelId: string) => ['channelPermissions', serverId, channelId] as const,
   notificationSettings: ['notificationSettings'] as const,
+  notifications: ['notifications'] as const,
 };

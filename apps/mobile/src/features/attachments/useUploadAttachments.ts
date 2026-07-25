@@ -8,7 +8,7 @@
  */
 import { useCallback, useState } from 'react';
 import { useSession } from '../../stores/session';
-import { DEFAULT_DEV_CONFIG } from '../../lib/config';
+import { DEFAULT_DEV_CONFIG, resolveConfig } from '../../lib/config';
 import { compressImage } from './imageCompression';
 import { expoImageProcessor } from './expoImageProcessor';
 import { useCompression } from './useCompression';
@@ -90,6 +90,7 @@ export function useUploadAttachments(): {
         } as unknown as Blob);
 
         try {
+          const config = resolveConfig();
           const res = await fetch(`${config.apiBaseUrl}/uploads`, {
             method: 'POST',
             headers: tokens

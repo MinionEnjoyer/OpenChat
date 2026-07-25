@@ -766,7 +766,6 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
             <Text style={styles.sendText}>{strings.messages.send}</Text>
           </Pressable>
         </View>
-        </>
       ) : (
         <View style={styles.composerReadOnly} testID="composer-readonly">
           <Text style={styles.composerReadOnlyText}>{strings.messages.announcementReadOnly}</Text>

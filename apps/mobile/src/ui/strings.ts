@@ -351,6 +351,20 @@ export const strings = {
     emptyBlocked: 'No blocked users',
     outgoingPrefix: 'Outgoing: ',
   },
+  inbox: {
+    title: 'Inbox',
+    empty: 'All clear — no notifications',
+    friendRequests: 'Friend Requests',
+    serverInvites: 'Server Invitations',
+    icon: '\u{1F4EC}',
+    invitationFrom: 'Invited by {username}',
+    invitationTo: 'to {serverName}',
+    accept: 'Accept',
+    decline: 'Decline',
+    countLabel: '({count})',
+    acceptFailed: 'Failed to accept invitation',
+    declineFailed: 'Failed to decline invitation',
+  },
 } as const;
 
 export type Strings = typeof strings;
