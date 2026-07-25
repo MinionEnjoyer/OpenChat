@@ -114,13 +114,84 @@ export class MessagesService {
     }
   }
 
-  async list(channelId: string, userId: string, options?: { before?: string; limit?: number }): Promise<MessageWithRelations[]> {
+  async list(channelId: string, userId: string, options?: { before?: string; around?: string; limit?: number }): Promise<MessageWithRelations[]> {
     await this.assertChannelAccess(channelId, userId);
 
     const limit = options?.limit ?? 50;
+
+    // ── around pagination: window centred on a target message ──
+    if (options?.around) {
+      const target = await this.prisma.message.findUnique({
+        where: { id: options.around },
+        select: { id: true, createdAt: true, channelId: true },
+      });
+      if (!target || target.channelId !== channelId) {
+        throw new NotFoundException('Message not found');
+      }
+
+      // Split the remaining slots roughly in half.
+      // newerCount gets the extra slot when limit is odd so that
+      // around + newer + older ≤ limit (target takes 1 slot).
+      const newerCount = Math.ceil((limit - 1) / 2);
+      const olderCount = Math.floor((limit - 1) / 2);
+
+      // Messages strictly newer than target (createdAt > target.createdAt),
+      // ordered ascending so we can reverse to newest-first.
+      let newer = await this.prisma.message.findMany({
+        where: { channelId, deletedAt: null, createdAt: { gt: target.createdAt } },
+        include: MESSAGE_INCLUDE,
+        orderBy: { createdAt: 'asc' },
+        take: newerCount,
+      });
+      newer.reverse(); // now newest-first
+
+      const older = await this.prisma.message.findMany({
+        where: { channelId, deletedAt: null, createdAt: { lt: target.createdAt } },
+        include: MESSAGE_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        take: olderCount,
+      });
+
+      // If one side is short, pad from the other side.
+      if (newer.length < newerCount) {
+        const deficit = Math.min(newerCount - newer.length, limit - 1 - newer.length - older.length);
+        if (deficit > 0) {
+          const extraOlder = await this.prisma.message.findMany({
+            where: { channelId, deletedAt: null, createdAt: { lt: target.createdAt } },
+            include: MESSAGE_INCLUDE,
+            orderBy: { createdAt: 'desc' },
+            skip: older.length,
+            take: deficit,
+          });
+          older.push(...extraOlder);
+        }
+      }
+      if (older.length < olderCount) {
+        const deficit = Math.min(olderCount - older.length, limit - 1 - newer.length - older.length);
+        if (deficit > 0) {
+          const extraNewer = await this.prisma.message.findMany({
+            where: { channelId, deletedAt: null, createdAt: { gt: target.createdAt } },
+            include: MESSAGE_INCLUDE,
+            orderBy: { createdAt: 'asc' },
+            skip: newer.length,
+            take: deficit,
+          });
+          extraNewer.reverse();
+          newer = [...extraNewer, ...newer];
+        }
+      }
+
+      const targetFull = await this.prisma.message.findUniqueOrThrow({
+        where: { id: options.around },
+        include: MESSAGE_INCLUDE,
+      });
+
+      return [...newer.map((m: any) => this.serializeMessage(m)), this.serializeMessage(targetFull), ...older.map((m: any) => this.serializeMessage(m))];
+    }
+
+    // ── before cursor pagination (original behaviour) ──
     const whereClause: any = { channelId, deletedAt: null };
 
-    // Cursor pagination by the createdAt of the `before` message id.
     if (options?.before) {
       const cursor = await this.prisma.message.findUnique({
         where: { id: options.before },

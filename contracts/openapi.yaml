@@ -821,6 +821,17 @@ paths:
             type: string
             format: uuid
           description: Cursor — message ID to page before
+        - name: around
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: >
+            Jump-to-message — returns a window centred on this message ID.
+            Split roughly limit/2 newer and limit/2 older, newest-first.
+            Near edges, the short side is padded from the other side.
+            404 if the message is not in this channel.
+          x-added-by: P2
         - name: limit
           in: query
           schema:
