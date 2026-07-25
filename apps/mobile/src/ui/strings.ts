@@ -233,6 +233,13 @@ export const strings = {
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
   },
+  presence: {
+    title: 'Set Status',
+    statusLabel: 'Presence status',
+    updateFailed: 'Could not update status',
+    chevronDown: '\u25BC',
+    checkmark: '\u2713',
+  },
 } as const;
 
 export type Strings = typeof strings;

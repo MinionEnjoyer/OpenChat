@@ -38,8 +38,9 @@ import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../chan
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
-import type { Server, Channel, Member, Role } from '../../../api/schema';
+import type { Server, Channel, Member, Role, User } from '../../../api/schema';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
+import { StatusPicker, type SettableStatus } from '../../presence';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -62,6 +63,7 @@ export function ShellScreen(): React.JSX.Element {
 
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [pinsVisible, setPinsVisible] = useState(false);
   // Server create / settings overlay state
@@ -235,6 +237,25 @@ export function ShellScreen(): React.JSX.Element {
       showToast(strings.profile.saveFailed, () => void saveDisplayName());
     }
   };
+
+  // FR-AUTH-007 — Presence status update
+  const handleStatusUpdate = useCallback(
+    async (status: SettableStatus) => {
+      if (statusBusy) return;
+      setStatusBusy(true);
+      try {
+        await updateProfile({ status });
+      } catch {
+        try {
+          const fresh = await api.request<User>('/auth/me');
+          useSession.setState({ user: fresh });
+        } catch { /* offline — optimistic state stands */ }
+      } finally {
+        setStatusBusy(false);
+      }
+    },
+    [statusBusy, updateProfile],
+  );
 
   // ── Drawer controls ──────────────────────────────────────────────
 
@@ -563,6 +584,9 @@ export function ShellScreen(): React.JSX.Element {
                   ]);
                 }}
               />
+              {/* FR-AUTH-007 — Presence status picker */}
+              {user && <StatusPicker user={user} onUpdate={handleStatusUpdate} />}
+
               {/* Profile box (P1-07) */}
               <View style={styles.profileBox}>
                 <Text style={styles.profileLabel}>
