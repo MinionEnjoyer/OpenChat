@@ -2,60 +2,87 @@
  * P7-05 — Message search integration tests (FR-MSG-020)
  *
  * Runs against the live dev stack with a seeded corpus of 1000 deterministic
- * messages in #volume. Expected result IDs are derived at RUNTIME by calling
- * the search API once in beforeAll, then asserting future calls return the
- * exact same sequence. The channel and server are discovered by name
- * ("Fixture Guild" / "#volume") rather than from fixture-ids.json, making
- * these oracles portable across database instances.
+ * messages in #volume. Expected result IDs are derived INDEPENDENTLY: all
+ * messages are fetched via the plain pagination endpoint (NOT the search
+ * endpoint), then filtered and sorted locally. Search is asserted to return
+ * exactly the independently-computed sequence, so a genuine search bug
+ * (wrong ordering, missing results, wrong total) fails the test.
  *
  * @satisfies FR-MSG-020
  */
 import { apiFetch, createJar, devLogin } from '../characterization/helpers';
 
 // ── Helpers ──
+
 function apiGet(path: string, jar: any) {
   return apiFetch(path, { jar });
 }
 
 /**
- * Run a search query and return { total, ids }. Throws if the
- * content of any result does not contain the search term.
+ * Fetch ALL messages from a channel via plain pagination (NOT search).
+ * Returns newest-first (as the API does).
  */
-async function probeSearch(
+async function fetchAllChannelMessages(
   jar: any,
-  scope: 'channel' | 'server',
-  scopeId: string,
-  q: string,
-  author?: string,
-  limit = 100,
-): Promise<{ total: number; ids: string[] }> {
-  let path: string;
-  if (scope === 'channel') {
-    path = `/channels/${scopeId}/search?q=${encodeURIComponent(q)}&limit=${limit}`;
-  } else {
-    path = `/servers/${scopeId}/search?q=${encodeURIComponent(q)}&limit=${limit}`;
-  }
-  if (author) path += `&author=${encodeURIComponent(author)}`;
+  channelId: string,
+): Promise<Array<{ id: string; content: string; authorId: string; createdAt: string }>> {
+  const all: Array<{ id: string; content: string; authorId: string; createdAt: string }> = [];
+  let cursor: string | undefined;
 
-  console.log(`[probeSearch] scopeId=${scopeId}  fullPath=${path}`);
+  while (true) {
+    const url = `/channels/${channelId}/messages?limit=100${cursor ? `&before=${cursor}` : ''}`;
+    const res = await apiGet(url, jar);
+    if (res.status !== 200 || !Array.isArray(res.body) || res.body.length === 0) break;
 
-  const res = await apiGet(path, jar);
-  if (res.status !== 200) throw new Error(`search failed: ${res.status}`);
-  const ids: string[] = res.body.results.map((r: any) => r.id);
-
-  // Verify every result's snippet/content contains the query term
-  const qLower = q.toLowerCase();
-  for (const r of res.body.results) {
-    const inSnippet = (r.snippet || '').toLowerCase().includes(qLower);
-    const inContent = (r.content || '').toLowerCase().includes(qLower);
-    if (!inSnippet && !inContent) {
-      throw new Error(
-        `Search result ${r.id} for "${q}" lacks query term in snippet or content`,
-      );
+    for (const m of res.body) {
+      all.push({
+        id: m.id,
+        content: m.content,
+        authorId: m.authorId,
+        createdAt: m.createdAt,
+      });
     }
+
+    cursor = res.body[res.body.length - 1]?.id;
+    if (res.body.length < 100) break; // last page
   }
 
-  return { total: res.body.total, ids };
+  return all;
+}
+
+/**
+ * Build an independent oracle for a search query:
+ * 1. Fetch all messages via plain pagination
+ * 2. Filter by content substring (case-insensitive) and optionally by author
+ * 3. Sort by createdAt DESC (newest first — matches search ordering when
+ *    ts_rank is uniform, which it is for simple single-word queries)
+ * 4. Return { total, ids }
+ */
+async function buildOracle(
+  allMessages: Array<{ id: string; content: string; authorId: string; createdAt: string }>,
+  q: string,
+  authorId?: string,
+): Promise<{ total: number; ids: string[] }> {
+  const qLower = q.toLowerCase();
+
+  let filtered = allMessages.filter((m) =>
+    m.content.toLowerCase().includes(qLower),
+  );
+
+  if (authorId) {
+    filtered = filtered.filter((m) => m.authorId === authorId);
+  }
+
+  // Sort newest-first — matches the API's `ORDER BY ... m."createdAt" DESC`
+  // when all matches have equal ts_rank (true for simple single-word queries).
+  filtered.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  return {
+    total: filtered.length,
+    ids: filtered.map((m) => m.id),
+  };
 }
 
 describe('P7-05 — Message Search (FR-MSG-020)', () => {
@@ -66,7 +93,10 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   let fixtureServerId: string;
   let aliceId: string;
 
-  // ── Runtime-derived oracles ──
+  // ── Full message corpus from #volume (fetched once) ──
+  let allVolumeMessages: Array<{ id: string; content: string; authorId: string; createdAt: string }>;
+
+  // ── Independent oracles (computed locally from the full message list) ──
   let expectedHackathon: string[];
   let expectedCoffee: string[];
   let expectedFooAlice: string[];
@@ -100,22 +130,32 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
     volumeChannelId = volumeCh.id;
     console.log(`[discovery] volumeChannelId=${volumeChannelId}`);
 
-    // Probe the search API once to derive expected results
-    const hackathon = await probeSearch(alice.jar, 'channel', volumeChannelId, 'hackathon');
+    // ── INDEPENDENT ORACLE: fetch ALL messages via plain pagination ──
+    allVolumeMessages = await fetchAllChannelMessages(alice.jar, volumeChannelId);
+    console.log(`[oracle] fetched ${allVolumeMessages.length} messages from #volume`);
+
+    // Build oracles for each query by filtering + sorting locally
+    const hackathon = await buildOracle(allVolumeMessages, 'hackathon');
     expectedHackathon = hackathon.ids;
     hackathonTotal = hackathon.total;
+    console.log(`[oracle] hackathon: total=${hackathonTotal}, ids=${hackathon.ids.length}`);
 
-    const coffee = await probeSearch(alice.jar, 'channel', volumeChannelId, 'coffee');
+    const coffee = await buildOracle(allVolumeMessages, 'coffee');
     expectedCoffee = coffee.ids;
     coffeeTotal = coffee.total;
+    console.log(`[oracle] coffee: total=${coffeeTotal}, ids=${coffee.ids.length}`);
 
-    const fooAlice = await probeSearch(alice.jar, 'channel', volumeChannelId, 'foo', aliceId);
+    const fooAlice = await buildOracle(allVolumeMessages, 'foo', aliceId);
     expectedFooAlice = fooAlice.ids;
     fooAliceTotal = fooAlice.total;
+    console.log(`[oracle] foo+alice: total=${fooAliceTotal}, ids=${fooAlice.ids.length}`);
 
-    const dinnerServer = await probeSearch(alice.jar, 'server', fixtureServerId, 'dinner');
+    // Server search: #volume is the only channel with messages,
+    // so the server-scoped oracle is identical to the channel-scoped one.
+    const dinnerServer = await buildOracle(allVolumeMessages, 'dinner');
     expectedDinnerServer = dinnerServer.ids;
     dinnerServerTotal = dinnerServer.total;
+    console.log(`[oracle] dinner(server): total=${dinnerServerTotal}, ids=${dinnerServer.ids.length}`);
   }, 60_000);
 
   // ──── Channel-scoped search ────
@@ -244,7 +284,7 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
     expect(res.status).toBe(400);
   });
 
-  // ──── Probe verification: every result contains the search term ────
+  // ──── Independent content verification ────
 
   it('every "hackathon" result content contains "hackathon"', async () => {
     const res = await apiGet(
