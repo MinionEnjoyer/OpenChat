@@ -31,6 +31,17 @@ import { useTyping } from '../../stores/typing';
 import { formatTyping } from '../../domain/typing';
 import type { Message, Server } from '../../api/schema';
 import { Permission } from '../../api/schema';
+import {
+  buildMentionCandidates,
+  detectMentionTrigger,
+  filterMentionCandidates,
+  insertMention,
+  parseMentionSegments,
+  canMentionEveryone,
+  buildMemberUsernameSet,
+  type MentionCandidate,
+  type MemberBrief,
+} from '../../domain/mentions';
 
 function hasManageMessages(serverId: string | null): boolean {
   if (!serverId) return false;
@@ -49,11 +60,14 @@ function hasManageMessages(serverId: string | null): boolean {
  * (FR-MSG-001 core; day dividers/pagination land next), optimistic send with
  * nonce reconciliation via the gateway (FR-MSG-002), failed sends toast with
  * retry (FR-APP-006), edit (FR-MSG-003), delete (FR-MSG-004),
- * and reactions (FR-MSG-006).
+ * reactions (FR-MSG-006), and mentions (FR-MSG-008).
  */
-export function ChatPane({ channelId, serverId }: {
+export function ChatPane({ channelId, serverId, members, myPermissions, serverOwnerId }: {
   channelId: string;
   serverId: string | null;
+  members?: MemberBrief[];
+  myPermissions?: string;
+  serverOwnerId?: string;
 }): React.JSX.Element {
   const user = useSession((s) => s.user);
   const [draft, setDraft] = useState('');
@@ -69,18 +83,73 @@ export function ChatPane({ channelId, serverId }: {
 
   const canManage = hasManageMessages(serverId);
 
+  // ── Mentions (FR-MSG-008) ──────────────────────────────────────────
+
+  const mentionEveryone = useMemo(
+    () => canMentionEveryone(myPermissions, user?.id === serverOwnerId),
+    [myPermissions, serverOwnerId, user?.id],
+  );
+
+  const mentionCandidates: MentionCandidate[] = useMemo(
+    () => buildMentionCandidates(members, mentionEveryone),
+    [members, mentionEveryone],
+  );
+
+  const memberUsernameSet = useMemo(
+    () => buildMemberUsernameSet(members),
+    [members],
+  );
+
+  const [mentionTrigger, setMentionTrigger] = useState<{
+    query: string;
+    start: number;
+  } | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+
+  const mentionMatches: MentionCandidate[] = useMemo(
+    () => (mentionTrigger
+      ? filterMentionCandidates(mentionCandidates, mentionTrigger.query)
+      : []),
+    [mentionTrigger, mentionCandidates],
+  );
+
+  /** Update mention trigger state when composer text changes. */
+  const updateMention = useCallback(
+    (value: string, cursor: number) => {
+      const detected = detectMentionTrigger(value, cursor, mentionCandidates.length > 0);
+      if (detected) {
+        setMentionTrigger(detected);
+        setMentionIndex(0);
+      } else {
+        setMentionTrigger(null);
+      }
+    },
+    [mentionCandidates.length],
+  );
+
+  /** Insert a selected mention candidate into the draft. */
+  const insertMentionCandidate = useCallback(
+    (c: MentionCandidate) => {
+      if (!mentionTrigger) return;
+      setDraft((prev) =>
+        insertMention(prev, mentionTrigger.start, mentionTrigger.query, c.username),
+      );
+      setMentionTrigger(null);
+    },
+    [mentionTrigger],
+  );
+
   // ── Typing indicators (FR-MSG-009) ──────────────────────────────────
-  // Re-render when the typist count for this channel changes.
+
   const typingCount = useTyping(
     (s) => Object.keys(s.typists[channelId] ?? {}).length,
   );
   const activeTypistIds = useMemo(() => {
-    void typingCount; // trigger recomputation when typist set changes
+    void typingCount;
     if (!user) return [];
     return useTyping.getState().getActiveTypistIds(channelId, user.id);
   }, [typingCount, channelId, user]);
 
-  // Resolve typist userIds → display names from the message cache.
   const typistNames = useMemo(() => {
     const cache = queryClient.getQueryData<PendingMessage[]>(messageKeys.list(channelId));
     return activeTypistIds.map((uid) => {
@@ -94,7 +163,6 @@ export function ChatPane({ channelId, serverId }: {
     [typistNames],
   );
 
-  /** Outbound throttle: send typing.start at most once per 3s per channel. */
   const onComposerChange = useCallback((text: string) => {
     setDraft(text);
     if (text.length > 0 && useTyping.getState().shouldSendTyping(channelId)) {
@@ -274,6 +342,37 @@ export function ChatPane({ channelId, serverId }: {
     Alert.alert('', '', buttons);
   }, [user?.id, canManage, openEdit, confirmDelete, copyText, doPin]);
 
+  // ── Mention-aware content rendering ───────────────────────────────
+
+  /**
+   * Render message content with highlighted mentions.
+   * Parses text into segments; mention segments get styled highlight;
+   * the current user's own mentions get a distinct (accent-background) style.
+   */
+  const renderSegmentedContent = useCallback(
+    (content: string): React.ReactNode => {
+      const current = user?.username?.toLowerCase();
+      const segments = parseMentionSegments(content, memberUsernameSet, current);
+
+      if (segments.length === 0) return content;
+
+      return segments.map((seg, i) => {
+        if (seg.kind === 'plain') {
+          return <Text key={i}>{seg.text}</Text>;
+        }
+        return (
+          <Text
+            key={i}
+            style={seg.isSelf ? styles.mentionSelf : styles.mentionHighlight}
+          >
+            {seg.display}
+          </Text>
+        );
+      });
+    },
+    [memberUsernameSet, user?.username],
+  );
+
   // ── Render ────────────────────────────────────────────────────────
 
   return (
@@ -314,7 +413,7 @@ export function ChatPane({ channelId, serverId }: {
                   <Text style={styles.pinned} testID={`pinned-${item.id}`}>{strings.messages.pinIcon}</Text>
                 )}
               </View>
-              <Text style={styles.content}>{item.content}</Text>
+              <Text style={styles.content}>{renderSegmentedContent(item.content)}</Text>
               {user && (
                 <ReactionPills
                   reactions={item.reactions}
@@ -337,14 +436,84 @@ export function ChatPane({ channelId, serverId }: {
           {typingText}
         </Text>
       )}
+
+      {/* Mention autocomplete picker */}
+      {mentionTrigger && mentionMatches.length > 0 && (
+        <View style={styles.mentionPicker} testID="mention-picker">
+          <FlatList
+            data={mentionMatches}
+            keyExtractor={(c) => c.id}
+            renderItem={({ item: c, index }) => (
+              <Pressable
+                style={[
+                  styles.mentionRow,
+                  index === mentionIndex && styles.mentionRowActive,
+                ]}
+                onPress={() => insertMentionCandidate(c)}
+                testID={`mention-${c.username}`}
+              >
+                <Text
+                  style={[
+                    styles.mentionRowText,
+                    index === mentionIndex && styles.mentionRowTextActive,
+                  ]}
+                >
+                  {c.id === '__everyone__'
+                    ? strings.mentions.everyoneLabel
+                    : c.id === '__here__'
+                      ? strings.mentions.hereLabel
+                      : `@${c.username}`}
+                </Text>
+                {c.displayName && c.id !== '__everyone__' && c.id !== '__here__' && (
+                  <Text style={styles.mentionRowSub}>{c.displayName}</Text>
+                )}
+              </Pressable>
+            )}
+            style={styles.mentionList}
+            keyboardShouldPersistTaps="always"
+          />
+        </View>
+      )}
+
       <View style={styles.composer}>
         <TextInput
           style={styles.input}
           placeholder={strings.messages.composerPlaceholder}
           placeholderTextColor={palette.textMuted}
           value={draft}
-          onChangeText={onComposerChange}
-          onSubmitEditing={() => void send(draft)}
+          onChangeText={(text) => {
+            onComposerChange(text);
+            // We need a microtask-like read of cursor — use a ref-based approach
+          }}
+          onSelectionChange={(e) => {
+            updateMention(draft, e.nativeEvent.selection.start);
+          }}
+          onKeyPress={({ nativeEvent }) => {
+            if (mentionTrigger && mentionMatches.length > 0) {
+              if (nativeEvent.key === 'ArrowDown') {
+                setMentionIndex((i) => (i + 1) % mentionMatches.length);
+                return;
+              }
+              if (nativeEvent.key === 'ArrowUp') {
+                setMentionIndex(
+                  (i) => (i - 1 + mentionMatches.length) % mentionMatches.length,
+                );
+                return;
+              }
+              if (nativeEvent.key === 'Enter' || nativeEvent.key === 'Tab') {
+                insertMentionCandidate(mentionMatches[mentionIndex]!);
+                return;
+              }
+              if (nativeEvent.key === 'Escape') {
+                setMentionTrigger(null);
+                return;
+              }
+            }
+          }}
+          onSubmitEditing={() => {
+            if (mentionTrigger && mentionMatches.length > 0) return;
+            void send(draft);
+          }}
           accessibilityLabel={strings.messages.composerPlaceholder}
           testID="composer-input"
         />
@@ -422,6 +591,53 @@ const styles = StyleSheet.create({
   deletedText: { ...typography.caption, color: palette.textMuted, fontStyle: 'italic' },
   empty: { ...typography.caption, color: palette.textMuted, textAlign: 'center', padding: spacing.lg },
   typing: { ...typography.caption, color: palette.textMuted, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+  // Mention rendering
+  mentionHighlight: {
+    backgroundColor: 'var(--hover)',
+    color: palette.accent,
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    fontWeight: '600' as const,
+  },
+  mentionSelf: {
+    backgroundColor: palette.accent,
+    color: palette.text,
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    fontWeight: '600' as const,
+  },
+  // Mention autocomplete picker
+  mentionPicker: {
+    maxHeight: 200,
+    backgroundColor: palette.bgElevated,
+    borderTopWidth: 1,
+    borderTopColor: palette.bg,
+  },
+  mentionList: {
+    maxHeight: 200,
+  },
+  mentionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  mentionRowActive: {
+    backgroundColor: palette.accent,
+  },
+  mentionRowText: {
+    ...typography.body,
+    color: palette.text,
+    fontWeight: '600' as const,
+  },
+  mentionRowTextActive: {
+    color: palette.text,
+  },
+  mentionRowSub: {
+    ...typography.caption,
+    color: palette.textMuted,
+  },
   composer: {
     flexDirection: 'row', padding: spacing.sm, borderTopWidth: 1, borderTopColor: palette.bgElevated,
   },

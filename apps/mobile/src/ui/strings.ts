@@ -61,6 +61,10 @@ export const strings = {
     pinIcon: '📌',
     closeIcon: '✕',
   },
+  mentions: {
+    everyoneLabel: '@everyone',
+    hereLabel: '@here',
+  },
   reactions: {
     pickerTitle: 'Add reaction',
     pickerSearchPlaceholder: 'Search emoji',
