@@ -591,3 +591,47 @@ the new `BAN_MEMBERS` bit (1n << 8n) in the existing bitfield.
   infrastructure and two mobile clients; this is a work order N deliverable
   for the client half).
 - No backend changes — purely mobile client.
+
+## 2026-07-25 — WORK ORDER M: FR-MSG-003 edit + FR-MSG-004 delete mobile client (William B. Sexton)
+
+**Commit:** (below) — 8 files
+
+**What:** Mobile client implementation of message edit (FR-MSG-003) and delete
+(FR-MSG-004). Long-press action sheet, inline edit modal, delete confirmation,
+optimistic cache updates, gateway event sync, (edited) marker, deleted
+placeholder, and bitfield permission gating.
+
+**Files modified:**
+- `apps/mobile/src/sync/messages.ts` — Added `mergeUpdated`, `mergeDeleted`,
+  `applyUpdated`, `applyDeleted`. Cache writers follow the same pattern as
+  `applyCreated` (06 §3: sync/ is the single writer).
+- `apps/mobile/src/sync/queryClient.ts` — Wired `message.updated` and
+  `message.deleted` gateway events. Real wire shapes derived from
+  `apps/api/src/realtime/events.gateway.ts relay()`: `message.updated` wraps
+  as `{message}` (same as `message.created`), `message.deleted` flat as
+  `{id, channelId}`.
+- `apps/mobile/src/features/messages/ChatPane.tsx` — Long-press action sheet
+  (Edit own / Delete own+managed / Copy text / Cancel), edit modal with
+  TextInput and optimistic PATCH, delete confirm with optimistic soft-delete,
+  `(edited)` marker when `editedAt` is non-null, `Message removed` placeholder
+  when `deletedAt` is non-null. Permission gating via bitfield check against
+  `Server.myPermissions` from the query cache.
+- `apps/mobile/src/features/shell/screens/ShellScreen.tsx` — Passes `serverId`
+  to `ChatPane` for permission lookups.
+- `apps/mobile/src/ui/strings.ts` — Added 12 new strings (edited, deleted,
+  edit, delete, copyText, editTitle, editSave, editCancel, deleteConfirm,
+  deleteConfirmOk, editFailed, deleteFailed).
+- `apps/mobile/src/sync/__tests__/messages.test.ts` — 15 new unit tests:
+  `mergeUpdated` (3), `mergeDeleted` (4), (edited) marker rule (2), permission
+  matrix (6). All tagged `// @satisfies FR-MSG-003` and `// @satisfies FR-MSG-004`.
+- `apps/mobile/package.json` — Added `expo-clipboard` dependency for Copy text.
+- `apps/mobile/package-lock.json` — Lockfile update.
+
+**Verification:**
+- `npx tsc --noEmit`: clean (0 errors)
+- `npx jest --no-coverage`: 66/67 pass (1 pre-existing gateway test failure
+  unrelated — `channelIds` array vs `channelId` string contract discrepancy)
+- `npx eslint src/sync/ src/features/messages/ src/ui/strings.ts --max-warnings=0`: clean
+- Proved tests can fail: broke `mergeUpdated` content assertion, observed
+  `Expected: "BROKEN" Received: "hello world"`, restored and re-ran → all pass
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)

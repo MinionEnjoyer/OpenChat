@@ -7,7 +7,7 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
-import { applyCreated, applyUpdated } from './messages';
+import { applyCreated, applyUpdated, applyDeleted } from './messages';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +31,12 @@ export function applyEvent(frame: S2CFrame): void {
       // Reactions, edits, pins arrive as a full message.updated frame.
       applyUpdated(frame.d.message);
       break;
+    case 'message.deleted': {
+      // FR-MSG-004: Gateway sends d: {id, channelId}.
+      const d = frame.d as { id: string; channelId: string };
+      if (d.id && d.channelId) applyDeleted(d.channelId, d.id);
+      break;
+    }
     case 'notify':
       void queryClient.invalidateQueries();
       break;
