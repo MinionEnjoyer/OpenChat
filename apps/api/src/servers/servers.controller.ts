@@ -219,6 +219,27 @@ export class ServersController {
     return this.servers.setMemberRole(serverId, targetUserId, roleId, user.id, true);
   }
 
+  // ---- Timeout (FR-ROLE-005) ----
+
+  @Put(':id/members/:userId/timeout')
+  setTimeout(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({ until: z.string().datetime() }))) body: { until: string },
+  ) {
+    return this.servers.setTimeout(serverId, targetUserId, new Date(body.until), user.id);
+  }
+
+  @Delete(':id/members/:userId/timeout')
+  clearTimeout(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.clearTimeout(serverId, targetUserId, user.id);
+  }
+
   @Delete(':id/members/:userId/roles/:roleId')
   unassignRole(
     @Param('id') serverId: string,

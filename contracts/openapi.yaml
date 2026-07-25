@@ -795,6 +795,77 @@ paths:
           description: Role removed
       x-evidence: roles.spec.ts#member-role, E3
 
+  # ── Timeout (x-added-by: P7) ──
+  /servers/{id}/members/{userId}/timeout:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setTimeout
+      summary: Set or update a member's timeout
+      tags: [servers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [until]
+              properties:
+                until:
+                  type: string
+                  format: date-time
+                  description: ISO 8601 timestamp; capped at 28 days from now
+      responses:
+        '200':
+          description: Timeout applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timedOutUntil:
+                    type: string
+                    format: date-time
+        '403':
+          description: >
+            Forbidden — actor lacks MANAGE_MEMBERS permission, or target is server owner,
+            or target is not a member.
+        '404':
+          description: Server or member not found
+      x-evidence: p7-timeout.spec.ts#set-timeout
+      x-added-by: P7
+    delete:
+      operationId: clearTimeout
+      summary: Clear a member's timeout
+      tags: [servers]
+      responses:
+        '200':
+          description: Timeout cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '403':
+          description: Forbidden — actor lacks MANAGE_MEMBERS permission
+        '404':
+          description: Server or member not found
+      x-evidence: p7-timeout.spec.ts#clear-timeout
+      x-added-by: P7
+
   # ── Invites ──
   /servers/{id}/invites:
     parameters:

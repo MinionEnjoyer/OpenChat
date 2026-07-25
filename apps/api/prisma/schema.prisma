@@ -118,11 +118,12 @@ model ServerSound {
 }
 
 model ServerMember {
-  id        String   @id @default(uuid())
-  serverId  String
-  userId    String
-  nickname  String?
-  joinedAt  DateTime @default(now())
+  id            String    @id @default(uuid())
+  serverId      String
+  userId        String
+  nickname      String?
+  timedOutUntil DateTime?
+  joinedAt      DateTime  @default(now())
 
   server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
