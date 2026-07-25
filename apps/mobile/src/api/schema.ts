@@ -181,17 +181,7 @@ export interface UploadResponse {
   rejected: RejectedFile[];
 }
 
-// ── Permissions (from contracts/permissions.json) ──
-
-export const Permission = {
-  ADMINISTRATOR:    1n << 0n,
-  MANAGE_SERVER:    1n << 1n,
-  MANAGE_CHANNELS:  1n << 2n,
-  MANAGE_ROLES:     1n << 3n,
-  MANAGE_MEMBERS:   1n << 4n,
-  CREATE_INVITE:    1n << 5n,
-  MANAGE_MESSAGES:  1n << 6n,
-  MENTION_EVERYONE: 1n << 7n,
-} as const;
-
-export type PermissionName = keyof typeof Permission;
+// ── Permissions (shared lib — apps/api/src/permissions/permissions.ts) ──
+// FR-ROLE-002: client and server semantics must be identical.
+export { Permission, ALL_PERMISSIONS, DEFAULT_MEMBER_PERMISSIONS, hasPermission, PERMISSION_LIST } from '../permissions';
+export type { PermissionName } from '../permissions';
