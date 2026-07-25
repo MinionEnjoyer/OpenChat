@@ -45,6 +45,17 @@ channels:
           - $ref: '#/components/messages/mention'
           - $ref: '#/components/messages/callRing'
           - $ref: '#/components/messages/watchpartySync'
+          # ── P3 granular guild-structure events (x-added-by: P3) ──
+          - $ref: '#/components/messages/channelCreated'
+          - $ref: '#/components/messages/channelDeleted'
+          - $ref: '#/components/messages/roleCreated'
+          - $ref: '#/components/messages/roleUpdated'
+          - $ref: '#/components/messages/roleDeleted'
+          - $ref: '#/components/messages/memberJoined'
+          - $ref: '#/components/messages/memberLeft'
+          - $ref: '#/components/messages/memberKicked'
+          - $ref: '#/components/messages/serverUpdated'
+          - $ref: '#/components/messages/serverDeleted'
 
 components:
   messages:
@@ -393,6 +404,257 @@ components:
       x-evidence: "route exists in controller; no characterization test"
       x-unverified: true
       x-note: "Deferred to Phase 7; requires Jellyfin"
+
+    # ── P3 granular guild-structure events ──
+    # Audience: server members only (not non-members). Delivered to all
+    # connected sockets of every member of the affected server.
+    # x-added-by: P3
+    # x-evidence: p3-09-granular-events.spec.ts, events.gateway.ts#relay
+
+    channelCreated:
+      summary: New channel created in a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: channel.created
+          d:
+            type: object
+            properties:
+              channel:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  serverId:
+                    type: string
+                    format: uuid
+                  categoryId:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  channelType:
+                    type: string
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  position:
+                    type: integer
+                  parentId:
+                    type: string
+                    format: uuid
+                    nullable: true
+            required: [channel]
+        required: [op, d]
+
+    channelDeleted:
+      summary: Channel deleted from a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: channel.deleted
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+            required: [channelId]
+        required: [op, d]
+
+    roleCreated:
+      summary: New role created in a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: role.created
+          d:
+            type: object
+            properties:
+              role:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  serverId:
+                    type: string
+                  name:
+                    type: string
+                  color:
+                    type: integer
+                  permissions:
+                    type: string
+                  position:
+                    type: integer
+            required: [role]
+        required: [op, d]
+
+    roleUpdated:
+      summary: Role updated in a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: role.updated
+          d:
+            type: object
+            properties:
+              role:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  serverId:
+                    type: string
+                  name:
+                    type: string
+                  color:
+                    type: integer
+                  permissions:
+                    type: string
+                  position:
+                    type: integer
+            required: [role]
+        required: [op, d]
+
+    roleDeleted:
+      summary: Role deleted from a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: role.deleted
+          d:
+            type: object
+            properties:
+              roleId:
+                type: string
+            required: [roleId]
+        required: [op, d]
+
+    memberJoined:
+      summary: User joined a server (via invite acceptance)
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: member.joined
+          d:
+            type: object
+            properties:
+              member:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                    format: uuid
+                  nickname:
+                    type: string
+                    nullable: true
+                  joinedAt:
+                    type: string
+                    format: date-time
+                  isOwner:
+                    type: boolean
+                  roleIds:
+                    type: array
+                    items:
+                      type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      username:
+                        type: string
+                      displayName:
+                        type: string
+                        nullable: true
+                      avatarUrl:
+                        type: string
+                        nullable: true
+                      status:
+                        type: string
+                        nullable: true
+            required: [member]
+        required: [op, d]
+
+    memberLeft:
+      summary: User left a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: member.left
+          d:
+            type: object
+            properties:
+              userId:
+                type: string
+                format: uuid
+            required: [userId]
+        required: [op, d]
+
+    memberKicked:
+      summary: User kicked from a server
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: member.kicked
+          d:
+            type: object
+            properties:
+              userId:
+                type: string
+                format: uuid
+            required: [userId]
+        required: [op, d]
+
+    serverUpdated:
+      summary: Server metadata updated
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: server.updated
+          d:
+            type: object
+            properties:
+              server:
+                type: object
+            required: [server]
+        required: [op, d]
+
+    serverDeleted:
+      summary: Server deleted
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: server.deleted
+          d:
+            type: object
+            properties:
+              serverId:
+                type: string
+                format: uuid
+            required: [serverId]
+        required: [op, d]
 
   schemas:
     Message:

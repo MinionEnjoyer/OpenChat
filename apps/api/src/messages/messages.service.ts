@@ -269,7 +269,7 @@ export class MessagesService {
 
     // Publish serialized event to Redis for cross-instance fan-out
     const dto = this.serializeMessage(message);
-    await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto });
+    await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto, nonce: data.nonce });
 
     this.dispatchMentions(channelId, validated.content, userId, message.id).catch(() => {});
 
