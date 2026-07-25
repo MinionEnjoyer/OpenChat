@@ -1923,6 +1923,13 @@ components:
         myPermissions:
           type: string
           description: BigInt serialized as decimal string
+        iconUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
       required: [id, name]
 
     AuthorBrief:

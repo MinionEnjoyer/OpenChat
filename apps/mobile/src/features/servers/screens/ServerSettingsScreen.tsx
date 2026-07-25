@@ -10,6 +10,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { keys } from '../../../sync/keys';
 import { hasServerPermission, isServerOwner, Permission } from '../../../permissions';
 import type { Server } from '../../../api/schema';
+import { AvatarPicker, useAvatarUpload } from '../../avatars';
+import { resolveConfig } from '../../../lib/config';
 
 /**
  * FR-SRV-003 — Server settings: rename (MANAGE_SERVER) and delete (owner-only).
@@ -29,9 +31,29 @@ export function ServerSettingsScreen({
   const [busy, setBusy] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
+  const avatar = useAvatarUpload(resolveConfig().apiBaseUrl);
 
   const canRename = hasServerPermission(server.myPermissions, Permission.MANAGE_SERVER);
   const canDelete = isServerOwner(user?.id, server.ownerId);
+
+  const handleIconPick = async (): Promise<void> => {
+    if (busy) return;
+    const result = await avatar.pickAndUpload();
+    if (!result?.thumbnailUrl) return;
+    setBusy(true);
+    try {
+      await api.request(`/servers/${server.id}`, {
+        method: 'PATCH',
+        body: { iconUrl: result.thumbnailUrl },
+      });
+      await queryClient.invalidateQueries({ queryKey: keys.servers });
+      showToast(strings.avatars.iconSaved);
+    } catch {
+      showToast(strings.avatars.saveFailed, () => void handleIconPick());
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submitRename = async (): Promise<void> => {
     const trimmed = name.trim();
@@ -73,6 +95,15 @@ export function ServerSettingsScreen({
     >
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>{strings.servers.settingsTitle}</Text>
+
+        {/* Server icon (FR-MED-020) */}
+        <AvatarPicker
+          currentUrl={server.iconUrl ? (server.iconUrl.startsWith('/') ? resolveConfig().apiBaseUrl + server.iconUrl : server.iconUrl) : null}
+          label={strings.avatars.iconLabel}
+          onPick={() => void handleIconPick()}
+          busy={avatar.busy}
+          error={avatar.error}
+        />
 
         {/* Rename */}
         <Text style={styles.sectionLabel}>{strings.servers.renameLabel}</Text>

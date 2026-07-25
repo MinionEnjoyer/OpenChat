@@ -4,7 +4,7 @@ import { saveLastChannel, resolveLastChannel, type LastChannel } from '../coldst
 import type { Server, Channel } from '../../../api/schema';
 
 function server(id: string, name = `Server ${id}`): Server {
-  return { id, name, ownerId: 'owner', myPermissions: '0' };
+  return { id, name, ownerId: 'owner', iconUrl: null, createdAt: '', updatedAt: '', myPermissions: '0' };
 }
 
 function ch(id: string, serverId: string, name = `channel-${id}`, type: Channel['type'] = 'TEXT'): Channel {

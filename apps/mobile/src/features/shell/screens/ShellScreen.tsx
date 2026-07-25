@@ -40,6 +40,8 @@ import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
 import type { Server, Channel, Member, Role } from '../../../api/schema';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
+import { AvatarPicker, useAvatarUpload } from '../../avatars';
+import { resolveConfig } from '../../../lib/config';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -59,6 +61,7 @@ export function ShellScreen(): React.JSX.Element {
   const logout = useSession((s) => s.logout);
   const updateProfile = useSession((s) => s.updateProfile);
   const connection = useConnection();
+  const avatar = useAvatarUpload(resolveConfig().apiBaseUrl);
 
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
@@ -233,6 +236,17 @@ export function ShellScreen(): React.JSX.Element {
       showToast(strings.profile.saved);
     } catch {
       showToast(strings.profile.saveFailed, () => void saveDisplayName());
+    }
+  };
+
+  const handleAvatarPick = async (): Promise<void> => {
+    const result = await avatar.pickAndUpload();
+    if (!result?.thumbnailUrl) return;
+    try {
+      await updateProfile({ avatarUrl: result.thumbnailUrl } as Parameters<typeof updateProfile>[0]);
+      showToast(strings.avatars.avatarSaved);
+    } catch {
+      showToast(strings.avatars.saveFailed, () => void handleAvatarPick());
     }
   };
 
@@ -562,6 +576,14 @@ export function ShellScreen(): React.JSX.Element {
                     } },
                   ]);
                 }}
+              />
+              {/* Avatar picker (FR-MED-020) */}
+              <AvatarPicker
+                currentUrl={user?.avatarUrl ? (user.avatarUrl.startsWith('/') ? resolveConfig().apiBaseUrl + user.avatarUrl : user.avatarUrl) : null}
+                label={strings.avatars.avatarLabel}
+                onPick={() => void handleAvatarPick()}
+                busy={avatar.busy}
+                error={avatar.error}
               />
               {/* Profile box (P1-07) */}
               <View style={styles.profileBox}>
