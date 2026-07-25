@@ -68,7 +68,7 @@ export interface Message {
   editedAt: string | null;
   deletedAt: string | null;
   attachments: Attachment[];
-  reactions: ReactionGroup[];
+  reactions: ReactionGroup[];  // pre-aggregated by backend groupReactions()
   pinned: boolean;
   poll: Poll | null;
   createdAt: string;
@@ -99,7 +99,7 @@ export interface AttachmentInput {
   height?: number;
 }
 
-/** Grouped reaction as received on the wire (pre-aggregated by the backend). */
+/** Grouped reaction as received on the wire (pre-aggregated by backend groupReactions). */
 export interface ReactionGroup {
   emoji: string;
   count: number;

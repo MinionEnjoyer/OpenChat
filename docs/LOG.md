@@ -635,3 +635,24 @@ placeholder, and bitfield permission gating.
 - Proved tests can fail: broke `mergeUpdated` content assertion, observed
   `Expected: "BROKEN" Received: "hello world"`, restored and re-ran → all pass
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
+
+## 2026-07-25 — WORK ORDER P: Unify duplicate applyUpdated
+
+- **Commit**: 3001a84
+- **Problem**: `apps/mobile/src/sync/messages.ts` had two `export function applyUpdated`
+  — line ~96 (edit/delete branch) and line ~126 (reactions branch). `tsc --noEmit`
+  reported TS2323 + TS2393. Jest passed (158/158) only because the second
+  definition silently shadowed the first at runtime.
+- **Fix**: Removed the duplicate. `mergeUpdated` now delegates to
+  `domain/reactions.mergeMessageUpdate` so both edit/delete and reactions pure
+  tests exercise the same field-level merge. The single `applyUpdated` calls
+  `mergeUpdated`. Unknown-id-is-noop preserved with comment explaining why.
+- **Break proof**: Removed `...incoming` from `mergeMessageUpdate` → 3 failures:
+  - `messages.test.ts`: "replaces the message at its id in place" (content mismatch)
+  - `messages.test.ts`: "updates only the target" (content mismatch)
+  - `reactions.test.ts`: "preserves other incoming fields like editedAt" (null vs timestamp)
+  Restored → 158/158 pass.
+- **Gates**:
+  - `npx tsc --noEmit` → rc=0
+  - `npx eslint . --max-warnings=0` → rc=0
+  - `npx jest` → 158 pass, 0 fail

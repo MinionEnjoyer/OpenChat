@@ -221,7 +221,9 @@ components:
       summary: Message edited, reaction changed, pin toggled, or poll voted
       description: >
         Reactions, pins, and poll votes all arrive as message.updated with
-        the full message object.
+        the full message object wrapped in {message}.
+        Ground truth: events.gateway.ts relay() line 224 sends
+        { op: 'message.updated', d: { message: event.message } }.
       payload:
         type: object
         properties:
@@ -229,9 +231,13 @@ components:
             type: string
             const: message.updated
           d:
-            $ref: '#/components/schemas/Message'
+            type: object
+            properties:
+              message:
+                $ref: '#/components/schemas/Message'
+            required: [message]
         required: [op, d]
-      x-evidence: E7
+      x-evidence: events.gateway.ts#relay, E7
 
     messageDeleted:
       summary: Message deleted (soft-delete)

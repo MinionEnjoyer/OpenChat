@@ -31,12 +31,10 @@ export function applyEvent(frame: S2CFrame): void {
       // Reactions, edits, pins arrive as a full message.updated frame.
       applyUpdated(frame.d.message);
       break;
-    case 'message.deleted': {
+    case 'message.deleted':
       // FR-MSG-004: Gateway sends d: {id, channelId}.
-      const d = frame.d as { id: string; channelId: string };
-      if (d.id && d.channelId) applyDeleted(d.channelId, d.id);
+      applyDeleted(frame.d.channelId, frame.d.id);
       break;
-    }
     case 'notify':
       void queryClient.invalidateQueries();
       break;

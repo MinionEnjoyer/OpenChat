@@ -28,7 +28,6 @@ import { keys } from '../../../sync/keys';
 import { ChatPane } from '../../messages';
 import type { Server, Channel, Member } from '../../../api/schema';
 
-Dimensions.get('window'); // keep import for future use
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
 const EDGE_WIDTH = 30; // edge gesture hit-slop for swipe-from-edge

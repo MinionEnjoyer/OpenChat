@@ -96,7 +96,7 @@ export interface Message {
   editedAt: string | null;
   deletedAt: string | null;
   attachments: Attachment[];
-  reactions: Reaction[];
+  reactions: ReactionGroup[];  // pre-aggregated by backend groupReactions()
   pinned: boolean;
   poll: Poll | null;
   createdAt: string;
@@ -127,9 +127,11 @@ export interface AttachmentInput {
   height?: number;
 }
 
-export interface Reaction {
+/** Grouped reaction as received on the wire (pre-aggregated by backend groupReactions). */
+export interface ReactionGroup {
   emoji: string;
-  userId: string;
+  count: number;
+  userIds: string[];
 }
 
 export interface Poll {
@@ -265,7 +267,7 @@ export interface ReadyFrame {
 export interface ErrorFrame { op: 'error'; d: { message: string } }
 
 export interface MessageCreatedFrame { op: 'message.created'; d: { message: Message; nonce?: string } }  // P2 correction: relay wraps in {message}
-export interface MessageUpdatedFrame { op: 'message.updated'; d: Message }
+export interface MessageUpdatedFrame { op: 'message.updated'; d: { message: Message } }  // P2 correction: relay wraps in {message} (events.gateway.ts L224)
 export interface MessageDeletedFrame { op: 'message.deleted'; d: { id: string; channelId: string } }
 
 export interface TypingFrame { op: 'typing'; d: { channelId: string; userId: string } }
