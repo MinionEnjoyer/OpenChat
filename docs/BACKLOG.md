@@ -266,3 +266,17 @@ suite covers every route with a contract schema. Routes without schemas are trac
 - **`usesCleartextTraffic: true` is set for dev builds** (release APKs must reach
   the dev stack at http://10.0.2.2). Phase 8 release hardening must remove it or
   scope it with a networkSecurityConfig allowing only 10.0.2.2 in dev flavors.
+
+## Test-oracle portability (P7-03)
+
+- **Exact-ID oracles are database-specific and block isolated-DB branches.**
+  `test/integration/p7-05-message-search.spec.ts` and `p2-16-around.spec.ts`
+  assert exact message IDs read from `artifacts/trace/expected-*.txt`, captured
+  against the shared dev database. Any branch carrying a Prisma migration must run
+  its own isolated database (correctly), and therefore generates different UUIDs —
+  so those suites fail on such branches by construction, producing false
+  regressions. Two good rules in collision.
+  Fix options: (a) derive expected IDs at test time from the seed's own
+  deterministic content rather than a captured file, or (b) key the expected-file
+  by database identity and regenerate on seed. (a) is preferable — it removes the
+  captured artifact entirely and makes the oracle portable.
