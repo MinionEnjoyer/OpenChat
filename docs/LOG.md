@@ -424,3 +424,37 @@ the short side is padded from the other side.
 - `node tools/codegen/gen.mjs --check` → generated types match committed files
 - Prove-fail cycle: broke target ID → 2 failures (404); restored → 6 passed
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
+## 2026-07-25 — P2-10 Unread math (FR-MSG-010)
+
+**Commit:** `44b97a7` — 2 files, 332 insertions
+
+**What:** Pure domain function `computeChannelUnread()` computing per-channel
+`{unread, mentionCount, dividerMessageId}` from ReadState + messages + ownUserId.
+Zero RN/React imports. Not wired into UI — that is a later work item.
+
+**Files:**
+- `apps/mobile/src/domain/unread.ts` — types (ReadState, MessageMeta, ChannelUnread)
+  and `computeChannelUnread()` with `readStateIsAhead` opt for pagination windows.
+- `apps/mobile/src/domain/__tests__/unread.test.ts` — 20 table-driven tests
+  carrying `@satisfies FR-MSG-010`.
+
+**Test coverage:** empty channel · no read state · read state newer than all
+messages · exactly at boundary (first/middle/last) · mentions counted separately
+from plain unread · own messages excluded · deleted messages excluded · null
+lastReadMessageId · boundary message absent (deleted) · combined own+deleted+
+mentions · other-channel exclusion. Failure proven by breaking assertions (6
+failures before restore).
+
+**Contract findings (POST /channels/:id/read):**
+- Returns **201** (contract says 200).
+- Requires body `{lastReadMessageId}` (contract shows no request body).
+- No GET endpoint exists for read states; the client must track them locally.
+- Gateway `ready` event does not include read states.
+- ReadState DB model: `{id, userId, channelId, lastReadMessageId?, mentionCount}`.
+
+**Verification:**
+- `npx jest --no-coverage src/domain/__tests__/unread.test.ts` → 20/20 PASS.
+- `./node_modules/.bin/tsc --noEmit` → clean.
+- `npx eslint src/domain/unread.ts src/domain/__tests__/unread.test.ts --max-warnings=0` → clean.
+- Full `npx eslint . --max-warnings=0` has pre-existing issues in
+  `src/features/shell/screens/ShellScreen.tsx` (unrelated). LOGEOF
