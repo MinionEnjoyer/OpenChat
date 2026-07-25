@@ -8,6 +8,7 @@ import type { User } from '@prisma/client';
 
 const GetMessagesQuery = z.object({
   before: z.string().uuid().optional(),
+  around: z.string().uuid().optional(),
   limit: z.coerce.number().int().positive().max(100).default(50),
 });
 
@@ -41,7 +42,7 @@ export class MessagesController {
   list(
     @Param('id') channelId: string,
     @CurrentUser() user: User,
-    @Query(new ZodValidationPipe(GetMessagesQuery)) query: { before?: string; limit?: number },
+    @Query(new ZodValidationPipe(GetMessagesQuery)) query: { before?: string; around?: string; limit?: number },
   ) {
     return this.messages.list(channelId, user.id, query);
   }
