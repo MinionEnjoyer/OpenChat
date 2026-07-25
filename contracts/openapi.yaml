@@ -1001,9 +1001,11 @@ paths:
                   expiresAt:
                     type: string
                     format: date-time
+                    nullable: true
                   maxUses:
                     type: integer
-      x-evidence: invites.spec.ts#create, E3
+                    nullable: true
+      x-evidence: invites.spec.ts#create, E3, FR-SRV-006
 
   /invites/{code}:
     parameters:
@@ -1020,9 +1022,31 @@ paths:
       responses:
         '200':
           description: Invite preview with server info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  server:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      iconUrl: { type: string, nullable: true }
+                  inviter:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      username: { type: string }
         '404':
           description: Invalid code
-      x-evidence: invites.spec.ts#preview, E3
+      x-evidence: invites.spec.ts#preview, E3, FR-SRV-006
 
   /invites/{code}/accept:
     parameters:

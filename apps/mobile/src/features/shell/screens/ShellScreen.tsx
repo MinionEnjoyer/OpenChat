@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StatusBar,
@@ -26,6 +27,8 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
+import { parseInviteLink } from '../../../domain/links';
 import { storage } from '../../../lib/storageInstance';
 import { saveLastChannel } from '../coldstart';
 import type { Server, Channel, Member } from '../../../api/schema';
@@ -59,6 +62,11 @@ export function ShellScreen(): React.JSX.Element {
   const [showSettingsServer, setShowSettingsServer] = useState(false);
   const [settingsServerId, setSettingsServerId] = useState<string | null>(null);
 
+  // FR-SRV-006 — Invite state
+  const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
+  const [joinServerVisible, setJoinServerVisible] = useState(false);
+  const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+
   // Drawer state lives in shared values for 60fps gesture tracking.
   const leftOpen = useSharedValue(0); // 0 = closed, 1 = open
   const rightOpen = useSharedValue(0);
@@ -71,6 +79,27 @@ export function ShellScreen(): React.JSX.Element {
   useEffect(() => {
     gateway.start();
     return () => gateway.stop();
+  }, []);
+
+  // FR-SRV-006 — Deep-link listener for openchat://invite/<code>
+  useEffect(() => {
+    const handleUrl = (event: { url: string }): void => {
+      const parsed = parseInviteLink(event.url);
+      if (parsed.inviteCode) {
+        setInvitePreviewCode(parsed.inviteCode);
+      }
+    };
+
+    // Handle cold-start deep link
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) handleUrl({ url });
+      })
+      .catch(() => {});
+
+    // Handle warm-start deep links (FR-APP-005)
+    const sub = Linking.addEventListener('url', handleUrl);
+    return () => sub.remove();
   }, []);
 
 
@@ -547,6 +576,39 @@ export function ShellScreen(): React.JSX.Element {
           channelId={activeChannel.id}
           visible={pinsVisible}
           onClose={() => setPinsVisible(false)}
+        />
+      )}
+
+      {/* FR-SRV-006 — Invite preview overlay (deep link + code entry) */}
+      {invitePreviewCode !== null && (
+        <InvitePreviewOverlay
+          code={invitePreviewCode}
+          visible={invitePreviewCode !== null}
+          onClose={() => setInvitePreviewCode(null)}
+          onAccepted={(_serverId) => {
+            setInvitePreviewCode(null);
+            // Refresh server list to show the newly joined server
+            void servers.refetch();
+          }}
+        />
+      )}
+
+      {/* FR-SRV-006 — Join server overlay (manual code entry) */}
+      <JoinServerOverlay
+        visible={joinServerVisible}
+        onClose={() => setJoinServerVisible(false)}
+        onJoined={(_serverId) => {
+          void servers.refetch();
+        }}
+      />
+
+      {/* FR-SRV-006 — Invite create overlay (share sheet) */}
+      {activeServer && (
+        <InviteCreateOverlay
+          serverId={activeServer.id}
+          serverName={activeServer.name}
+          visible={inviteCreateVisible}
+          onClose={() => setInviteCreateVisible(false)}
         />
       )}
     </KeyboardAvoidingView>

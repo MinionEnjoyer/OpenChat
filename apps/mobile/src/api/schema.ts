@@ -147,8 +147,23 @@ export interface WsTicketResponse {
 export interface InviteResponse {
   code: string;
   serverId: string;
-  expiresAt: string;
-  maxUses: number;
+  expiresAt: string | null;
+  maxUses: number | null;
+}
+
+/** FR-SRV-006 — Invite preview (GET /invites/:code). */
+export interface InvitePreview {
+  code: string;
+  expiresAt: string | null;
+  server: {
+    id: string;
+    name: string;
+    iconUrl: string | null;
+  };
+  inviter: {
+    id: string;
+    username: string;
+  };
 }
 
 export interface VoiceJoinResponse {
