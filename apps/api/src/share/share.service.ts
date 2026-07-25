@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Readable } from 'stream';
+import { ReadableStream as WebReadableStream } from 'stream/web';
 
 /**
  * P5-01 + P5-02 — ShareService with Bearer-token service API (FR-MED-001) +
@@ -329,7 +330,7 @@ export class ShareService {
     headers['cache-control'] = 'private, max-age=86400';
 
     // Convert web ReadableStream to Node Readable
-    const nodeStream = Readable.fromWeb(resp.body as any);
+    const nodeStream = Readable.fromWeb(resp.body as WebReadableStream);
     return { stream: nodeStream, headers, status: resp.status };
   }
 
@@ -357,7 +358,7 @@ export class ShareService {
 
     headers['cache-control'] = 'private, max-age=86400';
 
-    const nodeStream = Readable.fromWeb(resp.body as any);
+    const nodeStream = Readable.fromWeb(resp.body as WebReadableStream);
     return { stream: nodeStream, headers, status: resp.status };
   }
 }
