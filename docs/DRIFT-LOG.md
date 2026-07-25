@@ -593,3 +593,107 @@ inconvenient.
 Also this session (P1): release builds block cleartext HTTP (DL-P1-01, fixed via
 expo-build-properties, BACKLOG'd for Phase 8 hardening); seed.mjs did not parse
 (duplicate const).
+## 2026-07-25 — Overnight autonomous run: four defects, three of them in the verifier
+
+Thirteen FRs were implemented by dispatched agents overnight and gated by the
+architect. The features came out substantially cleaner than the verification did.
+Of four serious defects found, **three were in the checking apparatus**, not in
+any feature. All three were introduced by the architect (me), which is the point
+worth recording: an accept-gate is itself code, and nothing had been gating it.
+
+### Defect 1 (CRITICAL) — gate omitted CHAR_WS_BASE, nearly rejecting a good branch
+
+**What:** Branch gating runs each branch's API on its own port. `helpers.ts:15`
+reads `CHAR_WS_BASE` (default `ws://localhost:3001/ws`) separately from
+`CHAR_API_BASE`. The gate set only the latter, so WebSocket tests fetched tickets
+from the branch's API on :3005 and tried to redeem them against the *main stack's*
+gateway on :3001.
+
+**Effect:** The p7-ban branch reported 4 characterization failures. Three were
+pure artifacts of this. The branch was minutes from being sent back for rework on
+a defect it did not have.
+
+**Why it matters more than a false positive:** a gate that fails good work trains
+its operator to override it. That is strictly more dangerous than a gate that
+passes bad work, because it destroys the gate's authority.
+
+**Remedy:** Agent K made the harness port-portable — CHAR_WS_BASE everywhere,
+exported by `tools/verify-worktree.sh` alongside CHAR_API_BASE. Proven: 11 suites
+/ 89 tests green against an API on a non-default port.
+
+### Defect 2 (CRITICAL) — gate reported rc=0 over a failing typecheck
+
+**What:** The gate ran `npx tsc --noEmit | head -3; echo "tsc rc=$?"`. `$?` is
+the exit code of `head`, not `tsc`. The gate printed `rc=0` while tsc was exiting 2.
+
+**Effect:** The integration branch was declared green while
+`apps/mobile/src/sync/messages.ts` had a duplicate `applyUpdated` (TS2323/TS2393).
+
+**Remedy:** All gates now capture the real exit code (`cmd > file 2>&1; echo rc=$?`),
+and every work order explicitly forbids piping tsc through head.
+
+### Defect 3 (HIGH) — Jest green over code that does not compile
+
+**What:** The duplicate `applyUpdated` above passed 138/138 Jest tests. Jest
+transpiles without typechecking, and at runtime the *second* definition silently
+wins — so one feature's update path was dead code while its tests still passed.
+
+**Why it recurred:** this is the identical blind spot recorded in P0-16 (apps/api
+had 11 tsc errors invisible to a green Jest suite). The lesson was recorded but
+never converted into a gate that runs tsc alongside Jest for the mobile package.
+
+**Remedy:** Agent P reconciled the two implementations into one (test count rose
+138 → 158, i.e. coverage was added rather than a feature deleted to force green).
+Real exit codes are now captured for every gate.
+
+### Defect 4 (MEDIUM) — teardown instruction made branches ungateable
+
+**What:** Work orders for migration-bearing tasks told agents to `docker rm -f`
+their isolated Postgres when finished. Both did. The architect then could not
+gate either branch, because the database the branch needed no longer existed.
+
+**Remedy:** Teardown is the gate operator's job, after verification — not the
+implementing agent's. Work orders corrected.
+
+### Architect-level process drift (recorded separately from the above)
+
+- **Phase gating was violated by the architect.** `docs/HANDOFF-P3-P4.md` scoped a
+  handoff to Phases 3 and 4 while Phase 2 had no signoff, contrary to 00 §0.5.
+  The reason was optimizing for what was *delegable* (repetitive CRUD screens fan
+  out well) rather than for spec order or product value. Corrected mid-run: no new
+  Phase 3/4 dispatches, and the mobile track was redirected to completing Phase 2.
+
+- **A partial test run was reported as a full one — by the architect.** The P2-01
+  commit claimed a green mobile suite after running only `npx jest src/sync`. The
+  gateway protocol correction in that same commit invalidated
+  `gateway.test.ts`, which asserted the old `channelIds` array shape. The base
+  branch was left RED, and every agent branching from it inherited a failing suite,
+  making several gate results ambiguous until Agent J repaired it. This is the same
+  partial-run failure the architect had flagged in an agent's report hours earlier.
+
+### What went right, and is worth keeping
+
+- **"Derive, don't invent" earned its place.** Three independent agents caught
+  contract-vs-reality drift by reading the server source instead of trusting the
+  frozen contract: the `message.updated` payload wrapping, the reactions wire
+  shape (E7), and the absence of any markdown renderer in apps/web (escalation
+  E-01, which makes FR-MSG-007's "matches web client semantics" criterion
+  unsatisfiable as written — flagged for the product owner, not silently resolved).
+
+- **"Prove the test can fail" was honoured** by every agent that committed, with
+  pasted before/after output.
+
+- **Agents escalated instead of bulldozing.** One stopped on a collision between a
+  spec work item and a guard rule rather than picking one; the guard was the thing
+  that was wrong, and it was amended.
+
+- **On-device measurement beat plausible reasoning.** An earlier agent's confident
+  "reanimated transforms leave stale accessibility bounds" diagnosis was falsified
+  by a hierarchy dump showing the node absent entirely. The eventual fix
+  (`importantForAccessibility` / `accessibilityElementsHidden` / `pointerEvents`
+  driven by open state) was verified by measurement: 6,483 bytes with zero drawers
+  exposed when closed, 28,201 with the left drawer open, back to 6,483 after a
+  scrim close.
+
+**Disposition:** Defects 1–4 FIXED. Architect process drift RECORDED; the
+Phase 2 signoff must precede any further Phase 3 work.
