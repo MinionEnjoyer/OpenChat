@@ -270,6 +270,7 @@ export const strings = {
     unmute: 'Unmute',
     saved: 'Saved',
     saveFailed: 'Failed to save',
+    reset: 'Reset',
   },
   dms: {
     title: 'Direct Messages',

@@ -42,6 +42,7 @@ export function NotificationSettingsScreen({
   onDone: () => void;
 }): React.JSX.Element {
   const queryClient = useQueryClient();
+  const [expandedMute, setExpandedMute] = useState<Set<string>>(new Set());
 
   const settingsQ = useQuery({
     queryKey: keys.notificationSettings,
@@ -110,7 +111,6 @@ export function NotificationSettingsScreen({
     );
   }
 
-  const [expandedMute, setExpandedMute] = useState<Set<string>>(new Set());
 
   function toggleMutePicker(key: string): void {
     setExpandedMute((prev) => {
@@ -169,7 +169,7 @@ export function NotificationSettingsScreen({
               onPress={() => void removeSetting(scope, scopeId)}
               testID={`notif-reset-${scope}-${scopeId}`}
             >
-              <Text style={styles.resetText}>Reset</Text>
+              <Text style={styles.resetText}>{strings.notifSettings.reset}</Text>
             </Pressable>
           )}
         </View>

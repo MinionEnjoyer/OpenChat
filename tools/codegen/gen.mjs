@@ -184,7 +184,6 @@ export interface Attachment {
   height: number | null;
   durationMs: number | null;
 }
-}
 
 export interface AttachmentInput {
   shareAssetId: string;
