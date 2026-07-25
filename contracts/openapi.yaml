@@ -227,7 +227,32 @@ paths:
               type: object
               properties:
                 layout:
-                  description: Arbitrary layout JSON
+                  type: object
+                  properties:
+                    folders:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          color:
+                            type: integer
+                          serverIds:
+                            type: array
+                            items:
+                              type: string
+                          collapsed:
+                            type: boolean
+                        required: [id, name, color, serverIds]
+                    order:
+                      type: array
+                      items:
+                        type: string
+                  required: [folders]
+                  x-added-by: P3-01
       responses:
         '200':
           description: Layout accepted
