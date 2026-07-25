@@ -151,7 +151,7 @@ export interface InviteResponse {
   maxUses: number | null;
 }
 
-/** FR-SRV-006 — Invite preview (GET /invites/:code). */
+/** Invite preview returned by GET /invites/:code (public, no auth). */
 export interface InvitePreview {
   code: string;
   expiresAt: string | null;
