@@ -29,6 +29,7 @@ import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
 import { useTyping } from '../../stores/typing';
 import { formatTyping } from '../../domain/typing';
+import { buildMessageLink } from '../../domain/links';
 import type { Message, Server } from '../../api/schema';
 import { Permission } from '../../api/schema';
 
@@ -246,6 +247,11 @@ export function ChatPane({ channelId, serverId }: {
     await Clipboard.setStringAsync(content);
   }, []);
 
+  const copyLink = useCallback(async (msg: PendingMessage) => {
+    const link = buildMessageLink(channelId, msg.id);
+    await Clipboard.setStringAsync(link);
+  }, [channelId]);
+
   // ── Long-press action sheet ───────────────────────────────────────
 
   const showActions = useCallback((msg: PendingMessage) => {
@@ -269,10 +275,11 @@ export function ChatPane({ channelId, serverId }: {
       buttons.push({ text: strings.messages.delete, style: 'destructive', onPress: () => confirmDelete(msg) });
     }
     buttons.push({ text: strings.messages.copyText, onPress: () => void copyText(msg.content) });
+    buttons.push({ text: strings.messages.copyLink, onPress: () => void copyLink(msg) });
     buttons.push({ text: strings.common.cancel, style: 'cancel' });
 
     Alert.alert('', '', buttons);
-  }, [user?.id, canManage, openEdit, confirmDelete, copyText, doPin]);
+  }, [user?.id, canManage, openEdit, confirmDelete, copyText, copyLink, doPin]);
 
   // ── Render ────────────────────────────────────────────────────────
 
