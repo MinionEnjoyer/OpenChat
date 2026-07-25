@@ -74,6 +74,10 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   const user = useSession((s) => s.user);
   const [draft, setDraft] = useState('');
   const nonceCounter = useRef(0);
+  // FR-MSG-002: synchronous send guard — prevents double-send when both
+  // onSubmitEditing (keyboard Return) and onPress (Send button) fire in
+  // the same event-loop tick for a single user action.
+  const sendingRef = useRef(false);
 
   // Reactions state
   const [pickerTargetId, setPickerTargetId] = useState<string | null>(null);
@@ -192,7 +196,8 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   }, [rawMessages]);
 
   const send = async (content: string): Promise<void> => {
-    if (!content.trim() || !user) return;
+    if (!content.trim() || !user || sendingRef.current) return;
+    sendingRef.current = true;
     const nonce = `${user.id.slice(0, 8)}-${Date.now()}-${nonceCounter.current++}`;
     addPending(makePending({ channelId, content, nonce, authorId: user.id }));
     setDraft('');
@@ -205,6 +210,8 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
     } catch {
       removePending(channelId, nonce);
       showToast(strings.messages.sendFailed, () => void send(content));
+    } finally {
+      sendingRef.current = false;
     }
   };
 

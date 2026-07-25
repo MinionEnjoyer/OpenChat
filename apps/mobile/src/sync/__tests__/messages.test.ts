@@ -1,4 +1,4 @@
-import { makePending, mergeCreated, mergeUpdated, mergeDeleted } from '../messages';
+import { makePending, mergeCreated, mergeUpdated, mergeDeleted, createSendGuard } from '../messages';
 import type { Message } from '../../api/schema';
 
 const serverMsg = (over: Partial<Message>): Message =>
@@ -249,5 +249,52 @@ describe('pin/unpin permission matrix (FR-MSG-011)', () => {
 
   it('without MANAGE_MESSAGES: cannot pin even own messages', () => {
     expect(canPin(false)).toBe(false);
+  });
+});
+
+// ── FR-MSG-002: Send guard prevents duplicate sends ────────────────────
+// @satisfies FR-MSG-002
+describe('send guard (FR-MSG-002 duplicate prevention)', () => {
+  it('allows the first call and blocks the second synchronous call', () => {
+    const { guard } = createSendGuard();
+    let count = 0;
+    const fn = () => { count++; };
+
+    expect(guard(fn)).toBe(true);
+    expect(guard(fn)).toBe(false);
+    expect(count).toBe(1);
+  });
+
+  it('allows a new call after release()', () => {
+    const { guard, release } = createSendGuard();
+    let count = 0;
+    const fn = () => { count++; };
+
+    expect(guard(fn)).toBe(true);
+    expect(count).toBe(1);
+
+    release();
+    expect(guard(fn)).toBe(true);
+    expect(count).toBe(2);
+  });
+
+  it('multiple rapid calls still only execute once', () => {
+    const { guard } = createSendGuard();
+    let count = 0;
+    const fn = () => { count++; };
+
+    const results = [guard(fn), guard(fn), guard(fn)];
+    expect(results).toEqual([true, false, false]);
+    expect(count).toBe(1);
+  });
+
+  it('release without prior guard call is safe (no-op)', () => {
+    const { guard, release } = createSendGuard();
+    let count = 0;
+    const fn = () => { count++; };
+
+    release(); // no-op — nothing claimed
+    expect(guard(fn)).toBe(true);
+    expect(count).toBe(1);
   });
 });

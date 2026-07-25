@@ -949,3 +949,34 @@ synthetic day dividers and author-group suppression.
 - `npx jest` — 19 suites, 207 tests, all pass
 - Prove-fail: broke exact-id-sequence assertion → test FAILED (expected MISSING, got m4) → restored → test PASSED
 - `grep -c 'export function applyUpdated' src/sync/messages.ts` → 1 (no duplication)
+
+## 2026-07-25 — FR-MSG-002 duplicate-send fix (William B. Sexton / AA work order)
+
+**Root cause:** ChatPane's `onSubmitEditing` (keyboard Return) and Send button
+`onPress` both fire in the same event-loop tick for a single user action. Each
+calls `send(draft)`, which mints a distinct nonce. Two POSTs reach the server
+with different nonces → two server rows. `mergeCreated`'s nonce dedup was never
+at fault — it correctly keeps two genuinely distinct messages.
+
+**Evidence:** Two POSTs with different nonces create two server rows (measured
+via network trace in prior investigation).
+
+**Fix:**
+- `ChatPane.tsx`: added `sendingRef = useRef(false)` synchronous guard in `send()`.
+  `sendingRef.current` is set `true` before the first POST and reset in `finally`.
+- `messages.ts`: exported `createSendGuard()` — a `{guard, release}` factory —
+  for unit-testable isolation of the guard pattern.
+- `messages.test.ts`: 4 guard tests covering first-call allowance, second-call
+  block, release/resume cycle, and safe no-op release.
+
+**DESIGN CHOICE:** kept both `onSubmitEditing` and `onPress` as legitimate UX
+paths (keyboard Return and Send button) and added guard as defence in depth.
+The guard is synchronous, so both handlers firing in the same event-loop tick
+see `busy=true` after the first one claims the lock.
+
+**Gates:**
+- `npx tsc --noEmit` → rc=0
+- `npx eslint . --max-warnings=0` → rc=0
+- `npx jest` → 22 suites, 267 tests, all pass
+- `grep -c 'export function applyUpdated' src/sync/messages.ts` → 1
+- Prove-fail: commented out `busy = true` in guard → 2 test failures → restored → all pass

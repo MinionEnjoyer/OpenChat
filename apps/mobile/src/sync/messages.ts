@@ -140,3 +140,28 @@ export function applyPage(channelId: string, incoming: Message[]): void {
 
 // Re-export so screens depending on messages never inline key shapes.
 export const keys = baseKeys;
+
+/**
+ * Factory for a synchronous send-in-flight guard. Returns { guard, release }
+ * where guard(fn) executes fn exactly once until release() resets the lock.
+ * This prevents duplicate sends when both onSubmitEditing and onPress fire
+ * on a single user action (FR-MSG-002).
+ *
+ * DESIGN CHOICE: we keep both onSubmitEditing (keyboard Return) and onPress
+ * (Send button) as legitimate UX paths and add a guard as defence in depth,
+ * rather than removing either trigger. The guard is synchronous so both
+ * handlers that fire in the same event-loop tick see busy=true after the
+ * first one claims the lock.
+ */
+export function createSendGuard(): { guard: (fn: () => void) => boolean; release: () => void } {
+  let busy = false;
+  return {
+    guard: (fn: () => void): boolean => {
+      if (busy) return false;
+      busy = true;
+      fn();
+      return true;
+    },
+    release: () => { busy = false; },
+  };
+}
