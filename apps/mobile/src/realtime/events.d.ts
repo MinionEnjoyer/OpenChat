@@ -65,6 +65,19 @@ export interface WatchpartySyncFrame {
   d: { channelId: string; state: Record<string, unknown> };
 }
 
+// ── P3 granular guild-structure events (x-added-by: P3) ──
+
+export interface ChannelCreatedFrame { op: 'channel.created'; d: { channel: Record<string, unknown> } }
+export interface ChannelDeletedFrame { op: 'channel.deleted'; d: { channelId: string } }
+export interface RoleCreatedFrame { op: 'role.created'; d: { role: Record<string, unknown> } }
+export interface RoleUpdatedFrame { op: 'role.updated'; d: { role: Record<string, unknown> } }
+export interface RoleDeletedFrame { op: 'role.deleted'; d: { roleId: string } }
+export interface MemberJoinedFrame { op: 'member.joined'; d: { member: Record<string, unknown> } }
+export interface MemberLeftFrame { op: 'member.left'; d: { userId: string } }
+export interface MemberKickedFrame { op: 'member.kicked'; d: { userId: string } }
+export interface ServerUpdatedFrame { op: 'server.updated'; d: { server: Record<string, unknown> } }
+export interface ServerDeletedFrame { op: 'server.deleted'; d: { serverId: string } }
+
 export type S2CFrame =
   | ReadyFrame
   | ErrorFrame
@@ -76,7 +89,18 @@ export type S2CFrame =
   | NotifyFrame
   | MentionFrame
   | CallRingFrame
-  | WatchpartySyncFrame;
+  | WatchpartySyncFrame
+  // ── P3 granular guild-structure events ──
+  | ChannelCreatedFrame
+  | ChannelDeletedFrame
+  | RoleCreatedFrame
+  | RoleUpdatedFrame
+  | RoleDeletedFrame
+  | MemberJoinedFrame
+  | MemberLeftFrame
+  | MemberKickedFrame
+  | ServerUpdatedFrame
+  | ServerDeletedFrame;
 
 // ── Discriminated union helper ──
 // Narrow frame by op string literal:

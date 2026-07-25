@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import type { User } from '@prisma/client';
 
 @Injectable()
 export class InvitesService {
-  constructor(private readonly prisma: PrismaService, private readonly auditLog: AuditLogService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+    private readonly auditLog: AuditLogService,
+  ) {}
 
   async createInvite(
     serverId: string,
@@ -152,6 +157,26 @@ export class InvitesService {
       targetType: 'member',
       targetId: userId,
     });
+
+    const memberRecord = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId: invite.serverId, userId } },
+      include: { user: true, roles: true },
+    });
+    const member = {
+      userId,
+      nickname: memberRecord?.nickname ?? null,
+      joinedAt: memberRecord!.joinedAt.toISOString(),
+      isOwner: server.ownerId === userId,
+      roleIds: memberRecord!.roles.map((r: any) => r.id),
+      user: {
+        id: memberRecord!.user.id,
+        username: memberRecord!.user.username,
+        displayName: memberRecord!.user.displayName,
+        avatarUrl: memberRecord!.user.avatarUrl,
+        status: memberRecord!.user.status,
+      },
+    };
+    this.redis.publish('chat:events', { type: 'MEMBER_JOINED', serverId: invite.serverId, userId, member }).catch(() => {});
 
     return {
       id: server.id,

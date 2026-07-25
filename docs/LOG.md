@@ -918,3 +918,47 @@ channel → kill → relaunch without clearState → assert same channel shown
 - Prove-fail links: changed expected URL → FAILED → restored → PASSED
 - Flow file sanity-checked against p1-01: uses extendedWaitUntil post-kill, opens
   drawer via hamburger-button, references channel testIDs with '#'
+
+## 2026-07-25 — P3-09 Granular guild-structure realtime events (William B. Sexton)
+
+### P3-09 — FR-SRV-009 granular WS events: COMPLETE
+**Commit:** pending — `[P3-09] Granular guild-structure realtime events (FR-SRV-009)`
+
+**What:** Server-scoped realtime WS ops for guild-structure mutations:
+`channel.created`, `channel.deleted`, `role.created`, `role.updated`,
+`role.deleted`, `member.joined`, `member.left`, `member.kicked`,
+`server.updated`, `server.deleted`. Each event is delivered only to
+members of the affected server.
+
+**Source changes:**
+- `apps/api/src/realtime/events.gateway.ts` — server-scoped relay block in
+  `relay()`, `serverIds` tracking per client, BusEvent types expanded.
+  Fixed MEMBER_JOINED bypass for joining user's own sockets so they can
+  update their membership set and receive subsequent server-scoped events.
+- `apps/api/src/servers/servers.service.ts` — emits CHANNEL_CREATED,
+  CHANNEL_DELETED, ROLE_CREATED, ROLE_UPDATED, ROLE_DELETED, MEMBER_JOINED,
+  MEMBER_KICKED, MEMBER_LEFT, SERVER_UPDATED, SERVER_DELETED via Redis pub/sub.
+- `apps/api/src/invites/invites.service.ts` — emits MEMBER_JOINED on invite
+  acceptance (redundant with servers.service but covers both code paths).
+
+**Contract:**
+- `contracts/gateway-events.yaml` — 10 new message definitions
+  (channelCreated, channelDeleted, roleCreated, roleUpdated, roleDeleted,
+  memberJoined, memberLeft, memberKicked, serverUpdated, serverDeleted),
+  x-added-by: P3, shapes derived from what the code actually sends.
+- `tools/codegen/gen.mjs` — 10 new S2C frame interfaces + union members.
+- `apps/mobile/src/realtime/events.d.ts` — regenerated.
+
+**Test:**
+- `apps/api/test/integration/p3-09-granular-events.spec.ts` — 10 tests, each
+  asserts that a member WS receives the correct granular op AND a non-member
+  does NOT receive it. Uses dev-login, WS connect, server setup, invite/accept.
+
+**Verification:**
+- `npx tsc --noEmit` — rc=0
+- Char: 11 suites / 89 tests — all pass
+- Integration: 8 suites / 65 tests — all pass (including p3-09)
+- Prove-fail: changed `expect(bobEvent.op).toBe(op)` to `'__WRONG_OP__'` →
+  `Expected: "__WRONG_OP__" Received: "channel.created"` → restored → pass
+- `node tools/codegen/gen.mjs` — no drift
+- API: `curl localhost:3017/api/health` → `{"status":"ok","db":"up","redis":"up"}`

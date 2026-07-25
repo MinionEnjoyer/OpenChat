@@ -278,7 +278,7 @@ export class ServersService {
       targetType: "channel", targetId: channel.id,
     });
 
-    return {
+    const serializedChannel = {
       id: channel.id.toString(),
       serverId: channel.serverId.toString(),
       categoryId: channel.categoryId ? channel.categoryId.toString() : null,
@@ -288,6 +288,9 @@ export class ServersService {
       position: channel.position,
       parentId: channel.parentId ? channel.parentId.toString() : null,
     };
+    this.redis.publish('chat:events', { type: 'CHANNEL_CREATED', serverId, channel: serializedChannel }).catch(() => {});
+
+    return serializedChannel;
   }
 
   async listMembers(serverId: string, userId: string) {
@@ -360,7 +363,9 @@ export class ServersService {
       targetType: 'role', targetId: role.id,
       metadata: { name: role.name, permissions: role.permissions.toString() },
     });
-return this.serializeRole(role);
+    const serializedRole = this.serializeRole(role);
+    this.redis.publish('chat:events', { type: 'ROLE_CREATED', serverId, role: serializedRole }).catch(() => {});
+    return serializedRole;
   }
 
   async updateRole(
@@ -386,7 +391,9 @@ return this.serializeRole(role);
       targetType: 'role', targetId: roleId,
       metadata: { changes: data },
     });
-return this.serializeRole(updated);
+    const serializedRole = this.serializeRole(updated);
+    this.redis.publish('chat:events', { type: 'ROLE_UPDATED', serverId, role: serializedRole }).catch(() => {});
+    return serializedRole;
   }
 
   async deleteRole(serverId: string, roleId: string, userId: string): Promise<{ success: true }> {
@@ -399,7 +406,8 @@ return this.serializeRole(updated);
         targetType: 'role', targetId: roleId,
         metadata: { name: role.name },
       });
-return { success: true };
+    this.redis.publish('chat:events', { type: 'ROLE_DELETED', serverId, roleId }).catch(() => {});
+    return { success: true };
   }
 
   async setMemberRole(
@@ -490,6 +498,25 @@ return { success: true };
       return tx.server.findUniqueOrThrow({ where: { id: invitation.serverId } });
     });
     const perms = await this.getMemberPermissions(server.id, userId);
+    const memberRecord = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId: invitation.serverId, userId } },
+      include: { user: true, roles: true },
+    });
+    const member = {
+      userId,
+      nickname: memberRecord?.nickname ?? null,
+      joinedAt: memberRecord!.joinedAt.toISOString(),
+      isOwner: server.ownerId === userId,
+      roleIds: memberRecord!.roles.map((r: any) => r.id),
+      user: {
+        id: memberRecord!.user.id,
+        username: memberRecord!.user.username,
+        displayName: memberRecord!.user.displayName,
+        avatarUrl: memberRecord!.user.avatarUrl,
+        status: memberRecord!.user.status,
+      },
+    };
+    this.redis.publish('chat:events', { type: 'MEMBER_JOINED', serverId: invitation.serverId, userId, member }).catch(() => {});
     return this.serializeServer(server, perms);
   }
 
@@ -525,6 +552,8 @@ return { success: true };
       targetType: "channel", targetId: channelId,
     });
 
+    this.redis.publish('chat:events', { type: 'CHANNEL_DELETED', serverId, channelId }).catch(() => {});
+
     return { success: true };
   }
 
@@ -549,8 +578,9 @@ return { success: true };
       targetId: targetUserId,
     });
 
+    this.redis.publish('chat:events', { type: 'MEMBER_KICKED', serverId, userId: targetUserId }).catch(() => {});
 
-return { success: true };
+    return { success: true };
   }
 
   async updateServer(
@@ -574,7 +604,9 @@ return { success: true };
     });
 
     const perms = await this.getMemberPermissions(serverId, userId);
-    return this.serializeServer(server, perms);
+    const serializedServer = this.serializeServer(server, perms);
+    this.redis.publish('chat:events', { type: 'SERVER_UPDATED', serverId, server: serializedServer }).catch(() => {});
+    return serializedServer;
   }
 
   async deleteServer(serverId: string, userId: string): Promise<{ success: true }> {
@@ -591,6 +623,7 @@ return { success: true };
       this.prisma.auditLog.deleteMany({ where: { serverId } }),
       this.prisma.server.delete({ where: { id: serverId } }),
     ]);
+    this.redis.publish('chat:events', { type: 'SERVER_DELETED', serverId }).catch(() => {});
     return { success: true };
   }
 
@@ -751,6 +784,7 @@ return { success: true };
       return ban;
     });
 
+    this.redis.publish('chat:events', { type: 'MEMBER_KICKED', serverId, userId: targetUserId }).catch(() => {});
     return { ...result, createdAt: result.createdAt.toISOString() };
   }
 
@@ -789,6 +823,7 @@ return { success: true };
         targetId: userId,
       });
 
+    this.redis.publish('chat:events', { type: 'MEMBER_LEFT', serverId, userId }).catch(() => {});
     return { success: true };
   }
 }
