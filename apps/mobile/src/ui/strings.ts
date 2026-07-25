@@ -14,9 +14,39 @@ export const strings = {
     title: 'OpenChat',
     subtitle: 'Skeleton build — no features yet (P0-17)',
   },
+  auth: {
+    title: 'OpenChat',
+    subtitle: 'Sign in to get started',
+    usernamePlaceholder: 'Username',
+    devLoginButton: 'Sign in (dev)',
+    loginFailed: 'Sign-in failed',
+    loggingIn: 'Signing in…',
+  },
+  shell: {
+    channelHash: '#',
+    channelsFallbackTitle: 'Channels',
+    noServers: 'No servers yet',
+    noChannels: 'No channels',
+    selectChannel: 'Select a channel',
+    chatPlaceholder: 'Messages arrive in Phase 2',
+    membersTitle: 'Members',
+    logout: 'Sign out',
+  },
+  connection: {
+    offline: 'Offline — reconnecting…',
+    connecting: 'Connecting…',
+  },
+  profile: {
+    title: 'Account',
+    displayNameLabel: 'Display name',
+    save: 'Save',
+    saved: 'Profile updated',
+    saveFailed: 'Could not update profile',
+  },
   common: {
     retry: 'Retry',
     cancel: 'Cancel',
+    error: 'Something went wrong',
   },
 } as const;
 

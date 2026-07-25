@@ -54,6 +54,32 @@ export interface OidcMetadata {
   scopes: string[];
 }
 
+export interface Channel {
+  id: string;
+  serverId: string;
+  name: string;
+  type: 'TEXT' | 'VOICE' | 'ANNOUNCEMENT' | 'DM' | 'GROUP_DM';
+  topic: string | null;
+  categoryId: string | null;
+  parentId: string | null;
+  position: number;
+}
+
+export interface Member {
+  userId: string;
+  nickname: string | null;
+  isOwner: boolean;
+  joinedAt: string;
+  roleIds: string[];
+  user: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status: string | null;
+  } | null;
+}
+
 export interface Server {
   id: string;
   name: string;

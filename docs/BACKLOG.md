@@ -242,3 +242,6 @@ suite covers every route with a contract schema. Routes without schemas are trac
   `devctl doctor --json` crashes on `issues[@]: unbound variable` under `set -u`
   when the array is empty. T4 signoff asks for pasted JSON, so this needs fixing
   before the Phase 1 signoff.
+- **`usesCleartextTraffic: true` is set for dev builds** (release APKs must reach
+  the dev stack at http://10.0.2.2). Phase 8 release hardening must remove it or
+  scope it with a networkSecurityConfig allowing only 10.0.2.2 in dev flavors.

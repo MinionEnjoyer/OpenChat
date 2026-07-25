@@ -1,0 +1,50 @@
+# p1-01-devlogin-shell — dev-login → Discord-shaped shell, all four surfaces.
+# @satisfies FR-APP-001
+#
+# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# Determinism: no sleeps; assertVisible timeouts only. clearState gives a fresh
+# vault, so this flow always starts at the login screen.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+# Surface 3 — chat pane (default landing)
+- assertVisible:
+    id: 'shell-screen'
+- assertVisible:
+    id: 'chat-pane'
+# Surface 1 — server rail with the seeded guild
+- assertVisible:
+    id: 'server-rail'
+# The rail virtualizes; scroll until the seeded guild's item is rendered.
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+# Surface 2 — channel drawer listing seeded channels
+- assertVisible:
+    id: 'channel-drawer'
+- assertVisible: 'Fixture Guild'
+- tapOn:
+    id: 'channel-#general'
+- assertVisible: '# #general'
+# Surface 4 — members drawer
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'members-drawer'
+- assertVisible:
+    id: 'member-alice'
+- takeScreenshot: artifacts/e2e/screens/p1-shell

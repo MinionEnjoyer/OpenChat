@@ -323,10 +323,10 @@ async function main() {
   }
 
   // ── Re-read channels to get full name → ID map ──
-  const channelList = await apiFetch(`/servers/${serverId}/channels`, { jar: alice.jar });
+  const finalChannels = await apiFetch(`/servers/${serverId}/channels`, { jar: alice.jar });
   const channelMap = {};
-  if (Array.isArray(channelList.body)) {
-    for (const ch of channelList.body) {
+  if (Array.isArray(finalChannels.body)) {
+    for (const ch of finalChannels.body) {
       channelMap[ch.name] = ch.id;
     }
   }

@@ -1,0 +1,16 @@
+# p1-02-session-restore — kill → relaunch → still authenticated, no login UI.
+# @satisfies FR-AUTH-003
+#
+# Order matters: runs after p1-01 (alphabetical run order guarantees it), which
+# left alice's tokens in the vault. NO clearState — that is the point.
+
+appId: com.openchat.mobile
+
+---
+- killApp
+- launchApp
+- assertVisible:
+    id: 'shell-screen'
+- assertNotVisible:
+    id: 'login-screen'
+- takeScreenshot: artifacts/e2e/screens/p1-restore
