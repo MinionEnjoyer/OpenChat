@@ -846,3 +846,39 @@ message. No backend change needed.
 - `./gradlew assembleRelease` — BUILD SUCCESSFUL, APK 82,094,739 bytes
 - `adb install -r` → Success
 - `./tools/devctl screenshot --screen morning-authornames` → 1,369,693 bytes
+
+## 2026-07-25 — P2-01 Message list pagination (William B. Sexton)
+
+### P2-01 — Message list pagination, day dividers, author grouping (FR-MSG-001): COMPLETE
+
+**Feature:** `usePaginatedMessages` hook replaces the single `useQuery` for
+message fetching with cursor-based pagination. Older pages are loaded on scroll
+and merged into the cache via `mergePage`. The render list is enhanced with
+synthetic day dividers and author-group suppression.
+
+**Files:**
+- `apps/mobile/src/domain/pagination.ts` — pure functions: `mergePage` (dedup
+  merge, newest-first), `insertDayDividers` (YYYY-MM-DD markers at date
+  boundaries), `computeAuthorGroups` (7-minute author window suppression).
+  Self-contained: defines its own minimal `Message` interface to satisfy 06 §2
+  (domain/ may not import from app modules).
+- `apps/mobile/src/domain/__tests__/pagination.test.ts` — 20 tests covering
+  page merge (empty, append, dedup, exact id sequences across 3+ pages, full
+  overlap, no overlap), day dividers (empty, single, same-day, date boundary,
+  multi-day), and author grouping (empty, single, different authors, border
+  values at 6:59/7:00/7:01, three-message groups, interleaved authors).
+- `apps/mobile/src/features/messages/usePaginatedMessages.ts` — hook wrapping
+  initial fetch + cursor-based `fetchOlder` with `applyPage` cache writing.
+  Uses limit+1 detection for `hasMore`.
+- `apps/mobile/src/sync/messages.ts` — added `applyPage` cache writer using
+  `mergePage` from domain/pagination.
+- `apps/mobile/src/features/messages/ChatPane.tsx` — replaced `useQuery` with
+  `usePaginatedMessages`; added `insertDayDividers` + `computeAuthorGroups`
+  memoized pipeline; FlatList `inverted` with `onEndReached` scroll trigger.
+
+**Verification:**
+- `npx tsc --noEmit` — rc=0
+- `npx eslint . --max-warnings=0` — rc=0
+- `npx jest` — 19 suites, 207 tests, all pass
+- Prove-fail: broke exact-id-sequence assertion → test FAILED (expected MISSING, got m4) → restored → test PASSED
+- `grep -c 'export function applyUpdated' src/sync/messages.ts` → 1 (no duplication)

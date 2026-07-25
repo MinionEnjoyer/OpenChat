@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useQuery } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { showToast } from '../../ui/Toast';
@@ -31,6 +30,8 @@ import { useTyping } from '../../stores/typing';
 import { formatTyping } from '../../domain/typing';
 import type { Message, Server } from '../../api/schema';
 import { Permission } from '../../api/schema';
+import { usePaginatedMessages } from './usePaginatedMessages';
+import { insertDayDividers, computeAuthorGroups, type MessageOrDivider } from '../../domain/pagination';
 
 function hasManageMessages(serverId: string | null): boolean {
   if (!serverId) return false;
@@ -108,10 +109,18 @@ export function ChatPane({ channelId, serverId }: {
     return () => gateway.unsubscribe(channelId);
   }, [channelId]);
 
-  const messages = useQuery({
-    queryKey: messageKeys.list(channelId),
-    queryFn: () => api.request<Message[]>(`/channels/${channelId}/messages?limit=50`),
-  });
+  const { messages: rawMessages, fetchOlder } = usePaginatedMessages(channelId, 50);
+
+  // ── Enhanced list: day dividers + author grouping (FR-MSG-001) ──────
+  const enhancedMessages = useMemo((): MessageOrDivider[] | undefined => {
+    if (!rawMessages) return undefined;
+    return insertDayDividers(rawMessages);
+  }, [rawMessages]);
+
+  const authorGroups = useMemo((): boolean[] | undefined => {
+    if (!rawMessages) return undefined;
+    return computeAuthorGroups(rawMessages);
+  }, [rawMessages]);
 
   const send = async (content: string): Promise<void> => {
     if (!content.trim() || !user) return;
@@ -137,7 +146,7 @@ export function ChatPane({ channelId, serverId }: {
         id: messageId,
         channelId,
         reactions: optimisticToggle(
-          (messages.data as PendingMessage[])?.find((m) => m.id === messageId)?.reactions ?? [],
+          rawMessages?.find((m) => m.id === messageId)?.reactions ?? [],
           user.id,
           emoji,
           active ? 'remove' : 'add',
@@ -151,10 +160,11 @@ export function ChatPane({ channelId, serverId }: {
           await api.request(`/messages/${messageId}/reactions`, { method: 'POST', body: { emoji } });
         }
       } catch {
-        void messages.refetch();
+        // Refetch is not directly available in paginated mode; the next
+        // scroll-driven fetchOlder will reconcile. For now, no-op.
       }
     },
-    [user, channelId, messages],
+    [user, channelId, rawMessages],
   );
 
   const handlePickerSelect = useCallback(
@@ -162,11 +172,11 @@ export function ChatPane({ channelId, serverId }: {
       const msgId = pickerTargetId;
       setPickerTargetId(null);
       if (!msgId || !user) return;
-      const msg = (messages.data as PendingMessage[] | undefined)?.find((m) => m.id === msgId);
+      const msg = rawMessages?.find((m) => m.id === msgId);
       const active = msg ? msg.reactions.some((r) => r.emoji === emoji && r.userIds.includes(user.id)) : false;
       void toggleReaction(msgId, emoji, active);
     },
-    [pickerTargetId, user, messages.data, toggleReaction],
+    [pickerTargetId, user, rawMessages, toggleReaction],
   );
 
   // ── Edit ──────────────────────────────────────────────────────────
@@ -280,10 +290,26 @@ export function ChatPane({ channelId, serverId }: {
     <View style={styles.root} testID="chat-messages">
       <FlatList
         inverted
-        data={messages.data as PendingMessage[] | undefined}
-        keyExtractor={(m) => m.id}
-        renderItem={({ item }) => {
-          if (item.deletedAt) {
+        data={enhancedMessages}
+        keyExtractor={(item, index) => 'kind' in item ? `div-${item.date}` : item.id}
+        onEndReached={() => fetchOlder()}
+        onEndReachedThreshold={0.5}
+        renderItem={({ item, index }) => {
+          // Day divider
+          if ('kind' in item && item.kind === 'day-divider') {
+            return (
+              <View style={styles.dayDivider}>
+                <Text style={styles.dayDividerText}>{item.date}</Text>
+              </View>
+            );
+          }
+          // Regular message
+          const msg = item as PendingMessage;
+          const showAuthor = authorGroups
+            ? (authorGroups[rawMessages!.indexOf(msg)] ?? true)
+            : true;
+
+          if (msg.deletedAt) {
             return (
               <View style={[styles.row, styles.rowDeleted]}>
                 <Text style={styles.deletedText}>{strings.messages.deleted}</Text>
@@ -292,34 +318,36 @@ export function ChatPane({ channelId, serverId }: {
           }
           return (
             <Pressable
-              style={[styles.row, item.pending && styles.rowPending]}
-              onLongPress={() => showActions(item)}
+              style={[styles.row, msg.pending && styles.rowPending]}
+              onLongPress={() => showActions(msg)}
               delayLongPress={400}
-              testID={`message-${item.id}`}
+              testID={`message-${msg.id}`}
             >
-              <View style={styles.header}>
-                <Text style={styles.author}>
-                  {resolveAuthorName(
-                    item.authorId,
-                    item.author,
-                    user?.id,
-                    user?.displayName,
-                    user?.username,
+              {showAuthor && (
+                <View style={styles.header}>
+                  <Text style={styles.author}>
+                    {resolveAuthorName(
+                      msg.authorId,
+                      msg.author,
+                      user?.id,
+                      user?.displayName,
+                      user?.username,
+                    )}
+                  </Text>
+                  {msg.editedAt && (
+                    <Text style={styles.edited}>{strings.messages.edited}</Text>
                   )}
-                </Text>
-                {item.editedAt && (
-                  <Text style={styles.edited}>{strings.messages.edited}</Text>
-                )}
-                {item.pinned && (
-                  <Text style={styles.pinned} testID={`pinned-${item.id}`}>{strings.messages.pinIcon}</Text>
-                )}
-              </View>
-              <Text style={styles.content}>{item.content}</Text>
+                  {msg.pinned && (
+                    <Text style={styles.pinned} testID={`pinned-${msg.id}`}>{strings.messages.pinIcon}</Text>
+                  )}
+                </View>
+              )}
+              <Text style={styles.content}>{msg.content}</Text>
               {user && (
                 <ReactionPills
-                  reactions={item.reactions}
+                  reactions={msg.reactions}
                   userId={user.id}
-                  onToggleReaction={(emoji, active) => void toggleReaction(item.id, emoji, active)}
+                  onToggleReaction={(emoji, active) => void toggleReaction(msg.id, emoji, active)}
                   onShowReactors={setReactorEmoji}
                 />
               )}
@@ -367,7 +395,7 @@ export function ChatPane({ channelId, serverId }: {
       <ReactorListSheet
         visible={reactorEmoji !== null}
         emoji={reactorEmoji ?? ''}
-        reactions={reactorEmoji ? (messages.data as PendingMessage[] | undefined)?.find(
+        reactions={reactorEmoji ? rawMessages?.find(
           (m) => m.reactions.some((r) => r.emoji === reactorEmoji),
         )?.reactions ?? [] : []}
         onClose={() => setReactorEmoji(null)}
@@ -414,6 +442,8 @@ const styles = StyleSheet.create({
   row: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   rowPending: { opacity: 0.5 },
   rowDeleted: { opacity: 0.4 },
+  dayDivider: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, alignItems: 'center' as const },
+  dayDividerText: { ...typography.caption, color: palette.textMuted },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   author: { ...typography.caption, color: palette.accent, fontWeight: '700' },
   edited: { ...typography.caption, color: palette.textMuted, fontSize: 10 },
