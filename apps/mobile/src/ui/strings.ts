@@ -233,6 +233,12 @@ export const strings = {
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
   },
+  // @satisfies FR-NOTIF-004
+  notifications: {
+    genericNotification: 'New notification',
+    mentionToast: '{author} mentioned you in #{channel}: {preview}',
+    callRingToast: '{caller} is calling…',
+  },
 } as const;
 
 export type Strings = typeof strings;
