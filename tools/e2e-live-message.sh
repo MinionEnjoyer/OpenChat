@@ -26,6 +26,8 @@ appId: com.openchat.mobile
 - launchApp
 - assertVisible:
     id: 'shell-screen'
+- tapOn:
+    id: 'hamburger-button'
 - scrollUntilVisible:
     element:
       id: 'rail-server-Fixture Guild'
