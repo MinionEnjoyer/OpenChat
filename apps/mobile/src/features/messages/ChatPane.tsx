@@ -23,6 +23,12 @@ import { optimisticToggle } from '../../domain/reactions';
 import { ReactionPills } from './ReactionPills';
 import { EmojiPicker } from './EmojiPicker';
 import { ReactorListSheet } from './ReactorListSheet';
+import { MessageEmbeds } from './MessageEmbeds';
+import { GifPicker } from './GifPicker';
+import type { GifResult } from './GifPicker';
+import { useGifFeature } from './gifFeature';
+import { useServerConfig } from './serverConfig';
+import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
 import { resolveAuthorName } from '../../domain/authors';
 import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
@@ -86,6 +92,23 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   // Edit state
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editDraft, setEditDraft] = useState('');
+
+  // GIF picker state (FR-MSG-014)
+  const [gifPickerVisible, setGifPickerVisible] = useState(false);
+
+  // Server config + GIF feature flag
+  const shareBaseUrl = useServerConfig((s) => s.shareBaseUrl);
+  const shareHost = useMemo(() => {
+    if (!shareBaseUrl) return '';
+    try { return new URL(shareBaseUrl).hostname; } catch { return ''; }
+  }, [shareBaseUrl]);
+  const gifEnabled = useGifFeature((s) => s.enabled);
+
+  // Trigger config fetch + GIF probe once
+  useEffect(() => {
+    void useServerConfig.getState().fetch();
+    void useGifFeature.getState().probe();
+  }, []);
 
   const canManage = hasManageMessages(serverId);
 
@@ -455,7 +478,10 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
                   )}
                 </View>
               )}
-              <Text style={styles.content}>{renderSegmentedContent(msg.content)}</Text>
+              {!isSingleEmbedUrl(msg.content, shareHost) && (
+                <Text style={styles.content}>{renderSegmentedContent(msg.content)}</Text>
+              )}
+              <MessageEmbeds cards={classifyEmbeds(msg.content, shareHost)} />
               {user && (
                 <ReactionPills
                   reactions={msg.reactions}
@@ -559,6 +585,16 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
           accessibilityLabel={strings.messages.composerPlaceholder}
           testID="composer-input"
         />
+        {gifEnabled === true && (
+          <Pressable
+            style={styles.gifBtn}
+            onPress={() => setGifPickerVisible(true)}
+            accessibilityLabel={strings.gifs.button}
+            testID="composer-gif"
+          >
+            <Text style={styles.gifBtnText}>{strings.gifs.button}</Text>
+          </Pressable>
+        )}
         <Pressable
           style={styles.send}
           onPress={() => void send(draft)}
@@ -573,6 +609,15 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
         visible={pickerTargetId !== null}
         onSelect={handlePickerSelect}
         onClose={() => setPickerTargetId(null)}
+      />
+
+      <GifPicker
+        visible={gifPickerVisible}
+        onSelect={(gif: GifResult) => {
+          setGifPickerVisible(false);
+          void send(gif.url);
+        }}
+        onClose={() => setGifPickerVisible(false)}
       />
 
       <ReactorListSheet
@@ -689,6 +734,8 @@ const styles = StyleSheet.create({
     ...typography.body, flex: 1, backgroundColor: palette.bgElevated, color: palette.text,
     borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginRight: spacing.sm,
   },
+  gifBtn: { borderWidth: 1, borderColor: palette.bgElevated, borderRadius: 8, paddingHorizontal: spacing.sm, justifyContent: 'center', marginRight: spacing.sm },
+  gifBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
   send: { backgroundColor: palette.accent, borderRadius: 8, paddingHorizontal: spacing.md, justifyContent: 'center' },
   sendText: { ...typography.body, color: palette.text, fontWeight: '700' },
   // Edit modal
