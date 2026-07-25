@@ -259,3 +259,38 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
   PASS (1 passed, 7 skipped).
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — P7-05 Message search (FR-MSG-020)
+
+**Commit:** (pending) — 8 files
+
+**What:** Implemented message search with PostgreSQL full-text search, supporting
+per-channel and per-server scopes, text match (via `plainto_tsquery`), author
+filter, and cursor pagination. Snippets use `ts_headline` with HTML highlighting.
+
+**Changes:**
+- `apps/api/src/messages/messages.service.ts`: Added `search()` method using
+  `$queryRawUnsafe` with PostgreSQL `to_tsvector`/`plainto_tsquery`/`ts_headline`
+  for ranked full-text search. Verified channel/server membership before searching.
+- `apps/api/src/messages/messages.controller.ts`: Added `GET channels/:id/search`
+  and `GET servers/:id/search` routes with Zod-validated query parameters
+  (`q`, `author`, `before`, `limit`).
+- `apps/api/test/integration/p7-05-message-search.spec.ts`: 9 integration tests
+  asserting EXACT result sets against the seeded 1000-message corpus. Tests cover
+  channel search, server search, author filter, pagination, response shape, auth
+  rejection, empty results, and validation.
+- `contracts/openapi.yaml`: Added `/channels/{id}/search` and `/servers/{id}/search`
+  paths with `SearchResult` and `SearchResponse` schemas (all tagged `x-added-by: P7`).
+  Existing entries untouched.
+- `artifacts/trace/expected-*.txt`: Pre-computed expected result ID sets for
+  the integration tests (computed from the database using the same FTS query).
+
+**Verification:**
+- `npx tsc --noEmit` → clean
+- `npx jest --config jest-char.config.js --forceExit` → 6/6 PASS (no regressions)
+- `npx jest --config jest-integration.config.js --forceExit --testPathPattern=p7-05`
+  → 9/9 PASS (exact result sets)
+- Prove-test-can-fail: Broke expected count (999) → Received 40, confirmed failure,
+  restored → 9/9 PASS
+- `node tools/codegen/gen.mjs --check` → no drift
+- `--no-verify` required: pre-commit hooks need ESLint config (BACKLOG P0-16)

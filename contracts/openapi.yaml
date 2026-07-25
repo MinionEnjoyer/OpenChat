@@ -1323,6 +1323,113 @@ paths:
       x-unverified: true
       x-note: "Deferred to Phase 7; requires Jellyfin"
 
+  # ── Search (FR-MSG-020, P7-05) ──
+  /channels/{id}/search:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: searchChannel
+      summary: Search messages in a channel (full-text)
+      tags: [messages, search]
+      x-added-by: P7
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: Search query (plain text, PostgreSQL full-text search)
+        - name: author
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter to messages by this author
+        - name: before
+          in: query
+          schema:
+            type: string
+          description: Cursor — ISO 8601 timestamp to page before
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+          description: Max results to return
+      responses:
+        '200':
+          description: Search results (ranked by relevance, newest first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Validation error (empty query, etc.)
+        '401':
+          description: Not authenticated or not a member
+      x-evidence: integration/p7-05-message-search.spec.ts
+
+  /servers/{id}/search:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: searchServer
+      summary: Search messages across a server (full-text)
+      tags: [messages, search]
+      x-added-by: P7
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: Search query (plain text, PostgreSQL full-text search)
+        - name: author
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter to messages by this author
+        - name: before
+          in: query
+          schema:
+            type: string
+          description: Cursor — ISO 8601 timestamp to page before
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+          description: Max results to return
+      responses:
+        '200':
+          description: Search results (ranked by relevance, newest first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Validation error (empty query, etc.)
+        '401':
+          description: Not authenticated or not a member
+      x-evidence: integration/p7-05-message-search.spec.ts
+
 components:
   securitySchemes:
     cookieAuth:
@@ -1535,3 +1642,52 @@ components:
                   format: uuid
         allowMultiple:
           type: boolean
+
+    SearchResult:
+      x-added-by: P7
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          description: Full message content
+        snippet:
+          type: string
+          description: HTML-highlighted snippet (ts_headline output)
+        createdAt:
+          type: string
+          format: date-time
+        author:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+            displayName:
+              type: string
+              nullable: true
+            avatarUrl:
+              type: string
+              nullable: true
+          required: [id, username]
+      required: [id, channelId, content, snippet, createdAt, author]
+
+    SearchResponse:
+      x-added-by: P7
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of matching messages
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+      required: [total, results]
