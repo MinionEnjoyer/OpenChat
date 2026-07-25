@@ -1294,6 +1294,10 @@ paths:
                   type: array
                   items:
                     type: string
+                multiple:
+                  x-verified-against: live API 2026-07-25
+                  type: boolean
+                  description: Allow multiple votes (default false)
               required: [question, options]
       responses:
         '201':
@@ -1897,6 +1901,18 @@ components:
           description: BigInt serialized as decimal string
       required: [id, name]
 
+    AuthorBrief:
+      x-verified-against: live API 2026-07-25
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+      required: [id, username]
+      description: Author summary embedded in message responses (observed from API).
+
     Message:
       type: object
       properties:
@@ -1909,6 +1925,9 @@ components:
         authorId:
           type: string
           format: uuid
+        author:
+          x-verified-against: live API 2026-07-25
+          $ref: '#/components/schemas/AuthorBrief'
         content:
           type: string
         nonce:
@@ -1922,6 +1941,19 @@ components:
           type: string
           format: date-time
           nullable: true
+        replyToId:
+          x-verified-against: live API 2026-07-25
+          type: string
+          nullable: true
+        replyTo:
+          x-verified-against: live API 2026-07-25
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            authorName: { type: string }
+            content: { type: string }
+          required: [id, authorName, content]
         attachments:
           type: array
           items:
@@ -1929,7 +1961,7 @@ components:
         reactions:
           type: array
           items:
-            $ref: '#/components/schemas/Reaction'
+            $ref: '#/components/schemas/ReactionGroup'
         pinned:
           type: boolean
         poll:
@@ -1995,15 +2027,23 @@ components:
           type: integer
       required: [shareAssetId, url]
 
-    Reaction:
+    ReactionGroup:
+      x-verified-against: live API 2026-07-25
       type: object
       properties:
         emoji:
           type: string
-        userId:
-          type: string
-          format: uuid
-      required: [emoji, userId]
+        count:
+          type: integer
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [emoji, count, userIds]
+      description: >
+        Grouped reaction as received on the wire (pre-aggregated by backend groupReactions).
+        Replaces the old flat Reaction schema.
 
     Poll:
       type: object
@@ -2026,8 +2066,14 @@ components:
                 items:
                   type: string
                   format: uuid
-        allowMultiple:
+        multiple:
+          x-verified-against: live API 2026-07-25
           type: boolean
+        closesAt:
+          x-verified-against: live API 2026-07-25
+          type: string
+          format: date-time
+          nullable: true
 
     SearchResult:
       x-added-by: P7

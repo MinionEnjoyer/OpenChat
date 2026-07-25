@@ -3,7 +3,7 @@
  * P0-08 — Contract Codegen
  *
  * Generates TypeScript type declarations from machine-readable contracts.
- * openapi.yaml + share-assets.yaml → apps/mobile/src/api/schema.d.ts
+ * openapi.yaml + share-assets.yaml → apps/mobile/src/api/schema.ts
  * gateway-events.yaml                  → apps/mobile/src/realtime/events.d.ts
  *
  * Deterministic; committed output. verify gate asserts regeneration produces no diff.
@@ -15,6 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -87,14 +88,26 @@ export interface Server {
   myPermissions: string; // BigInt serialized as decimal string
 }
 
+/** Author summary embedded in message responses (observed from API). */
+export interface AuthorBrief {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status: string | null;
+}
+
 export interface Message {
   id: string;
   channelId: string;
   authorId: string;
+  author?: AuthorBrief;
   content: string;
   nonce: string | null;
   editedAt: string | null;
   deletedAt: string | null;
+  replyToId: string | null;
+  replyTo: { id: string; authorName: string; content: string } | null;
   attachments: Attachment[];
   reactions: ReactionGroup[];  // pre-aggregated by backend groupReactions()
   pinned: boolean;
@@ -134,11 +147,13 @@ export interface ReactionGroup {
   userIds: string[];
 }
 
+// x-added-by FR-MSG-012: corrected to match wire (multiple, not allowMultiple; added closesAt)
 export interface Poll {
   id: string;
   question: string;
   options: PollOption[];
-  allowMultiple: boolean;
+  multiple: boolean;
+  closesAt: string | null;
 }
 
 export interface PollOption {
@@ -213,9 +228,9 @@ export type PermissionName = keyof typeof Permission;
 
   const outDir = path.join(ROOT, 'apps', 'mobile', 'src', 'api');
   fs.mkdirSync(outDir, { recursive: true });
-  const outPath = path.join(outDir, 'schema.d.ts');
+  const outPath = path.join(outDir, 'schema.ts');
   fs.writeFileSync(outPath, openchatSchemas, 'utf-8');
-  console.log(`  ✓ schema.d.ts generated (${openchatSchemas.split('\n').length} lines)`);
+  console.log(`  ✓ schema.ts generated (${openchatSchemas.split('\n').length} lines)`);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -346,12 +361,22 @@ export type S2CFrameFor<Op extends S2CFrame['op']> = Extract<S2CFrame, { op: Op 
 // ════════════════════════════════════════════════════════════════════
 
 function verifyGate() {
-  const origApiPath = path.join(ROOT, 'apps', 'mobile', 'src', 'api', 'schema.d.ts');
+  const origApiPath = path.join(ROOT, 'apps', 'mobile', 'src', 'api', 'schema.ts');
   const origWsPath = path.join(ROOT, 'apps', 'mobile', 'src', 'realtime', 'events.d.ts');
 
-  // Snapshot committed content BEFORE regeneration
-  const committedApi = fs.existsSync(origApiPath) ? fs.readFileSync(origApiPath, 'utf-8') : null;
-  const committedWs = fs.existsSync(origWsPath) ? fs.readFileSync(origWsPath, 'utf-8') : null;
+  // FAIL if target files are missing
+  if (!fs.existsSync(origApiPath)) {
+    console.error('  ✗ apps/mobile/src/api/schema.ts does not exist — cannot verify drift');
+    return 1;
+  }
+  if (!fs.existsSync(origWsPath)) {
+    console.error('  ✗ apps/mobile/src/realtime/events.d.ts does not exist — cannot verify drift');
+    return 1;
+  }
+
+  // Snapshot current disk content BEFORE regeneration
+  const committedApi = fs.readFileSync(origApiPath, 'utf-8');
+  const committedWs = fs.readFileSync(origWsPath, 'utf-8');
 
   // Regenerate (writes to committed file locations)
   genRestTypes();
@@ -362,21 +387,23 @@ function verifyGate() {
 
   // Compare against pre-generation snapshot
   let diffCount = 0;
-  if (committedApi !== null && committedApi !== newApi) {
-    console.log('  ✗ apps/mobile/src/api/schema.d.ts differs from generated');
+  if (committedApi !== newApi) {
+    console.log('  ✗ apps/mobile/src/api/schema.ts differs from generated');
     diffCount++;
   }
-  if (committedWs !== null && committedWs !== newWs) {
+  if (committedWs !== newWs) {
     console.log('  ✗ apps/mobile/src/realtime/events.d.ts differs from generated');
     diffCount++;
   }
 
-  // Restore committed versions (check mode should not modify working tree)
-  if (committedApi !== null && committedApi !== newApi) {
-    fs.writeFileSync(origApiPath, committedApi, 'utf-8');
+  // Restore from git HEAD (check mode should not modify working tree)
+  if (committedApi !== newApi) {
+    const gitApi = execSync('git show HEAD:apps/mobile/src/api/schema.ts', { cwd: ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+    fs.writeFileSync(origApiPath, gitApi, 'utf-8');
   }
-  if (committedWs !== null && committedWs !== newWs) {
-    fs.writeFileSync(origWsPath, committedWs, 'utf-8');
+  if (committedWs !== newWs) {
+    const gitWs = execSync('git show HEAD:apps/mobile/src/realtime/events.d.ts', { cwd: ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+    fs.writeFileSync(origWsPath, gitWs, 'utf-8');
   }
 
   if (diffCount > 0) return 1;
