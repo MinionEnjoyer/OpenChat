@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LibraryItem } from '../lib/types';
 import { watchpartySearch } from '../lib/api';
+import { mediaUrl } from '../lib/serverConfig';
 import { Icon } from './Icon';
 
 function fmtRuntime(ms: number | null): string {
@@ -110,7 +111,7 @@ export function WatchPartyPicker({ onPick, onPickYoutube, onClose }: { onPick: (
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
               <div style={{ width: 46, height: 68, borderRadius: 4, background: 'var(--panel-dark)', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {it.imageUrl ? <img src={it.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>🎞️</span>}
+                {it.imageUrl ? <img src={mediaUrl(it.imageUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span>🎞️</span>}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ color: 'var(--text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

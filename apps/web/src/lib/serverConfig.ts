@@ -37,6 +37,19 @@ export function wsUrl(path: string): string {
   return `${proto}//${u.host}${path}`;
 }
 
+/**
+ * Absolute URL for a server media path used directly by <img>/<video> elements. Those can't
+ * send an Authorization header, so we (a) make the URL absolute (needed on native origins)
+ * and (b) append the bearer token as ?token= when present (the API guard accepts it). Web
+ * sessions without a token fall back to the same-origin cookie.
+ */
+export function mediaUrl(path: string): string {
+  const url = `${serverOrigin()}${path}`;
+  const token = getToken();
+  if (!token) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+}
+
 // ---- bearer token (native clients; web uses the session cookie) ----
 export function getToken(): string | null { return safeGet(TOKEN_KEY); }
 export function setToken(token: string | null) {

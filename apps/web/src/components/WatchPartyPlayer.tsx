@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WatchPartyState } from '../lib/types';
-import { serverOrigin } from '../lib/serverConfig';
+import { serverOrigin, mediaUrl } from '../lib/serverConfig';
 
 /**
  * Synced watch-party player. The host's play/pause/seek drive everyone; followers apply the
@@ -97,7 +97,7 @@ function JellyfinInner({ party, isHost, onState }: { party: WatchPartyState; isH
     <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
       <video
         ref={videoRef}
-        src={party.streamUrl ?? undefined}
+        src={party.streamUrl ? mediaUrl(party.streamUrl) : undefined}
         controls={isHost}
         autoPlay={!party.paused}
         playsInline
