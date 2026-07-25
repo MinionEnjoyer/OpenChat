@@ -1,5 +1,64 @@
 # OpenChat Mobile — Session Log
 
+## 2026-07-25 — P2-05 Reply with quoted preview and jump-to-original (FR-MSG-005)
+
+**Commit:** (see below)
+
+### What was built
+
+**Domain:**
+- `apps/mobile/src/domain/reply.ts` — pure functions: `resolveReplyPreview(msg, cache)`
+  returns a `ReplyPreview` discriminated union (found/not-found); `truncateReplyContent`
+  caps at 120 chars with ellipsis. No React Native imports.
+
+**Sync:**
+- Extended `makePending` in `sync/messages.ts` to accept optional `replyToId`.
+- Added `applyAround(channelId, incoming)` — replaces entire message cache for
+  `?around=` pagination jumps (FR-MSG-016 reuse).
+
+**UI (ChatPane):**
+- Reply button in long-press action sheet (available to all users).
+- `replyTarget` state — set on Reply tap, cleared on send or cancel.
+- Composer chip: "Replying to {name}" with ✕ cancel affordance.
+- Outgoing send includes `replyToId` in POST body; clears `replyTarget` after send.
+- Reply preview rendered above message body: accent-left-border card with
+  author name + truncated content (2-line max). Degrades gracefully to
+  "Original message not found" when target is not in cache.
+- Tapping the preview scrolls to cached target via `FlatList.scrollToIndex`;
+  falls back to `fetchAround` for uncached targets.
+
+**API schema:**
+- Added `replyToId: string | null` and `replyTo: { id, authorName, content } | null`
+  to `Message` interface (matches wire format from `serializeMessage`).
+
+**Strings:**
+- `reply`, `replyingTo`, `replyCancel`, `replyNotFound` added to `ui/strings.ts`.
+
+### Tests
+- `domain/__tests__/reply.test.ts` — 18 cases:
+  - `@satisfies FR-MSG-005` — null replyToId, server-embedded replyTo, cache fallback,
+    displayName/username priority, authorId prefix fallback, not-found, multi-message cache
+  - Truncation: under limit, at limit, over limit, default, empty string
+  - Type guards: discriminated union rendering
+  - Cancel-reply: null replyToId produces null preview
+- `sync/__tests__/messages.test.ts` — +2 cases: makePending replyToId null/default + with value
+- Prove-fail: changed `truncateReplyContent('short', 120)` expected to 'BROKEN' → FAILED →
+  restored → PASSED
+
+### Verification
+- `npx tsc --noEmit` — rc=0
+- `npx eslint . --max-warnings=0` — rc=0
+- `npx jest` — 23 suites, 285 tests, all pass
+- `grep -c 'export function applyUpdated' src/sync/messages.ts` — 1 (confirmed single writer)
+
+### Backend ground truth confirmed
+- `replyToId` on Prisma `Message` model (line 200)
+- `CreateMessageSchema` in service accepts `replyToId: z.string().uuid().nullable().optional()`
+- `serializeMessage` returns `replyToId` and `replyTo: { id, authorName, content }`
+- Controller's `CreateMessageDto` does NOT include `replyToId` — Zod pipe strips it.
+  This is a known gap; the client still sends `replyToId` but the controller strips it.
+  Not modified per task boundary (CLIENT task).
+
 ## 2026-07-20 — P0-01 · P0-02 (William B. Sexton)
 
 ### P0-01 — Workspace + upstream forks: COMPLETE

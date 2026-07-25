@@ -44,6 +44,7 @@ import {
 } from '../../domain/mentions';
 import { usePaginatedMessages } from './usePaginatedMessages';
 import { insertDayDividers, computeAuthorGroups, type MessageOrDivider } from '../../domain/pagination';
+import { resolveReplyPreview } from '../../domain/reply';
 
 function hasManageMessages(serverId: string | null): boolean {
   if (!serverId) return false;
@@ -86,6 +87,10 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   // Edit state
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [editDraft, setEditDraft] = useState('');
+
+  // Reply state (FR-MSG-005)
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
+  const flatListRef = useRef<FlatList<MessageOrDivider>>(null);
 
   const canManage = hasManageMessages(serverId);
 
@@ -182,7 +187,7 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
     return () => gateway.unsubscribe(channelId);
   }, [channelId]);
 
-  const { messages: rawMessages, fetchOlder } = usePaginatedMessages(channelId, 50);
+  const { messages: rawMessages, fetchOlder, fetchAround } = usePaginatedMessages(channelId, 50);
 
   // ── Enhanced list: day dividers + author grouping (FR-MSG-001) ──────
   const enhancedMessages = useMemo((): MessageOrDivider[] | undefined => {
@@ -198,13 +203,15 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   const send = async (content: string): Promise<void> => {
     if (!content.trim() || !user || sendingRef.current) return;
     sendingRef.current = true;
+    const replyToId = replyTarget?.id ?? null;
     const nonce = `${user.id.slice(0, 8)}-${Date.now()}-${nonceCounter.current++}`;
-    addPending(makePending({ channelId, content, nonce, authorId: user.id }));
+    addPending(makePending({ channelId, content, nonce, authorId: user.id, replyToId }));
     setDraft('');
+    setReplyTarget(null);
     try {
       const created = await api.request<Message>(`/channels/${channelId}/messages`, {
         method: 'POST',
-        body: { content, nonce },
+        body: { content, nonce, replyToId },
       });
       applyCreated({ ...created, nonce: created.nonce ?? nonce });
     } catch {
@@ -402,6 +409,7 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
   return (
     <View style={styles.root} testID="chat-messages">
       <FlatList
+        ref={flatListRef}
         inverted
         data={enhancedMessages}
         keyExtractor={(item, index) => 'kind' in item ? `div-${item.date}` : item.id}
@@ -436,6 +444,40 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
               delayLongPress={400}
               testID={`message-${msg.id}`}
             >
+{/* Reply preview (FR-MSG-005) */}
+              {(() => {
+                if (!msg.replyToId) return null;
+                const preview = resolveReplyPreview(msg, rawMessages ?? []);
+                if (!preview) return null;
+                return (
+                  <Pressable
+                    style={styles.replyPreview}
+                    onPress={() => {
+                      // Jump to the original message — load around it if not cached
+                      if (preview.found && rawMessages?.some((m) => m.id === preview.id)) {
+                        // Message is in cache — scroll to it
+                        const idx = rawMessages.findIndex((m) => m.id === preview.id);
+                        if (idx >= 0 && flatListRef.current) {
+                          flatListRef.current.scrollToIndex({ index: idx, animated: true });
+                        }
+                      } else {
+                        // Not in cache — fetch around it
+                        fetchAround(preview.id);
+                      }
+                    }}
+                    testID={`reply-preview-${msg.id}`}
+                  >
+                    <Text style={styles.replyPreviewAuthor} numberOfLines={1}>
+                      {preview.found ? preview.authorName : strings.messages.replyNotFound}
+                    </Text>
+                    {preview.found && (
+                      <Text style={styles.replyPreviewContent} numberOfLines={2}>
+                        {preview.content}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })()}
               {showAuthor && (
                 <View style={styles.header}>
                   <Text style={styles.author}>
@@ -518,6 +560,26 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
       )}
 
       <View style={styles.composer}>
+        {replyTarget && (
+          <View style={styles.replyChip}>
+            <Text style={styles.replyChipText} numberOfLines={1}>
+              {strings.messages.replyingTo} {resolveAuthorName(
+                replyTarget.authorId,
+                replyTarget.author,
+                user?.id,
+                user?.displayName,
+                user?.username,
+              )}
+            </Text>
+            <Pressable
+              onPress={() => setReplyTarget(null)}
+              accessibilityLabel={strings.messages.replyCancel}
+              testID="reply-cancel"
+            >
+              <Text style={styles.replyChipCancel}>{strings.messages.closeIcon}</Text>
+            </Pressable>
+          </View>
+        )}
         <TextInput
           style={styles.input}
           placeholder={strings.messages.composerPlaceholder}
@@ -709,4 +771,44 @@ const styles = StyleSheet.create({
   modalBtnPrimary: { backgroundColor: palette.accent },
   modalBtnText: { ...typography.body, color: palette.textMuted },
   modalBtnPrimaryText: { ...typography.body, color: palette.text, fontWeight: '700' },
+  // Reply preview (FR-MSG-005)
+  replyPreview: {
+    backgroundColor: palette.bg,
+    borderLeftWidth: 3,
+    borderLeftColor: palette.accent,
+    borderRadius: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  replyPreviewAuthor: {
+    ...typography.caption,
+    color: palette.accent,
+    fontWeight: '600',
+  },
+  replyPreviewContent: {
+    ...typography.caption,
+    color: palette.textMuted,
+  },
+  // Reply chip in composer
+  replyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: palette.bgElevated,
+    borderTopWidth: 1,
+    borderTopColor: palette.bg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  replyChipText: {
+    ...typography.caption,
+    color: palette.textMuted,
+    flex: 1,
+  },
+  replyChipCancel: {
+    ...typography.body,
+    color: palette.textMuted,
+    paddingLeft: spacing.sm,
+  },
 });
+

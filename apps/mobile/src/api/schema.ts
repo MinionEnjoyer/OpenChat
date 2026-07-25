@@ -77,6 +77,8 @@ export interface Message {
   nonce: string | null;
   editedAt: string | null;
   deletedAt: string | null;
+  replyToId: string | null;
+  replyTo: { id: string; authorName: string; content: string } | null;
   attachments: Attachment[];
   reactions: ReactionGroup[];  // pre-aggregated by backend groupReactions()
   pinned: boolean;
