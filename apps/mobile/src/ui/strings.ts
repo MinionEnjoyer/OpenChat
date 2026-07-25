@@ -225,6 +225,7 @@ export const strings = {
     closeIcon: '\u2715',
     share: 'Share',
     shareIcon: '\u2B06',
+    galleryCounterSeparator: '\u00A0/\u00A0',
   },
   members: {
     title: 'Members',
