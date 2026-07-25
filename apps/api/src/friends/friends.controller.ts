@@ -30,6 +30,11 @@ export class FriendsController {
     return this.friendsService.listPending(user.id);
   }
 
+  @Get('blocked')
+  listBlocked(@CurrentUser() user: User) {
+    return this.friendsService.listBlocked(user.id);
+  }
+
   @Post('requests')
   sendRequest(
     @CurrentUser() user: User,
@@ -69,5 +74,13 @@ export class FriendsController {
     @Param('userId') userId: string,
   ) {
     return this.friendsService.block(user.id, userId);
+  }
+
+  @Post('unblock/:userId')
+  unblock(
+    @CurrentUser() user: User,
+    @Param('userId') userId: string,
+  ) {
+    return this.friendsService.unblock(user.id, userId);
   }
 }

@@ -40,6 +40,7 @@ import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel } from '../coldstart';
 import type { Server, Channel, Member, Role } from '../../../api/schema';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
+import { FriendsScreen } from '../../friends';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -73,6 +74,9 @@ export function ShellScreen(): React.JSX.Element {
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+
+  // FR-SOC-001 — Friends screen
+  const [friendsVisible, setFriendsVisible] = useState(false);
 
   // ── Channel management (FR-SRV-004/005) ──
   const [channelFormVisible, setChannelFormVisible] = useState(false);
@@ -476,6 +480,15 @@ export function ShellScreen(): React.JSX.Element {
               >
                 <Text style={styles.railItemText}>{strings.servers.createButtonNav}</Text>
               </Pressable>
+              {/* FR-SOC-001 — Friends button */}
+              <Pressable
+                style={styles.railItem}
+                onPress={() => setFriendsVisible(true)}
+                accessibilityLabel={strings.friends.title}
+                testID="rail-friends"
+              >
+                <Text style={styles.railItemText}>{strings.friends.icon}</Text>
+              </Pressable>
             </View>
 
             {/* Channel list — FR-SRV-004/005 */}
@@ -708,6 +721,13 @@ export function ShellScreen(): React.JSX.Element {
           onClose={() => setReorderVisible(false)}
         />
       )}
+
+      {/* ── Friends screen (FR-SOC-001) ── */}
+      <FriendsScreen
+        visible={friendsVisible}
+        onClose={() => setFriendsVisible(false)}
+      />
+
     </KeyboardAvoidingView>
   );
 }

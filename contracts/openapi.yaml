@@ -1512,6 +1512,35 @@ paths:
           description: Blocked
       x-evidence: dms-friends.spec.ts#block
 
+  /friends/blocked:
+    get:
+      operationId: listBlocked
+      summary: List blocked users
+      tags: [friends]
+      responses:
+        '200':
+          description: Array of blocked user objects
+      x-evidence: Manual verification — FR-SOC-001 blocked tab
+
+  /friends/unblock/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: unblockUser
+      summary: Unblock user (removes the BLOCKED friendship row)
+      tags: [friends]
+      responses:
+        '201':
+          description: Unblocked
+        '404':
+          description: Block not found
+      x-evidence: Manual verification — FR-SOC-001
+
   # ── Notifications ──
   /notifications:
     get:
