@@ -180,7 +180,13 @@ const validators: Record<string, any> = {
 const API = 'http://localhost:3001/api';
 let cookies: string[] = [];
 
-async function api(p: string, opts: RequestInit = {}) {
+// Mirrors the ApiResponse<T = any> convention in test/characterization/helpers.ts:
+// the ajv validators are the real shape oracle here, so call sites read fields
+// off the parsed body directly rather than narrowing `unknown` at each use.
+async function api<T = any>(
+  p: string,
+  opts: RequestInit = {},
+): Promise<{ status: number; body: T; headers: Record<string, string> }> {
   const headers: Record<string, string> = { ...(opts.headers as Record<string, string> ?? {}) };
   if (cookies.length > 0) headers['cookie'] = cookies.join('; ');
   if (!headers['content-type'] && opts.method !== 'GET' && opts.body) {
@@ -190,9 +196,9 @@ async function api(p: string, opts: RequestInit = {}) {
   const setCookie = res.headers.get('set-cookie');
   if (setCookie) cookies.push(setCookie.split(';')[0]);
   const text = await res.text();
-  let body: unknown = text;
+  let body: any = text;
   try { body = JSON.parse(text); } catch {}
-  return { status: res.status, body, headers: Object.fromEntries(res.headers) };
+  return { status: res.status, body: body as T, headers: Object.fromEntries(res.headers) };
 }
 
 function validateResponse(operationId: string, body: unknown) {

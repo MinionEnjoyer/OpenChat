@@ -210,3 +210,22 @@ suite covers every route with a contract schema. Routes without schemas are trac
 ---
 
 *Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild, P0-10)*
+
+## Tooling debt (P0-16)
+
+- **`devctl commit` is unusable.** It aborts when `git diff-index --quiet HEAD`
+  reports differences, which is true of every commit that has something to
+  commit. Either make it stage-aware (compare against the index, not HEAD) or
+  drop the subcommand. Found during P0-16; commits currently use plain `git`.
+- **NFR-08 measures the wrong subject.** 01 §4 scopes it to `apps/mobile/src`;
+  the script arms over `apps/api` because no mobile TS project exists yet. It
+  declares `scope_complete:false` and ratchets at Phase 1 — extend it to the
+  mobile package at P0-17 rather than leaving the partial measurement.
+- **`artifacts/nfr/<sha>.json` archives are gitignored** (regenerated per run and
+  always named for the previous commit). `report.json` is the tracked pointer.
+- **ESLint/Prettier config for `apps/api` does not exist** (04 §6 specifies both
+  plus a zero-warnings policy). The pre-commit lint step invokes `npx eslint`
+  against a package with no config and no eslint dependency, so it has never
+  passed and blocks any commit touching `apps/api/**/*.ts`. Needs its own work
+  item: add the configs, install pinned deps, and triage the first run over
+  upstream source. Until then, api TS changes require `--no-verify` (log it).

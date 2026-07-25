@@ -51,6 +51,8 @@ Full Phase 0 verification suite in order:
 2. codegen — generated types match contracts
 3. contract — provider + consumer contract tests (ajv-validated)
 4. char — characterization tests
+5. trace — every FR up to the current phase has an `@satisfies` annotation
+6. nfr — NFR budgets + the phase ratchet (see `nfr` below)
 
 If `<layer>` given, runs only that gate.
 
@@ -58,10 +60,34 @@ Exit 0 if all pass, 1 if any fails.
 
 JSON (with `--json`): `{"doctor":"pass","health":"pass","codegen":"pass","contract":"pass","char":"pass","overall":"pass"}`
 
+### `nfr [--json] [--only NFR-08]`
+Runs every `tools/nfr/nfr-*.sh` and aggregates the results to
+`artifacts/nfr/<sha>.json` (archive, per 04 §8) and `artifacts/nfr/report.json`
+(latest-run pointer).
+
+Each script reports one of four statuses:
+
+| Status | Meaning | Gates? |
+|---|---|---|
+| `armed` | measured for real; `pass` decides | yes |
+| `blocked` | not measurable yet, and `.phase` has not passed `arm_at_phase` | no |
+| `overdue` | `.phase` is past `arm_at_phase` with no (or partial) measurement | yes — fails |
+| `error` | the script itself crashed or emitted unparseable JSON | yes — fails |
+
+The point of `arm_at_phase` is that a blocked stub cannot stay green forever. Each
+script names the phase during which its budget must become real; once `.phase`
+moves past it, the stub reports `overdue` and the gate goes red on its own. A
+blocked entry also carries an `evidence` object of facts observed at run time
+(is there an APK? does `apps/mobile/tsconfig.json` exist?) rather than a prose
+claim that nothing rechecks. See `tools/nfr/lib.sh` for the protocol and the
+comment block at the top of each script for its phase rationale.
+
+Exit 0 if nothing is armed-failing, overdue, or errored; 1 otherwise.
+
 ### `selftest`
-Deliberately breaks one thing per layer (doctor, contract, char) and asserts the
-corresponding gate fails with nonzero exit. **Mutates test files — NOT wired into
-CI or verify.**
+Deliberately breaks one thing per layer (doctor, contamination, contract, char,
+trace, nfr) and asserts the corresponding gate fails with nonzero exit.
+**Mutates test files and `.phase` — NOT wired into CI or verify.**
 
 Exit 0 if all layers caught injected faults, 1 if any missed.
 
@@ -79,6 +105,7 @@ Exit 1 if tree dirty (aborts), otherwise git commit exit code.
 | doctor | All present | Missing artifacts (JSON list) |
 | capabilities | All valid | Errors found |
 | verify | All gates pass | Any gate failed |
+| nfr | No breach, overdue, or error | Any breach, overdue NFR, or script error |
 | selftest | All layers caught | Any layer missed |
 | commit | Commit succeeded | Tree dirty or git failure |
 

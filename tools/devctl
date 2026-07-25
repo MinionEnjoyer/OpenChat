@@ -640,6 +640,17 @@ cmd_verify() {
     echo "  ✓ trace pass"
   fi
 
+  # 6. NFR harness — budget breaches, script errors, and NFRs left unarmed past
+  # the phase they were promised in. Cheap at Phase 0 (one armed check); the
+  # ratchet is what stops blocked stubs from aging into decoration.
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "nfr" ]; then
+    echo "[devctl] nfr harness — budgets + phase ratchet…"
+    cmd_nfr || {
+      echo "  ✗ nfr harness failed"
+      exit 1
+    }
+  fi
+
   echo "  ✓ verify pass"
 }
 
@@ -658,9 +669,11 @@ Commands:
   stack seed    Run seed fixtures (tools/seed/seed.mjs)
   doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
   capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
-  verify        Run full verification suite (doctor + health + codegen + contract + char + trace); --json
+  verify        Run full verification suite (doctor + health + codegen + contract + char + trace + nfr); --json
   selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
   trace         Check or report FR/NFR ↔ test traceability matrix (check|report [--phase N])
+  nfr           Run the NFR budget harness; fails on breach, script error, or an
+                NFR left unarmed past the phase it was promised in (--json)
   device up     Boot Android emulator(s) (Pixel 6a, API 34); provisions AVD if needed
   e2e           Run Maestro E2E flows against connected emulator(s) [--json] [<flow>]
   commit        Safe commit: fail if tree is dirty, warn about untracked files
@@ -670,6 +683,13 @@ Flags:
 
 Docs: tools/devctl-README.md
 EOF
+}
+
+cmd_nfr() {
+  # NFR harness (04 §8). Fails on a budget breach, on a script error, and on any
+  # NFR left unarmed after the phase it was promised in (the ratchet in
+  # tools/nfr/lib.sh) — a blocked stub cannot stay green across a phase bump.
+  node "$ROOT/tools/nfr/nfr-runner.mjs" "$@"
 }
 
 cmd_trace() {
@@ -703,24 +723,30 @@ cmd_selftest() {
     mv "$ROOT/docs/BACKLOG.md.selftest-tmp" "$doctor_path"
   fi
 
-  # ── Contamination: inject XML markers into a .sh and .mjs file, assert doctor catches them ──
-  local contam_sh="$ROOT/tools/diag-provider.mjs"
+  # ── Contamination: inject XML markers into a .sh and a .mjs file, assert doctor catches them ──
+  # Restore from a byte-exact backup rather than `sed '$d'`: a file with no
+  # trailing newline makes the first appended marker join the last real line, so
+  # deleting "the last line" ate a line of source. That silently corrupted
+  # tools/diag-provider.mjs on every run (both vars also pointed at the same
+  # file, so the .sh half was never covered).
+  local contam_sh="$ROOT/tools/mut1.sh"
   local contam_mjs="$ROOT/tools/diag-provider.mjs"
-  local injected=false
   if [ -f "$contam_sh" ] && [ -f "$contam_mjs" ]; then
-    echo "</write_to_file>" >> "$contam_sh"
-    echo "</write_to_file>" >> "$contam_mjs"
-    injected=true
+    cp "$contam_sh" "$contam_sh.selftest-bak"
+    cp "$contam_mjs" "$contam_mjs.selftest-bak"
+    printf '\n</write_to_file>\n' >> "$contam_sh"
+    printf '\n</write_to_file>\n' >> "$contam_mjs"
     if cmd_doctor > /dev/null 2>&1; then
       echo "  ✗ contamination: doctor did not catch injected XML markers"
       failures=$((failures + 1))
     else
       echo "  ✓ contamination: doctor caught injected markers"
     fi
-    # Revert: remove the last line from each
-    if $injected; then
-      sed -i '' '$d' "$contam_sh" 2>/dev/null || true
-      sed -i '' '$d' "$contam_mjs" 2>/dev/null || true
+    mv "$contam_sh.selftest-bak" "$contam_sh"
+    mv "$contam_mjs.selftest-bak" "$contam_mjs"
+    if ! git -C "$ROOT" diff --quiet -- "$contam_sh" "$contam_mjs"; then
+      echo "  ✗ contamination: restore left $contam_sh / $contam_mjs modified"
+      failures=$((failures + 1))
     fi
   fi
 
@@ -777,6 +803,35 @@ cmd_selftest() {
     cp "$trace_test.selftest-bak" "$trace_test" && rm "$trace_test.selftest-bak"
   else
     echo "  — trace: no @satisfies annotations exist yet (Phase 0 — expected)"
+  fi
+
+  # ── NFR ratchet: advance .phase past every arm_at_phase and assert the
+  # ── blocked stubs flip to overdue. This is the proof that a blocked NFR
+  # ── cannot stay green across a phase bump — the whole point of P0-16.
+  local phase_file="$ROOT/.phase"
+  local real_phase
+  real_phase="$(read_phase)"
+  cp "$phase_file" "$phase_file.selftest-bak" 2>/dev/null || echo "$real_phase" > "$phase_file.selftest-bak"
+  echo "9" > "$phase_file"
+  set +e
+  local nfr_out nfr_rc
+  nfr_out=$(cmd_nfr 2>&1)
+  nfr_rc=$?
+  set -e
+  cp "$phase_file.selftest-bak" "$phase_file" && rm "$phase_file.selftest-bak"
+  local overdue_count
+  overdue_count=$(echo "$nfr_out" | grep -c '\[overdue\]' || true)
+  if [ "$nfr_rc" -ne 0 ] && [ "$overdue_count" -gt 0 ]; then
+    echo "  ✓ nfr: caught $overdue_count NFR(s) left unarmed past their phase (exit $nfr_rc)"
+  else
+    echo "  ✗ nfr: phase bump to 9 did not turn blocked stubs overdue (exit $nfr_rc, $overdue_count overdue)"
+    failures=$((failures + 1))
+  fi
+  # Assert the restore worked — a selftest that corrupts .phase would be worse
+  # than the gap it tests for.
+  if [ "$(read_phase)" != "$real_phase" ]; then
+    echo "  ✗ nfr: .phase not restored (expected $real_phase, got $(read_phase))"
+    failures=$((failures + 1))
   fi
 
   if [ "$failures" -gt 0 ]; then
@@ -907,6 +962,7 @@ case "${1:-}" in
   verify)        shift; cmd_verify "$@";;
   selftest)      cmd_selftest "$@";;
   trace)         shift; cmd_trace "$@";;
+  nfr)           shift; cmd_nfr "$@";;
   device)        shift; cmd_device_up "$@";;
   e2e)           cmd_e2e "$@";;
   commit)        shift; cmd_commit "$@";;

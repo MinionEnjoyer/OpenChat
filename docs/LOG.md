@@ -146,3 +146,42 @@ that existed in the controller code and the 03 §2 inventory. These are now cove
 `devctl capabilities --validate` passes. `bash tools/devctl capabilities` → `✓ capabilities validation pass`.
 
 **Next:** P0-06 — Seed fixtures (rescoped per P0-04 audit probe D)
+
+## 2026-07-24 — P0-16 (William B. Sexton)
+
+### P0-16 — NFR harness: COMPLETE
+
+The harness existed on disk uncommitted (12 scripts + runner) but had never been
+run as a gate. Committing it as-found would have added a 5th vacuous gate: 11 of
+12 scripts printed a hardcoded "blocked" reason that nothing computed and nothing
+rechecked, and the runner exited 0 unconditionally.
+
+**Built:**
+- `tools/nfr/lib.sh` — the ARM_AT_PHASE ratchet. A blocked stub turns `overdue`
+  (pass:false) once `.phase` moves past the phase it named, so no stub can age
+  into decoration. Blocked entries carry run-time `evidence`, not prose.
+- 12 scripts rewritten on the protocol; mapping table in DRIFT-LOG.
+- Runner: `error` status for crashing scripts (was silently `blocked`),
+  `artifacts/nfr/<sha>.json` archive per 04 §8, exit 1 on breach/overdue/error.
+- `devctl nfr` (04 §1 listed it; devctl had no wiring) + `verify` layer 6 +
+  `selftest` layer 6 + README.
+
+**Verification:**
+- `devctl nfr` at phase 0: 1 armed, 11 blocked, 0 overdue, 0 error — exit 0.
+- `.phase`=9: 12 overdue, exit 1, each naming its arm_at_phase. Restored, exit 0.
+- `devctl selftest`: all 6 layers catch injected faults, `.phase` restored.
+- `devctl verify`: green (doctor, health, codegen, contract, char, trace, nfr).
+- Contract 36 tests, characterization 89 tests — both green after the tsc fix.
+
+**Two defects found and fixed (detail in DRIFT-LOG):**
+1. `apps/api` did not typecheck — 11 errors in `test/contract/provider.spec.ts`,
+   invisible because Jest transpiles without typechecking and `npm run build`
+   covers `src` only. NFR-08 was the gate for exactly this, and had never run.
+2. `devctl selftest` silently ate a line of `tools/diag-provider.mjs` on every
+   run (append + `sed '$d'` on a file with no trailing newline).
+
+**Known wart, not fixed here (logged to BACKLOG):** `devctl commit` refuses
+whenever tracked files differ from HEAD, which is true of every commit — it
+cannot actually be used to commit.
+
+**Next:** P0-17 — Expo skeleton (06 §7), then Phase 0 signoff (T4) and `.phase`→1.
