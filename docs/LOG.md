@@ -376,3 +376,30 @@ filter, and cursor pagination. Snippets use `ts_headline` with HTML highlighting
 - `npx jest` → 12 suites, 52 tests, all pass
 - `npx eslint . --max-warnings=0` → clean
 - `npx tsc --noEmit` → clean
+## 2026-07-25 — P2-07 Markdown parser (FR-MSG-007) (Codewhale)
+
+### P2-07 — Markdown AST parser: COMPLETE
+
+**Commit:** `[P2-07] Markdown parser (FR-MSG-007)`
+
+**Files created:**
+- `apps/mobile/src/domain/markdown.ts` — pure domain logic, zero RN imports.
+  Single-pass character scanner producing typed AST nodes.
+- `apps/mobile/src/domain/__tests__/markdown.test.ts` — 47 tests,
+  `@satisfies FR-MSG-007`, one fixture per construct + nesting + malformed edges.
+- `docs/escalations/E-01-markdown-web-parity.md` — documents that the web client
+  (`apps/web/src/App.tsx` renderContent) has NO markdown parsing at all (only URLs
+  and @mentions). Proceeding with Discord-flavored dialect per the FR construct list.
+
+**Constructs covered:**
+bold (`**`), italic (`*` / `_`), underline (`__`), strikethrough (`~~`),
+inline code (`` ` ``), fenced code block (` ``` `), spoiler (`||`),
+blockquote (`>`), autolinked URLs (matching web tail-punctuation-strip),
+ordered lists, unordered lists.
+
+**Verification:**
+- `npx jest src/domain/__tests__/markdown.test.ts` → 47/47 pass
+- `npx tsc --noEmit` → clean
+- `npx eslint src/domain/markdown.ts src/domain/__tests__/markdown.test.ts --max-warnings=0` → clean
+- Test-can-fail proven: broke one assertion, confirmed failure output, restored
+- `npx eslint . --max-warnings=0` fails with pre-existing errors in ShellScreen.tsx (not touched)
