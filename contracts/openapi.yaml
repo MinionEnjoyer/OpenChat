@@ -1537,6 +1537,75 @@ paths:
                 required: [friendRequests, serverInvites, count]
       x-evidence: provider.spec.ts#notifications-shape, DRIFT-LOG 2026-07-21
 
+  # ── Notification settings (FR-NOTIF-003) ──
+  /notifications/settings:
+    get:
+      operationId: listNotificationSettings
+      summary: List per-server/per-channel notification level overrides
+      tags: [notifications]
+      responses:
+        '200':
+          description: Array of NotificationSetting objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationSetting'
+      x-evidence: FR-NOTIF-003 implementation
+    put:
+      operationId: upsertNotificationSetting
+      summary: Create or update a notification level override
+      tags: [notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [SERVER, CHANNEL]
+                scopeId:
+                  type: string
+                  format: uuid
+                level:
+                  type: string
+                  enum: [ALL, MENTIONS, NONE]
+                mutedUntil:
+                  type: string
+                  format: date-time
+                  nullable: true
+              required: [scope, scopeId, level]
+      responses:
+        '200':
+          description: The upserted NotificationSetting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+      x-evidence: FR-NOTIF-003 implementation
+
+  /notifications/settings/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteNotificationSetting
+      summary: Remove a notification level override
+      tags: [notifications]
+      responses:
+        '200':
+          description: Deleted confirmation
+        '404':
+          description: Setting not found
+      x-evidence: FR-NOTIF-003 implementation
+
   # ── Voice ──
   /voice/{channelId}/join:
     parameters:
@@ -2192,6 +2261,31 @@ components:
             id:
               type: string
               format: uuid
-            username:
-              type: string
+             username:
+               type: string
       x-added-by: P7
+
+    NotificationSetting:
+      description: Per-server or per-channel notification level override (FR-NOTIF-003)
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [SERVER, CHANNEL]
+        scopeId:
+          type: string
+          format: uuid
+        level:
+          type: string
+          enum: [ALL, MENTIONS, NONE]
+        mutedUntil:
+          type: string
+          format: date-time
+          nullable: true
+      x-added-by: P8

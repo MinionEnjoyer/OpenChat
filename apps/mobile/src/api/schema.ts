@@ -201,6 +201,16 @@ export interface VoiceLeaveResponse {
   success: true;
 }
 
+/** Per-server or per-channel notification level override (FR-NOTIF-003). */
+export interface NotificationSetting {
+  id: string;
+  userId: string;
+  scope: 'SERVER' | 'CHANNEL';
+  scopeId: string;
+  level: 'ALL' | 'MENTIONS' | 'NONE';
+  mutedUntil: string | null;
+}
+
 // ── OpenShare API ──
 
 export interface SavedAsset {

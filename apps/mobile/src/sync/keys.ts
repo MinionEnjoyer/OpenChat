@@ -9,4 +9,5 @@ export const keys = {
   roles: (serverId: string) => ['roles', serverId] as const,
   permissionCatalog: ['permissions'] as const,
   pins: (channelId: string) => ['pins', channelId] as const,
+  notificationSettings: ['notificationSettings'] as const,
 };
