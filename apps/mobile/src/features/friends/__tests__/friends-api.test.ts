@@ -1,6 +1,10 @@
 /**
  * FR-SOC-001 integration test — hits the real API on port 3101.
  *
+ * Uses node:http because jest-expo mocks fetch (the mock does not actually
+ * issue network requests). All HTTP helpers are async and read the full
+ * response body before resolving.
+ *
  * Tests the full friend request lifecycle:
  *  1. List friends is empty for unconnected users
  *  2. Send friend request (by username)
@@ -16,12 +20,16 @@
  * @satisfies FR-SOC-001
  */
 
-const BASE = 'http://localhost:3101/api';
+import http from 'node:http';
+
+const BASE_HOST = 'localhost';
+const BASE_PORT = 3101;
 
 interface DevLoginResponse {
   id: string;
   username: string;
   displayName: string | null;
+  avatarUrl: string | null;
   friendCode: string | null;
   status: string;
   accessToken: string;
@@ -51,52 +59,94 @@ interface UserShape {
   status: string | null;
 }
 
-async function devLogin(username: string): Promise<DevLoginResponse> {
-  const res = await fetch(`${BASE}/auth/dev-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
+// ── low-level HTTP helpers ──
+
+function request(
+  method: string,
+  path: string,
+  opts?: { token?: string; body?: Record<string, unknown> },
+): Promise<{ status: number; body: unknown }> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(path, `http://${BASE_HOST}:${BASE_PORT}`);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (opts?.token) {
+      headers['Authorization'] = `Bearer ${opts.token}`;
+    }
+    const bodyStr = opts?.body ? JSON.stringify(opts.body) : undefined;
+    if (bodyStr) {
+      headers['Content-Length'] = String(Buffer.byteLength(bodyStr));
+    }
+
+    const req = http.request(
+      {
+        hostname: BASE_HOST,
+        port: BASE_PORT,
+        path: url.pathname + url.search,
+        method,
+        headers,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          let parsed: unknown;
+          try {
+            parsed = raw.length > 0 ? JSON.parse(raw) : undefined;
+          } catch {
+            parsed = raw;
+          }
+          resolve({ status: res.statusCode ?? 0, body: parsed });
+        });
+      },
+    );
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
   });
-  if (!res.ok) throw new Error(`dev login failed: ${res.status}`);
-  return res.json();
+}
+
+async function devLogin(username: string): Promise<DevLoginResponse> {
+  const res = await request('POST', '/api/auth/dev-login', {
+    body: { username },
+  });
+  if (res.status !== 201) throw new Error(`dev login failed: ${res.status}`);
+  return res.body as DevLoginResponse;
 }
 
 async function apiGet<T>(path: string, token: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const body = await res.json();
-  return body as T;
+  const res = await request('GET', `/api${path}`, { token });
+  return res.body as T;
 }
 
-async function apiPost(path: string, token: string, body?: Record<string, unknown>): Promise<Response> {
-  return fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+async function apiPost(
+  path: string,
+  token: string,
+  body?: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  return request('POST', `/api${path}`, { token, body });
 }
 
-async function apiDelete(path: string, token: string): Promise<Response> {
-  return fetch(`${BASE}${path}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+async function apiDelete(
+  path: string,
+  token: string,
+): Promise<{ status: number; body: unknown }> {
+  return request('DELETE', `/api${path}`, { token });
 }
+
+// ── tests ──
 
 describe('FR-SOC-001 Friends API integration', () => {
   let alice: DevLoginResponse;
   let bob: DevLoginResponse;
 
   beforeAll(async () => {
-    // Clean up any existing relationship between alice and bob
     alice = await devLogin('alice');
     bob = await devLogin('bob');
 
-    // Check if already friends — if so, remove
+    // Clean up any existing relationship between alice and bob
     const aliceFriends = await apiGet<UserShape[]>('/friends', alice.accessToken);
     const alreadyFriend = aliceFriends.find((f) => f.id === bob.id);
     if (alreadyFriend) {
@@ -126,8 +176,8 @@ describe('FR-SOC-001 Friends API integration', () => {
   });
 
   it('sends friend request by username', async () => {
-    const res = await apiPost('/friends/requests', alice.accessToken, { username: 'bob' });
-    expect(res.status).toBe(201);
+    const { status } = await apiPost('/friends/requests', alice.accessToken, { username: 'bob' });
+    expect(status).toBe(201);
 
     // Verify: bob sees incoming request
     const bobReqs = await apiGet<RequestsResponse>('/friends/requests', bob.accessToken);
@@ -147,8 +197,8 @@ describe('FR-SOC-001 Friends API integration', () => {
     const incoming = bobReqs.incoming.find((r) => r.user.id === alice.id);
     expect(incoming).toBeDefined();
 
-    const res = await apiPost(`/friends/requests/${incoming!.id}/accept`, bob.accessToken);
-    expect(res.status).toBe(201);
+    const { status } = await apiPost(`/friends/requests/${incoming!.id}/accept`, bob.accessToken);
+    expect(status).toBe(201);
 
     // Verify: both see each other in friends list
     const aliceFriends = await apiGet<UserShape[]>('/friends', alice.accessToken);
@@ -159,14 +209,14 @@ describe('FR-SOC-001 Friends API integration', () => {
   });
 
   it('rejects duplicate friend request', async () => {
-    const res = await apiPost('/friends/requests', alice.accessToken, { username: 'bob' });
-    expect(res.status).toBe(400);
+    const { status } = await apiPost('/friends/requests', alice.accessToken, { username: 'bob' });
+    expect(status).toBe(400);
   });
 
   it('blocks a user', async () => {
-    const res = await apiPost(`/friends/block/${bob.id}`, alice.accessToken);
+    const { status } = await apiPost(`/friends/block/${bob.id}`, alice.accessToken);
     // 201 is returned on success
-    expect([200, 201]).toContain(res.status);
+    expect([200, 201]).toContain(status);
 
     // Verify blocked list
     const blocked = await apiGet<UserShape[]>('/friends/blocked', alice.accessToken);
@@ -181,8 +231,8 @@ describe('FR-SOC-001 Friends API integration', () => {
     // Block first
     await apiPost(`/friends/block/${bob.id}`, alice.accessToken);
 
-    const unblockRes = await apiPost(`/friends/unblock/${bob.id}`, alice.accessToken);
-    expect([200, 201]).toContain(unblockRes.status);
+    const { status } = await apiPost(`/friends/unblock/${bob.id}`, alice.accessToken);
+    expect([200, 201]).toContain(status);
 
     const blocked = await apiGet<UserShape[]>('/friends/blocked', alice.accessToken);
     expect(blocked.find((u) => u.id === bob.id)).toBeUndefined();
@@ -199,23 +249,24 @@ describe('FR-SOC-001 Friends API integration', () => {
     }
 
     // Remove
-    const res = await apiDelete(`/friends/${bob.id}`, alice.accessToken);
-    expect(res.status).toBe(200);
+    const { status } = await apiDelete(`/friends/${bob.id}`, alice.accessToken);
+    expect(status).toBe(200);
 
     const after = await apiGet<UserShape[]>('/friends', alice.accessToken);
     expect(after.find((f) => f.id === bob.id)).toBeUndefined();
   });
 
   it('adds by friend code', async () => {
-    const res = await apiPost('/friends/requests', alice.accessToken, { friendCode: bob.friendCode! });
-    expect(res.status).toBe(201);
+    // alice has a friendCode; bob sends request using alice's code
+    const { status } = await apiPost('/friends/requests', bob.accessToken, { friendCode: alice.friendCode! });
+    expect(status).toBe(201);
 
-    // Verify bob sees it
-    const bobReqs = await apiGet<RequestsResponse>('/friends/requests', bob.accessToken);
-    const incoming = bobReqs.incoming.find((r) => r.user.id === alice.id);
+    // Verify alice sees it
+    const aliceReqs = await apiGet<RequestsResponse>('/friends/requests', alice.accessToken);
+    const incoming = aliceReqs.incoming.find((r) => r.user.id === bob.id);
     expect(incoming).toBeDefined();
 
     // Clean up — decline
-    await apiPost(`/friends/requests/${incoming!.id}/decline`, bob.accessToken);
+    await apiPost(`/friends/requests/${incoming!.id}/decline`, alice.accessToken);
   });
 });
