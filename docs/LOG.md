@@ -259,3 +259,34 @@ proves dev-login bearer tokens work, not native OIDC PKCE login.
 - `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
   PASS (1 passed, 7 skipped).
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
+
+## 2026-07-25 — WORK ORDER D: worktree bootstrap + verify harness (William B. Sexton)
+
+**Commit:** (see below) — 4 files
+
+**What:** Two infrastructure scripts for reproducible agent verification.
+
+**Files created:**
+- `tools/worktree-up.sh` — Idempotent worktree bootstrap. Writes `apps/api/.env`
+  from canonical dev values (derived from `docker-compose.dev.yml` +
+  `.env.dev`), runs `npm ci` if needed, runs `prisma generate`, and confirms
+  `.env` is gitignored before finishing. DATABASE_URL / REDIS_URL point at
+  the shared dev stack on localhost (not Docker service names). Never prints
+  secret values and never commits `.env`.
+- `tools/verify-worktree.sh` — Independent accept-gate. Bootstraps a worktree,
+  starts its API on the given port, waits for health, and runs 4 gates:
+  characterization (11 suites / 89 tests), integration, `tsc --noEmit`, and
+  `codegen --check`. Stops the API on exit. Writes machine-readable result to
+  `artifacts/verify/<branch>.json`. Exit 0 only if all gates pass.
+- `artifacts/verify/p7-search.json` — Verification result for branch p7-search:
+  4/4 gates passed, observed 11/11 suites and 89/89 tests (NOT the "6/6"
+  claimed by the branch author — the harness caught a partial-run claim).
+- `artifacts/verify/logs/` — Per-gate logs for reproducibility.
+
+**Verification:**
+- `./tools/verify-worktree.sh /Users/williambsexton/work/oc-p7-search 3002` →
+  4/4 PASS, exit 0.
+- `./tools/verify-worktree.sh /Users/williambsexton/work/oc-p7-search 3001` →
+  3/4 PASS, 1 FAIL (integration: 9 failed — p7-search endpoint 404 against
+  Docker API on port conflict), exit 1. Proves gate catches failures.
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
