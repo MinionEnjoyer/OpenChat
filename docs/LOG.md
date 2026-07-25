@@ -789,5 +789,26 @@ aggregation) | Integration: two senders -> 'A and B are typing…' | P0 | 2
 - `npx eslint . --max-warnings=0`: clean
 - `npx jest`: 171/171 pass (17 suites)
 - Proved tests can fail: broke domain 1-user assertion (`Expected: "WRONG TEXT" Received: "Alice is typing…"`)
-  and store throttle assertion (`Expected: true Received: false`); restored → all pass
+   and store throttle assertion (`Expected: true Received: false`); restored → all pass
 - `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16)
+
+## 2026-07-25 — WORK ORDER U (William B. Sexton)
+
+### Fix e2e-live-message.sh for drawer layout
+**Commit:** `662fd9c` — 1 file, +2 lines
+
+`tools/e2e-live-message.sh` Part 1 flowed `scrollUntilVisible → rail-server-Fixture Guild`
+without first opening the left drawer. After the P3-T1 drawer refactor (FR-APP-001), both
+drawers are closed at launch and server rail items are absent from the accessibility tree.
+This caused the scroll to time out.
+
+**Fix:** Added `tapOn: { id: 'hamburger-button' }` before the `scrollUntilVisible` in the
+generated send flow, matching the working sequence in `apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml`.
+No app code changed.
+
+**Verification:**
+- `bash tools/e2e-live-message.sh` — both assertions pass:
+  - ✓ alice's optimistic send rendered
+  - ✓ bob's REST message appeared live via the gateway (≤5s, no refresh)
+- Break test: changed expected bob text to `IMPOSSIBLE-e2e-bob-*` → script FAILED as expected
+- Restored → script PASSES again
