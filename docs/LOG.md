@@ -962,3 +962,27 @@ members of the affected server.
   `Expected: "__WRONG_OP__" Received: "channel.created"` → restored → pass
 - `node tools/codegen/gen.mjs` — no drift
 - API: `curl localhost:3017/api/health` → `{"status":"ok","db":"up","redis":"up"}`
+
+## 2026-07-25 — DD5: WS nonce echo regression fix (William B. Sexton)
+
+### Regression
+Characterization test `ws — message.send › sends message via WS with nonce echo`
+failed: `ev.d` had `{ message: {...} }` — nonce was missing. Root cause: the
+P3-09 relay broadcasts `MESSAGE_CREATED` to all subscribers (including sender)
+with only `{ message: event.message }`, overwriting the sender echo that carries
+the nonce for optimistic reconciliation (FR-MSG-002).
+
+### Fix (2 files)
+- `events.gateway.ts`: Added `nonce?: string` to `MESSAGE_CREATED` BusEvent; relay
+  now includes `nonce` in `d` only when `client.userId === event.message.authorId`.
+- `messages.service.ts`: Passes `nonce` through to Redis publish so the BusEvent
+  carries it.
+
+Asymmetry preserved: author gets `{ message, nonce }`; other subscribers get
+`{ message: event.message }`.
+
+### Verification
+- Before fix: 1 characterization test FAILED (nonce missing)
+- After fix: 11 suites / 89 characterization tests PASS
+- Integration: 8 suites / 65 tests PASS
+- `npx tsc --noEmit` rc=0

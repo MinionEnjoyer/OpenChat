@@ -17,7 +17,7 @@ interface Envelope<T = any> {
 
 /** Internal event shape published to Redis by services + this gateway. */
 type BusEvent =
-  | { type: 'MESSAGE_CREATED'; message: any }
+  | { type: 'MESSAGE_CREATED'; message: any; nonce?: string }
   | { type: 'MESSAGE_UPDATED'; message: any }
   | { type: 'MESSAGE_DELETED'; id: string; channelId: string }
   | { type: 'TYPING_START'; channelId: string; userId: string }
@@ -300,9 +300,15 @@ export class EventsGateway {
       if (!global && (!channelId || !client.channels.has(channelId))) continue;
 
       switch (event.type) {
-        case 'MESSAGE_CREATED':
-          this.send(client.socket, { op: 'message.created', d: { message: event.message } });
+        case 'MESSAGE_CREATED': {
+          const d: any = { message: event.message };
+          // Echo nonce back only to the author for optimistic reconciliation (FR-MSG-002).
+          if (event.nonce && client.userId === event.message.authorId) {
+            d.nonce = event.nonce;
+          }
+          this.send(client.socket, { op: 'message.created', d });
           break;
+        }
         case 'MESSAGE_UPDATED':
           this.send(client.socket, { op: 'message.updated', d: { message: event.message } });
           break;
