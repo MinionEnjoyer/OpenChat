@@ -697,3 +697,59 @@ implementing agent's. Work orders corrected.
 
 **Disposition:** Defects 1–4 FIXED. Architect process drift RECORDED; the
 Phase 2 signoff must precede any further Phase 3 work.
+
+---
+
+## DD-018 — Permission enum has three sources of truth; codegen truncates it
+
+**Date:** 2026-07-25  **Severity:** HIGH (security-relevant)  **Status:** fix dispatched (CG2)
+
+### Finding
+
+There are three permission definitions in the tree:
+
+| Source | Count | Notes |
+|---|---|---|
+| `apps/api/src/permissions/permissions.ts` | 11 | the server's real authority |
+| `contracts/permissions.json` | 11 | correct |
+| `apps/mobile/src/api/schema.ts` (GENERATED) | **8** | truncated by `gen.mjs` |
+
+`gen.mjs` emits only bits 0-7, silently dropping `BAN_MEMBERS` (8), `SEND_MESSAGES` (9)
+and `READ_MESSAGES` (10) — all three shipped in Phase 7 and all three in active use.
+
+A client computing permissions from the truncated enum mis-evaluates SEND_MESSAGES and
+READ_MESSAGES. That is the class of defect that silently grants or denies access, so this
+is recorded as security-relevant rather than cosmetic.
+
+### How it stayed hidden
+
+The codegen drift gate had been **vacuous since 97cd937** (see DD-017): it compared against
+`schema.d.ts`, a path deleted from git, so a missing file meant "skip the comparison" and
+the gate printed `✓ generated types match committed files` while comparing nothing. With no
+working drift gate, the generator's truncation was never surfaced.
+
+Agent S1 hit the consequence and hand-edited `schema.ts` to re-export from `../permissions`.
+That was the right instinct and the wrong layer — it fixed the symptom in a generated file,
+which the (now repaired) gate correctly rejects.
+
+### Architect adjudication
+
+- The generator is the defect. `gen.mjs` must derive the list from `contracts/permissions.json`
+  rather than emitting a fixed prefix, so the next added permission cannot regress the same way.
+- S1's hand-edit is to be REMOVED, not preserved.
+- Client/server bit-position agreement must be asserted by a test, not by review.
+
+### Related spec deviation — FR-ROLE-002
+
+FR-ROLE-002 requires a **single shared** permission library ("client permission calculator
+identical to server ... single shared lib"). This repo has no `packages/` directory and no
+npm workspaces, so there is no mechanism for one; S1 created `apps/mobile/src/permissions.ts`
+as a mirror of the API's.
+
+Deviation ACCEPTED for now, with a compensating control: the permission set is generated from
+a single contract and guarded by the codegen drift gate, and a test must assert name-and-bit
+agreement with the server library. This achieves the requirement's intent (impossibility of
+divergence) without restructuring both apps into workspaces mid-phase.
+
+FR-ROLE-002 also requires 1000-case property tests agreeing with the server lib verbatim.
+That remains OUTSTANDING and is required before the Phase 3 signoff.
