@@ -276,7 +276,8 @@ export class MessagesService {
     const dto = this.serializeMessage(message);
     await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto, nonce: data.nonce });
 
-    this.dispatchMentions(channelId, validated.content, userId, message.id).catch(() => {});
+    require('fs').appendFileSync('/tmp/dispatchMentions.log', `${new Date().toISOString()} CALLING dispatchMentions channelId=${channelId} content="${validated.content}" authorId=${userId}\n`);
+    this.dispatchMentions(channelId, validated.content, userId, message.id).catch((e) => { require('fs').appendFileSync('/tmp/dispatchMentions.log', `${new Date().toISOString()} ERROR: ${e}\n`); });
 
     return dto;
   }
@@ -347,17 +348,23 @@ export class MessagesService {
 
   /** Parse @user / @everyone / @here / @role from content and ping the mentioned members. @satisfies FR-ROLE-007 */
   private async dispatchMentions(channelId: string, content: string, authorId: string, messageId: string) {
+    const fs = require('fs');
+    const log = (msg: string) => fs.appendFileSync('/tmp/dispatchMentions.log', `${new Date().toISOString()} ${msg}\n`);
+    log(`START channelId=${channelId} content="${content}" authorId=${authorId}`);
+
     const hasEveryone = /(^|\s)@everyone\b/.test(content);
     const hasHere = /(^|\s)@here\b/.test(content);
     const userMentions = [...content.matchAll(/(?:^|\s)@([\w.-]+)/g)]
       .map((m) => m[1].toLowerCase())
       .filter((u) => u !== 'everyone' && u !== 'here');
+    log(`userMentions=${JSON.stringify(userMentions)} hasEveryone=${hasEveryone} hasHere=${hasHere}`);
 
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId },
       select: { serverId: true, name: true },
     });
-    if (!channel) return;
+    if (!channel) { log('NO CHANNEL'); return; }
+    log(`channel=${JSON.stringify(channel)}`);
 
     // Detect role mentions in server channels (FR-ROLE-007)
     let mentionedRoles: Array<{ id: string; name: string }> = [];
@@ -366,17 +373,20 @@ export class MessagesService {
         where: { serverId: channel.serverId, mentionable: true },
         select: { id: true, name: true },
       });
+      log(`mentionableRoles count=${mentionableRoles.length} names=${mentionableRoles.map(r=>r.name).join(',')}`);
       // Match @RoleName using word-boundary-aware regex (role names may contain spaces)
       for (const role of mentionableRoles) {
         const escaped = role.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const re = new RegExp(`(?:^|\\s)@${escaped}\\b`, 'i');
         if (re.test(content)) {
+          log(`MATCHED role=${role.name} id=${role.id}`);
           mentionedRoles.push(role);
         }
       }
     }
+    log(`mentionedRoles=${JSON.stringify(mentionedRoles)}`);
 
-    if (!hasEveryone && !hasHere && userMentions.length === 0 && mentionedRoles.length === 0) return;
+    if (!hasEveryone && !hasHere && userMentions.length === 0 && mentionedRoles.length === 0) { log('NOTHING TO MENTION'); return; }
 
     const targets = new Set<string>();
     let authorName = 'Someone';
@@ -386,6 +396,7 @@ export class MessagesService {
         where: { serverId: channel.serverId },
         include: { user: true, roles: true },
       });
+      log(`members count=${members.length}`);
       const author = members.find((m) => m.userId === authorId);
       authorName = author?.user.displayName || author?.user.username || 'Someone';
 
@@ -409,6 +420,7 @@ export class MessagesService {
       for (const role of mentionedRoles) {
         for (const m of members) {
           if (m.roles.some((r) => r.id === role.id)) {
+            log(`FANOUT role=${role.name} to userId=${m.userId}`);
             targets.add(m.userId);
           }
         }
@@ -424,12 +436,15 @@ export class MessagesService {
     }
 
     targets.delete(authorId);
+    log(`targets after fanout: ${[...targets].join(',')}`);
     const preview = content.replace(/\s+/g, ' ').slice(0, 80);
     for (const uid of targets) {
+      log(`PUBLISH MENTION to ${uid}`);
       await this.redis.publish('chat:events', {
         type: 'MENTION', userId: uid, channelId, messageId, channelName: channel.name, authorName, preview,
       });
     }
+    log('DONE');
   }
 
   async edit(messageId: string, userId: string, data: { content: string }) {
