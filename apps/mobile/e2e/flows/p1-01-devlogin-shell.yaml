@@ -1,5 +1,13 @@
-# p1-01-devlogin-shell — dev-login → Discord-shaped shell, all four surfaces.
+# p1-01-devlogin-shell — dev-login → Discord-shaped phone shell with drawers.
 # @satisfies FR-APP-001
+#
+# P3-T1: Rewritten to assert drawer behavior (was: 4-column row, too weak).
+# Now asserts:
+#  1. At launch, drawers are NOT visible; chat pane is full-width.
+#  2. Tapping hamburger opens left drawer (channel list becomes visible).
+#  3. Selecting a channel closes the drawer and shows that channel's messages.
+#  4. Tapping Members opens right drawer (members become visible).
+#  5. Scrim tap closes open drawers.
 #
 # Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
 # Determinism: no sleeps; assertVisible timeouts only. clearState gives a fresh
@@ -17,34 +25,70 @@ appId: com.openchat.mobile
 - inputText: 'alice'
 - tapOn:
     id: 'login-submit'
-# Surface 3 — chat pane (default landing)
+
+# 1. At launch, shell is visible but drawers are NOT visible.
+#    Chat pane is visible and dominant.
 - assertVisible:
     id: 'shell-screen'
 - assertVisible:
     id: 'chat-pane'
-# Surface 1 — server rail with the seeded guild
+# Left and right drawers must NOT be on screen at launch.
+- assertNotVisible:
+    id: 'left-drawer'
+- assertNotVisible:
+    id: 'right-drawer'
+
+# Server rail items are NOT visible because they're in the drawer.
+# But the hamburger button IS visible.
+- assertVisible:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'members-toggle'
+
+# 2. Tapping hamburger opens left drawer.
+#    Server rail and channel list become visible.
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
 - assertVisible:
     id: 'server-rail'
-# The rail virtualizes; scroll until the seeded guild's item is rendered.
+# Scroll until the seeded guild's rail item appears
 - scrollUntilVisible:
     element:
       id: 'rail-server-Fixture Guild'
     direction: DOWN
     timeout: 20000
-- tapOn:
-    id: 'rail-server-Fixture Guild'
-# Surface 2 — channel drawer listing seeded channels
+# The channel drawer title should show the server name
 - assertVisible:
     id: 'channel-drawer'
 - assertVisible: 'Fixture Guild'
+
+# 3. Selecting a channel closes the drawer and shows the channel.
 - tapOn:
     id: 'channel-#general'
+# After selecting a channel, left drawer closes automatically.
+- assertNotVisible:
+    id: 'left-drawer'
+# The chat title now shows the selected channel
 - assertVisible: '# #general'
-# Surface 4 — members drawer
+
+# 4. Open right drawer via Members button.
 - tapOn:
     id: 'members-toggle'
 - assertVisible:
+    id: 'right-drawer'
+- assertVisible:
     id: 'members-drawer'
+# Alice should appear as a member
 - assertVisible:
     id: 'member-alice'
+
+# 5. Tap scrim to close the drawer.
+- tapOn:
+    id: 'drawer-scrim'
+- assertNotVisible:
+    id: 'right-drawer'
+
+# Screenshot: chat pane full-width, no drawers open.
 - takeScreenshot: artifacts/e2e/screens/p1-shell

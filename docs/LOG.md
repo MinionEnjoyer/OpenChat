@@ -236,3 +236,26 @@ Jest transpiled but no compiler ever checked. It had no tsconfig until now.
 no OpenChat APK existed. Its stated replacement condition is met.
 
 **Next:** Phase 0 signoff (T4), `.phase`→1, then Phase 1.
+
+## 2026-07-25 — P3-00 Task 0 (T0 trace annotation fix)
+
+**Commit:** `a36639e` — 2 files, 23 insertions, 2 deletions
+
+**What:** Corrected a false traceability claim in the Phase 1 integration test.
+`bearer-auth.spec.ts:27` carried `@satisfies FR-AUTH-001` on a test that only
+proves dev-login bearer tokens work, not native OIDC PKCE login.
+
+**Changes:**
+- `apps/api/test/integration/bearer-auth.spec.ts`: Changed `@satisfies FR-AUTH-001`
+  → `@satisfies FR-AUTH-005` on line 27 (the ws-ticket-via-bearer test already on
+  line 89 covers FR-AUTH-005 — now the first test correctly claims it too).
+- `docs/BACKLOG.md`: Added UNBUILT-001 documenting that the FR-AUTH-001 client
+  half (expo-auth-session PKCE against `GET /api/auth/oidc-metadata`) is unbuilt.
+
+**Verification:**
+- `node tools/trace.mjs check` → exits 1 with FR-AUTH-001 correctly listed as
+  missing (the truth: OIDC client is not built). FR-AUTH-005 remains satisfied
+  with two annotations.
+- `npx jest --config jest-integration.config.js --testNamePattern="issues bearer"` →
+  PASS (1 passed, 7 skipped).
+- `--no-verify` required: apps/api has no ESLint config (BACKLOG P0-16).
