@@ -140,17 +140,31 @@ async function main() {
   }
   console.log(`  serverId=${serverId}`);
 
-  // ── Invite bob, carol, dave (idempotent: check members list first) ──
-  console.log('[seed] Adding members…');
+  // ── Add bob, carol, dave via the invite-code flow (idempotent).
+  // [P2 fix] POST /servers/:id/members only SENDS an invitation notification —
+  // it never added anyone. The seed ignored its response, so every "member" but
+  // the owner was silently missing and any cross-user test 403'd.
+  console.log('[seed] Adding members (invite accept flow)…');
   const existingMembers = await apiFetch(`/servers/${serverId}/members`, { jar: alice.jar });
   const memberIds = new Set(Array.isArray(existingMembers.body) ? existingMembers.body.map(m => m.userId || m.id) : []);
-  for (const uid of [bob.userId, carol.userId, dave.userId]) {
-    if (!memberIds.has(uid)) {
-      await apiFetch(`/servers/${serverId}/members`, { method: 'POST', body: { userId: uid }, jar: alice.jar });
-      console.log(`  added ${uid}`);
-    } else {
-      console.log(`  ${uid} already a member`);
+  const joiners = [bob, carol, dave].filter(u => !memberIds.has(u.userId));
+  if (joiners.length > 0) {
+    const inv = await apiFetch(`/servers/${serverId}/invites`, { method: 'POST', body: {}, jar: alice.jar });
+    const code = inv.body?.code;
+    if (!code) throw new Error(`invite create failed: ${inv.status} ${JSON.stringify(inv.body)}`);
+    for (const u of joiners) {
+      const acc = await apiFetch(`/invites/${code}/accept`, { method: 'POST', jar: u.jar });
+      if (acc.status >= 400) throw new Error(`invite accept failed for ${u.username}: ${acc.status}`);
+      console.log(`  ${u.username} joined via invite`);
     }
+  } else {
+    console.log('  all members present');
+  }
+  // Verify — a seed that cannot prove membership must fail loudly.
+  const membersAfter = await apiFetch(`/servers/${serverId}/members`, { jar: alice.jar });
+  const haveNow = new Set(membersAfter.body.map(m => m.userId));
+  for (const u of [alice, bob, carol, dave]) {
+    if (!haveNow.has(u.userId)) throw new Error(`seed verification failed: ${u.username} is not a member`);
   }
 
   // ── Roles: Admin, Mod, Member (lookup first; create if missing) ──

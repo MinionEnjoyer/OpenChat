@@ -20,3 +20,9 @@ All three corrections are server-observed; server behavior beats aspirational co
   cookie (composite AuthGuard, P1-02). Cookie behavior unchanged.
 - `POST /auth/dev-login` response extended with accessToken/refreshToken/expiresIn
   when DEV_AUTH=1 (intentional characterization change, P1-02).
+
+## P2 ground-truth correction (2026-07-25)
+- `subscribe`/`unsubscribe`: `d.channelId` (singular, one frame per channel) —
+  NOT `channelIds[]` as previously recorded.
+- `message.created`: `d: {message, nonce?}` (relay wraps; echo adds nonce) —
+  NOT a bare Message. Verified against events.gateway.ts and live probe.

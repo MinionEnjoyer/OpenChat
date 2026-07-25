@@ -1,9 +1,9 @@
 {
-  "generated": "2026-07-25T06:45:20.266Z",
+  "generated": "2026-07-25T07:17:26.335Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
-    "satisfied": 4,
+    "satisfied": 12,
     "missing": 0,
     "errors": 0
   },
@@ -11,8 +11,13 @@
   "rows": [
     {
       "id": "FR-APP-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml",
+          "line": 2
+        }
+      ],
       "missing": false
     },
     {
@@ -23,8 +28,13 @@
     },
     {
       "id": "FR-APP-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/stores/__tests__/connection.test.ts",
+          "line": 8
+        }
+      ],
       "missing": false
     },
     {
@@ -41,8 +51,13 @@
     },
     {
       "id": "FR-APP-006",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
+          "line": 30
+        }
+      ],
       "missing": false
     },
     {
@@ -69,8 +84,17 @@
     },
     {
       "id": "FR-AUTH-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p1-02-session-restore.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/stores/__tests__/session.test.ts",
+          "line": 24
+        }
+      ],
       "missing": false
     },
     {
@@ -80,6 +104,10 @@
         {
           "file": "apps/api/test/integration/bearer-auth.spec.ts",
           "line": 75
+        },
+        {
+          "file": "apps/mobile/src/stores/__tests__/session.test.ts",
+          "line": 57
         }
       ],
       "missing": false
@@ -97,8 +125,13 @@
     },
     {
       "id": "FR-AUTH-006",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
+          "line": 19
+        }
+      ],
       "missing": false
     },
     {
@@ -109,8 +142,13 @@
     },
     {
       "id": "FR-AUTH-010",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/api/__tests__/client.test.ts",
+          "line": 42
+        }
+      ],
       "missing": false
     },
     {
@@ -163,8 +201,13 @@
     },
     {
       "id": "FR-MSG-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 13
+        }
+      ],
       "missing": false
     },
     {
@@ -511,8 +554,17 @@
     },
     {
       "id": "NFR-07",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/realtime/__tests__/backoff.test.ts",
+          "line": 3
+        },
+        {
+          "file": "apps/mobile/src/realtime/__tests__/gateway.test.ts",
+          "line": 71
+        }
+      ],
       "missing": false
     },
     {

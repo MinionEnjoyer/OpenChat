@@ -19,7 +19,7 @@ channels:
       Single bidirectional WS channel. Messages are JSON frames with
       `{op: string, d: object, id?: string}`. Channel-scoped events
       (message.created, message.updated, message.deleted) require prior
-      `subscribe {channelIds: [...]}`. `presence` is global.
+      `subscribe {channelId: [...]}`. `presence` is global.
     publish:
       summary: Client-to-server operations
       message:
@@ -73,7 +73,7 @@ components:
           d:
             type: object
             properties:
-              channelIds:
+              channelId:
                 type: array
                 items:
                   type: string

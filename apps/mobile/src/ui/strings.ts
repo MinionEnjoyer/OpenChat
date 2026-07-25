@@ -32,6 +32,12 @@ export const strings = {
     membersTitle: 'Members',
     logout: 'Sign out',
   },
+  messages: {
+    empty: 'No messages yet',
+    composerPlaceholder: 'Message',
+    send: 'Send',
+    sendFailed: 'Message failed to send',
+  },
   connection: {
     offline: 'Offline — reconnecting…',
     connecting: 'Connecting…',

@@ -569,3 +569,27 @@ than left silent. The other half of the hook (`tsc --noEmit` over apps/api) was
 run manually and passes — it is the check P0-16 actually fixed. The bypass
 covers a gate that has never functioned, not one that was working and became
 inconvenient.
+
+## 2026-07-25 — P2 messaging core: three defects found by the first real consumer
+
+1. **Contract drift (P0-09 pinned the wrong wire shapes).** `gateway-events.yaml`
+   said `subscribe {channelIds: [...]}` and `message.created d: Message`. The
+   server (`events.gateway.ts`) takes `{channelId}` singular per frame and the
+   relay wraps `d: {message}` (echo path adds `nonce` alongside). The generated
+   client faithfully implemented the wrong contract; the first live consumer got
+   silence. Corrected contract + codegen + client; proven by host-side ws probe
+   then on-device. The ws characterization suite never caught this because it
+   exercised the `message.send` WS op, not subscribe→REST→relay.
+2. **Seed membership was fiction.** `POST /servers/:id/members` only sends an
+   invitation notification; the seed treated it as a direct add and ignored the
+   response. Only the owner was ever a member — every cross-user action 403'd.
+   Rewritten to the invite-code accept flow, and the seed now VERIFIES all four
+   memberships and fails loudly (a seed that cannot prove its fixtures is a
+   vacuous fixture).
+3. **Pending-ghost duplicate.** REST ack echoes `nonce: null`, so the optimistic
+   copy was never replaced — visible as a greyed duplicate row. Client stamps
+   its nonce onto the ack before merging; regression unit test added.
+
+Also this session (P1): release builds block cleartext HTTP (DL-P1-01, fixed via
+expo-build-properties, BACKLOG'd for Phase 8 hardening); seed.mjs did not parse
+(duplicate const).

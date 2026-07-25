@@ -238,8 +238,8 @@ export interface Envelope {
 // ── Client-to-Server ──
 
 export interface PingFrame { op: 'ping'; d: Record<string, never> }
-export interface SubscribeFrame { op: 'subscribe'; d: { channelIds: string[] } }
-export interface UnsubscribeFrame { op: 'unsubscribe'; d: Record<string, never> }
+export interface SubscribeFrame { op: 'subscribe'; d: { channelId: string } }  // P2 ground-truth correction: server takes ONE channelId per frame
+export interface UnsubscribeFrame { op: 'unsubscribe'; d: { channelId: string } }
 export interface MessageSendFrame { op: 'message.send'; d: { channelId: string; content: string; nonce?: string } }
 export interface TypingStartFrame { op: 'typing.start'; d: { channelId: string } }
 export interface PresenceUpdateFrame { op: 'presence.update'; d: { status: string } }
@@ -264,7 +264,7 @@ export interface ReadyFrame {
 
 export interface ErrorFrame { op: 'error'; d: { message: string } }
 
-export interface MessageCreatedFrame { op: 'message.created'; d: Message }
+export interface MessageCreatedFrame { op: 'message.created'; d: { message: Message; nonce?: string } }  // P2 correction: relay wraps in {message}
 export interface MessageUpdatedFrame { op: 'message.updated'; d: Message }
 export interface MessageDeletedFrame { op: 'message.deleted'; d: { id: string; channelId: string } }
 

@@ -7,6 +7,7 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
+import { applyCreated } from './messages';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,11 +20,18 @@ export const queryClient = new QueryClient({
 
 export function applyEvent(frame: S2CFrame): void {
   switch (frame.op) {
+    case 'message.created': {
+      // FR-MSG-002: reconcile by nonce / prepend (sync/messages owns the merge).
+      // Relay wraps as {message}; the sender echo adds the nonce alongside.
+      const msg = frame.d.message.nonce ? frame.d.message : { ...frame.d.message, nonce: frame.d.nonce ?? null };
+      applyCreated(msg);
+      break;
+    }
     case 'notify':
       void queryClient.invalidateQueries();
       break;
     default:
-      // Message/typing/presence ops are consumed starting Phase 2.
+      // Remaining ops (typing/presence/updated/deleted) land later in Phase 2+.
       break;
   }
 }

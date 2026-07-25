@@ -1,7 +1,7 @@
 {
-  "generated": "2026-07-25T06:45:23.836Z",
+  "generated": "2026-07-25T07:17:30.750Z",
   "tool": "tools/nfr/nfr-runner.mjs",
-  "sha": "e79639f",
+  "sha": "7456293",
   "phase": "1",
   "summary": {
     "total": 12,
@@ -54,14 +54,14 @@
       "arm_at_phase": 1,
       "observed_phase": 1,
       "status": "baseline",
-      "value": "universal APK 66.8MB; est. per-ABI 26.6MB; JS bundle 1.1MB",
+      "value": "universal APK 67.1MB; est. per-ABI 26.9MB; JS bundle 1.2MB",
       "evidence": {
         "apk_path": "apps/mobile/android/app/build/outputs/apk/release/app-release.apk",
-        "universal_apk_mb": "66.8",
-        "js_bundle_mb": "1.1",
+        "universal_apk_mb": "67.1",
+        "js_bundle_mb": "1.2",
         "abi_breakdown": "x86=15.8MB armeabi-v7a=10.2MB x86_64=15.2MB arm64-v8a=14.8MB ",
-        "est_per_abi_mb": "26.6",
-        "budget_note": "universal 66.8MB exceeds the 60MB budget; est. per-ABI 26.6MB is within it"
+        "est_per_abi_mb": "26.9",
+        "budget_note": "universal 67.1MB exceeds the 60MB budget; est. per-ABI 26.9MB is within it"
       },
       "reason": "measured and recorded, not gating until phase 1: delivery artifact not decided (universal vs per-ABI split) — see BACKLOG",
       "script": "nfr-03-apk-size.sh"
@@ -92,7 +92,7 @@
       "status": "blocked",
       "blocked_by": "no persisted message cache — Phase 2 (06 §6 defines the bounded cache)",
       "evidence": {
-        "e2e_flows_present": "1",
+        "e2e_flows_present": "3",
         "mobile_cache_module": "absent"
       },
       "reason": "not yet measurable at phase 1; must be armed during phase 2",
@@ -124,7 +124,7 @@
       "status": "blocked",
       "blocked_by": "no gateway client — P1-05 builds the reconnect loop",
       "evidence": {
-        "mobile_realtime_dir": "README.md events.d.ts ",
+        "mobile_realtime_dir": "README.md __tests__ backoff.ts events.d.ts gateway.ts index.ts ",
         "note": "generated event types only; no client implementation"
       },
       "reason": "not yet measurable at phase 1; must be armed during phase 1",
@@ -158,8 +158,8 @@
       "status": "blocked",
       "blocked_by": "no product UI and no core flows to re-run — P0-17 then Phase 1/2",
       "evidence": {
-        "mobile_src_files": "16",
-        "e2e_flows_present": "1",
+        "mobile_src_files": "40",
+        "e2e_flows_present": "3",
         "note": "existing flows are rig validation (@infra), not product flows"
       },
       "reason": "not yet measurable at phase 1; must be armed during phase 2",
@@ -209,7 +209,7 @@
       "status": "blocked",
       "blocked_by": "no product E2E suite — the release gate runs at Phase 8",
       "evidence": {
-        "e2e_flows_present": "1",
+        "e2e_flows_present": "3",
         "last_e2e_run": "artifacts/e2e/last-run.json",
         "note": "existing flows are rig validation (@infra), not product flows"
       },

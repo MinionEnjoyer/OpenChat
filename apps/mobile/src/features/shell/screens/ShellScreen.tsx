@@ -10,6 +10,7 @@ import { api, useSession } from '../../../stores/session';
 import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
+import { ChatPane } from '../../messages';
 import type { Server, Channel, Member } from '../../../api/schema';
 
 /**
@@ -145,11 +146,15 @@ export function ShellScreen(): React.JSX.Element {
               <Text style={styles.topBarAction}>{strings.shell.membersTitle}</Text>
             </Pressable>
           </View>
-          <View style={styles.chatBody}>
-            <Text style={styles.muted} testID="chat-placeholder">
-              {strings.shell.chatPlaceholder}
-            </Text>
-          </View>
+          {activeChannel ? (
+            <ChatPane channelId={activeChannel.id} />
+          ) : (
+            <View style={styles.chatBody}>
+              <Text style={styles.muted} testID="chat-placeholder">
+                {strings.shell.chatPlaceholder}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Surface 4 — members drawer (+ P1-07 profile basics) */}

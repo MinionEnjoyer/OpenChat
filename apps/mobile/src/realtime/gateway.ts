@@ -54,12 +54,12 @@ export class GatewayClient {
   subscribe(channelId: string): void {
     if (this.subscriptions.has(channelId)) return;
     this.subscriptions.add(channelId);
-    this.send('subscribe', { channelIds: [channelId] });
+    this.send('subscribe', { channelId });
   }
 
   unsubscribe(channelId: string): void {
     if (!this.subscriptions.delete(channelId)) return;
-    this.send('unsubscribe', { channelIds: [channelId] });
+    this.send('unsubscribe', { channelId });
   }
 
   private setState(state: ConnectionState): void {
@@ -101,9 +101,10 @@ export class GatewayClient {
       if (frame.op === 'ready') {
         this.attempt = 0;
         this.setState('connected');
-        // Replay the registry, then let the data layer repair what it missed.
-        if (this.subscriptions.size > 0) {
-          this.send('subscribe', { channelIds: [...this.subscriptions] });
+        // Replay the registry (one frame per channel — server protocol), then
+        // let the data layer repair what it missed.
+        for (const channelId of this.subscriptions) {
+          this.send('subscribe', { channelId });
         }
         this.deps.onResync();
       }
