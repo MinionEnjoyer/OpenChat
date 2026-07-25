@@ -7,7 +7,7 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
-import { applyCreated } from './messages';
+import { applyCreated, applyUpdated, applyDeleted } from './messages';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,6 +25,18 @@ export function applyEvent(frame: S2CFrame): void {
       // Relay wraps as {message}; the sender echo adds the nonce alongside.
       const msg = frame.d.message.nonce ? frame.d.message : { ...frame.d.message, nonce: frame.d.nonce ?? null };
       applyCreated(msg);
+      break;
+    }
+    case 'message.updated': {
+      // FR-MSG-003: Gateway wraps as {message} per events.gateway.ts relay().
+      const m = (frame.d as { message?: unknown }).message as Parameters<typeof applyUpdated>[0] | undefined;
+      if (m && m.id) applyUpdated(m);
+      break;
+    }
+    case 'message.deleted': {
+      // FR-MSG-004: Gateway sends d: {id, channelId}.
+      const d = frame.d as { id: string; channelId: string };
+      if (d.id && d.channelId) applyDeleted(d.channelId, d.id);
       break;
     }
     case 'notify':

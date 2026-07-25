@@ -266,7 +266,7 @@ export function ShellScreen(): React.JSX.Element {
         </View>
 
         {activeChannel ? (
-          <ChatPane channelId={activeChannel.id} />
+          <ChatPane channelId={activeChannel.id} serverId={serverId} />
         ) : (
           <View style={styles.chatBody}>
             <Text style={styles.muted} testID="chat-placeholder">

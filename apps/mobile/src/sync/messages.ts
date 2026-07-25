@@ -58,11 +58,49 @@ export function mergeCreated(list: PendingMessage[] | undefined, incoming: Messa
   return [incoming, ...existing];
 }
 
+/**
+ * Pure merge for an incoming message.updated. Replaces the message at its id
+ * in place (FR-MSG-003). Unknown id is a no-op.
+ */
+export function mergeUpdated(list: PendingMessage[] | undefined, incoming: Message): PendingMessage[] {
+  const existing = list ?? [];
+  const idx = existing.findIndex((m) => m.id === incoming.id);
+  if (idx < 0) return existing;
+  const next = [...existing];
+  next[idx] = incoming;
+  return next;
+}
+
+/**
+ * Pure merge for an incoming message.deleted. Marks the message as soft-deleted
+ * (FR-MSG-004). Unknown id is a no-op.
+ */
+export function mergeDeleted(list: PendingMessage[] | undefined, id: string): PendingMessage[] {
+  const existing = list ?? [];
+  const idx = existing.findIndex((m) => m.id === id);
+  if (idx < 0) return existing;
+  const next = [...existing];
+  next[idx] = { ...next[idx], deletedAt: new Date().toISOString() } as PendingMessage;
+  return next;
+}
+
 // ── Cache writers ──
 
 export function applyCreated(incoming: Message): void {
   queryClient.setQueryData<PendingMessage[]>(messageKeys.list(incoming.channelId), (old) =>
     mergeCreated(old, incoming),
+  );
+}
+
+export function applyUpdated(incoming: Message): void {
+  queryClient.setQueryData<PendingMessage[]>(messageKeys.list(incoming.channelId), (old) =>
+    mergeUpdated(old, incoming),
+  );
+}
+
+export function applyDeleted(channelId: string, id: string): void {
+  queryClient.setQueryData<PendingMessage[]>(messageKeys.list(channelId), (old) =>
+    mergeDeleted(old, id),
   );
 }
 
