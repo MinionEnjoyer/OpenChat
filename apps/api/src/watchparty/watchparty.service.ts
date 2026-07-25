@@ -49,14 +49,20 @@ export class WatchPartyService {
     return channel;
   }
 
-  async search(query: string): Promise<LibraryItem[]> {
+  async search(query: string, type: 'all' | 'movie' | 'show' | 'music' = 'all'): Promise<LibraryItem[]> {
     const { url, key } = this.jellyfin();
+    // Only include directly-playable item types (Series/albums are containers).
+    const includeItemTypes =
+      type === 'movie' ? 'Movie' :
+      type === 'show' ? 'Episode' :
+      type === 'music' ? 'Audio' :
+      'Movie,Episode,Audio';
     const params = new URLSearchParams({
       Recursive: 'true',
-      IncludeItemTypes: 'Movie,Episode,Series',
-      Limit: '40',
+      IncludeItemTypes: includeItemTypes,
+      Limit: '60',
       Fields: 'RunTimeTicks',
-      SortBy: 'SortName',
+      SortBy: type === 'music' ? 'Album,SortName' : 'SortName',
       ...(query ? { searchTerm: query } : {}),
     });
     const res = await fetch(`${url}/Items?${params.toString()}`, { headers: { 'X-Emby-Token': key } });
@@ -91,8 +97,16 @@ export class WatchPartyService {
     const { url, key } = this.jellyfin();
     const headers: Record<string, string> = { 'X-Emby-Token': key };
     if (req.headers.range) headers['Range'] = req.headers.range as string;
-    const params = new URLSearchParams({ container: 'mp4', videoCodec: 'h264', audioCodec: 'aac', audioChannels: '2' });
-    const upstream = await fetch(`${url}/Videos/${itemId}/stream.mp4?${params.toString()}`, { headers });
+    let upstreamUrl: string;
+    if (req.query.kind === 'audio') {
+      // Music track — stream as MP3 (transcoded if needed) so a <video> element can play it.
+      const params = new URLSearchParams({ audioCodec: 'mp3' });
+      upstreamUrl = `${url}/Audio/${itemId}/stream.mp3?${params.toString()}`;
+    } else {
+      const params = new URLSearchParams({ container: 'mp4', videoCodec: 'h264', audioCodec: 'aac', audioChannels: '2' });
+      upstreamUrl = `${url}/Videos/${itemId}/stream.mp4?${params.toString()}`;
+    }
+    const upstream = await fetch(upstreamUrl, { headers });
     res.status(upstream.status);
     for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
       const v = upstream.headers.get(h);
@@ -111,38 +125,32 @@ export class WatchPartyService {
     return 'video';
   }
 
-  // A YouTube party stores its ref as "yt:<videoId>" in jellyfinItemId (no schema change);
-  // a Jellyfin party stores the raw Jellyfin item id.
+  // The party ref is stored in jellyfinItemId (no schema change): "yt:<id>" = YouTube,
+  // "ja:<id>" = Jellyfin audio (music), anything else = a Jellyfin video item.
+  private parseRef(ref: string): { source: 'youtube' | 'jellyfin'; audio: boolean; id: string } {
+    if (ref.startsWith('yt:')) return { source: 'youtube', audio: false, id: ref.slice(3) };
+    if (ref.startsWith('ja:')) return { source: 'jellyfin', audio: true, id: ref.slice(3) };
+    return { source: 'jellyfin', audio: false, id: ref };
+  }
+
   private serialize(p: any, name?: string) {
     const ref: string = p.jellyfinItemId;
     const hostName: string = p.host?.displayName || p.host?.username || 'Host';
-    if (ref.startsWith('yt:')) {
+    const { source, audio, id } = this.parseRef(ref);
+    if (source === 'youtube') {
       return {
-        id: p.id,
-        channelId: p.channelId,
-        hostId: p.hostId,
-        hostName,
-        source: 'youtube' as const,
-        itemId: ref,
-        youtubeId: ref.slice(3),
+        id: p.id, channelId: p.channelId, hostId: p.hostId, hostName,
+        source: 'youtube' as const, itemId: ref, youtubeId: id,
         itemName: name ?? 'YouTube video',
-        positionMs: p.positionMs,
-        paused: p.paused,
-        streamUrl: null,
+        positionMs: p.positionMs, paused: p.paused, streamUrl: null,
       };
     }
     return {
-      id: p.id,
-      channelId: p.channelId,
-      hostId: p.hostId,
-      hostName,
-      source: 'jellyfin' as const,
-      itemId: ref,
-      youtubeId: null,
+      id: p.id, channelId: p.channelId, hostId: p.hostId, hostName,
+      source: 'jellyfin' as const, itemId: ref, youtubeId: null,
       itemName: name ?? p.itemName,
-      positionMs: p.positionMs,
-      paused: p.paused,
-      streamUrl: `/api/watchparty/stream/${ref}`,
+      positionMs: p.positionMs, paused: p.paused,
+      streamUrl: `/api/watchparty/stream/${id}${audio ? '?kind=audio' : ''}`,
     };
   }
 
@@ -150,8 +158,9 @@ export class WatchPartyService {
 
   /** Display name for a party ref — instant for YouTube, a Jellyfin lookup otherwise. */
   private async nameFor(ref: string): Promise<string> {
-    if (ref.startsWith('yt:')) return 'YouTube video';
-    return this.itemName(ref);
+    const { source, id } = this.parseRef(ref);
+    if (source === 'youtube') return 'YouTube video';
+    return this.itemName(id);
   }
 
   private async publish(channelId: string, state: any | null) {
@@ -170,14 +179,14 @@ export class WatchPartyService {
     return state;
   }
 
-  async start(channelId: string, userId: string, opts: { itemId?: string; youtubeId?: string }) {
+  async start(channelId: string, userId: string, opts: { itemId?: string; youtubeId?: string; audio?: boolean }) {
     await this.assertAccess(channelId, userId);
     let ref: string;
     if (opts.youtubeId) {
       if (!/^[A-Za-z0-9_-]{6,20}$/.test(opts.youtubeId)) throw new BadRequestException('Invalid YouTube video id');
       ref = `yt:${opts.youtubeId}`;
     } else if (opts.itemId) {
-      ref = opts.itemId;
+      ref = opts.audio ? `ja:${opts.itemId}` : opts.itemId;
     } else {
       throw new BadRequestException('Provide a Jellyfin item or a YouTube video');
     }

@@ -28,6 +28,7 @@ function youTubeId(input: string): string | null {
 
 export function WatchPartyPicker({ onPick, onPickYoutube, onClose }: { onPick: (item: LibraryItem) => void; onPickYoutube: (videoId: string) => void; onClose: () => void }) {
   const [q, setQ] = useState('');
+  const [type, setType] = useState<'all' | 'movie' | 'show' | 'music'>('all');
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,18 +45,19 @@ export function WatchPartyPicker({ onPick, onPickYoutube, onClose }: { onPick: (
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
     const t = setTimeout(async () => {
       try {
-        const res = await watchpartySearch(q);
+        const res = await watchpartySearch(q, type);
         if (!cancelled) setItems(res);
       } catch (e: any) {
-        if (!cancelled) setError(e?.message?.replace(/^API Error \d+:\s*/, '') || 'Search failed.');
+        if (!cancelled) { setItems([]); setError(e?.message?.replace(/^API Error \d+:\s*/, '') || 'Search failed.'); }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [q]);
+  }, [q, type]);
 
   return (
     <div
@@ -84,6 +86,19 @@ export function WatchPartyPicker({ onPick, onPickYoutube, onClose }: { onPick: (
           </div>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Jellyfin library…"
             style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none' }} />
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            {([['all', 'All'], ['movie', '🎬 Movies'], ['show', '📺 Shows'], ['music', '🎵 Music']] as const).map(([val, lbl]) => (
+              <button key={val} onClick={() => setType(val)}
+                style={{
+                  padding: '5px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                  border: '1px solid ' + (type === val ? 'var(--accent)' : 'var(--border)'),
+                  background: type === val ? 'var(--accent)' : 'var(--input-bg)',
+                  color: type === val ? 'var(--accent-text)' : 'var(--text)',
+                }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
           {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}

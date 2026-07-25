@@ -10,6 +10,7 @@ import type { User } from '@prisma/client';
 const StartDto = z.object({
   itemId: z.string().min(1).optional(),
   youtubeId: z.string().min(1).optional(),
+  audio: z.boolean().optional(),
 }).refine((d) => d.itemId || d.youtubeId, { message: 'itemId or youtubeId is required' });
 const StateDto = z.object({ positionMs: z.number().nonnegative(), paused: z.boolean() });
 
@@ -20,10 +21,13 @@ export class WatchPartyController {
 
   @Get('library')
   search(
-    @Query(new ZodValidationPipe(z.object({ q: z.string().max(200).default('') }))) query: { q: string },
+    @Query(new ZodValidationPipe(z.object({
+      q: z.string().max(200).default(''),
+      type: z.enum(['all', 'movie', 'show', 'music']).default('all'),
+    }))) query: { q: string; type: 'all' | 'movie' | 'show' | 'music' },
     @CurrentUser() _user: User,
   ) {
-    return this.wp.search(query.q);
+    return this.wp.search(query.q, query.type);
   }
 
   @Get('image/:itemId')
@@ -45,7 +49,7 @@ export class WatchPartyController {
   start(
     @Param('channelId') channelId: string,
     @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(StartDto)) body: { itemId?: string; youtubeId?: string },
+    @Body(new ZodValidationPipe(StartDto)) body: { itemId?: string; youtubeId?: string; audio?: boolean },
   ) {
     return this.wp.start(channelId, user.id, body);
   }

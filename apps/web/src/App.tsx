@@ -637,7 +637,7 @@ export default function App() {
     setWatchPickerOpen(false);
     if (!s.activeChannelId) return;
     try {
-      const state = await api.watchpartyStart(s.activeChannelId, item.id);
+      const state = await api.watchpartyStart(s.activeChannelId, item.id, item.type === 'Audio');
       setPartyByChannel((prev) => ({ ...prev, [state.channelId]: state }));
     } catch { alert('Could not start the watch party.'); }
   }

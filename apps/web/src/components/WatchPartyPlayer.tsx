@@ -10,11 +10,13 @@ import { serverOrigin } from '../lib/serverConfig';
 export function WatchPartyPlayer({
   party,
   isHost,
+  viewers,
   onState,
   onStop,
 }: {
   party: WatchPartyState;
   isHost: boolean;
+  viewers?: string[];
   onState: (positionMs: number, paused: boolean) => void;
   onStop: () => void;
 }) {
@@ -26,6 +28,12 @@ export function WatchPartyPlayer({
           👑 {isHost ? 'You' : party.hostName}
         </span>
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isHost ? 'You control playback' : 'Host controls playback'}</span>
+        {viewers && viewers.length > 0 && (
+          <span title={`Watching: ${viewers.join(', ')}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)', minWidth: 0 }}>
+            👁 {viewers.length}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>· {viewers.join(', ')}</span>
+          </span>
+        )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           {isHost && (
             <button onClick={onStop} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>

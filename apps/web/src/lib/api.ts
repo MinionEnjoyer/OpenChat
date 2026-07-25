@@ -137,15 +137,15 @@ export const voiceParticipants = (channelId: string) =>
   request<{ id: string; username: string; displayName: string | null; avatarUrl: string | null }[]>(`/voice/${channelId}/participants`);
 
 export const watchpartyGet = (channelId: string) => request<WatchPartyState | null>(`/watchparty/${channelId}`);
-export const watchpartyStart = (channelId: string, itemId: string) =>
-  request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ itemId }) });
+export const watchpartyStart = (channelId: string, itemId: string, audio = false) =>
+  request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ itemId, audio }) });
 export const watchpartyStartYoutube = (channelId: string, youtubeId: string) =>
   request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ youtubeId }) });
 export const watchpartyState = (channelId: string, positionMs: number, paused: boolean) =>
   request<WatchPartyState>(`/watchparty/${channelId}/state`, { method: 'POST', body: JSON.stringify({ positionMs, paused }) });
 export const watchpartyStop = (channelId: string) =>
   request<{ success: true }>(`/watchparty/${channelId}/stop`, { method: 'POST' });
-export const watchpartySearch = (q: string) =>
-  request<LibraryItem[]>(`/watchparty/library?q=${encodeURIComponent(q)}`);
+export const watchpartySearch = (q: string, type: 'all' | 'movie' | 'show' | 'music' = 'all') =>
+  request<LibraryItem[]>(`/watchparty/library?q=${encodeURIComponent(q)}&type=${type}`);
 
 export const gifSearch = (q: string) => request<Gif[]>(`/gifs/search?q=${encodeURIComponent(q)}`);

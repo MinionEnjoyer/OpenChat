@@ -291,7 +291,7 @@ export function CallView({
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {party && (
-        <WatchPartyPlayer party={party} isHost={party.hostId === meId} onState={onWatchState} onStop={onStopWatch} />
+        <WatchPartyPlayer party={party} isHost={party.hostId === meId} viewers={participants.map((p) => p.name)} onState={onWatchState} onStop={onStopWatch} />
       )}
 
       <div style={{ flex: 1, minHeight: 0, overflowY: theater ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', alignItems: theater ? 'stretch' : 'center', justifyContent: theater ? 'flex-start' : 'center', padding: theater ? 16 : 24, gap: theater ? 14 : 20 }}>
