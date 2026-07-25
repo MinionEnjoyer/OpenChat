@@ -29,6 +29,7 @@ import { ChatPane, PinsPanel } from '../../messages';
 import { storage } from '../../../lib/storageInstance';
 import { saveLastChannel } from '../coldstart';
 import type { Server, Channel, Member } from '../../../api/schema';
+import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -53,6 +54,10 @@ export function ShellScreen(): React.JSX.Element {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [pinsVisible, setPinsVisible] = useState(false);
+  // Server create / settings overlay state
+  const [showCreateServer, setShowCreateServer] = useState(false);
+  const [showSettingsServer, setShowSettingsServer] = useState(false);
+  const [settingsServerId, setSettingsServerId] = useState<string | null>(null);
 
   // Drawer state lives in shared values for 60fps gesture tracking.
   const leftOpen = useSharedValue(0); // 0 = closed, 1 = open
@@ -365,13 +370,36 @@ export function ShellScreen(): React.JSX.Element {
                   </Pressable>
                 )}
               />
+              {/* Create server button */}
+              <Pressable
+                style={styles.railItem}
+                onPress={() => setShowCreateServer(true)}
+                accessibilityLabel={strings.servers.createButton}
+                testID="rail-create-server"
+              >
+                <Text style={styles.railItemText}>{strings.servers.createButtonNav}</Text>
+              </Pressable>
             </View>
 
             {/* Channel list */}
             <View style={styles.channels} testID="channel-drawer">
-              <Text style={styles.drawerTitle} testID="channel-drawer-title">
-                {activeServer?.name ?? strings.shell.channelsFallbackTitle}
-              </Text>
+              <View style={styles.channelHeader}>
+                <Text style={styles.drawerTitle} testID="channel-drawer-title">
+                  {activeServer?.name ?? strings.shell.channelsFallbackTitle}
+                </Text>
+                {activeServer && (
+                  <Pressable
+                    onPress={() => {
+                      setSettingsServerId(activeServer.id);
+                      setShowSettingsServer(true);
+                    }}
+                    accessibilityLabel={strings.servers.settingsButton}
+                    testID="server-settings-button"
+                  >
+                    <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
+                  </Pressable>
+                )}
+              </View>
               {textChannels.length === 0 ? (
                 <Text style={styles.muted}>
                   {servers.data?.length === 0
@@ -464,6 +492,46 @@ export function ShellScreen(): React.JSX.Element {
           </View>
         </GestureDetector>
       </Animated.View>
+
+      {/* ── Server create overlay ── (FR-SRV-002) */}
+      {showCreateServer && (
+        <View style={styles.overlay}>
+          <CreateServerScreen
+            onDone={(newServerId) => {
+              setShowCreateServer(false);
+              if (newServerId) {
+                setSelectedServerId(newServerId);
+                setSelectedChannelId(null);
+              }
+            }}
+          />
+        </View>
+      )}
+
+      {/* ── Server settings overlay ── (FR-SRV-003) */}
+      {showSettingsServer && settingsServerId && (
+        <View style={styles.overlay}>
+          {(() => {
+            const srv = servers.data?.find((s) => s.id === settingsServerId);
+            if (!srv) {
+              setShowSettingsServer(false);
+              return null;
+            }
+            return (
+              <ServerSettingsScreen
+                server={srv}
+                onDone={(deleted) => {
+                  setShowSettingsServer(false);
+                  if (deleted) {
+                    setSelectedServerId(null);
+                    setSelectedChannelId(null);
+                  }
+                }}
+              />
+            );
+          })()}
+        </View>
+      )}
 
       {/* Edge gesture zones (invisible strips at screen edges) */}
       <GestureDetector gesture={leftEdgeGesture}>
@@ -584,8 +652,14 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: palette.text,
     fontWeight: '700',
+  },
+  channelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  settingsGlyph: { fontSize: 18, color: palette.textMuted },
   channelRow: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,
@@ -641,6 +715,12 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: palette.danger,
     fontWeight: '700',
+  },
+
+  // ── Full-screen overlay (create / settings) ──
+  overlay: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 50,
   },
 
   // ── Edge gesture zones ──
