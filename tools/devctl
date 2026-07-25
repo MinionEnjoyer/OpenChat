@@ -626,14 +626,16 @@ cmd_verify() {
     echo "  ✓ characterization tests pass"
   fi
 
-  # 5. Traceability — every FR up to the current phase must have an @satisfies annotation.
-  # The current phase is read from .phase at repo root (single source of truth).
-  # Earlier phases' FRs stay traced forever — losing a test annotation is a regression.
+  # 5. Traceability — every FR of every COMPLETED phase must keep its @satisfies
+  # annotation (losing one is a regression). The in-progress phase's FRs are due
+  # at its signoff, not on the day it opens — same phase-exit semantics as the
+  # NFR ratchet. .phase = the phase currently in progress, so completed = .phase-1.
   if [ "$only_layer" = "" ] || [ "$only_layer" = "trace" ]; then
-    local cur_phase
+    local cur_phase done_phase
     cur_phase=$(read_phase)
-    echo "[devctl] trace check — verifying Phase 0–${cur_phase} requirements have @satisfies annotations…"
-    cmd_trace check --phase "$cur_phase" || {
+    done_phase=$(( cur_phase > 0 ? cur_phase - 1 : 0 ))
+    echo "[devctl] trace check — verifying completed phases 0–${done_phase} keep their @satisfies annotations…"
+    cmd_trace check --phase "$done_phase" || {
       echo "  ✗ trace check failed"
       exit 1
     }
@@ -678,6 +680,7 @@ Commands:
   e2e           Run Maestro E2E flows against connected emulator(s) [--json] [<flow>]
   screenshot    Capture the emulator screen to artifacts/e2e/screens/<name>.png
                 (--screen <name>; verifies PNG magic bytes)
+  netcheck      Assert the emulator reaches the host (10.0.2.2) and the API answers
   commit        Safe commit: fail if tree is dirty, warn about untracked files
 
 Flags:
@@ -1014,6 +1017,7 @@ case "${1:-}" in
   trace)         shift; cmd_trace "$@";;
   nfr)           shift; cmd_nfr "$@";;
   screenshot)    shift; cmd_screenshot "$@";;
+  netcheck)      shift; bash "$ROOT/tools/probe/emulator-net.sh" "$@";;
   device)        shift; cmd_device_up "$@";;
   e2e)           cmd_e2e "$@";;
   commit)        shift; cmd_commit "$@";;

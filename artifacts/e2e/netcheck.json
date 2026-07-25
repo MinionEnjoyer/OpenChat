@@ -1,0 +1,7 @@
+{
+  "checkedAt": "2026-07-25T06:31:34Z",
+  "tool": "tools/probe/emulator-net.sh",
+  "l3_device_to_host": {"target": "10.0.2.2", "result": "reachable", "detail": "0% packet loss"},
+  "l7_api_from_host": {"url": "http://localhost:3001/api/health", "status": 200},
+  "note": "L7-from-device was proven once in P0-15 (artifacts/e2e/net-probe.json); the device image has no curl, so it is not re-run here. Phase 1 API-backed flows supersede this check."
+}
