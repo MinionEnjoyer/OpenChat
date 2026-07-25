@@ -1047,3 +1047,52 @@ interface Attachment {
   11 suites, 89 tests, all pass
 - `npx tsc --noEmit` — rc=0
 - `node tools/codegen/gen.mjs --check` — matches committed
+
+## 2026-07-25 — P2 · FR-MSG-013 + FR-MSG-014 (William B. Sexton)
+
+### FR-MSG-013 — Link auto-embeds: COMPLETE
+
+**Open question resolved:** Backend provides zero embed data. The Message shape has
+`content: string` and `attachments` only — no `embeds`, no `unfurl`, no preview
+service. Web does 100% client-side detection in `MessageEmbeds.tsx` (pure functions
+`youTubeId`, `shareRef`, `directImage`). Mobile mirrors this approach.
+
+**Files created:**
+- `apps/mobile/src/domain/embeds.ts` — Pure functions: `extractYouTubeId`,
+  `extractShareRef`, `isDirectImageUrl`, `classifyUrl`, `classifyEmbeds`,
+  `extractUrls`, `isSingleEmbedUrl`. EmbedCard discriminated union: youtube,
+  share-image, share-video, share-generic, gif, link.
+- `apps/mobile/src/features/messages/MessageEmbeds.tsx` — Renders embed cards
+  below message content: YouTube thumbnail with play overlay, GIF image,
+  Share images, link cards with 🔗 + hostname + URL.
+- `apps/mobile/src/features/messages/serverConfig.ts` — Zustand store fetching
+  `/api/config` once at boot to get `shareBaseUrl` for Share embed detection.
+
+**ChatPane integration:** `<MessageEmbeds>` below message content. Content text
+hidden when `isSingleEmbedUrl(content, shareHost)` returns true (matching web).
+
+### FR-MSG-014 — GIF picker: COMPLETE
+
+**Feature flag:** Server's `/api/config` has no `giphyEnabled` field. Flag is
+derived from reality: probe `GET /api/gifs/search?q=` once — 200 = enabled,
+400 = not configured. Zustand store `useGifFeature` caches the result.
+
+**Files created:**
+- `apps/mobile/src/features/messages/gifFeature.ts` — One-shot probe, idempotent.
+- `apps/mobile/src/features/messages/GifPicker.tsx` — Modal with search input,
+  debounced search (300ms), 2-column GIF grid, trending on open, "Powered by GIPHY"
+  footer.
+
+**ChatPane integration:** GIF button in composer (hidden when `gifEnabled !== true`).
+On GIF select, sends the GIF URL as message content.
+
+### Strings (NFR-11)
+- `embeds`: youtubeTitle, linkTitle, openLink, youtubePlay, shareSeparator, linkIcon
+- `gifs`: searchPlaceholder, loading, searchFailed, notConfigured, poweredBy, button, close
+
+### Verification
+- `npx tsc --noEmit` — rc=0
+- `npx eslint . --max-warnings=0` — rc=0
+- `npx jest` — 23 suites, 300 tests, all pass
+- Prove-fail: broke YouTube assertion → 7 failures → restored → all pass
+

@@ -89,6 +89,23 @@ export const strings = {
     twoConjunction: 'and',
     many: 'Several people are typing\u2026',
   },
+  embeds: {
+    youtubeTitle: 'YouTube',
+    linkTitle: 'Link',
+    openLink: 'Open link',
+    youtubePlay: '▶',
+    shareSeparator: '/',
+    linkIcon: '🔗',
+  },
+  gifs: {
+    searchPlaceholder: 'Search GIFs…',
+    loading: 'Loading…',
+    searchFailed: 'GIF search failed',
+    notConfigured: 'GIF search is not configured',
+    poweredBy: 'Powered by GIPHY',
+    button: 'GIF',
+    close: '✕',
+  },
   common: {
     retry: 'Retry',
     cancel: 'Cancel',
