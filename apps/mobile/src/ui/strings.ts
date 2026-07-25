@@ -228,6 +228,30 @@ export const strings = {
     share: 'Share',
     shareIcon: '\u2B06',
     galleryCounterSeparator: '\u00A0/\u00A0',
+    pickerTitle: 'Add attachment',
+    photoLibrary: 'Photo Library',
+    photoLibraryIcon: '\u{1F4F7}',
+    camera: 'Camera',
+    cameraIcon: '\u{1F4F8}',
+    files: 'Files',
+    filesIcon: '\u{1F4C1}',
+    cancel: 'Cancel',
+    remove: 'Remove',
+    doneIcon: '\u2713',
+    fileIcon: '\u{1F4C4}',
+    originalToggle: 'Original',
+    /** @satisfies FR-MED-030 */
+    originalLabel: 'Original',
+    cancelUpload: 'Cancel upload',
+    attach: '+',
+    uploadFailed: 'Upload failed',
+    uploading: 'Uploading\u2026',
+    tooManyFiles: 'Maximum 10 files per message',
+    fileTooLarge: 'File too large (100 MB)',
+    /** @satisfies FR-MED-030 */
+    compressing: 'Compressing\u2026',
+    /** @satisfies FR-MED-030 */
+    compressFailed: 'Compression failed',
   },
   members: {
     title: 'Members',
@@ -244,8 +268,6 @@ export const strings = {
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
   },
-<<<<<<< HEAD
-<<<<<<< HEAD
   presence: {
     title: 'Set Status',
     statusLabel: 'Presence status',
@@ -263,43 +285,11 @@ export const strings = {
     iconLabel: 'Server icon',
     iconSaved: 'Server icon updated',
   },
-  // FR-MED-010 — compose attachments
-  attachments: {
-    pickerTitle: 'Add attachment',
-    photoLibrary: 'Photo Library',
-    photoLibraryIcon: '\u{1F4F7}',
-    camera: 'Camera',
-    cameraIcon: '\u{1F4F8}',
-    files: 'Files',
-    filesIcon: '\u{1F4C1}',
-    cancel: 'Cancel',
-    remove: 'Remove',
-    closeIcon: '\u2715',
-    doneIcon: '\u2713',
-    fileIcon: '\u{1F4C4}',
-    originalToggle: 'Original',
-    cancelUpload: 'Cancel upload',
-    attach: '+',
-    uploadFailed: 'Upload failed',
-    uploading: 'Uploading\u2026',
-    tooManyFiles: 'Maximum 10 files per message',
-    fileTooLarge: 'File too large (100 MB)',
-=======
-  attachments: {
-    /** @satisfies FR-MED-030 */
-    originalLabel: 'Original',
-    /** @satisfies FR-MED-030 */
-    compressing: 'Compressing\u2026',
-    /** @satisfies FR-MED-030 */
-    compressFailed: 'Compression failed',
->>>>>>> med-compress
-=======
   // @satisfies FR-NOTIF-004
   notifications: {
     genericNotification: 'New notification',
     mentionToast: '{author} mentioned you in #{channel}: {preview}',
-    callRingToast: '{caller} is calling…',
->>>>>>> notif-foreground
+    callRingToast: '{caller} is calling\u2026',
   },
 } as const;
 

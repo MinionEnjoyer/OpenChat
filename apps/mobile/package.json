@@ -30,8 +30,6 @@
     "react-native-gesture-handler": "~2.32.0",
     "react-native-mmkv": "^3.3.3",
     "react-native-reanimated": "4.5.0",
-    "expo-image-picker": "~57.0.2",
-    "expo-image-manipulator": "~57.0.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
