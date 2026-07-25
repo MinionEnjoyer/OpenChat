@@ -9,6 +9,7 @@ import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
 import { applyCreated, applyUpdated, applyDeleted } from './messages';
 import { useTyping } from '../stores/typing';
+import { handleForegroundNotification } from '../features/notifications';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,7 +45,18 @@ export function applyEvent(frame: S2CFrame): void {
     }
     case 'notify':
       void queryClient.invalidateQueries();
+      handleForegroundNotification({ kind: 'notify' });
       break;
+    case 'mention': {
+      const md = frame.d as { channelName: string; authorName: string; preview: string };
+      handleForegroundNotification({ kind: 'mention', channelName: md.channelName, authorName: md.authorName, preview: md.preview });
+      break;
+    }
+    case 'call.ring': {
+      const cd = frame.d as { callerName: string };
+      handleForegroundNotification({ kind: 'call.ring', callerName: cd.callerName });
+      break;
+    }
     default:
       // Remaining ops (presence/deleted) land later in Phase 2+.
       break;

@@ -245,6 +245,7 @@ export const strings = {
     leaveConfirmOk: 'Leave',
   },
 <<<<<<< HEAD
+<<<<<<< HEAD
   presence: {
     title: 'Set Status',
     statusLabel: 'Presence status',
@@ -292,6 +293,13 @@ export const strings = {
     /** @satisfies FR-MED-030 */
     compressFailed: 'Compression failed',
 >>>>>>> med-compress
+=======
+  // @satisfies FR-NOTIF-004
+  notifications: {
+    genericNotification: 'New notification',
+    mentionToast: '{author} mentioned you in #{channel}: {preview}',
+    callRingToast: '{caller} is calling…',
+>>>>>>> notif-foreground
   },
 } as const;
 
