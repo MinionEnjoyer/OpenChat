@@ -30,6 +30,21 @@ export const DEFAULT_DEV_CONFIG: AppConfig = {
 export class ConfigError extends Error {}
 
 /**
+ * Return the resolved API base URL.
+ * 
+ * In tests, `configureSession` may override the session's config;
+ * this function returns the module-level resolved config which
+ * defaults to `DEFAULT_DEV_CONFIG.apiBaseUrl`.
+ * 
+ * For the production path, the session store's config override
+ * (set via `configureSession`) is authoritative — but `AuthImage`
+ * can accept an explicit `baseUrl` prop for that scenario.
+ */
+export function getApiBaseUrl(): string {
+  return resolveConfig().apiBaseUrl;
+}
+
+/**
  * Builds config from raw values, failing loudly on anything malformed. A
  * silently-wrong base URL surfaces later as an unexplained network error, which
  * is far more expensive to diagnose than a startup crash naming the field.

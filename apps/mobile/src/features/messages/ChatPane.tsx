@@ -29,6 +29,7 @@ import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
 import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
+import { AttachmentGrid } from '../attachments';
 import { useGifFeature } from './gifFeature';
 import { useServerConfig } from './serverConfig';
 import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
@@ -564,6 +565,7 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
                 <Text style={styles.content}>{renderSegmentedContent(msg.content)}</Text>
               )}
               <MessageEmbeds cards={classifyEmbeds(msg.content, shareHost)} />
+              <AttachmentGrid attachments={msg.attachments} />
               {user && (
                 <ReactionPills
                   reactions={msg.reactions}
