@@ -851,7 +851,7 @@ message. No backend change needed.
 
 ## [P2-02] Cold-start channel restore + copy actions (FR-APP-002, FR-MSG-015)
 
-**Commit:** $(git log --oneline -1 --format="%h" 2>/dev/null || echo "pending")
+**Commit:** 77dea2e
 
 **FR-APP-002 — Cold-start channel restore:**
 - `apps/mobile/src/features/shell/coldstart.ts` — `saveLastChannel()` persists
