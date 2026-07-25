@@ -30,6 +30,13 @@ module.exports = [
               message:
                 'ui/ is a leaf: design-system primitives may not depend on app modules (06 §2).',
             },
+            {
+              target: './src/domain',
+              from: './src',
+              except: ['./domain', './api'],
+              message:
+                'domain/ is pure logic: it may not depend on app modules (06 §2). It MAY import type from api/.',
+            },
           ],
         },
       ],

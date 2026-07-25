@@ -22,6 +22,9 @@ import {
 import { optimisticToggle } from '../../domain/reactions';
 import { ReactionPills } from './ReactionPills';
 import { EmojiPicker } from './EmojiPicker';
+import { PollCard } from './PollCard';
+import { PollCreate } from './PollCreate';
+import { voteAction, optimisticVote } from '../../domain/polls';
 import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
 import { GifPicker } from './GifPicker';
@@ -109,6 +112,8 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
     void useServerConfig.getState().fetch();
     void useGifFeature.getState().probe();
   }, []);
+  // Poll state
+  const [showPollCreate, setShowPollCreate] = useState(false);
 
   const canManage = hasManageMessages(serverId);
 
@@ -349,6 +354,38 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
     }
   }, []);
 
+  // Poll voting (FR-MSG-012)
+
+  const handleVotePoll = useCallback(
+    async (message: PendingMessage, optionId: string) => {
+      if (!user || !message.poll) return;
+      const action = voteAction(message.poll, user.id, optionId);
+      if (!action.add && !action.remove) return;
+
+      const optimisticPoll = optimisticVote(message.poll, action.add, action.remove, user.id);
+      const optimistic = { ...message, poll: optimisticPoll };
+      applyUpdated(optimistic as PendingMessage);
+
+      try {
+        const targetId = action.add ?? action.remove!;
+        const updated = await api.request<Message>(
+          `/polls/options/${targetId}/vote`,
+          { method: 'POST' },
+        );
+        applyUpdated(updated);
+      } catch {
+        applyUpdated(message);
+        showToast(strings.poll.voteFailed);
+      }
+    },
+    [user],
+  );
+
+  const handlePollCreated = useCallback((msg: Message) => {
+    applyCreated(msg);
+    setShowPollCreate(false);
+  }, []);
+
   // ── Copy ──────────────────────────────────────────────────────────
 
   const copyText = useCallback(async (content: string) => {
@@ -459,6 +496,13 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
               delayLongPress={400}
               testID={`message-${msg.id}`}
             >
+              {msg.poll && (
+                <PollCard
+                  poll={msg.poll}
+                  userId={user?.id ?? ''}
+                  onVote={(optionId) => void handleVotePoll(msg, optionId)}
+                />
+              )}
               {showAuthor && (
                 <View style={styles.header}>
                   <Text style={styles.author}>
@@ -596,6 +640,14 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
           </Pressable>
         )}
         <Pressable
+          style={styles.pollBtn}
+          onPress={() => setShowPollCreate(true)}
+          accessibilityLabel={strings.poll.createTitle}
+          testID="composer-poll"
+        >
+          <Text style={styles.pollBtnText}>{strings.poll.chartIcon}</Text>
+        </Pressable>
+        <Pressable
           style={styles.send}
           onPress={() => void send(draft)}
           accessibilityLabel={strings.messages.send}
@@ -627,6 +679,14 @@ export function ChatPane({ channelId, serverId, members, myPermissions, serverOw
           (m) => m.reactions.some((r) => r.emoji === reactorEmoji),
         )?.reactions ?? [] : []}
         onClose={() => setReactorEmoji(null)}
+      />
+
+      {/* ── Poll create modal ────────────────────────────────────────── */}
+      <PollCreate
+        visible={showPollCreate}
+        channelId={channelId}
+        onClose={() => setShowPollCreate(false)}
+        onCreated={handlePollCreated}
       />
 
       {/* ── Edit modal ──────────────────────────────────────────────── */}
@@ -738,6 +798,8 @@ const styles = StyleSheet.create({
   gifBtnText: { ...typography.caption, color: palette.textMuted, fontWeight: '700' },
   send: { backgroundColor: palette.accent, borderRadius: 8, paddingHorizontal: spacing.md, justifyContent: 'center' },
   sendText: { ...typography.body, color: palette.text, fontWeight: '700' },
+  pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },
+  pollBtnText: { fontSize: 20 },
   // Edit modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg,

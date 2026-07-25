@@ -1096,3 +1096,27 @@ On GIF select, sends the GIF URL as message content.
 - `npx jest` — 23 suites, 300 tests, all pass
 - Prove-fail: broke YouTube assertion → 7 failures → restored → all pass
 
+
+## 2026-07-25 — [P2-12] Polls: create, vote, live results (FR-MSG-012)
+
+**Source:** Read poll routes/shapes from p5-broker `apps/api/src/messages/messages.controller.ts` (lines: createPoll, votePoll) and `messages.service.ts` (lines 279-341: createPoll, votePollOption; lines 640-668: serializeMessage poll shape).
+
+**New files:**
+- `apps/mobile/src/domain/polls.ts` — Pure functions: `validatePollOptions` (2..10 options), `computeTally` (percentage math, zero-votes, ties), `findUserVote` (own-vote detection), `isPollClosed`, `voteAction` (single/multi-choice toggle/switch logic), `optimisticVote` (immutable optimistic update).
+- `apps/mobile/src/domain/__tests__/polls.test.ts` — 24 test cases: option-count validation at 1/2/10/11, tally math with zero votes and ties and order preservation, own-vote detection and null, closed-poll state past/future/null, vote-switching for single-choice (toggle/switch/new) and multi-choice (toggle/add), optimisticVote immutability and add/remove/switch/no-duplicate. `// @satisfies FR-MSG-012`.
+- `apps/mobile/src/features/messages/PollCard.tsx` — Poll renderer: question, options with percentage bars, own-vote highlight (accent), vote counts, closed state banner. Uses domain/ pure functions; no inline math.
+- `apps/mobile/src/features/messages/PollCreate.tsx` — Modal form: question + dynamic options (2..10), add/remove buttons, validation via `validatePollOptions`, POST to channels/:id/polls.
+
+**Changed files:**
+- `apps/mobile/src/ui/strings.ts` — Added `poll.chartIcon`, `poll.closeIcon`, `poll.percentSign`, `poll.totalLabel`.
+- `apps/mobile/src/features/messages/ChatPane.tsx` — Wired PollCard rendering after message header, PollCreate modal triggered from composer 📊 button, `handleVotePoll` with optimistic update (via domain `voteAction`/`optimisticVote`) reconciled from server response via `applyUpdated`.
+- `apps/mobile/src/features/messages/index.ts` — Export PollCard, PollCreate.
+- `apps/mobile/eslint.config.js` — Added `./api` to domain zone except (domain MAY import type from api/ per 06 §2).
+
+**Cache:** Cache writes through `applyUpdated` only (single instance verified: `grep -c 'export function applyUpdated' apps/mobile/src/sync/messages.ts` → 1). Server-side `votePollOption` returns full message → `applyUpdated` reconciles via `mergeMessageUpdate` which uses spread (polls merge naturally).
+
+**Verification:**
+- `npx tsc --noEmit` — rc=0
+- `npx eslint . --max-warnings=0` — rc=0
+- `npx jest` — 22 suites, 267 tests, all pass (24 new poll tests)
+- Prove-fail: intentional wrong optionId in `optimisticVote` test → FAILED (expected ['u1'] got []) → fixed → PASSED
