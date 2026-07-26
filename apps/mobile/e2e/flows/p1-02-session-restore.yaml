@@ -1,14 +1,35 @@
-# p1-02-session-restore — kill → relaunch → still authenticated, no login UI.
+# p1-02-session-restore — login → kill → relaunch → verify session persists.
 # @satisfies FR-AUTH-003
 #
-# Order matters: runs after p1-01 (alphabetical run order guarantees it), which
-# left alice's tokens in the vault. NO clearState — that is the point.
+# e2e:no-clear — this flow tests session persistence. pm clear would wipe
+# expo-secure-store and make the test impossible. The flow handles its own
+# initial cleanup via Maestro clearState, then logs in, kills, relaunches,
+# and asserts the session was restored.
+#
+# Self-contained: does NOT depend on p1-01 or any prior flow.
 
 appId: com.openchat.mobile
 
 ---
+# Clean start — clear any prior session state via Maestro
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Kill the app and relaunch without clearing state.
+# Session tokens in expo-secure-store should survive killApp.
 - killApp
 - launchApp
+# After relaunch, the app should restore the session and show shell-screen,
+# NOT the login screen.
 - assertVisible:
     id: 'shell-screen'
 - assertNotVisible:
