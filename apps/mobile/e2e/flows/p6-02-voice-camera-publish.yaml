@@ -1,15 +1,13 @@
-# p6-02-voice-camera-publish — login → join voice → toggle camera → verify camera state
+# p6-02-voice-camera-publish — login → join voice → navigate to text channel → toggle camera on pill
 # @satisfies FR-VOX-006
 #
 # Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator reaching 10.0.2.2.
 # Camera permission must be granted on emulator for video publish to work.
-# Without a second participant, remote render cannot be verified — this flow tests
-# the camera toggle seam.
 #
 # FR-VOX-006: Camera video publish + remote video render in voice/DM calls.
-# Acceptance criterion: E2E: fake camera stream visible remotely (frame checksum).
-# NOTE: Single-emulator E2E verifies camera toggle exists and enables video publish;
-# remote render requires a second device (see two-device-testing docs).
+# Camera toggle lives on the VoicePill, which only renders when the voice view
+# is not foregrounded. Navigate to a text channel via "Show Chat" first, then
+# toggle camera on the pill.
 
 appId: com.openchat.mobile
 
@@ -36,43 +34,61 @@ appId: com.openchat.mobile
 - assertNotVisible:
     id: 'left-drawer'
 
-# ── Phase 3: Wait for voice connection ──
+# ── Phase 3: Wait for voice view ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# ── Phase 4: Navigate to text channel so pill appears ──
+# Camera toggle is on the pill, which only shows when voice view is not foregrounded.
+- tapOn:
+    id: 'voice-show-chat'
+
+# Pill appears after navigating away from voice view
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
-    timeout: 30000
+    timeout: 15000
+
+# Controls visible when connected
 - assertVisible:
     id: 'voice-pill-controls'
 
-# ── Phase 4: Toggle camera on (FR-VOX-006) ──
-# Camera button should be visible and tappable
+# ── Phase 5: Toggle camera on (FR-VOX-006) ──
 - assertVisible:
     id: 'voice-pill-camera'
 - tapOn:
     id: 'voice-pill-camera'
 
-# After toggle, flip-camera button appears (only when camera is active)
+# After toggle, flip-camera button appears (only when camera is active; async — wait)
 - extendedWaitUntil:
     visible:
       id: 'voice-pill-flip-camera'
-    timeout: 15000
+    timeout: 30000
 
 # Flip camera (verify the button works)
 - tapOn:
     id: 'voice-pill-flip-camera'
 
-# ── Phase 5: Toggle camera off ──
+# ── Phase 6: Toggle camera off ──
 - tapOn:
     id: 'voice-pill-camera'
 
-# Flip-camera button disappears when camera is off
-- assertNotVisible:
-    id: 'voice-pill-flip-camera'
+# Flip-camera button disappears when camera is off (async — wait)
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill-flip-camera'
+    timeout: 10000
 
-# ── Phase 6: Disconnect ──
+# ── Phase 7: Disconnect ──
 - tapOn:
     id: 'voice-pill-disconnect'
-- assertNotVisible:
-    id: 'voice-pill'
+
+# Pill disappears after disconnect (async — wait for it)
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
 
 - takeScreenshot: artifacts/e2e/screens/p6-voice-camera

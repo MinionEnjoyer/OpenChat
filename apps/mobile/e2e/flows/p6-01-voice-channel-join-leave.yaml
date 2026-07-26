@@ -1,12 +1,12 @@
-# p6-01-voice-channel-join-leave — login → join voice channel → pill appears → disconnect → pill gone.
+# p6-01-voice-channel-join-leave — login → join voice channel → voice view appears → show chat → pill appears → disconnect → pill gone.
 # @satisfies FR-VOX-001
 #
 # Requires: dev stack up + seeded (Fixture Guild, voice channels), emulator reaching 10.0.2.2.
 # This flow does its own dev-login so it runs independently.
-# NOTE: The voice-channel wiring fix is on branch vox-join-wiring. This flow asserts the CORRECT
-# behaviour: tapping a VOICE channel calls join() and shows the VoicePill.
 #
-# Voice channels seeded in Fixture Guild: #voice-general, #voice-gaming.
+# Tapping a voice channel auto-joins and shows VoiceChannelView (full voice UI).
+# The VoicePill only appears when NOT looking at the voice view — i.e., after
+# tapping "Show Chat" to navigate to a text channel while staying in the call.
 
 appId: com.openchat.mobile
 
@@ -42,20 +42,36 @@ appId: com.openchat.mobile
 - assertNotVisible:
     id: 'left-drawer'
 
-# ── Phase 3: Assert VoicePill appeared ──
-# The pill shows "Connecting…" then "Voice Connected".
-# extendedWaitUntil handles the join latency.
+# ── Phase 3: Assert VoiceChannelView appeared ──
+# Tapping a voice channel auto-joins and shows the full voice view.
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 15000
+
+# Voice controls are visible in the voice view
+- assertVisible:
+    id: 'voice-controls'
+
+# ── Phase 4: Navigate away → VoicePill appears ──
+# Tap "Show Chat" to return to the text channel without leaving the voice call.
+- tapOn:
+    id: 'voice-show-chat'
+
+# VoiceChannelView is dismissed; the pill now renders at the bottom.
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
     timeout: 15000
 
-# ── Phase 4: Leave via disconnect button in the pill ──
+# ── Phase 5: Leave via disconnect button in the pill ──
 - tapOn:
     id: 'voice-pill-disconnect'
 
-# Pill disappears after disconnect
-- assertNotVisible:
-    id: 'voice-pill'
+# Pill disappears after disconnect (async — wait for it)
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
 
 - takeScreenshot: artifacts/e2e/screens/p6-voice-join

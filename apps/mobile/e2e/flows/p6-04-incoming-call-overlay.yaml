@@ -85,7 +85,10 @@ appId: com.openchat.mobile
 # ── Phase 5: Disconnect ──
 - tapOn:
     id: 'voice-pill-disconnect'
-- assertNotVisible:
-    id: 'voice-pill'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
 
 - takeScreenshot: artifacts/e2e/screens/p6-incoming-call

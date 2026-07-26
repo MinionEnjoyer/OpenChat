@@ -1,4 +1,4 @@
-# p6-01-voice-channel-join-tiles — login → join voice channel → pill + tile grid + occupancy
+# p6-01-voice-channel-join-tiles — login → join voice channel → voice view + tile grid + controls + occupancy
 # @satisfies FR-VOX-002, FR-VOX-004
 #
 # Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator reaching 10.0.2.2.
@@ -34,34 +34,30 @@ appId: com.openchat.mobile
 - assertNotVisible:
     id: 'left-drawer'
 
-# ── Phase 3: Verify voice pill appears (FR-VOX-001 seam) ──
+# ── Phase 3: Verify full voice view appears ──
 - extendedWaitUntil:
     visible:
-      id: 'voice-pill'
+      id: 'voice-channel-view'
     timeout: 30000
 
-# Pill controls are visible when connected
+# Voice controls bar (mute/deafen/speaker/disconnect) is visible in voice view
 - assertVisible:
-    id: 'voice-pill-controls'
+    id: 'voice-controls'
 
-# Camera toggle is available (FR-VOX-006)
+# Disconnect button present in voice view controls
 - assertVisible:
-    id: 'voice-pill-camera'
-
-# Disconnect button is present
-- assertVisible:
-    id: 'voice-pill-disconnect'
+    id: 'voice-control-disconnect'
 
 # ── Phase 4: Verify participant tile grid (FR-VOX-002) ──
-# The tile grid shows self as a participant
+# The tile grid shows self as a participant (rendered inside voice view)
 - extendedWaitUntil:
     visible:
       id: 'voice-tile-grid'
     timeout: 30000
 
-# Mute button exists on the tile for self (mute badge shows when muted)
+# Mute using voice view controls (not pill — pill is hidden while voice view shows)
 - tapOn:
-    id: 'voice-pill-mute'
+    id: 'voice-control-mute'
 
 # Verify mute badge appears on own tile
 - assertVisible:
@@ -69,7 +65,7 @@ appId: com.openchat.mobile
 
 # Unmute
 - tapOn:
-    id: 'voice-pill-mute'
+    id: 'voice-control-mute'
 
 # ── Phase 5: Verify channel occupancy in channel list (FR-VOX-004) ──
 # Re-open left drawer to see channel list with participant names
@@ -79,30 +75,37 @@ appId: com.openchat.mobile
     id: 'left-drawer'
 
 # The voice channel row should show "alice" as connected participant
-# (Voice channel poll interval is 15s; the join may have already triggered a refetch)
 - extendedWaitUntil:
     visible: 'alice'
     timeout: 20000
 
-# Confirm auto-reconnect works: kill app, relaunch, should still be in voice
-# DISABLED — auto-reconnect depends on device storage + LiveKit session state
-# which is unpredictable in emulator.
-
-# ── Phase 6: Leave voice channel ──
-# Open left drawer again and tap the voice channel to re-select it (closes drawer)
+# ── Phase 6: Navigate away → pill, then leave ──
+# Close drawer by tapping voice channel again → voice view re-appears
 - tapOn:
     id: 'channel-#voice-general'
 
-# Voice pill should still be visible (re-selecting same channel)
+# VoiceChannelView is visible (still connected)
 - assertVisible:
-    id: 'voice-pill'
+    id: 'voice-channel-view'
 
-# Disconnect
+# Tap "Show Chat" to navigate to text channel → pill appears
+- tapOn:
+    id: 'voice-show-chat'
+
+# Pill is visible (voice view dismissed, still in call)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# Disconnect from pill
 - tapOn:
     id: 'voice-pill-disconnect'
 
-# Pill disappears after disconnect
-- assertNotVisible:
-    id: 'voice-pill'
+# Pill disappears after disconnect (async — wait for it)
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
 
 - takeScreenshot: artifacts/e2e/screens/p6-voice-tiles

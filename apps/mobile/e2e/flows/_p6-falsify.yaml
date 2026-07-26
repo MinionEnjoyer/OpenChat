@@ -1,5 +1,5 @@
 # _p6-falsify — falsification for permission grant
-# Same as p6-01-voice-channel-join-leave but with delay for connection establishment
+# Same pattern as p6-01-voice-channel-join-leave: join → voice view → show chat → pill → disconnect
 
 appId: com.openchat.mobile
 
@@ -27,13 +27,22 @@ appId: com.openchat.mobile
 - assertNotVisible:
     id: 'left-drawer'
 
-# Wait for voice pill
+# Wait for voice view (not pill — the voice view shows on join)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# Navigate to text channel → pill appears
+- tapOn:
+    id: 'voice-show-chat'
+
+# Wait for pill + connection to fully establish
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
-    timeout: 30000
+    timeout: 15000
 
-# Wait for connection to fully establish — disconnect button only renders when connected
 - extendedWaitUntil:
     visible:
       id: 'voice-pill-disconnect'
@@ -42,5 +51,8 @@ appId: com.openchat.mobile
 # Now disconnect
 - tapOn:
     id: 'voice-pill-disconnect'
-- assertNotVisible:
-    id: 'voice-pill'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
