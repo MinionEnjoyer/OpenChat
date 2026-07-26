@@ -2078,6 +2078,22 @@ components:
           type: string
       required: [id, name]
 
+    ServerSound:
+      description: A soundboard clip for a server (FR-SOUND-001)
+      x-verified-against: live API 2026-07-26
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+        emoji:
+          type: string
+          nullable: true
+
     AuthorBrief:
       x-verified-against: live API 2026-07-25
       type: object

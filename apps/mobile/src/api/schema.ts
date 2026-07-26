@@ -87,6 +87,14 @@ export interface Server {
   myPermissions: string; // BigInt serialized as decimal string
 }
 
+/** Server soundboard clip (FR-SOUND-001). */
+export interface ServerSound {
+  id: string;
+  name: string;
+  url: string;
+  emoji: string | null;
+}
+
 /** Author summary embedded in message responses (observed from API). */
 export interface AuthorBrief {
   id: string;
