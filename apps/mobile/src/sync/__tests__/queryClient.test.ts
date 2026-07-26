@@ -2,9 +2,10 @@
  * Integration test: applyEvent → handleForegroundNotification (FR-NOTIF-004).
  *
  * Verifies that WS notification frames (notify, mention, call.ring) are
- * correctly routed through handleForegroundNotification to the toast system.
+ * correctly routed through handleForegroundNotification to the toast system
+ * and that call.ring also populates the CallStore (FR-VOX-005).
  *
- * @satisfies FR-NOTIF-004
+ * @satisfies FR-NOTIF-004, FR-VOX-005
  */
 
 import { applyEvent } from '../queryClient';
@@ -12,6 +13,7 @@ import {
   _setAppStateForTest,
   _resetAppStateForTest,
 } from '../../features/notifications/foregroundHandler';
+import { useCallStore } from '../../features/voice/CallStore';
 import type {
   MentionFrame,
   NotifyFrame,
@@ -30,6 +32,7 @@ jest.mock('../../ui/Toast', () => ({
 beforeEach(() => {
   toastCalls.length = 0;
   _setAppStateForTest('active');
+  useCallStore.setState({ incomingCall: null });
 });
 
 afterAll(() => {
@@ -74,6 +77,26 @@ describe('applyEvent — notification routing (FR-NOTIF-004)', () => {
     expect(toastCalls).toHaveLength(1);
     expect(toastCalls[0]!.message).toContain('bob');
     expect(toastCalls[0]!.retry).toBeUndefined();
+  });
+
+  // @satisfies FR-VOX-005
+  it('call.ring frame populates the incoming call store', () => {
+    const frame: CallRingFrame = {
+      op: 'call.ring',
+      d: {
+        channelId: 'dm-42',
+        callerId: 'user-alice',
+        callerName: 'Alice',
+        callerAvatar: 'https://cdn.test/alice.png',
+      },
+    };
+    applyEvent(frame);
+    expect(useCallStore.getState().incomingCall).toEqual({
+      channelId: 'dm-42',
+      callerId: 'user-alice',
+      callerName: 'Alice',
+      callerAvatar: 'https://cdn.test/alice.png',
+    });
   });
 
   // @satisfies FR-NOTIF-004

@@ -48,6 +48,8 @@ import { AvatarPicker, useAvatarUpload } from '../../avatars';
 import { resolveConfig } from '../../../lib/config';
 import { NotificationSettingsScreen } from '../../notif-settings';
 import { FriendsScreen } from '../../friends';
+import { VoicePill, IncomingCallOverlay } from '../../voice';
+import { useVoiceConnection } from '../../voice/useVoiceConnection';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -474,6 +476,10 @@ export function ShellScreen(): React.JSX.Element {
               <Text style={styles.topBarAction}>{strings.messages.pinIcon}</Text>
             </Pressable>
           )}
+          {/* FR-VOX-005: call button in DM top bar */}
+          {isDm && activeChannelAny && (
+            <CallButton channelId={activeChannelAny.id} />
+          )}
           <Pressable onPress={() => setInboxVisible(true)} accessibilityLabel={strings.inbox.title} testID="inbox-button">
             <View style={styles.inboxIconContainer}>
               <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
@@ -502,6 +508,8 @@ export function ShellScreen(): React.JSX.Element {
             </Text>
           </View>
         )}
+        {/* FR-VOX-001/005: persistent voice-call pill at bottom of chat */}
+        <VoicePill />
       </View>
 
       {/* Scrim (overlay behind drawers) */}
@@ -879,7 +887,28 @@ export function ShellScreen(): React.JSX.Element {
         onClose={() => setInboxVisible(false)}
       />
 
+      {/* FR-VOX-005: full-screen incoming call overlay */}
+      <IncomingCallOverlay />
+
     </KeyboardAvoidingView>
+  );
+}
+
+/** Call button for DM top bar (FR-VOX-005). */
+function CallButton({ channelId }: { channelId: string }): React.JSX.Element {
+  const { join, connectionState } = useVoiceConnection();
+  const isConnected = connectionState === 'connected' || connectionState === 'joining';
+  return (
+    <Pressable
+      onPress={() => { if (!isConnected) void join(channelId); }}
+      accessibilityLabel={strings.voice.callButtonA11y}
+      testID="call-button"
+      disabled={isConnected}
+    >
+      <Text style={[styles.topBarAction, isConnected && { color: palette.textMuted }]}>
+        {strings.voice.callButtonLabel}
+      </Text>
+    </Pressable>
   );
 }
 

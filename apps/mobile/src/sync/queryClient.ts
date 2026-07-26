@@ -11,6 +11,7 @@ import { applyCreated, applyUpdated, applyDeleted } from './messages';
 import { keys } from './keys';
 import { useTyping } from '../stores/typing';
 import { handleForegroundNotification } from '../features/notifications';
+import { useCallStore } from '../features/voice/CallStore';
 import { usePresence } from '../stores/presence';
 
 export const queryClient = new QueryClient({
@@ -68,8 +69,15 @@ export function applyEvent(frame: S2CFrame): void {
       break;
     }
     case 'call.ring': {
-      const cd = frame.d as { callerName: string };
+      const cd = frame.d as { channelId: string; callerId: string; callerName: string; callerAvatar: string | null };
       handleForegroundNotification({ kind: 'call.ring', callerName: cd.callerName });
+      // Populate the incoming-call store so the full-screen overlay renders.
+      useCallStore.getState().ring({
+        channelId: cd.channelId,
+        callerId: cd.callerId,
+        callerName: cd.callerName,
+        callerAvatar: cd.callerAvatar,
+      });
       break;
     }
     case 'voice.occupancy': {

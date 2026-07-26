@@ -423,6 +423,18 @@ export const strings = {
     iconSpeaker: '🔊',
     /** @satisfies FR-VOX-003 */
     iconEarpiece: '👂',
+    /** @satisfies FR-VOX-005 */
+    incomingCall: 'Incoming Call',
+    /** @satisfies FR-VOX-005 */
+    incomingCallSubtitle: 'wants to talk',
+    /** @satisfies FR-VOX-005 */
+    accept: 'Accept',
+    /** @satisfies FR-VOX-005 */
+    decline: 'Decline',
+    /** @satisfies FR-VOX-005 */
+    callButtonA11y: 'Start voice call',
+    /** @satisfies FR-VOX-005 */
+    callButtonLabel: '\u{1F4DE}', // 📞 telephone receiver
   },
 } as const;
 
