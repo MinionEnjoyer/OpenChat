@@ -33,9 +33,11 @@ export const strings = {
     chatPlaceholder: 'No text channels here yet',
     membersTitle: 'Members',
     menuGlyph: '\u2630',
-    settingsGear: '\u2699',
+    /** MaterialIcons name — settings */
+    settingsIcon: 'settings',
     logout: 'Sign out',
-    notifBell: '\u{1F514}',
+    /** MaterialIcons name — notifications */
+    notifIcon: 'notifications',
   },
   messages: {
     empty: 'No messages yet',
@@ -61,8 +63,9 @@ export const strings = {
     pinFailed: 'Pin failed',
     pinsPanelTitle: 'Pinned messages',
     pinsEmpty: 'No pinned messages',
-    pinIcon: '📌',
-    closeIcon: '✕',
+    /** MaterialIcons name — push-pin */
+    pinIcon: 'push-pin',
+    closeIcon: '\u2715',
     announcementReadOnly: 'You do not have permission to send in this announcement channel',
     reply: 'Reply',
     replyingTo: 'Replying to',
@@ -102,7 +105,8 @@ export const strings = {
     openLink: 'Open link',
     youtubePlay: '▶',
     shareSeparator: '/',
-    linkIcon: '🔗',
+    /** MaterialIcons name — link */
+    linkIcon: 'link',
   },
   gifs: {
     searchPlaceholder: 'Search GIFs…',
@@ -115,7 +119,8 @@ export const strings = {
   },
   poll: {
     createTitle: 'Create Poll',
-    chartIcon: '📊',
+    /** MaterialIcons name — poll */
+    chartIcon: 'poll',
     closeIcon: '\u2715',
     percentSign: '%',
     totalLabel: 'total',
@@ -150,7 +155,8 @@ export const strings = {
     deleteFailed: 'Failed to delete server',
     settingsButton: 'Settings',
     createButtonNav: '+',
-    joinButtonNav: '\u{1F517}',
+    /** MaterialIcons name — link */
+    joinButtonNav: 'link',
     renameDenied: 'You need the Manage Server permission to rename this server.',
     deleteDenied: 'Only the server owner can delete this server.',
   },
@@ -178,7 +184,10 @@ export const strings = {
   },
   channels: {
     categoryDefault: 'Uncategorized',
-    voicePrefix: '\u{1F50A}',
+    /** MaterialIcons name — volume-up */
+    voicePrefix: 'volume-up',
+    /** Accessibility label for voice prefix icon */
+    voicePrefixLabel: 'Voice',
     voiceParticipants: '{count} connected',
     createTitle: 'Create Channel',
     editTitle: 'Edit Channel',
@@ -195,14 +204,18 @@ export const strings = {
     noCategory: 'No category',
     noVoiceParticipants: '0 connected',
     typeText: '# TEXT',
-    typeVoice: '\u{1F50A} VOICE',
+    /** MaterialIcons name — volume-up */
+    typeVoiceIcon: 'volume-up',
+    typeVoiceLabel: 'VOICE',
     createAction: '+',
     reorderAction: '\u2630',
     editAction: '\u270E',
     deleteAction: '\u2715',
     moveUpAction: '\u25B2',
     moveDownAction: '\u25BC',
-    typeAnnouncement: '📢 ANNOUNCEMENT',
+    /** MaterialIcons name — campaign */
+    typeAnnouncement: 'campaign',
+    typeAnnouncementLabel: 'ANNOUNCEMENT',
   },
   roles: {
     title: 'Roles',
@@ -232,15 +245,19 @@ export const strings = {
     galleryCounterSeparator: '\u00A0/\u00A0',
     pickerTitle: 'Add attachment',
     photoLibrary: 'Photo Library',
-    photoLibraryIcon: '\u{1F4F7}',
+    /** MaterialIcons name — photo-library */
+    photoLibraryIcon: 'photo-library',
     camera: 'Camera',
-    cameraIcon: '\u{1F4F8}',
+    /** MaterialIcons name — camera-alt */
+    cameraIcon: 'camera-alt',
     files: 'Files',
-    filesIcon: '\u{1F4C1}',
+    /** MaterialIcons name — folder */
+    filesIcon: 'folder',
     cancel: 'Cancel',
     remove: 'Remove',
     doneIcon: '\u2713',
-    fileIcon: '\u{1F4C4}',
+    /** MaterialIcons name — insert-drive-file */
+    fileIcon: 'insert-drive-file',
     originalToggle: 'Original',
     /** @satisfies FR-MED-030 */
     originalLabel: 'Original',
@@ -339,7 +356,8 @@ export const strings = {
     addSent: 'Friend request sent',
     addFailed: 'Failed to send friend request',
     addSelf: 'You cannot add yourself',
-    icon: '👥',
+    /** MaterialIcons name — people */
+    icon: 'people',
     accept: 'Accept',
     decline: 'Decline',
     cancel: 'Cancel',
@@ -371,7 +389,8 @@ export const strings = {
     empty: 'All clear — no notifications',
     friendRequests: 'Friend Requests',
     serverInvites: 'Server Invitations',
-    icon: '\u{1F4EC}',
+    /** MaterialIcons name — inbox */
+    icon: 'inbox',
     invitationFrom: 'Invited by {username}',
     invitationTo: 'to {serverName}',
     accept: 'Accept',
