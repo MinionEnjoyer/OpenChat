@@ -89,9 +89,37 @@ function toggleBit(perms: string, bit: bigint, on: boolean): string {
   return bigIntToStr(current);
 }
 
+
+/** @satisfies FR-ROLE-001 */
+export function useCreateRole(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; color: number; permissions: string }) =>
+      api.request<Role>(`/servers/${serverId}/roles`, { method: 'POST', body }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
+  });
+}
+
+export function useUpdateRole(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, body }: { roleId: string; body: { name?: string; color?: number; permissions?: string } }) =>
+      api.request<Role>(`/servers/${serverId}/roles/${roleId}`, { method: 'PATCH', body }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
+  });
+}
+
+export function useDeleteRole(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (roleId: string) =>
+      api.request<{ success: true }>(`/servers/${serverId}/roles/${roleId}`, { method: 'DELETE' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
+  });
+}
+
 export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.JSX.Element {
   const insets = useSafeAreaInsets();
-  const qc = useQueryClient();
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [draftName, setDraftName] = useState('');
   const [draftColor, setDraftColor] = useState(0x99aab5);
@@ -105,23 +133,11 @@ export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.
     enabled: visible,
   });
 
-  const createMutation = useMutation({
-    mutationFn: (body: { name: string; color: number; permissions: string }) =>
-      api.request<Role>(`/servers/${serverId}/roles`, { method: 'POST', body }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
-  });
+  const createMutation = useCreateRole(serverId);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ roleId, body }: { roleId: string; body: { name?: string; color?: number; permissions?: string } }) =>
-      api.request<Role>(`/servers/${serverId}/roles/${roleId}`, { method: 'PATCH', body }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
-  });
+  const updateMutation = useUpdateRole(serverId);
 
-  const deleteMutation = useMutation({
-    mutationFn: (roleId: string) =>
-      api.request<{ success: true }>(`/servers/${serverId}/roles/${roleId}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
-  });
+  const deleteMutation = useDeleteRole(serverId);
 
   const roles = useMemo(() => (rolesQuery.data ?? []).slice().sort((a, b) => b.position - a.position), [rolesQuery.data]);
 

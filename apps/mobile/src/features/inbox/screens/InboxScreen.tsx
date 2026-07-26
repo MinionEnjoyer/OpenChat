@@ -18,7 +18,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
@@ -44,19 +44,28 @@ function counts(resp: NotificationsResponse): { frCount: number; siCount: number
   };
 }
 
-/** Accept a server invitation. Returns the joined server on success. */
-async function acceptInvite(inviteId: string): Promise<Server> {
-  return api.request<Server>(`/server-invitations/${encodeURIComponent(inviteId)}/accept`, {
-    method: 'POST',
+/** @satisfies FR-SOC-005 */
+export function useAcceptInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      api.request<Server>(`/server-invitations/${encodeURIComponent(inviteId)}/accept`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.servers });
+      qc.invalidateQueries({ queryKey: keys.notifications });
+    },
   });
 }
 
-/** Decline a server invitation. Returns {success:true} on success. */
-async function declineInvite(inviteId: string): Promise<{ success: true }> {
-  return api.request<{ success: true }>(
-    `/server-invitations/${encodeURIComponent(inviteId)}/decline`,
-    { method: 'POST' },
-  );
+export function useDeclineInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      api.request<{ success: true }>(`/server-invitations/${encodeURIComponent(inviteId)}/decline`, { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.notifications });
+    },
+  });
 }
 
 function FriendRequestRow({ item }: { item: FriendRequestItem }): React.JSX.Element {
@@ -121,7 +130,6 @@ function ServerInviteRow({
 }
 
 export function InboxScreen({ visible, onClose }: Props): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [decliningId, setDecliningId] = useState<string | null>(null);
 
@@ -132,6 +140,9 @@ export function InboxScreen({ visible, onClose }: Props): React.JSX.Element {
     refetchOnMount: true,
   });
 
+  const acceptInvite = useAcceptInvite();
+  const declineInvite = useDeclineInvite();
+
   const { frCount, siCount } =
     notifications.data ? counts(notifications.data) : { frCount: 0, siCount: 0 };
 
@@ -139,32 +150,28 @@ export function InboxScreen({ visible, onClose }: Props): React.JSX.Element {
     async (id: string) => {
       setAcceptingId(id);
       try {
-        await acceptInvite(id);
-        // Invalidate servers list and notifications so UI reflects the new server.
-        queryClient.invalidateQueries({ queryKey: keys.servers });
-        queryClient.invalidateQueries({ queryKey: keys.notifications });
+        await acceptInvite.mutateAsync(id);
       } catch {
         showToast(strings.inbox.acceptFailed);
       } finally {
         setAcceptingId(null);
       }
     },
-    [queryClient],
+    [acceptInvite],
   );
 
   const handleDecline = useCallback(
     async (id: string) => {
       setDecliningId(id);
       try {
-        await declineInvite(id);
-        queryClient.invalidateQueries({ queryKey: keys.notifications });
+        await declineInvite.mutateAsync(id);
       } catch {
         showToast(strings.inbox.declineFailed);
       } finally {
         setDecliningId(null);
       }
     },
-    [queryClient],
+    [declineInvite],
   );
 
   const renderItem = useCallback(

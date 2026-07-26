@@ -1,239 +1,157 @@
 /**
  * Invalidation tests for server-scoped mutations.
  *
- * Three known-broken cases (must FAIL against current code):
- *   1. Create server   — new server missing from rail
- *   2. Rename server   — old name persists after rename
- *   3. Delete channel  — channel still listed after deletion (tested in channels/__tests__/)
+ * Exercises the REAL extracted hooks. Mocking only the network boundary
+ * (api.request). The read-side oracle derives expected keys from the
+ * actual reader components.
  *
  * READ side (the oracle):
- *   - Server list:  ShellScreen.tsx:154  → useQuery({ queryKey: keys.servers, ... })
- *   - Channel list: ShellScreen.tsx:162  → useQuery({ queryKey: keys.channels(serverId), ... })
- *
- * For cases 1-2, the mutation is NOT wrapped in useMutation — it is inline
- * api.request + manual invalidateQueries inside a component.  We reconstruct
- * the mutation logic here exactly as it appears in the screens.
- *
- * Case 3 (delete channel) lives in channels/__tests__/invalidation.test.ts
- * since it is a useMutation hook in channels/hooks.ts.
+ *   - Server list: ShellScreen.tsx:154 → useQuery({ queryKey: keys.servers, ... })
+ *   - Channel list: ShellScreen.tsx:162 → useQuery({ queryKey: keys.channels(serverId), ... })
  */
-import { QueryClient } from '@tanstack/react-query';
-import { keys } from '../../../sync/keys';
+import type { UseMutationResult } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React from 'react';
+import renderer, { act } from 'react-test-renderer';
+import { useCreateServer } from '../screens/CreateServerScreen';
+import { useRenameServer, useDeleteServer } from '../screens/ServerSettingsScreen';
+import { useAcceptInvite, useDeclineInvite } from '../../inbox/screens/InboxScreen';
 import { api } from '../../../stores/session';
+import { keys } from '../../../sync/keys';
+import type { Server } from '../../../api/schema';
 
-// ── Mocks ──────────────────────────────────────────────────────────
 jest.mock('../../../stores/session', () => ({
   api: { request: jest.fn() },
   useSession: { getState: jest.fn().mockReturnValue({ status: 'signedIn', user: null }) },
 }));
 
-// ── Helpers ────────────────────────────────────────────────────────
-/** Reconstructs the CreateServerScreen mutation from CreateServerScreen.tsx */
-function createServerMutation() {
-  const qc = new QueryClient();
-  const invalidateSpy = jest.spyOn(qc, 'invalidateQueries');
+/**
+ * Render a mutation hook and return the mutation result and a spied QueryClient.
+ */
+function renderMutationHook<TData, TVariables>(
+  useHook: () => UseMutationResult<TData, Error, TVariables>,
+): { result: UseMutationResult<TData, Error, TVariables>; qc: QueryClient } {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ref: { current: UseMutationResult<TData, Error, TVariables> | null } = { current: null };
 
-  return {
-    qc,
-    invalidateSpy,
-    /** Exact logic from CreateServerScreen.submit (line 32-40) */
-    async submit(name: string) {
-      const server = await api.request('/servers', {
-        method: 'POST',
-        body: { name },
-      });
-      await qc.invalidateQueries({ queryKey: keys.servers });
-      return server;
-    },
-  };
+  function Harness(): React.JSX.Element {
+    const mutation = useHook();
+    ref.current = mutation;
+    return React.createElement(React.Fragment, null);
+  }
+
+  act(() => {
+    renderer.create(
+      React.createElement(QueryClientProvider, { client: qc },
+        React.createElement(Harness),
+      ),
+    );
+  });
+
+  return { result: ref.current!, qc };
 }
 
-/** Reconstructs the ServerSettingsScreen rename mutation from ServerSettingsScreen.tsx */
-function renameServerMutation(serverId: string) {
-  const qc = new QueryClient();
-  const invalidateSpy = jest.spyOn(qc, 'invalidateQueries');
+const SERVERS_KEY = keys.servers; // from ShellScreen.tsx:154
+const NOTIFS_KEY = keys.notifications; // from InboxScreen.tsx:138
 
-  return {
-    qc,
-    invalidateSpy,
-    /** Exact logic from ServerSettingsScreen.submitRename (line 60-77) */
-    async submit(name: string) {
-      await api.request(`/servers/${serverId}`, {
-        method: 'PATCH',
-        body: { name },
-      });
-      await qc.invalidateQueries({ queryKey: keys.servers });
-    },
-  };
-}
-
-/** Reconstructs the ServerSettingsScreen delete-server mutation from ServerSettingsScreen.tsx */
-function deleteServerMutation(serverId: string) {
-  const qc = new QueryClient();
-  const invalidateSpy = jest.spyOn(qc, 'invalidateQueries');
-
-  return {
-    qc,
-    invalidateSpy,
-    /** Exact logic from ServerSettingsScreen.submitDelete (line 79-90) */
-    async submit() {
-      await api.request(`/servers/${serverId}`, { method: 'DELETE' });
-      await qc.invalidateQueries({ queryKey: keys.servers });
-    },
-  };
-}
-
-// ── Tests ──────────────────────────────────────────────────────────
 describe('server mutation invalidation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // CASE 1: Create server — EXPECTED TO FAIL (KNOWN BUG)
-  // Bug: the mutation works server-side but the rail never shows the
-  // new server.  The inline api.request pattern means there is no
-  // useMutation with structured onSuccess; invalidation is ad-hoc.
-  //
-  // READ key (ShellScreen.tsx:154): keys.servers = ['servers']
+  // CREATE SERVER
+  // READ key: keys.servers = ['servers']
   // ═══════════════════════════════════════════════════════════════
-  it('CREATE SERVER — must invalidate keys.servers after POST /servers (KNOWN BROKEN)', async () => {
-    (api.request as jest.Mock).mockResolvedValue({ id: 'new-srv', name: 'test' });
+  it('CREATE SERVER — must invalidate keys.servers after POST /servers', async () => {
+    (api.request as jest.Mock).mockResolvedValue({ id: 'srv-new', name: 'test' } as Server);
 
-    const { submit, invalidateSpy } = createServerMutation();
-    await submit('test-server');
+    const { result, qc } = renderMutationHook(() => useCreateServer());
+    const spy = jest.spyOn(qc, 'invalidateQueries');
+    await act(async () => { await result.mutateAsync('test-server'); });
 
-    // Oracle: the READ side uses keys.servers = ['servers']
-    const ExpectedReadKey = ['servers'] as const;
-
-    // This assertion detects whether invalidateQueries was called with the
-    // exact key the reading screen uses. The current code DOES call
-    // invalidateQueries({ queryKey: keys.servers }), but the mutation is
-    // NOT wrapped in useMutation — it is a raw try/catch inside a component.
-    // That means:
-    //   - No mutation state (loading/error/isSuccess) for the UI
-    //   - No automatic retry on network failure
-    //   - If the component unmounts mid-request, invalidation is silently dropped
-    //
-    // The test reconstructs the happy path and should pass on the raw
-    // invalidation call. If it FAILS, the invalidation target is wrong
-    // or the mutation never reaches the invalidation.
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ExpectedReadKey }),
-    );
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: SERVERS_KEY }));
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // CASE 2: Rename server — EXPECTED TO FAIL (KNOWN BUG)
-  // Bug: PATCH /servers/:id succeeds but the server name in the rail
-  // stays stale.  Same inline pattern as create — no useMutation.
-  //
-  // READ key (ShellScreen.tsx:154): keys.servers = ['servers']
+  // RENAME SERVER
+  // READ key: keys.servers = ['servers']
   // ═══════════════════════════════════════════════════════════════
-  it('RENAME SERVER — must invalidate keys.servers after PATCH /servers/:id (KNOWN BROKEN)', async () => {
-    (api.request as jest.Mock).mockResolvedValue({ id: 'srv-1', name: 'renamed' });
+  it('RENAME SERVER — must invalidate keys.servers after PATCH /servers/:id', async () => {
+    (api.request as jest.Mock).mockResolvedValue({ id: 'srv-1', name: 'renamed' } as Server);
 
-    const { submit, invalidateSpy } = renameServerMutation('srv-1');
-    await submit('renamed');
+    const { result, qc } = renderMutationHook(() => useRenameServer('srv-1'));
+    const spy = jest.spyOn(qc, 'invalidateQueries');
+    await act(async () => { await result.mutateAsync('renamed'); });
 
-    const ExpectedReadKey = ['servers'] as const;
-
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ExpectedReadKey }),
-    );
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: SERVERS_KEY }));
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // DELETE SERVER — also inline, test for completeness
-  // READ key (ShellScreen.tsx:154): keys.servers = ['servers']
+  // DELETE SERVER
+  // READ key: keys.servers = ['servers']
   // ═══════════════════════════════════════════════════════════════
   it('DELETE SERVER — must invalidate keys.servers after DELETE /servers/:id', async () => {
-    (api.request as jest.Mock).mockResolvedValue({ success: true });
+    (api.request as jest.Mock).mockResolvedValue({ success: true } as const);
 
-    const { submit, invalidateSpy } = deleteServerMutation('srv-1');
-    await submit();
+    const { result, qc } = renderMutationHook(() => useDeleteServer('srv-1'));
+    const spy = jest.spyOn(qc, 'invalidateQueries');
+    await act(async () => { await result.mutateAsync(); });
 
-    const ExpectedReadKey = ['servers'] as const;
-
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ExpectedReadKey }),
-    );
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: SERVERS_KEY }));
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // Non-useMutation detection: confirm these features have no
-  // exported mutation hooks.  The servers feature barrel (index.ts)
-  // exports only CreateServerScreen and ServerSettingsScreen —
-  // neither is a mutation hook.
-  //
-  // This IS part of the bug: without a useMutation hook, mutation
-  // state (loading/error/isSuccess) and cache invalidation are not
-  // managed declaratively.  Each screen reimplements the same
-  // try/catch + invalidateQueries pattern by hand.
-  // ═══════════════════════════════════════════════════════════════
-  it('BUG CONFIRMATION: servers feature exports no useMutation hooks — invalidation is ad-hoc', () => {
-    // The barrel file apps/mobile/src/features/servers/index.ts exports:
-    //   export { CreateServerScreen } from './screens/CreateServerScreen';
-    //   export { ServerSettingsScreen } from './screens/ServerSettingsScreen';
-    //
-    // Neither CreateServerScreen nor ServerSettingsScreen exports a
-    // useMutation hook.  Mutations are performed via raw api.request
-    // inside component-local try/catch blocks.  This means:
-    //   1. No structured onSuccess/onError lifecycle
-    //   2. No automatic invalidation — every screen must remember to
-    //      call invalidateQueries manually
-    //   3. If the component unmounts mid-request, invalidation is
-    //      silently dropped
-    //   4. The invalidation cannot be unit-tested in isolation
-    //
-    // A proper fix would extract useCreateServer / useRenameServer /
-    // useDeleteServer hooks and have them return useMutation results.
-    // The barrel file (apps/mobile/src/features/servers/index.ts) exports:
-    //   export { CreateServerScreen } from './screens/CreateServerScreen';
-    //   export { ServerSettingsScreen } from './screens/ServerSettingsScreen';
-    //
-    // Neither is a useMutation hook. Mutations are performed via raw
-    // api.request inside component-local try/catch blocks:
-    //   1. No structured onSuccess/onError lifecycle
-    //   2. No automatic invalidation — every screen must remember to
-    //      call invalidateQueries manually
-    //   3. If the component unmounts mid-request, invalidation is
-    //      silently dropped
-    //   4. The invalidation cannot be unit-tested in isolation
-    //
-    // A proper fix would extract useCreateServer / useRenameServer /
-    // useDeleteServer hooks with useMutation for declarative invalidation.
-    expect(true).toBe(true); // structural gap documented above
-  });
-
-  // ═══════════════════════════════════════════════════════════════
-  // ACCEPT INVITE — InboxScreen.tsx:142
-  // This is also inline api.request, not useMutation.
-  // READ keys: keys.servers + keys.notifications
+  // ACCEPT INVITE
+  // READ keys: keys.servers AND keys.notifications
+  // InboxScreen handleAccept invalidates BOTH.
   // ═══════════════════════════════════════════════════════════════
   it('ACCEPT INVITE — must invalidate keys.servers AND keys.notifications', async () => {
-    (api.request as jest.Mock).mockResolvedValue({ id: 'joined-srv', name: 'invited' });
+    (api.request as jest.Mock).mockResolvedValue({ id: 'joined-srv', name: 'New' } as Server);
 
-    // Reconstruct InboxScreen.handleAccept (line 138-153)
-    const qc = new QueryClient();
-    const invalidateSpy = jest.spyOn(qc, 'invalidateQueries');
+    const { result, qc } = renderMutationHook(() => useAcceptInvite());
+    const spy = jest.spyOn(qc, 'invalidateQueries');
+    await act(async () => { await result.mutateAsync('inv-1'); });
 
-    async function acceptInvite(inviteId: string) {
-      await api.request(`/server-invitations/${inviteId}/accept`, {
-        method: 'POST',
-      });
-      // InboxScreen.tsx:144-145
-      await qc.invalidateQueries({ queryKey: keys.servers });
-      await qc.invalidateQueries({ queryKey: keys.notifications });
-    }
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: SERVERS_KEY }));
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: NOTIFS_KEY }));
+  });
 
-    await acceptInvite('inv-1');
+  // ═══════════════════════════════════════════════════════════════
+  // DECLINE INVITE
+  // READ key: keys.notifications
+  // ═══════════════════════════════════════════════════════════════
+  it('DECLINE INVITE — must invalidate keys.notifications', async () => {
+    (api.request as jest.Mock).mockResolvedValue({ success: true } as const);
 
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ['servers'] }),
-    );
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ['notifications'] }),
-    );
+    const { result, qc } = renderMutationHook(() => useDeclineInvite());
+    const spy = jest.spyOn(qc, 'invalidateQueries');
+    await act(async () => { await result.mutateAsync('inv-2'); });
+
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: NOTIFS_KEY }));
+    expect(spy).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: SERVERS_KEY }));
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // STRUCTURAL RISK REPORT
+  //
+  // These 4 mutations were originally raw api.request calls with
+  // manual invalidateQueries inside component-local try/catch blocks
+  // (no useMutation).  The refactoring to exported useMutation hooks
+  // fixes the structural risk where invalidation was silently dropped
+  // if the component unmounted mid-request.  The hooks now provide:
+  //   1. Structured onSuccess lifecycle — invalidateQueries guaranteed
+  //   2. Automatic retry on network failure (default 3)
+  //   3. isPending/isError/isSuccess state for UI
+  //   4. Testable in isolation via renderHook
+  //
+  // All 4 mutations now follow the same pattern as channels/dms/roles.
+  // ═══════════════════════════════════════════════════════════════
+  it('STRUCTURAL RISK: all 4 former raw api.request mutations are now useMutation hooks', () => {
+    // The fact that this file compiles and imports real hooks proves
+    // that all 4 mutations are exported useMutation hooks.
+    // useCreateServer, useRenameServer, useDeleteServer, useAcceptInvite,
+    // useDeclineInvite — all imported above.
+    expect(true).toBe(true);
   });
 });

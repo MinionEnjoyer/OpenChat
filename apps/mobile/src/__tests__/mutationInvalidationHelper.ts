@@ -1,34 +1,14 @@
 /**
- * Shared helper for mutation-invalidation tests.
+ * Shared helper for mutation-invalidation tests that exercise real hooks.
  *
- * Usage pattern:
- *   const result = await runInvalidationTest((qc) => ({
- *     label: 'useCreateChannel',
- *     mutationFn: (input) => api.request(...),
- *     onSuccess: () => { qc.invalidateQueries(...); },
- *     expectedQueryKey: ['channels', serverId],  // FROM THE READ SIDE
- *     input: { name: 'general' },
- *   }));
- *   expect(result.invalidated).toBe(true);
- *
- * The expected queryKey MUST be derived from the READ side (the hook/component
- * that displays the data), NOT from the mutation code you are testing.
+ * Renders a hook inside a QueryClientProvider with a spied QueryClient,
+ * calls mutateAsync, and checks that invalidateQueries was called with the
+ * expected read-side query key.
  */
-import { QueryClient } from '@tanstack/react-query';
-
-export interface MutationInvalidationTest {
-  /** Human-readable label for this mutation (e.g. "useDeleteChannel") */
-  label: string;
-  /** The mutation function (same as the hook's mutationFn) */
-  mutationFn: (input: unknown) => Promise<unknown>;
-  /** The onSuccess callback (same as the hook's onSuccess).
-   *  Use the `qc` parameter from the factory — IT is the spied instance. */
-  onSuccess: () => void;
-  /** The expected query key — FROM THE READ SIDE */
-  expectedQueryKey: readonly string[];
-  /** Input to pass to mutationFn */
-  input: unknown;
-}
+import React from 'react';
+import type { UseMutationResult } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import renderer, { act } from 'react-test-renderer';
 
 export interface TestResult {
   label: string;
@@ -39,28 +19,57 @@ export interface TestResult {
 }
 
 /**
- * Run one invalidation test. Returns a TestResult.
+ * Render a mutation hook, call mutateAsync, and verify invalidation.
  *
- * The factory receives the spied QueryClient — use IT in your onSuccess
- * closure, not a separate instance.
- *
- * Mocks api.request IS the caller's responsibility (jest.mock before import).
+ * @param label       Human-readable label for this test
+ * @param useHook     Factory that calls the hook (must follow rules of hooks)
+ * @param input       Input passed to mutateAsync
+ * @param expectedQueryKey Read-side query key the mutation must invalidate
  */
-export async function runInvalidationTest(
-  factory: (qc: QueryClient) => MutationInvalidationTest,
+export async function runInvalidationTest<TData = unknown, TVariables = unknown>(
+  label: string,
+  useHook: () => UseMutationResult<TData, Error, TVariables>,
+  input: TVariables,
+  expectedQueryKey: readonly string[],
 ): Promise<TestResult> {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidateSpy = jest.spyOn(qc, 'invalidateQueries');
 
-  const t = factory(qc);
+  // Store the mutation result so the test can call mutateAsync on it.
+  const ref: { current: UseMutationResult<TData, Error, TVariables> | null } = { current: null };
+
+  function Harness(): React.JSX.Element {
+    const mutation = useHook();
+    ref.current = mutation;
+    return React.createElement(React.Fragment, null);
+  }
+
+  let root: renderer.ReactTestRenderer;
+  act(() => {
+    root = renderer.create(
+      React.createElement(QueryClientProvider, { client: qc },
+        React.createElement(Harness),
+      ),
+    );
+  });
+
+  const mutation = ref.current;
+  if (!mutation) {
+    return {
+      label,
+      expectedKey: expectedQueryKey,
+      invalidated: false,
+      actualCalls: [],
+      error: 'Hook did not return a mutation result',
+    };
+  }
 
   try {
-    await t.mutationFn(t.input);
-    t.onSuccess();
+    await mutation.mutateAsync(input);
   } catch (e) {
     return {
-      label: t.label,
-      expectedKey: t.expectedQueryKey,
+      label,
+      expectedKey: expectedQueryKey,
       invalidated: false,
       actualCalls: invalidateSpy.mock.calls.map((c) => c[0] as Record<string, unknown>),
       error: e instanceof Error ? e.message : String(e),
@@ -72,13 +81,13 @@ export async function runInvalidationTest(
   const matched = calls.some((c) => {
     const qk = c?.queryKey as readonly string[] | undefined;
     if (!qk) return false;
-    if (qk.length !== t.expectedQueryKey.length) return false;
-    return qk.every((seg, i) => seg === t.expectedQueryKey[i]);
+    if (qk.length !== expectedQueryKey.length) return false;
+    return qk.every((seg, i) => seg === expectedQueryKey[i]);
   });
 
   return {
-    label: t.label,
-    expectedKey: t.expectedQueryKey,
+    label,
+    expectedKey: expectedQueryKey,
     invalidated: matched,
     actualCalls: calls,
   };

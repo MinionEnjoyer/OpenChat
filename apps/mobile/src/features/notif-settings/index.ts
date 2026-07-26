@@ -1,1 +1,1 @@
-export { NotificationSettingsScreen } from './NotificationSettingsScreen';
+export { NotificationSettingsScreen, useUpsertNotifSetting, useDeleteNotifSetting } from './NotificationSettingsScreen';
