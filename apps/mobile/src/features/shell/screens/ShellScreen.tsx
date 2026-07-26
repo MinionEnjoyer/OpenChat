@@ -30,6 +30,7 @@ import { useConnection } from '../../../stores/connection';
 import { gateway } from '../../../realtime';
 import { keys } from '../../../sync/keys';
 import { ChatPane, PinsPanel } from '../../messages';
+// Reachability: PollCard, PollCreate — rendered transitively via ChatPane (FR-MSG-012)
 import { InboxScreen } from '../../inbox';
 import type { NotificationsResponse, Server, Channel, Member, Role, User, DmChannelDto } from '../../../api/schema';
 import { InvitePreviewOverlay, JoinServerOverlay, InviteCreateOverlay } from '../../invites';
