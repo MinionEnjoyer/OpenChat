@@ -1,5 +1,6 @@
 /**
- * VoiceStore — connection state for the voice layer (FR-VOX-001).
+ * VoiceStore — connection state for the voice layer (FR-VOX-001) and
+ * participant tile data (FR-VOX-002).
  *
  * PUBLIC SURFACE (for FR-VOX-002/003/005/006/007 agents):
  *   useVoiceStore()                — Zustand hook (import from features/voice)
@@ -7,11 +8,17 @@
  *   state.activeChannelId          — string | null
  *   state.error                    — string | null
  *   state.participantCount         — number (cached from last participants fetch)
+ *   state.participants             — VoiceParticipantInfo[] (per-participant UI state)
  *   state.room                     — livekit-client Room | null
  *   state.join(channelId)          — calls API join, sets joining state
  *   state.leave()                  — calls API leave, sets idle state
  *   state.setRoom(room|null)       — called by useVoiceConnection when Room is created/destroyed
  *   state.setConnectionState(cs)   — called by useVoiceConnection for LiveKit-level state changes
+ *   state.upsertParticipant(p)     — add/update a participant in the roster (FR-VOX-002)
+ *   state.removeParticipant(id)    — remove a participant by id (FR-VOX-002)
+ *   state.setSpeaking(id, spk)     — set speaking state for a participant (FR-VOX-002)
+ *   state.setAudioLevel(id, lvl)   — set audio level for a participant (FR-VOX-002)
+ *   state.setMuted(id, muted)      — set mute state for a participant (FR-VOX-002)
  *   voiceService                   — singleton VoiceService (test-injectable)
  *
  * The Room lifecycle is managed externally by useVoiceConnection (the hook).
@@ -19,6 +26,7 @@
  * reference so other components can access it without prop drilling.
  *
  * @satisfies FR-VOX-001
+ * @satisfies FR-VOX-002
  */
 import { create } from 'zustand';
 import { api } from '../../stores/session';
@@ -31,6 +39,28 @@ export type VoiceConnectionState = 'idle' | 'joining' | 'connected' | 'leaving';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RoomRef = any; // livekit-client Room — opaque to the store, managed by useVoiceConnection
 
+/**
+ * Per-participant UI state for FR-VOX-002 (tiles).
+ * Populated by useVoiceParticipants from LiveKit events.
+ * @satisfies FR-VOX-002
+ */
+export interface VoiceParticipantInfo {
+  /** LiveKit participant identity (matches our userId). */
+  id: string;
+  /** Cached display metadata from GET participants or participant metadata. */
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  /** Whether this participant is currently speaking (from ActiveSpeakersChanged). */
+  isSpeaking: boolean;
+  /** Audio level 0.0–1.0, for speaking ring intensity. */
+  audioLevel: number;
+  /** Whether the remote mic track is muted (or local mic is off). */
+  isMuted: boolean;
+  /** Whether this participant is the local user. */
+  isLocal: boolean;
+}
+
 export interface VoiceState {
   connectionState: VoiceConnectionState;
   /** The channel we're currently connected to, or null. */
@@ -39,6 +69,8 @@ export interface VoiceState {
   error: string | null;
   /** Cached participant count from last known roster. */
   participantCount: number;
+  /** Per-participant UI state for tiles (FR-VOX-002). */
+  participants: VoiceParticipantInfo[];
   /** The livekit-client Room. Managed by useVoiceConnection, read by UI. */
   room: RoomRef | null;
 
@@ -54,6 +86,20 @@ export interface VoiceState {
   setParticipantCount: (n: number) => void;
   /** Clear any error. */
   clearError: () => void;
+
+  // ── FR-VOX-002 participant roster actions ──
+  /** Add or update a participant in the roster. */
+  upsertParticipant: (p: VoiceParticipantInfo) => void;
+  /** Remove a participant from the roster by id. */
+  removeParticipant: (id: string) => void;
+  /** Set speaking state for a participant. */
+  setSpeaking: (id: string, speaking: boolean) => void;
+  /** Set audio level (0–1) for a participant. */
+  setAudioLevel: (id: string, level: number) => void;
+  /** Set mute state for a participant. */
+  setMuted: (id: string, muted: boolean) => void;
+  /** Replace entire participant roster (e.g. on reconnect). */
+  setParticipants: (list: VoiceParticipantInfo[]) => void;
 }
 
 let singleton: VoiceService | null = null;
@@ -74,6 +120,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   activeChannelId: null,
   error: null,
   participantCount: 0,
+  participants: [],
   room: null,
 
   async join(channelId: string) {
@@ -119,6 +166,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         activeChannelId: null,
         room: null,
         participantCount: 0,
+        participants: [],
         error: null,
       });
     }
@@ -138,5 +186,62 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   clearError() {
     set({ error: null });
+  },
+
+  // ── FR-VOX-002 participant roster actions ──
+
+  upsertParticipant(p: VoiceParticipantInfo) {
+    set((state) => {
+      const idx = state.participants.findIndex((x) => x.id === p.id);
+      if (idx >= 0) {
+        const next = [...state.participants];
+        next[idx] = { ...next[idx], ...p };
+        return { participants: next };
+      }
+      return { participants: [...state.participants, p] };
+    });
+  },
+
+  removeParticipant(id: string) {
+    set((state) => ({
+      participants: state.participants.filter((p) => p.id !== id),
+    }));
+  },
+
+  setSpeaking(id: string, speaking: boolean) {
+    set((state) => {
+      const idx = state.participants.findIndex((p) => p.id === id);
+      if (idx < 0) return state;
+      const next = [...state.participants];
+      const current = next[idx]!;
+      next[idx] = { ...current, isSpeaking: speaking };
+      return { participants: next };
+    });
+  },
+
+  setAudioLevel(id: string, level: number) {
+    set((state) => {
+      const idx = state.participants.findIndex((p) => p.id === id);
+      if (idx < 0) return state;
+      const next = [...state.participants];
+      const current = next[idx]!;
+      next[idx] = { ...current, audioLevel: Math.max(0, Math.min(1, level)) };
+      return { participants: next };
+    });
+  },
+
+  setMuted(id: string, muted: boolean) {
+    set((state) => {
+      const idx = state.participants.findIndex((p) => p.id === id);
+      if (idx < 0) return state;
+      const next = [...state.participants];
+      const current = next[idx]!;
+      next[idx] = { ...current, isMuted: muted };
+      return { participants: next };
+    });
+  },
+
+  setParticipants(list: VoiceParticipantInfo[]) {
+    set({ participants: list });
   },
 }));
