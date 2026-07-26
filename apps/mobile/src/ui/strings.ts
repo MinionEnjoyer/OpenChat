@@ -451,6 +451,14 @@ export const strings = {
     /** @satisfies FR-VOX-006 */
     flipCameraA11y: 'Switch camera',
   },
+  screenshare: {
+    live: 'LIVE',
+    screenIcon: '🖥️',
+    hide: 'Hide',
+    show: 'Show',
+    hideA11y: 'Hide screen share',
+    showA11y: 'Show screen share',
+  },
 } as const;
 
 export type Strings = typeof strings;
