@@ -5,7 +5,6 @@
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:

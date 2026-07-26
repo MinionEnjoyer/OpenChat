@@ -4,7 +4,6 @@
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
 
 # ── Navigate to #general ──
 - tapOn:

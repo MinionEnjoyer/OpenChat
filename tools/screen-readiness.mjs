@@ -377,12 +377,19 @@ async function main() {
 }
 
 function runGoShell() {
-  const goShellFlow = join(SCREEN_FLOWS, '_go-shell.yaml');
-  if (existsSync(goShellFlow)) {
-    console.log('  → returning to shell...');
-    const r = maestro(['test', goShellFlow], { timeout: 60_000 });
-    if (!r.ok) console.log('  (go-shell recover failed, continuing anyway)');
+  // Use adb back button to dismiss overlays and return to shell.
+  // This is MUCH more reliable than Maestro's `back` command, which
+  // can exit the app. adb keyevent 4 from shell is harmless.
+  const TMP = join(OUT, '_tmp.xml');
+  for (let i = 0; i < 8; i++) {
+    try { dumpXml(TMP); } catch { break; }
+    if (!existsSync(TMP)) break;
+    const hasShell = find(parseXml(TMP), n => n['resource-id'] === 'shell-screen').length > 0;
+    if (hasShell) return;
+    adbSh('input keyevent 4');
+    sleep(400);
   }
+  console.log('  (go-shell recover exceeded retries, continuing anyway)');
 }
 
 main().catch(e => { console.error('FATAL:', e); process.exit(2); });

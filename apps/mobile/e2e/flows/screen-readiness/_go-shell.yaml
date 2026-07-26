@@ -1,24 +1,15 @@
 # _go-shell — return to shell screen from any navigation state.
-#
-# Strategy:
-#  1. pressBack to dismiss full-screen overlays (friends, inbox, create-server,
-#     server-settings, notif-settings, invite-create, join-server, etc.)
-#  2. Tap right side to dismiss left drawer
-#  3. Tap left side to dismiss right drawer
-#  4. Assert shell-screen is visible
+# Used inline by screen-readiness flows to recover before navigating.
+# Uses only scrim taps; adb-based back handling is done by the runner.
 
 appId: com.openchat.mobile
 ---
-- pressBack
-- pressBack
-- pressBack
 # Dismiss left drawer (tap right scrim)
 - tapOn:
     point: '85%,50%'
 # Dismiss right drawer (tap left scrim)
 - tapOn:
     point: '15%,50%'
-# One more for safety
 - tapOn:
     point: '15%,50%'
 - assertVisible:
