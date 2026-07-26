@@ -14,7 +14,7 @@ export function ReactorListSheet({ visible, emoji, reactions, onClose }: Props):
   const group = reactions.find((r) => r.emoji === emoji);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} testID="reactor-list-sheet">
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View />
       </Pressable>

@@ -1,0 +1,74 @@
+# msg-rich-reactions — send a message, add a reaction, verify pill, remove it.
+# @satisfies FR-MSG-006
+#
+# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# Single-device: alice reacts to her own message.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login and navigate to #general ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 2: Send a test message ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-reaction-test'
+- tapOn:
+    id: 'composer-send'
+
+# Wait for the message to appear in the chat list (text-based assertion)
+- assertVisible: 'e2e-reaction-test'
+
+# ── Phase 3: Long-press to reveal action sheet, tap "React" ──
+- longPressOn: 'e2e-reaction-test'
+# The native Alert.alert presents action buttons; "React" is strings.messages.react
+- tapOn: 'React'
+
+# ── Phase 4: Emoji picker appears; select 👍 ──
+- assertVisible:
+    id: 'emoji-picker'
+- tapOn:
+    id: 'emoji-cell-👍'
+
+# ── Phase 5: Verify the 👍 reaction pill appears ──
+- assertVisible:
+    id: 'reaction-pill-👍'
+
+# ── Phase 6: Tap the 👍 pill to remove the reaction ──
+- tapOn:
+    id: 'reaction-pill-👍'
+
+# ── Phase 7: Verify the 👍 pill is gone ──
+- assertNotVisible:
+    id: 'reaction-pill-👍'
+
+- takeScreenshot: artifacts/e2e/screens/msg-rich-reactions
