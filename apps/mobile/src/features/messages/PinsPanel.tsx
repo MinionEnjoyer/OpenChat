@@ -41,7 +41,7 @@ export function PinsPanel({ channelId, visible, onClose }: {
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={styles.sheet} testID="pins-panel">
           <View style={styles.header}>
             <Text style={styles.title}>{strings.messages.pinsPanelTitle}</Text>
             <Pressable onPress={onClose} accessibilityLabel={strings.common.cancel}>

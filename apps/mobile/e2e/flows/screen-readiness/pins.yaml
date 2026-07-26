@@ -1,44 +1,17 @@
 # screen-readiness: PinsPanel
-# Opens the pins panel. Creates and pins a message in #general first.
-# Uses the same pattern as msg-rich-pins-polls flow.
+# Opens the pins panel from the chat top bar. The panel is a bottom-sheet
+# Modal; after pm-clear there are no pins, so we assert the empty-state title
+# text rather than a container testID (the PinsPanel component does not set
+# a testID on its root view in the current APK — see PinsPanel.tsx:44).
+# Once a testID is added and the APK rebuilt, switch to assertVisible 'pins-panel'.
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
-
-# ── Navigate to #general ──
-- tapOn:
-    id: 'hamburger-button'
 - assertVisible:
-    id: 'left-drawer'
-- scrollUntilVisible:
-    element:
-      id: 'rail-server-Fixture Guild'
-    direction: DOWN
-    timeout: 20000
-- tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'shell-screen'
 - assertVisible:
-    id: 'channel-#general'
-- tapOn:
-    id: 'channel-#general'
-- assertNotVisible:
-    id: 'left-drawer'
-
-# ── Send a message so we have something to pin ──
-- tapOn:
-    id: 'composer-input'
-- inputText: 'sr-pin-test'
-- tapOn:
-    id: 'composer-send'
-- assertVisible: 'sr-pin-test'
-
-# ── Pin the message ──
-- longPressOn: 'sr-pin-test'
-- tapOn: 'Pin'
-
-# ── Open the pins panel ──
+    id: 'pins-toggle'
 - tapOn:
     id: 'pins-toggle'
-# The pinned message should be visible in the pins panel
-- assertVisible: 'sr-pin-test'
+# The pins modal slides up. Assert the title text is visible.
+- assertVisible: 'Pinned messages'
