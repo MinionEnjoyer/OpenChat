@@ -90,12 +90,48 @@ else
 fi
 popd > /dev/null
 
-# ── Dependencies (idempotent) ─────────────────────────────────────────
-if [ ! -d "$API_DIR/node_modules" ]; then
-  echo "[worktree-up] Installing dependencies (npm ci)..."
-  (cd "$API_DIR" && npm ci --silent)
-else
-  echo "[worktree-up] node_modules present — skipping npm ci"
+# ── Dependencies (idempotent, symlink from shared checkout) ──────────
+# node_modules is a SHARED SYMLINK across worktrees. Running npm ci in
+# one worktree would corrupt every other agent sharing the same real
+# directory. Instead, symlink from the shared checkout (git-common-dir
+# parent, or WORKTREE_SHARED_ROOT if set), which is the canonical
+# install point.
+SHARED_ROOT="${WORKTREE_SHARED_ROOT:-}"
+if [ -z "$SHARED_ROOT" ]; then
+  SHARED_ROOT="$(cd "$WORKTREE" && git rev-parse --git-common-dir 2>/dev/null | sed 's|/\.git$||')"
+fi
+if [ -z "$SHARED_ROOT" ]; then
+  echo "ERROR: could not determine shared checkout (git rev-parse --git-common-dir failed)"
+  exit 1
+fi
+echo "[worktree-up] Shared checkout: $SHARED_ROOT"
+
+link_node_modules() {
+  local rel="$1"
+  local target="$SHARED_ROOT/$rel/node_modules"
+  local link="$WORKTREE/$rel/node_modules"
+  if [ -d "$link" ] && [ ! -L "$link" ]; then
+    echo "[worktree-up] $rel/node_modules is a real directory (not a symlink) — refusing to overwrite"
+    return 1
+  fi
+  if [ -L "$link" ]; then
+    echo "[worktree-up] $rel/node_modules symlink present — skipping"
+    return 0
+  fi
+  if [ ! -d "$target" ]; then
+    echo "[worktree-up] WARNING: $target does not exist — skipping $rel/node_modules symlink"
+    echo "[worktree-up]   Run 'npm ci' in the shared checkout first: cd $SHARED_ROOT/$rel && npm ci"
+    return 0
+  fi
+  ln -s "$target" "$link"
+  echo "[worktree-up] Symlinked $rel/node_modules → $target"
+}
+
+link_node_modules "apps/api"
+link_node_modules "apps/mobile"
+# Root-level node_modules (husky, etc.) — only if the shared checkout has it
+if [ -d "$SHARED_ROOT/node_modules" ]; then
+  link_node_modules "."
 fi
 
 # ── Prisma generate (idempotent) ──────────────────────────────────────
