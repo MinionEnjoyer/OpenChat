@@ -9,9 +9,17 @@
   {
     "screen": "Left Drawer (rail+channels)",
     "id": "left-drawer",
+<<<<<<< HEAD
     "reached": true,
     "pass": true,
     "failures": []
+=======
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+>>>>>>> nav-d
   },
   {
     "screen": "Right Drawer (members)",
@@ -25,9 +33,17 @@
   {
     "screen": "FriendsScreen",
     "id": "friends",
+<<<<<<< HEAD
     "reached": true,
     "pass": true,
     "failures": []
+=======
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+>>>>>>> nav-d
   },
   {
     "screen": "InboxScreen",

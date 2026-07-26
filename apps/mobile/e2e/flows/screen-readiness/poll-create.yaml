@@ -1,24 +1,12 @@
 # screen-readiness: PollCreate
 # Opens the poll creation modal from the composer in a channel.
-# Navigates to #general in Fixture Guild, then taps composer-poll.
+# The app restores last-selected server/channel; composer-poll is always
+# present on the shell screen — no drawer navigation needed.
+# Emulator-5556 verified: tap composer-poll → poll-create-question visible.
 
 appId: com.openchat.mobile
 ---
-- tapOn:
-    id: 'hamburger-button'
-- assertVisible:
-    id: 'left-drawer'
-- scrollUntilVisible:
-    element:
-      id: 'rail-server-Fixture Guild'
-    direction: DOWN
-    timeout: 20000
-- tapOn:
-    id: 'rail-server-Fixture Guild'
-- assertVisible:
-    id: 'channel-#general'
-- tapOn:
-    id: 'channel-#general'
+- runFlow: _go-shell.yaml
 - assertVisible:
     id: 'composer-poll'
 - tapOn:

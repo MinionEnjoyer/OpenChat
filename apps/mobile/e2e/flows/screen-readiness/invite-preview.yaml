@@ -1,0 +1,11 @@
+# screen-readiness: InvitePreviewOverlay
+# Opens the invite preview overlay via openLink deep link.
+# The overlay renders even with an invalid code (shows error state).
+# Emulator-5556 verified: openLink → invite-preview-overlay visible.
+
+appId: com.openchat.mobile
+---
+- runFlow: _go-shell.yaml
+- openLink: openchat://invite/test123
+- assertVisible:
+    id: invite-preview-overlay

@@ -287,8 +287,7 @@ async function main() {
     { id: 'member-profile', label: 'MemberProfileSheet', flow: 'member-profile.yaml',
       required: ['member-profile-sheet'] },
     { id: 'invite-preview', label: 'InvitePreviewOverlay', flow: 'invite-preview.yaml',
-      required: ['invite-preview-overlay'],
-      unreachableReason: 'UNREACHABLE-BY-DESIGN: requires a real invite link URL in a message' },
+      required: ['invite-preview-overlay'] },
   ];
 
 
