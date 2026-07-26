@@ -383,6 +383,12 @@ export const strings = {
     pillConnecting: 'Connecting…',
     pillLeave: 'Leave',
     pillLeaveA11y: 'Disconnect voice',
+    incomingCall: 'Incoming Call',
+    incomingCallSubtitle: 'wants to talk',
+    accept: 'Accept',
+    decline: 'Decline',
+    callButtonA11y: 'Start voice call',
+    callButtonLabel: '\u{1F4DE}', // 📞 telephone receiver
   },
 } as const;
 
