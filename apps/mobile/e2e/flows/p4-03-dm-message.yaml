@@ -25,12 +25,15 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'shell-screen'
 
-# ── Phase 1: Open left drawer → tap DM with eve ──
+# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with eve ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
-# DM section is at the top of the left drawer
+# DD-023: tap DM entry in the rail to show DM list in the content column
+- tapOn:
+    id: 'rail-dm'
+# DM section now visible in the content column
 - assertVisible:
     id: 'dm-section'
 # Tap the DM channel with eve
