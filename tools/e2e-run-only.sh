@@ -8,6 +8,7 @@
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 source tools/env.sh 2>/dev/null || true
+source tools/e2e-provision.sh
 export JAVA_HOME ANDROID_HOME
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 DEV="${1:?device}"; LIST="${2:?flow list file}"
@@ -120,7 +121,9 @@ while read -r f <&3; do
   # macOS has no GNU `timeout` and gtimeout needs coreutils, so implement the deadline
   # in bash. This is not optional: a single hung flow blocks the whole run, and with four
   # devices running concurrently one hang stalls every downstream wait indefinitely.
-  maestro --device "$DEV" test "$f" >"/tmp/e2e-$base-$DEV.log" 2>&1 </dev/null &
+  # Provision a fresh isolated world for this flow
+  provision_world "$base" || { echo "FAIL $base :: provision failed" | tee -a "$OUT"; VERDICT_COUNT=$((VERDICT_COUNT + 1)); continue; }
+  maestro --device "$DEV" test "${MAESTRO_ENV_ARGS[@]}" "$f" >"/tmp/e2e-$base-$DEV.log" 2>&1 </dev/null &
   mpid=$!
   waited=0
   while kill -0 "$mpid" 2>/dev/null && [ "$waited" -lt "$PER_FLOW_TIMEOUT" ]; do

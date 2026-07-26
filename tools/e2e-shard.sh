@@ -13,6 +13,7 @@ IDX="${1:?usage: e2e-shard.sh <idx> <count> <serial>}"
 CNT="${2:?}"; DEV="${3:?}"
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source tools/env.sh 2>/dev/null || true
+source tools/e2e-provision.sh
 export JAVA_HOME ANDROID_HOME
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 PER_FLOW_TIMEOUT="${PER_FLOW_TIMEOUT:-90}"
@@ -120,7 +121,9 @@ for i in "${!ALL[@]}"; do
   adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.POST_NOTIFICATIONS </dev/null || true
   # macOS has no GNU `timeout` and gtimeout needs coreutils, so implement the
   # deadline in bash. A single hung flow blocks the whole shard indefinitely.
-  maestro --device "$DEV" test "$f" > "/tmp/e2e-$base-$DEV.log" 2>&1 </dev/null &
+  # Provision a fresh isolated world for this flow
+  provision_world "$base" || { echo "FAIL $base :: provision failed"; FAIL=$((FAIL+1)); FAILED+=("$base"); VERDICT_COUNT=$((VERDICT_COUNT + 1)); GOT_VERDICT["$base"]=1; continue; }
+  maestro --device "$DEV" test "${MAESTRO_ENV_ARGS[@]}" "$f" > "/tmp/e2e-$base-$DEV.log" 2>&1 </dev/null &
   mpid=$!
   waited=0
   while kill -0 "$mpid" 2>/dev/null && [ "$waited" -lt "$PER_FLOW_TIMEOUT" ]; do
