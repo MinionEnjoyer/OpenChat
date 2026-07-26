@@ -1,0 +1,105 @@
+# p4-04-presence-profile — dev-login → select server → open right drawer → verify presence
+# dots, status picker, and member profile sheet.
+# @satisfies FR-SOC-004, FR-SOC-006
+#
+# Verifies:
+#  1. Right drawer opens showing own status with presence dot and status label.
+#  2. Status picker button opens a modal with Online/Away/DND/Invisible options.
+#  3. Member list shows presence dots per member.
+#  4. Tapping a member opens the profile sheet with user details.
+#  5. Profile sheet can be dismissed.
+#
+# Requires: dev stack up + seeded (Fixture Guild, alice is a member).
+# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 1: Select Fixture Guild → #general (so members load) ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 2: Open right drawer (members + profile) ──
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'right-drawer'
+
+# ── Phase 3: Verify own presence and profile elements ──
+# Status indicator with presence dot
+- assertVisible:
+    id: 'status-indicator'
+# Presence status picker button
+- assertVisible:
+    id: 'presence-picker'
+# Profile display name input
+- assertVisible:
+    id: 'profile-displayname'
+
+# ── Phase 4: Open status picker, verify options, dismiss ──
+- tapOn:
+    id: 'presence-picker'
+- assertVisible:
+    id: 'presence-option-online'
+- assertVisible:
+    id: 'presence-option-away'
+- assertVisible:
+    id: 'presence-option-dnd'
+- assertVisible:
+    id: 'presence-option-invisible'
+# Dismiss by tapping backdrop
+- tapOn:
+    id: 'presence-backdrop'
+
+# ── Phase 5: Verify member list and presence dots ──
+- assertVisible:
+    id: 'members-drawer'
+# alice should appear as a member (with a presence dot)
+- assertVisible:
+    id: 'member-alice'
+
+# ── Phase 6: Tap alice → verify profile sheet ──
+- tapOn:
+    id: 'member-alice'
+- assertVisible:
+    id: 'member-profile-sheet'
+# Profile sheet shows the member's display name
+- assertVisible: 'Alice Updated'
+# Dismiss profile sheet
+- tapOn:
+    id: 'member-profile-close'
+- assertNotVisible:
+    id: 'member-profile-sheet'
+
+# ── Phase 7: Close right drawer via scrim tap ──
+- tapOn:
+    point: '20%,50%'
+- assertNotVisible:
+    id: 'right-drawer'

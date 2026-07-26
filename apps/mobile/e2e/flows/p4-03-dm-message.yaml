@@ -1,0 +1,61 @@
+# p4-03-dm-message — dev-login → open DM with friend → send message → verify it appears.
+# @satisfies FR-SOC-002
+#
+# Verifies:
+#  1. DM list is accessible from the left drawer.
+#  2. Tapping a DM channel opens it and shows the chat pane with composer.
+#  3. Typing and sending a message places it in the chat view.
+#  4. The sent message text is visible in the message list.
+#
+# Requires: dev stack up + seeded (alice-eve DM channel exists).
+# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 1: Open left drawer → tap DM with eve ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+# DM section is at the top of the left drawer
+- assertVisible:
+    id: 'dm-section'
+# Tap the DM channel with eve
+- tapOn:
+    id: 'dm-728e2f19-5ad2-44be-9546-875f4c317915'
+
+# ── Phase 2: Verify chat pane and composer ──
+# Left drawer closes, chat pane shows the DM
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+# Composer must be available (not readonly)
+- assertVisible:
+    id: 'composer-input'
+- assertVisible:
+    id: 'composer-send'
+
+# ── Phase 3: Type and send a message ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'Hello eve from e2e!'
+- tapOn:
+    id: 'composer-send'
+
+# ── Phase 4: Verify message appears in chat ──
+# We cannot predict the server-assigned message ID, so verify by text content.
+- assertVisible: 'Hello eve from e2e!'

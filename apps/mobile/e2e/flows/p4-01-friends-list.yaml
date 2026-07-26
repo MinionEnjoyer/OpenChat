@@ -1,0 +1,90 @@
+# p4-01-friends-list — dev-login → open friends → verify all four tabs and their content.
+# @satisfies FR-SOC-001
+#
+# Verifies:
+#  1. Friends screen opens from left-drawer rail.
+#  2. Four tabs exist: Online, All, Pending, Blocked.
+#  3. Online tab lists the online friend (eve).
+#  4. All tab lists all friends with remove/block actions.
+#  5. Pending tab lists outgoing request (carol) with cancel action.
+#  6. Blocked tab lists blocked user (bob) with unblock action.
+#
+# Requires: dev stack up + seeded (alice has friend eve, outgoing to carol, blocked bob).
+# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 1: Open friends screen ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+- assertVisible:
+    id: 'friends-tabs'
+
+# ── Phase 2: Verify all four tabs exist ──
+- assertVisible:
+    id: 'friends-tab-online'
+- assertVisible:
+    id: 'friends-tab-all'
+- assertVisible:
+    id: 'friends-tab-pending'
+- assertVisible:
+    id: 'friends-tab-blocked'
+
+# ── Phase 3: Online tab — friend eve is listed ──
+# Online is the default tab; eve (ONLINE) should appear.
+- assertVisible:
+    id: 'friend-item-eve'
+
+# ── Phase 4: All tab — friend eve with remove/block buttons ──
+- tapOn:
+    id: 'friends-tab-all'
+- assertVisible:
+    id: 'friend-item-eve'
+- assertVisible:
+    id: 'friend-remove-eve'
+- assertVisible:
+    id: 'friend-block-eve'
+
+# ── Phase 5: Pending tab — outgoing request to carol ──
+- tapOn:
+    id: 'friends-tab-pending'
+# carol appears in the pending list with username
+- assertVisible:
+    id: 'friend-item-carol'
+- assertVisible:
+    id: 'friend-cancel-carol'
+
+# ── Phase 6: Blocked tab — bob is blocked ──
+- tapOn:
+    id: 'friends-tab-blocked'
+- assertVisible:
+    id: 'friend-item-bob'
+- assertVisible:
+    id: 'friend-unblock-bob'
+
+# ── Phase 7: Close friends screen ──
+- tapOn:
+    id: 'friends-close-button'
+- assertNotVisible:
+    id: 'friends-screen'
+
+- takeScreenshot: artifacts/e2e/screens/p4-friends-list

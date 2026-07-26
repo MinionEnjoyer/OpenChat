@@ -1,0 +1,63 @@
+# p4-05-block-collapse — dev-login → open DM with blocked user → verify blocked messages
+# are collapsed → tap to reveal → verify message content.
+# @satisfies FR-SOC-007
+#
+# Verifies:
+#  1. DM channel with a blocked user shows collapsed messages instead of content.
+#  2. The collapsed placeholder text "Blocked message — tap to show" is visible.
+#  3. Tapping a collapsed message reveals its content.
+#  4. After reveal, the actual message content is visible in the chat.
+#
+# Requires: dev stack up + seeded (alice has bob blocked, bob has a message in the DM).
+# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 1: Open left drawer → tap DM with blocked bob ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'dm-section'
+# Tap the DM channel with bob (blocked user)
+- tapOn:
+    id: 'dm-0060a9cb-c897-44ac-b4db-7d4d7a44ce33'
+
+# ── Phase 2: Verify left drawer closes and chat pane loads ──
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+
+# ── Phase 3: Verify blocked message is collapsed ──
+# Bob is blocked; his message should render as a collapsed placeholder.
+# The collapsed placeholder has testID blocked-msg-{msgId} and text from
+# strings.blockedMessages.collapsed = "Blocked message — tap to show"
+- assertVisible:
+    id: 'blocked-msg-5719da3f-0672-4c00-8fa7-4691726e8585'
+- assertVisible: 'Blocked message — tap to show'
+
+# ── Phase 4: Tap to reveal the blocked message ──
+- tapOn:
+    id: 'blocked-msg-5719da3f-0672-4c00-8fa7-4691726e8585'
+
+# ── Phase 5: Verify message content is now visible ──
+# After reveal, the collapsed placeholder is gone and the real message content
+# appears. The message from bob reads "Hi alice, this is bob".
+- assertNotVisible:
+    id: 'blocked-msg-5719da3f-0672-4c00-8fa7-4691726e8585'
+- assertVisible: 'Hi alice, this is bob'

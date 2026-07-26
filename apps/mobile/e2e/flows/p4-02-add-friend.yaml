@@ -1,0 +1,80 @@
+# p4-02-add-friend — dev-login → unblock bob → add friend by friendCode → verify in pending.
+# @satisfies FR-SOC-001
+#
+# Verifies:
+#  1. Friends screen opens, blocked tab shows bob.
+#  2. Unblock bob (state change verified: bob removed from blocked list).
+#  3. Add friend overlay opens, accepts friendCode input, sends request.
+#  4. Pending tab shows outgoing request to bob.
+#
+# Requires: dev stack up + seeded (alice has bob blocked initially).
+# State-modifying flow: alice unblocks bob and sends a friend request by friendCode.
+# Runs independently; clearState for fresh vault.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 1: Open friends screen ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+
+# ── Phase 2: Switch to Blocked tab → unblock bob ──
+- tapOn:
+    id: 'friends-tab-blocked'
+- assertVisible:
+    id: 'friend-unblock-bob'
+# Tap unblock (this is a direct unblock, no confirmation alert per source)
+- tapOn:
+    id: 'friend-unblock-bob'
+# After unblock, the blocked list is empty — verify bob is gone
+- assertNotVisible:
+    id: 'friend-unblock-bob'
+
+# ── Phase 3: Add friend by friendCode ──
+# Open the add friend overlay
+- tapOn:
+    id: 'friends-add-button'
+- assertVisible:
+    id: 'friends-add-overlay'
+- tapOn:
+    id: 'friends-add-input'
+# Bob's friendCode: 36062043
+- inputText: '36062043'
+- tapOn:
+    id: 'friends-add-send'
+# Overlay closes after send
+- assertNotVisible:
+    id: 'friends-add-overlay'
+
+# ── Phase 4: Pending tab — verify bob's outgoing request ──
+- tapOn:
+    id: 'friends-tab-pending'
+# bob should now appear as outgoing (friend-cancel-bob)
+- assertVisible:
+    id: 'friend-item-bob'
+- assertVisible:
+    id: 'friend-cancel-bob'
+
+# ── Phase 5: Close friends screen ──
+- tapOn:
+    id: 'friends-close-button'
+- assertNotVisible:
+    id: 'friends-screen'
