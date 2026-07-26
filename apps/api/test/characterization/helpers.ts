@@ -476,7 +476,10 @@ export function assertInvitePreviewShape(inv: any): void {
 }
 
 // ── Role shape ──
-const ROLE_KEYS = ['id', 'name', 'color', 'serverId', 'permissions', 'position'];
+// `mentionable` added by FR-ROLE-007 (@role mentions) — an INTENTIONAL contract change.
+// The regression net correctly flagged it; baseline updated by architect authorization.
+// Keep this list EXACT: it is what catches unintended API shape drift.
+const ROLE_KEYS = ['id', 'name', 'color', 'serverId', 'permissions', 'position', 'mentionable'];
 
 export function assertRoleShape(r: any): void {
   assertExactKeys(r, ROLE_KEYS, 'Role');
@@ -488,6 +491,8 @@ export function assertRoleShape(r: any): void {
   // permissions: BigInt serialized as string
   assertBigIntString(r.permissions);
   expect(typeof r.position).toBe('number');
+  // FR-ROLE-007: mentionable gates whether @role produces mention events.
+  expect(typeof r.mentionable).toBe('boolean');
 }
 
 // ── Permission catalog entry shape ──
