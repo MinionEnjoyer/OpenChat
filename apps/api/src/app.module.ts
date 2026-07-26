@@ -18,6 +18,7 @@ import { GifsModule } from './gifs/gifs.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { MediaModule } from './media/media.module';
+import { PushModule } from './push/push.module';
 import { HealthController } from './health/health.controller';
 import { ConfigController } from './config/config.controller';
 import { validateEnv } from './config/configuration';
@@ -47,6 +48,7 @@ import { validateEnv } from './config/configuration';
     GifsModule,
     UploadsModule,
     MediaModule,
+    PushModule,
   ],
   controllers: [HealthController, ConfigController],
 })
