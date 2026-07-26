@@ -8,6 +8,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
 import { applyCreated, applyUpdated, applyDeleted } from './messages';
+import { keys } from './keys';
 import { useTyping } from '../stores/typing';
 import { handleForegroundNotification } from '../features/notifications';
 import { usePresence } from '../stores/presence';
@@ -69,6 +70,12 @@ export function applyEvent(frame: S2CFrame): void {
     case 'call.ring': {
       const cd = frame.d as { callerName: string };
       handleForegroundNotification({ kind: 'call.ring', callerName: cd.callerName });
+      break;
+    }
+    case 'voice.occupancy': {
+      // @satisfies FR-VOX-004 — invalidate voice participants on occupancy change
+      const vd = frame.d as { channelId: string };
+      void queryClient.invalidateQueries({ queryKey: keys.voiceParticipants(vd.channelId) });
       break;
     }
     default:

@@ -438,6 +438,11 @@ export interface WatchpartySyncFrame {
   d: { channelId: string; state: Record<string, unknown> };
 }
 
+export interface VoiceOccupancyFrame {
+  op: 'voice.occupancy';
+  d: { channelId: string };
+}
+
 // ── P3 granular guild-structure events (x-added-by: P3) ──
 
 export interface ChannelCreatedFrame { op: 'channel.created'; d: { channel: Record<string, unknown> } }
@@ -464,6 +469,7 @@ export type S2CFrame =
   | CallRingFrame
   | WatchpartySyncFrame
   // ── P3 granular guild-structure events ──
+  | VoiceOccupancyFrame
   | ChannelCreatedFrame
   | ChannelDeletedFrame
   | RoleCreatedFrame
