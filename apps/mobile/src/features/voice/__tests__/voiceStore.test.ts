@@ -209,6 +209,132 @@ describe('VoiceStore', () => {
     });
   });
 
+  // ── Mute state (FR-VOX-003) ──
+
+  describe('FR-VOX-003 mute controls', () => {
+    it('syncMicFromTrack reads actual mic track state and sets isMuted', () => {
+      // Simulate the real condition: mic is actually enabled (unmuted) at track level
+      useVoiceStore.setState({
+        room: { localParticipant: { isMicrophoneEnabled: true } },
+        isMuted: false,
+      });
+      useVoiceStore.getState().syncMicFromTrack();
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+
+      // Now simulate the bug condition: mic is actually muted but store says unmuted
+      useVoiceStore.setState({
+        room: { localParticipant: { isMicrophoneEnabled: false } },
+        isMuted: false,
+      });
+      useVoiceStore.getState().syncMicFromTrack();
+      // This MUST be true — the store reflects the actual track state
+      expect(useVoiceStore.getState().isMuted).toBe(true);
+    });
+
+    it('syncMicFromTrack is a no-op when localParticipant is missing isMicrophoneEnabled', () => {
+      useVoiceStore.setState({
+        room: { localParticipant: {} },
+        isMuted: false,
+      });
+      useVoiceStore.getState().syncMicFromTrack();
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+    });
+
+    it('syncMicFromTrack is a no-op when room is null', () => {
+      useVoiceStore.setState({ room: null, isMuted: false });
+      useVoiceStore.getState().syncMicFromTrack();
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+    });
+
+    it('muteOnJoin disables mic and sets isMuted to true', async () => {
+      const setMic = jest.fn().mockResolvedValue(undefined);
+      useVoiceStore.setState({
+        room: {
+          localParticipant: {
+            setMicrophoneEnabled: setMic,
+            isMicrophoneEnabled: false,
+          },
+        },
+        isMuted: false,
+      });
+
+      await useVoiceStore.getState().muteOnJoin();
+
+      expect(setMic).toHaveBeenCalledWith(false);
+      expect(useVoiceStore.getState().isMuted).toBe(true);
+    });
+
+    it('muteOnJoin is a no-op when room has no localParticipant', async () => {
+      useVoiceStore.setState({ room: null, isMuted: false });
+      await useVoiceStore.getState().muteOnJoin();
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+    });
+
+    it('ONE tap of toggleMute toggles the actual track state', () => {
+      const setMic = jest.fn();
+      useVoiceStore.setState({
+        room: { localParticipant: { setMicrophoneEnabled: setMic } },
+        isMuted: false,
+        isDeafened: false,
+      });
+
+      // One tap: should mute (disable mic)
+      useVoiceStore.getState().toggleMute();
+
+      expect(setMic).toHaveBeenCalledTimes(1);
+      expect(setMic).toHaveBeenCalledWith(false);
+      expect(useVoiceStore.getState().isMuted).toBe(true);
+
+      // Second tap: should unmute (enable mic)
+      useVoiceStore.getState().toggleMute();
+
+      expect(setMic).toHaveBeenCalledTimes(2);
+      expect(setMic).toHaveBeenLastCalledWith(true);
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+    });
+
+    it('toggleMute is blocked while deafened', () => {
+      const setMic = jest.fn();
+      useVoiceStore.setState({
+        room: { localParticipant: { setMicrophoneEnabled: setMic } },
+        isMuted: true,
+        isDeafened: true,
+      });
+
+      useVoiceStore.getState().toggleMute();
+
+      expect(setMic).not.toHaveBeenCalled();
+      expect(useVoiceStore.getState().isMuted).toBe(true);
+    });
+
+    it('toggleMute handles room without localParticipant gracefully', () => {
+      useVoiceStore.setState({ room: null, isMuted: false, isDeafened: false });
+      useVoiceStore.getState().toggleMute();
+      expect(useVoiceStore.getState().isMuted).toBe(true);
+    });
+
+    it('toggleDeafen sets isMuted true when deafening, clears both when undefeating', () => {
+      const setMic = jest.fn();
+      useVoiceStore.setState({
+        room: { localParticipant: { setMicrophoneEnabled: setMic } },
+        isMuted: false,
+        isDeafened: false,
+      });
+
+      // Deafen
+      useVoiceStore.getState().toggleDeafen();
+      expect(setMic).toHaveBeenCalledWith(false);
+      expect(useVoiceStore.getState().isDeafened).toBe(true);
+      expect(useVoiceStore.getState().isMuted).toBe(true);
+
+      // Undeafen
+      useVoiceStore.getState().toggleDeafen();
+      expect(setMic).toHaveBeenLastCalledWith(true);
+      expect(useVoiceStore.getState().isDeafened).toBe(false);
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+    });
+  });
+
   // ── Video state (FR-VOX-006) ──
   describe('FR-VOX-006 camera video', () => {
     it('cameraEnabled defaults to false', () => {

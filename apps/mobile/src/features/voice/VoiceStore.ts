@@ -128,6 +128,10 @@ export interface VoiceState {
   toggleSpeaker: () => void;
   /** Reset controls to defaults (called on leave). */
   resetControls: () => void;
+  /** Read the actual mic track state and sync isMuted to match it. @satisfies FR-VOX-003 */
+  syncMicFromTrack: () => void;
+  /** Explicitly mute the local mic track on join, then sync the store. @satisfies FR-VOX-003 */
+  muteOnJoin: () => Promise<void>;
 
   // ── FR-VOX-006 video controls ──
   /** Toggle the local camera on or off. @satisfies FR-VOX-006 */
@@ -369,7 +373,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   toggleDeafen() {
-    const { room, isDeafened, isMuted } = get();
+    const { room, isDeafened } = get();
     const newDeafened = !isDeafened;
 
     if (newDeafened) {
@@ -391,11 +395,12 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       }
       set({ isDeafened: true, isMuted: true });
     } else {
-      // Undeafening: re-enable mic (respecting previous mute state).
+      // Undeafening: re-enable mic. The user explicitly chose to undeafen,
+      // which means they want to participate (hear and be heard).
       if (room?.localParticipant && typeof room.localParticipant.setMicrophoneEnabled === 'function') {
-        room.localParticipant.setMicrophoneEnabled(!isMuted);
+        room.localParticipant.setMicrophoneEnabled(true);
       }
-      set({ isDeafened: false });
+      set({ isDeafened: false, isMuted: false });
     }
   },
 
@@ -408,6 +413,30 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   resetControls() {
     set({ isMuted: false, isDeafened: false, isSpeakerOn: true });
+  },
+
+  syncMicFromTrack() {
+    const { room } = get();
+    if (room?.localParticipant && typeof room.localParticipant.isMicrophoneEnabled === 'boolean') {
+      const enabled = room.localParticipant.isMicrophoneEnabled;
+      set({ isMuted: !enabled });
+    }
+  },
+
+  async muteOnJoin() {
+    const { room } = get();
+    // Join muted — the safer default for mobile (avoid accidental broadcast).
+    // Explicitly disable the mic, then read back the actual track state so the
+    // store cannot disagree with reality.
+    if (room?.localParticipant && typeof room.localParticipant.setMicrophoneEnabled === 'function') {
+      await room.localParticipant.setMicrophoneEnabled(false);
+    }
+    // After the await, read the actual track state to stay in sync.
+    const state = get();
+    if (state.room?.localParticipant && typeof state.room.localParticipant.isMicrophoneEnabled === 'boolean') {
+      const enabled = state.room.localParticipant.isMicrophoneEnabled;
+      set({ isMuted: !enabled });
+    }
   },
 
   // ── FR-VOX-006 video controls ──

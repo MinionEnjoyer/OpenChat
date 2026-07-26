@@ -107,6 +107,21 @@ export function useVoiceConnection(): VoiceConnectionAPI {
       useVoiceStore.getState().setConnectionState('idle');
     });
 
+    // Keep the store's isMuted in sync with the actual mic track state.
+    // TrackMuted / TrackUnmuted fire for both remote and local participants.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(RE.TrackMuted, (pub: any, participant: any) => {
+      if (participant === room.localParticipant && pub?.source === 'microphone') {
+        useVoiceStore.getState().syncMicFromTrack();
+      }
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    room.on(RE.TrackUnmuted, (pub: any, participant: any) => {
+      if (participant === room.localParticipant && pub?.source === 'microphone') {
+        useVoiceStore.getState().syncMicFromTrack();
+      }
+    });
+
     // Initial count
     updateCount();
   }
@@ -126,6 +141,9 @@ export function useVoiceConnection(): VoiceConnectionAPI {
       await room.connect(joinResp.url, joinResp.token);
       // Apply default speaker route after successful connection.
       applySpeakerDefault();
+      // Joining muted is the safer default for mobile (avoid accidental broadcast).
+      // This explicitly sets the mic track state and syncs the store to match it.
+      await useVoiceStore.getState().muteOnJoin();
     } catch (e) {
       // Connection failed — clean up.
       roomRef.current = null;
