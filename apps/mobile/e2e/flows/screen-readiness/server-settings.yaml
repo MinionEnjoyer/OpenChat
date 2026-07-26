@@ -1,10 +1,18 @@
 # screen-readiness: ServerSettingsScreen
 # Opens server settings from the channel header (gear icon).
-# Requires Fixture Guild to be in the rail.
+# Inline recovery: cancel dismisses create-server, scrim dismisses
+# left drawer, then re-opens drawer to navigate to Fixture Guild.
+# Leaves server-settings screen open.
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
+# Dismiss create-server overlay from previous screen
+- tapOn:
+    id: 'create-server-cancel'
+# Dismiss left drawer via scrim tap
+- tapOn:
+    point: '85%,50%'
+# Now navigate to server settings
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:

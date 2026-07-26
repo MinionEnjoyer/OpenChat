@@ -1,9 +1,9 @@
 # screen-readiness: Right Drawer (members)
 # Opens the right drawer from shell and verifies the members panel.
+# Starts from shell (post-login), leaves right drawer open.
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
 - tapOn:
     id: 'members-toggle'
 - assertVisible:

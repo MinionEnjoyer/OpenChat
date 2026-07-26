@@ -1,9 +1,13 @@
 # screen-readiness: InboxScreen
 # Opens inbox from the shell top bar.
+# Inline recovery: dismisses any open drawer, then taps inbox.
+# Leaves inbox screen open.
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
+# Dismiss open right drawer (scrim tap on left side)
+- tapOn:
+    point: '15%,50%'
 - tapOn:
     id: 'inbox-button'
 - assertVisible:
