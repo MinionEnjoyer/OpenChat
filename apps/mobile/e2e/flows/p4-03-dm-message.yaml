@@ -13,17 +13,7 @@
 appId: com.openchat.mobile
 
 ---
-- launchApp:
-    clearState: true
-- assertVisible:
-    id: 'login-screen'
-- tapOn:
-    id: 'login-username'
-- inputText: 'alice'
-- tapOn:
-    id: 'login-submit'
-- assertVisible:
-    id: 'shell-screen'
+- runFlow: _login.yaml
 
 # ── Phase 1: Open left drawer → tap DM rail entry → tap DM with eve ──
 - tapOn:

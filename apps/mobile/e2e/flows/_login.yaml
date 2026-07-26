@@ -1,0 +1,25 @@
+# _login — shared login subflow for E2E tests.
+#
+# Every flow that needs to sign in as alice should include this instead of
+# copy-pasting the login boilerplate.  This is the single point to harden
+# login if clearState ever leaves stale tokens (expo-secure-store).
+#
+# Usage in a flow:
+#   - runFlow: _login.yaml
+#   # ... flow continues after shell-screen is visible
+#
+# After this subflow completes, the app is on shell-screen signed in as alice.
+
+appId: com.openchat.mobile
+---
+- launchApp:
+    clearState: false
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'

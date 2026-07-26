@@ -8,17 +8,7 @@ appId: com.openchat.mobile
 
 ---
 # ── Phase 1: Login and navigate to #general ──
-- launchApp:
-    clearState: true
-- assertVisible:
-    id: 'login-screen'
-- tapOn:
-    id: 'login-username'
-- inputText: 'alice'
-- tapOn:
-    id: 'login-submit'
-- assertVisible:
-    id: 'shell-screen'
+- runFlow: _login.yaml
 
 - tapOn:
     id: 'hamburger-button'
