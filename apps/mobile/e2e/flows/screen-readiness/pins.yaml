@@ -1,0 +1,17 @@
+# screen-readiness: PinsPanel
+# Opens the pins panel from the chat top bar. The panel is a bottom-sheet
+# Modal; after pm-clear there are no pins, so we assert the empty-state title
+# text rather than a container testID (the PinsPanel component does not set
+# a testID on its root view in the current APK — see PinsPanel.tsx:44).
+# Once a testID is added and the APK rebuilt, switch to assertVisible 'pins-panel'.
+
+appId: com.openchat.mobile
+---
+- assertVisible:
+    id: 'shell-screen'
+- assertVisible:
+    id: 'pins-toggle'
+- tapOn:
+    id: 'pins-toggle'
+# The pins modal slides up. Assert the title text is visible.
+- assertVisible: 'Pinned messages'

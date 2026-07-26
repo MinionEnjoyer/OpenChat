@@ -1,0 +1,19 @@
+# screen-readiness: JoinServerOverlay
+# Opens the join server overlay from the left drawer rail.
+# rail-join-server is in the rail bottom section (between create-server and friends).
+# Wired in commit 5898487.
+
+appId: com.openchat.mobile
+---
+- assertVisible:
+    id: 'shell-screen'
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'rail-join-server'
+- tapOn:
+    id: 'rail-join-server'
+- assertVisible:
+    id: 'join-server-overlay'

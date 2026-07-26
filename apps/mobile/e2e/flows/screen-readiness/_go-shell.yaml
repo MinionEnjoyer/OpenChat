@@ -1,0 +1,16 @@
+# _go-shell — return to shell screen from open-drawer state.
+#
+# Strategy: tap outside the drawer area to dismiss any open drawers.
+# Full-screen overlays (create-server, server-settings) must be dismissed
+# by the calling flow with `back` before invoking _go-shell.
+#
+# Safe no-ops when drawers are already closed.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    point: '85%,50%'
+- tapOn:
+    point: '15%,50%'
+- tapOn:
+    point: '15%,50%'
