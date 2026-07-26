@@ -55,7 +55,6 @@ function renderGrid(): TestRenderer.ReactTestRenderer {
   act(() => {
     renderer = TestRenderer.create(<VoiceTileGrid />);
   });
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return renderer!;
 }
 

@@ -39,7 +39,6 @@ function render(p: VoiceParticipantInfo): TestRenderer.ReactTestRenderer {
   act(() => {
     renderer = TestRenderer.create(<VoiceTile participant={p} />);
   });
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return renderer!;
 }
 

@@ -44,3 +44,8 @@ export { VoiceTile } from './VoiceTile';
 export { VoiceTileGrid } from './VoiceTileGrid';
 export { useVoiceParticipants } from './useVoiceParticipants';
 export type { VoiceParticipantInfo } from './VoiceStore';
+export { VoiceControls } from './VoiceControls';
+export { IncomingCallOverlay } from './IncomingCallOverlay';
+export { useCallStore } from './CallStore';
+export type { IncomingCall, CallState } from './CallStore';
+export { VideoTile, type VideoTileProps } from './VideoTile';
