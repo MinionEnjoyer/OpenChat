@@ -7,9 +7,20 @@ import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
 import { api } from '../../../stores/session';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { keys } from '../../../sync/keys';
 import type { Server } from '../../../api/schema';
+
+export function useCreateServer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.request<Server>('/servers', { method: 'POST', body: { name } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.servers });
+    },
+  });
+}
 
 /**
  * FR-SRV-002 — Create server (name only; icon comes later via MED).

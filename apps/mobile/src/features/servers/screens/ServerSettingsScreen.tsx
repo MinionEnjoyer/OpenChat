@@ -7,12 +7,34 @@ import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
 import { api, useSession } from '../../../stores/session';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { keys } from '../../../sync/keys';
 import { hasServerPermission, isServerOwner, Permission } from '../../../permissions';
 import type { Server } from '../../../api/schema';
 import { AvatarPicker, useAvatarUpload } from '../../avatars';
 import { resolveConfig } from '../../../lib/config';
+
+export function useRenameServer(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      api.request<Server>(`/servers/${encodeURIComponent(serverId)}`, { method: 'PATCH', body: { name } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.servers });
+    },
+  });
+}
+
+export function useDeleteServer(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.request<{ success: true }>(`/servers/${encodeURIComponent(serverId)}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.servers });
+    },
+  });
+}
 
 /**
  * FR-SRV-003 — Server settings: rename (MANAGE_SERVER) and delete (owner-only).
@@ -34,6 +56,8 @@ export function ServerSettingsScreen({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const queryClient = useQueryClient();
   const avatar = useAvatarUpload(resolveConfig().apiBaseUrl);
+  const renameServer = useRenameServer(server.id);
+  const deleteServer = useDeleteServer(server.id);
 
   const canRename = hasServerPermission(server.myPermissions, Permission.MANAGE_SERVER);
   const canDelete = isServerOwner(user?.id, server.ownerId);
@@ -62,11 +86,7 @@ export function ServerSettingsScreen({
     if (!trimmed || trimmed === server.name || busy) return;
     setBusy(true);
     try {
-      await api.request(`/servers/${server.id}`, {
-        method: 'PATCH',
-        body: { name: trimmed },
-      });
-      await queryClient.invalidateQueries({ queryKey: keys.servers });
+      await renameServer.mutateAsync(trimmed);
       showToast(strings.servers.renameSaved);
       onDone();
     } catch {
@@ -80,8 +100,7 @@ export function ServerSettingsScreen({
     if (busy) return;
     setBusy(true);
     try {
-      await api.request(`/servers/${server.id}`, { method: 'DELETE' });
-      await queryClient.invalidateQueries({ queryKey: keys.servers });
+      await deleteServer.mutateAsync();
       onDone(true);
     } catch {
       showToast(strings.servers.deleteFailed, () => void submitDelete());

@@ -28,6 +28,28 @@ function levelLabel(level: NotificationSetting['level']): string {
   }
 }
 
+export function useUpsertNotifSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { scope: 'SERVER' | 'CHANNEL'; scopeId: string; level: string; mutedUntil?: string | null }) =>
+      api.request<NotificationSetting>('/notifications/settings', { method: 'PUT', body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.notificationSettings });
+    },
+  });
+}
+
+export function useDeleteNotifSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.request<{ success: true }>(`/notifications/settings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.notificationSettings });
+    },
+  });
+}
+
 /**
  * FR-NOTIF-003 — Per-server and per-channel notification levels + mute durations.
  * @satisfies FR-NOTIF-003
@@ -41,7 +63,6 @@ export function NotificationSettingsScreen({
   channelsByServer: Map<string, Channel[]>;
   onDone: () => void;
 }): React.JSX.Element {
-  const queryClient = useQueryClient();
   const [expandedMute, setExpandedMute] = useState<Set<string>>(new Set());
 
   const settingsQ = useQuery({
@@ -50,24 +71,8 @@ export function NotificationSettingsScreen({
   });
   const settings = settingsQ.data ?? [];
 
-  const upsertMut = useMutation({
-    mutationFn: (input: { scope: 'SERVER' | 'CHANNEL'; scopeId: string; level: string; mutedUntil?: string | null }) =>
-      api.request<NotificationSetting>('/notifications/settings', {
-        method: 'PUT',
-        body: input,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: keys.notificationSettings });
-    },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (settingId: string) =>
-      api.request<{ success: true }>(`/notifications/settings/${settingId}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: keys.notificationSettings });
-    },
-  });
+  const upsertMut = useUpsertNotifSetting();
+  const deleteMut = useDeleteNotifSetting();
 
   function getSetting(scope: 'SERVER' | 'CHANNEL', scopeId: string): NotificationSetting | undefined {
     return settings.find((s) => s.scope === scope && s.scopeId === scopeId);
