@@ -322,4 +322,74 @@ describe('VoiceStore', () => {
       expect(useVoiceStore.getState().cameraFacing).toBe('back');
     });
   });
+
+  // ── Audio routing (speaker/earpiece) ──
+  describe('FR-VOX-003 audio routing', () => {
+    let AudioSession: {
+      selectAudioOutput: jest.Mock;
+      stopAudioSession: jest.Mock;
+    };
+
+    beforeEach(() => {
+      // The mock is auto-discovered from __mocks__/@livekit/react-native.ts
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      AudioSession = require('@livekit/react-native').AudioSession;
+      AudioSession.selectAudioOutput.mockClear();
+      AudioSession.stopAudioSession.mockClear();
+      resetStore();
+    });
+
+    describe('default', () => {
+      it('isSpeakerOn defaults to true (speakerphone)', () => {
+        expect(useVoiceStore.getState().isSpeakerOn).toBe(true);
+      });
+    });
+
+    describe('toggleSpeaker', () => {
+      it('flips isSpeakerOn state', () => {
+        expect(useVoiceStore.getState().isSpeakerOn).toBe(true);
+        useVoiceStore.getState().toggleSpeaker();
+        expect(useVoiceStore.getState().isSpeakerOn).toBe(false);
+        useVoiceStore.getState().toggleSpeaker();
+        expect(useVoiceStore.getState().isSpeakerOn).toBe(true);
+      });
+
+      it('calls selectAudioOutput("earpiece") when toggled off', () => {
+        useVoiceStore.getState().toggleSpeaker(); // true → false
+        expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('earpiece');
+      });
+
+      it('calls selectAudioOutput("speaker") when toggled on', () => {
+        useVoiceStore.setState({ isSpeakerOn: false });
+        AudioSession.selectAudioOutput.mockClear();
+        useVoiceStore.getState().toggleSpeaker(); // false → true
+        expect(AudioSession.selectAudioOutput).toHaveBeenCalledWith('speaker');
+      });
+    });
+
+    describe('leave', () => {
+      it('calls stopAudioSession on leave', async () => {
+        await useVoiceStore.getState().join('chan-1');
+        useVoiceStore.getState().setRoom({ disconnect: jest.fn() });
+        await useVoiceStore.getState().leave();
+        expect(AudioSession.stopAudioSession).toHaveBeenCalled();
+      });
+
+      it('calls stopAudioSession even when leave fails', async () => {
+        // Replace the service with one that fails on leave
+        const failingSvc = new VoiceService({
+          request: jest.fn(async (path: string) => {
+            if (String(path).includes('/leave')) throw new Error('network');
+            return { url: 'ws://lk:7880', token: 'tok', room: 'chan-1' };
+          }),
+        } as any);
+        injectVoiceService(failingSvc);
+        await useVoiceStore.getState().join('chan-1');
+        useVoiceStore.getState().setRoom({ disconnect: jest.fn() });
+        await useVoiceStore.getState().leave();
+        expect(AudioSession.stopAudioSession).toHaveBeenCalled();
+        injectVoiceService(null as unknown as VoiceService);
+      });
+    });
+  });
 });

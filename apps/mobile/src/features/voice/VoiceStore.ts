@@ -159,6 +159,48 @@ function toFacingMode(facing: 'front' | 'back'): 'user' | 'environment' {
   return facing === 'front' ? 'user' : 'environment';
 }
 
+/**
+ * Apply the audio output route via the LiveKit AudioSession native API.
+ * Android only — iOS audio routing is deferred per docs/PRIORITIES.md.
+ *
+ * Uses a lazy require so Jest suites that never call this function don't
+ * load the native @livekit/react-native module.
+ *
+ * @param speakerOn true → speakerphone, false → earpiece
+ */
+function applyNativeAudioRoute(speakerOn: boolean): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { AudioSession } = require('@livekit/react-native');
+    AudioSession.selectAudioOutput(speakerOn ? 'speaker' : 'earpiece');
+  } catch {
+    // best-effort: native module may not be available
+  }
+}
+
+/**
+ * Stop the native audio session so the route is released.
+ * Called on disconnect so audio doesn't leak into other apps.
+ */
+function stopNativeAudioSession(): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { AudioSession } = require('@livekit/react-native');
+    AudioSession.stopAudioSession();
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Apply the default audio route for a voice call.
+ * Public so useVoiceConnection can invoke it after room.connect() succeeds.
+ * Default: speakerphone — standard for hands-free voice calls.
+ */
+export function applySpeakerDefault(): void {
+  applyNativeAudioRoute(true);
+}
+
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   connectionState: 'idle',
   activeChannelId: null,
@@ -223,6 +265,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         isDeafened: false,
         isSpeakerOn: true,
       });
+      stopNativeAudioSession();
     }
   },
 
@@ -357,12 +400,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   toggleSpeaker() {
-    const { room, isSpeakerOn } = get();
+    const { isSpeakerOn } = get();
     const newSpeaker = !isSpeakerOn;
-    if (room && typeof room.switchActiveDevice === 'function') {
-      room.switchActiveDevice(newSpeaker ? 'speaker' : 'earpiece');
-    }
     set({ isSpeakerOn: newSpeaker });
+    applyNativeAudioRoute(newSpeaker);
   },
 
   resetControls() {
