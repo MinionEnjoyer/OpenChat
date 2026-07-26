@@ -25,6 +25,8 @@ import {
 import { optimisticToggle } from '../../domain/reactions';
 import { ReactionPills } from './ReactionPills';
 import { EmojiPicker } from './EmojiPicker';
+import { MessageActionSheet } from './MessageActionSheet';
+import type { MessageAction } from './MessageActionSheet';
 import { PollCard } from './PollCard';
 import { PollCreate } from './PollCreate';
 import { voteAction, optimisticVote } from '../../domain/polls';
@@ -136,6 +138,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
   const [showPollCreate, setShowPollCreate] = useState(false);
   // Reply state (FR-MSG-005)
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
+  const [actionTarget, setActionTarget] = useState<PendingMessage | null>(null);
   const flatListRef = useRef<FlatList<MessageOrDivider>>(null);
 
   // FR-SOC-007: blocked-message collapse
@@ -447,30 +450,34 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
 
   const showActions = useCallback((msg: PendingMessage) => {
     if (msg.pending || msg.deletedAt) return;
+    setActionTarget(msg);
+  }, []);
+
+  const actionSheetActions: MessageAction[] = useMemo(() => {
+    if (!actionTarget) return [];
+    const msg = actionTarget;
     const isOwn = msg.authorId === user?.id;
     const canDelete = isOwn || canManage;
-
-    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [];
+    const actions: MessageAction[] = [];
 
     if (isOwn) {
-      buttons.push({ text: strings.messages.edit, onPress: () => openEdit(msg) });
+      actions.push({ id: 'edit', label: strings.messages.edit, onPress: () => openEdit(msg) });
     }
-    buttons.push({ text: strings.messages.react, onPress: () => setPickerTargetId(msg.id) });
+    actions.push({ id: 'react', label: strings.messages.react, onPress: () => setPickerTargetId(msg.id) });
     if (canManage) {
-      buttons.push({
-        text: msg.pinned ? strings.messages.unpin : strings.messages.pin,
+      actions.push({
+        id: 'pin',
+        label: msg.pinned ? strings.messages.unpin : strings.messages.pin,
         onPress: () => void doPin(msg, !msg.pinned),
       });
     }
     if (canDelete) {
-      buttons.push({ text: strings.messages.delete, style: 'destructive', onPress: () => confirmDelete(msg) });
+      actions.push({ id: 'delete', label: strings.messages.delete, destructive: true, onPress: () => confirmDelete(msg) });
     }
-    buttons.push({ text: strings.messages.copyText, onPress: () => void copyText(msg.content) });
-    buttons.push({ text: strings.messages.copyLink, onPress: () => void copyLink(msg) });
-    buttons.push({ text: strings.common.cancel, style: 'cancel' });
-
-    Alert.alert('', '', buttons);
-  }, [user?.id, canManage, openEdit, confirmDelete, copyText, copyLink, doPin]);
+    actions.push({ id: 'copy-text', label: strings.messages.copyText, onPress: () => void copyText(msg.content) });
+    actions.push({ id: 'copy-link', label: strings.messages.copyLink, onPress: () => void copyLink(msg) });
+    return actions;
+  }, [actionTarget, user?.id, canManage, openEdit, confirmDelete, copyText, copyLink, doPin]);
 
   // ── Mention-aware content rendering ───────────────────────────────
 
@@ -875,6 +882,13 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* ── Message action sheet (replaces Alert.alert for Android 3-button limit) ── */}
+      <MessageActionSheet
+        visible={actionTarget !== null}
+        actions={actionSheetActions}
+        onClose={() => setActionTarget(null)}
+      />
     </View>
   );
 }
