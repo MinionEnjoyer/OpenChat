@@ -21,6 +21,22 @@ Remaining as of 2026-07-25 (27 of 74 FRs):
 Recommended order: **Social → Media → Voice**. Social is the largest gap in perceived
 completeness and parallelizes across ~4 agents. Voice last because it needs two devices.
 
+## DEFERRED — FR-VOX-060 (watch party): do NOT implement before the upstream merge
+
+Owner's decision, 2026-07-25: **watch party has recent changes in upstream mainline.**
+Implementing it here first would build against a spec upstream has already moved, creating
+divergence that priority 2 would then have to unpick — the exact reconciliation cost the
+"upstream contracts win" rule exists to avoid.
+
+Consequences, so nobody re-derives this:
+
+- FR-VOX-060 is NOT part of "priority 1 complete". Priority 1 is satisfied by
+  FR-VOX-001..007 plus the rest; VOX-060 is explicitly out of scope until after §2.
+- Do not dispatch an agent for FR-VOX-060. If one is proposed, this is why it was declined.
+- After the upstream merge, take upstream's watch-party design/implementation as the base
+  rather than porting anything written here.
+- It is P2 with a manual-validation criterion, so nothing else depends on it.
+
 ## 1a. Milestone sign-offs — GATE between priority 1 and priority 2
 
 Owner's instruction: sign off the phases already worked on **after priority 1 completes**
