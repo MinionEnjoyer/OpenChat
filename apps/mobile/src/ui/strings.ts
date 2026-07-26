@@ -150,6 +150,7 @@ export const strings = {
     deleteFailed: 'Failed to delete server',
     settingsButton: 'Settings',
     createButtonNav: '+',
+    joinButtonNav: '\u{1F517}',
     renameDenied: 'You need the Manage Server permission to rename this server.',
     deleteDenied: 'Only the server owner can delete this server.',
   },
