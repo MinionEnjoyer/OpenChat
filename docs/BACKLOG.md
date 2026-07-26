@@ -332,3 +332,18 @@ each site; when the count reaches 0, promote the rule to `'error'`.
   highest-value targets.
 - **Phase:** Continuous. Each typed site is a self-contained improvement; no
   orchestrated cutover required.
+
+## Mobile integration tests fail silently against a default unreachable port
+
+`apps/mobile` tests that talk to the API (e.g. the FR-SOC-004 presence suite) default to
+`localhost:3104` when `API_BASE` is unset. If no API is listening there they fail with a
+bare `AggregateError` — no indication that the cause is "nothing is serving at this URL".
+
+This has cost investigation time three separate times in one session, twice being
+mistaken for a real regression (once attributed to a schema bug, once to a LiveKit
+dependency install). Each time the tests passed immediately once `API_BASE` was set.
+
+Fix: fail fast with a clear message. In the shared test setup, probe the configured base
+URL once and, if unreachable, throw something like
+`API unreachable at <url> — set API_BASE to a running API` rather than letting each
+individual request produce an opaque AggregateError.
