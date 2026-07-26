@@ -1,0 +1,74 @@
+# p5-03-inline-gallery — login → open channel → find image in timeline → tap → gallery.
+# @satisfies FR-MED-011
+#
+# Proves image attachments render inline in the timeline and tapping one opens
+# the fullscreen gallery with close, counter, share, and filename.
+# Requires pre-seeded messages with image attachments in Fixture Guild #general.
+#
+# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Open left drawer and select Fixture Guild → #general
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible: '# #general'
+
+# Wait for messages to load — the first image grid item should appear
+- extendedWaitUntil:
+    visible:
+      id: 'attach-grid-image-0'
+    timeout: 30000
+
+# Tap the first image to open the fullscreen gallery
+- tapOn:
+    id: 'attach-grid-image-0'
+
+# Gallery modal should be visible with all controls
+- assertVisible:
+    id: 'gallery-modal'
+- assertVisible:
+    id: 'gallery-close'
+- assertVisible:
+    id: 'gallery-counter'
+- assertVisible:
+    id: 'gallery-share'
+- assertVisible:
+    id: 'gallery-filename'
+
+# Close the gallery
+- tapOn:
+    id: 'gallery-close'
+
+# Gallery should be dismissed, back to chat
+- assertVisible: '# #general'
+
+- takeScreenshot: artifacts/e2e/screens/p5-gallery

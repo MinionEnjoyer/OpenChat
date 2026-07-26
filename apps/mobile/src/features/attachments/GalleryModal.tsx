@@ -83,7 +83,7 @@ export function GalleryModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.root}>
+      <View style={styles.root} testID="gallery-modal">
         {/* Top bar */}
         <View style={styles.topBar}>
           <Pressable
@@ -91,10 +91,11 @@ export function GalleryModal({
             accessibilityRole="button"
             accessibilityLabel={strings.attachments.closeGallery}
             style={styles.topButton}
+            testID="gallery-close"
           >
             <Text style={styles.topButtonText}>{strings.attachments.closeIcon}</Text>
           </Pressable>
-          <Text style={styles.counter}>
+          <Text style={styles.counter} testID="gallery-counter">
             {currentIndex + 1} {strings.attachments.galleryCounterSeparator} {images.length}
           </Text>
           <Pressable
@@ -102,6 +103,7 @@ export function GalleryModal({
             accessibilityRole="button"
             accessibilityLabel={strings.attachments.share}
             style={styles.topButton}
+            testID="gallery-share"
           >
             <Text style={styles.topButtonText}>{strings.attachments.shareIcon}</Text>
           </Pressable>
@@ -128,7 +130,7 @@ export function GalleryModal({
 
         {/* Bottom info */}
         <View style={styles.bottomBar}>
-          <Text style={styles.filename} numberOfLines={1}>
+          <Text style={styles.filename} numberOfLines={1} testID="gallery-filename">
             {images[currentIndex]?.filename ?? ''}
           </Text>
         </View>
