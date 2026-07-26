@@ -598,27 +598,31 @@ export function ShellScreen(): React.JSX.Element {
           <View style={styles.drawerContent}>
             {/* Rail (narrow column) — DD-023: DM entry pinned at top, then servers */}
             <View style={styles.rail} testID="server-rail">
-              {/* DM entry — Discord-style: pinned at top of rail */}
-              <Pressable
-                style={[styles.railItem, isDmRailActive && styles.railItemActive]}
-                onPress={() => {
-                  setDmRailActive(true);
-                  setSelectedServerId(null);
-                  setSelectedChannelId(null);
-                }}
-                accessibilityLabel={strings.dms.title}
-                testID="rail-dm"
-              >
-                <Text style={styles.railItemText}>{strings.dms.atSign}</Text>
-              </Pressable>
-              {/* Divider between DM entry and server list */}
-              <View style={styles.railSeparator}>
-                <View style={styles.railSeparatorLine} />
+              {/* Top section: DM entry + separator — pinned at top */}
+              <View>
+                <Pressable
+                  style={[styles.railItem, isDmRailActive && styles.railItemActive]}
+                  onPress={() => {
+                    setDmRailActive(true);
+                    setSelectedServerId(null);
+                    setSelectedChannelId(null);
+                  }}
+                  accessibilityLabel={strings.dms.title}
+                  testID="rail-dm"
+                >
+                  <Text style={styles.railItemText}>{strings.dms.atSign}</Text>
+                </Pressable>
+                {/* Divider between DM entry and server list */}
+                <View style={styles.railSeparator}>
+                  <View style={styles.railSeparatorLine} />
+                </View>
               </View>
-              {/* Server list — DD-023: active only when DM rail is NOT active */}
+              {/* Server list — DD-023: flex:1 so it scrolls within remaining space,
+                  never pushes bottom controls off-screen */}
               <FlatList
                 data={servers.data ?? []}
                 keyExtractor={(s) => s.id}
+                style={styles.railServerList}
                 renderItem={({ item }) => (
                   <Pressable
                     style={[styles.railItem, (!isDmRailActive && item.id === serverId) && styles.railItemActive]}
@@ -637,24 +641,26 @@ export function ShellScreen(): React.JSX.Element {
                   </Pressable>
                 )}
               />
-              {/* Create server button */}
-              <Pressable
-                style={styles.railItem}
-                onPress={() => setShowCreateServer(true)}
-                accessibilityLabel={strings.servers.createButton}
-                testID="rail-create-server"
-              >
-                <Text style={styles.railItemText}>{strings.servers.createButtonNav}</Text>
-              </Pressable>
-              {/* FR-SOC-001 — Friends button */}
-              <Pressable
-                style={styles.railItem}
-                onPress={() => setFriendsVisible(true)}
-                accessibilityLabel={strings.friends.title}
-                testID="rail-friends"
-              >
-                <Text style={styles.railItemText}>{strings.friends.icon}</Text>
-              </Pressable>
+              {/* Bottom section: create-server + friends buttons — pinned at bottom */}
+              <View style={{ paddingBottom: insets.bottom }}>
+                <Pressable
+                  style={styles.railItem}
+                  onPress={() => setShowCreateServer(true)}
+                  accessibilityLabel={strings.servers.createButton}
+                  testID="rail-create-server"
+                >
+                  <Text style={styles.railItemText}>{strings.servers.createButtonNav}</Text>
+                </Pressable>
+                {/* FR-SOC-001 — Friends button */}
+                <Pressable
+                  style={styles.railItem}
+                  onPress={() => setFriendsVisible(true)}
+                  accessibilityLabel={strings.friends.title}
+                  testID="rail-friends"
+                >
+                  <Text style={styles.railItemText}>{strings.friends.icon}</Text>
+                </Pressable>
+              </View>
             </View>
 
             {/* Content column — DD-023: DMs or Channels depending on rail selection */}
@@ -1077,10 +1083,12 @@ const styles = StyleSheet.create({
 
   // ── Rail ──
   rail: {
+    flex: 1,
     width: 64,
     backgroundColor: palette.bgElevated,
     paddingTop: spacing.sm,
   },
+  railServerList: { flex: 1 },
   railItem: {
     width: 48,
     height: 48,
