@@ -141,3 +141,14 @@ not invent a different shape — divergence here becomes merge cost later.
 If upstream's playback differs from the behaviour above, the owner's directive governs the
 BEHAVIOUR and upstream governs the CONTRACT; report any conflict rather than silently
 choosing.
+
+## Out of scope for mobile — push-to-talk
+
+Owner decision, 2026-07-26: **PTT is out of scope for mobile.**
+
+Upstream's web client HAS it (`apps/web/src/lib/useVoice.ts` — input modes, `pttHeldRef`,
+`saveAudioPrefs({ inputMode })`). Anyone porting upstream's voice UI will encounter it and
+should deliberately SKIP it rather than assume it belongs.
+
+Voice input on mobile is open-mic with mute; no push-to-talk affordance, no input-mode
+preference. If a port includes PTT, strip it.
