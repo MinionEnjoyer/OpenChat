@@ -40,3 +40,7 @@ export { useVoiceConnection, type VoiceConnectionAPI } from './useVoiceConnectio
 export { useVoiceStore, injectVoiceService, getVoiceService, type VoiceConnectionState, type VoiceState } from './VoiceStore';
 export { VoiceService } from './VoiceService';
 export { VoicePill } from './VoicePill';
+export { VoiceTile } from './VoiceTile';
+export { VoiceTileGrid } from './VoiceTileGrid';
+export { useVoiceParticipants } from './useVoiceParticipants';
+export type { VoiceParticipantInfo } from './VoiceStore';

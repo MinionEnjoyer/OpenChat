@@ -383,6 +383,10 @@ export const strings = {
     pillConnecting: 'Connecting…',
     pillLeave: 'Leave',
     pillLeaveA11y: 'Disconnect voice',
+    tilesHeading: 'Voice Connected',
+    tilesEmpty: 'Waiting for participants…',
+    tileMutedSymbol: '⊘',
+    tileLocalTag: '(you)',
   },
 } as const;
 
