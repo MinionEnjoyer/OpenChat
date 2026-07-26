@@ -712,7 +712,7 @@ export function ShellScreen(): React.JSX.Element {
                     <Text style={styles.drawerTitle} testID="channel-drawer-title">
                       {activeServer?.name ?? strings.shell.channelsFallbackTitle}
                     </Text>
-                    {activeServer && (
+                    {leftOpenJS && activeServer && (
                       <>
                         <Pressable
                           onPress={() => {

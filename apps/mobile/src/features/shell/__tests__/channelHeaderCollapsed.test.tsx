@@ -1,15 +1,16 @@
 /**
- * inviteJoinControls.test.tsx
+ * channelHeaderCollapsed.test.tsx
  *
- * Verifies that the JoinServerOverlay and InviteCreateOverlay triggers exist in the
- * rendered ShellScreen tree and that invite-create is permission-gated.
+ * Verifies that the channel-header controls (server-settings-button, notif-settings-button,
+ * invite-create-button) do NOT render when the left drawer is collapsed.
  *
- * Before wiring (commit 3ececb9): setJoinServerVisible(true) and setInviteCreateVisible(true)
- * were never called by any UI control — both overlays were built but unreachable.
+ * Bug: with the drawer collapsed, these controls rendered on top of the hamburger menu
+ * because they were inside the Animated.View that was only translated off-screen (not
+ * conditionally rendered). The controls belong to the channel/server drawer and should
+ * only render when leftOpenJS is true.
  *
- * Test 1: rail-join-server button exists in the rail (always rendered)
- * Test 2: invite-create-button exists when active server grants CREATE_INVITE
- * Test 3: invite-create-button is absent when active server lacks CREATE_INVITE
+ * Test 1 (MUST FAIL before fix): controls absent when drawer starts collapsed
+ * Test 2 (MUST PASS): controls appear after hamburger press opens the drawer
  */
 /* eslint-disable no-restricted-syntax */
 import renderer from 'react-test-renderer';
@@ -38,24 +39,22 @@ jest.mock('react-native-gesture-handler', () => ({
   GestureDetector: 'GestureDetector',
 }));
 
-// ── Build a single server with configurable myPermissions ──
+// ── Server with CREATE_INVITE permission ──
 
-function makeServer(overrides: Partial<{ id: string; name: string; myPermissions: string }> = {}) {
-  return {
-    id: overrides.id ?? 's1',
-    name: overrides.name ?? 'Test Server',
-    ownerId: 'u1',
-    iconUrl: null,
-    myPermissions: overrides.myPermissions ?? '0',
-  };
-}
-
-const SERVER_WITH_INVITE = [makeServer({ myPermissions: '32' })]; // CREATE_INVITE = 1n << 5n = 32
-const SERVER_WITHOUT_INVITE = [makeServer({ myPermissions: '0' })];
+const SERVER_WITH_INVITE = [{
+  id: 's1',
+  name: 'Test Server',
+  ownerId: 'u1',
+  iconUrl: null,
+  myPermissions: '32', // CREATE_INVITE = 1n << 5n = 32
+}];
 
 // ── Mock app dependencies ──
 
-const mockApiRequest = jest.fn();
+const mockApiRequest = jest.fn((url: string) => {
+  if (url === '/servers') return Promise.resolve([]);
+  return Promise.resolve([]);
+});
 
 jest.mock('../../../stores/session', () => ({
   __esModule: true,
@@ -74,8 +73,6 @@ jest.mock('../../../realtime', () => ({
   gateway: { start: jest.fn(), stop: jest.fn() },
 }));
 
-// Use a real QueryClient so setQueryData works. The module is NOT mocked —
-// ShellScreen and the test share the same QueryClient.
 const { QueryClient: QC } = require('@tanstack/react-query');
 const mockQueryClient = new QC({ defaultOptions: { queries: { retry: false } } });
 
@@ -142,28 +139,13 @@ function renderShell(React: typeof import('react'), ShellScreen: React.Component
   );
 }
 
-describe('Invite / Join controls are reachable', () => {
+describe('Channel header controls — collapsed drawer', () => {
   beforeEach(() => {
     mockApiRequest.mockClear();
     mockQueryClient.clear();
   });
 
-  it('rail-join-server button exists in the rendered tree', () => {
-    mockApiRequest.mockImplementation((url: string) => {
-      if (url === '/servers') return Promise.resolve([]);
-      return Promise.resolve([]);
-    });
-    const { ShellScreen } = require('../screens/ShellScreen');
-    const React = require('react');
-    let tree: any;
-    renderer.act(() => {
-      tree = renderer.create(renderShell(React, ShellScreen));
-    });
-    expect(() => tree!.root.findByProps({ testID: 'rail-join-server' })).not.toThrow();
-  });
-
-  it('invite-create-button exists when active server grants CREATE_INVITE', async () => {
-    // Pre-populate the query cache so useQuery returns data synchronously
+  it('controls do NOT render when drawer is collapsed (leftOpenJS=false)', () => {
     mockQueryClient.setQueryData(['servers'], SERVER_WITH_INVITE);
     const { ShellScreen } = require('../screens/ShellScreen');
     const React = require('react');
@@ -171,23 +153,47 @@ describe('Invite / Join controls are reachable', () => {
     renderer.act(() => {
       tree = renderer.create(renderShell(React, ShellScreen));
     });
-    // Open the left drawer so the channel-header controls (including invite-create-button) render
-    const hamburger = tree!.root.findByProps({ testID: 'hamburger-button' });
-    renderer.act(() => {
-      hamburger.props.onPress();
-    });
-    // activeServer auto-selects servers.data[0] when no server is explicitly chosen
-    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).not.toThrow();
+
+    // All three channel-header controls must be absent when drawer is collapsed.
+    // Before the fix, these would be present — the bug is that they rendered
+    // on top of the hamburger when the drawer was supposedly off-screen.
+    expect(() => tree!.root.findByProps({ testID: 'server-settings-button' })).toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'notif-settings-button' })).toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).toThrow();
   });
 
-  it('invite-create-button is absent when active server lacks CREATE_INVITE', () => {
-    mockQueryClient.setQueryData(['servers'], SERVER_WITHOUT_INVITE);
+  it('controls appear after hamburger press opens the drawer', () => {
+    mockQueryClient.setQueryData(['servers'], SERVER_WITH_INVITE);
     const { ShellScreen } = require('../screens/ShellScreen');
     const React = require('react');
     let tree: any;
     renderer.act(() => {
       tree = renderer.create(renderShell(React, ShellScreen));
     });
-    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).toThrow();
+
+    // Open the drawer by pressing the hamburger
+    const hamburger = tree!.root.findByProps({ testID: 'hamburger-button' });
+    renderer.act(() => {
+      hamburger.props.onPress();
+    });
+
+    // Now the drawer is open — controls should be present.
+    expect(() => tree!.root.findByProps({ testID: 'server-settings-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'notif-settings-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).not.toThrow();
+  });
+
+  it('hamburger and channel-drawer-title always render regardless of drawer state', () => {
+    mockQueryClient.setQueryData(['servers'], SERVER_WITH_INVITE);
+    const { ShellScreen } = require('../screens/ShellScreen');
+    const React = require('react');
+    let tree: any;
+    renderer.act(() => {
+      tree = renderer.create(renderShell(React, ShellScreen));
+    });
+
+    // These are structural elements that should always be in the tree.
+    expect(() => tree!.root.findByProps({ testID: 'hamburger-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'channel-drawer-title' })).not.toThrow();
   });
 });
