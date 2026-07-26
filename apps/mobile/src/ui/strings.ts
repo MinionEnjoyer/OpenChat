@@ -383,6 +383,14 @@ export const strings = {
     pillConnecting: 'Connecting…',
     pillLeave: 'Leave',
     pillLeaveA11y: 'Disconnect voice',
+    // ── Video (FR-VOX-006) ──
+    cameraOn: 'Turn on camera',
+    cameraOff: 'Turn off camera',
+    flipCamera: 'Flip camera',
+    videoOff: 'Camera off',
+    cameraOnA11y: 'Enable camera',
+    cameraOffA11y: 'Disable camera',
+    flipCameraA11y: 'Switch camera',
   },
 } as const;
 

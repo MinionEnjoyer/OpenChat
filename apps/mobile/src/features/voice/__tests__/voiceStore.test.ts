@@ -3,6 +3,7 @@
  * idempotency, error paths. Tests mock the VoiceService; no network calls.
  *
  * @satisfies FR-VOX-001
+ * @satisfies FR-VOX-006
  */
 import { useVoiceStore, injectVoiceService } from '../VoiceStore';
 import { VoiceService } from '../VoiceService';
@@ -50,6 +51,8 @@ function resetStore(): void {
     error: null,
     participantCount: 0,
     room: null,
+    cameraEnabled: false,
+    cameraFacing: 'front',
   });
 }
 
@@ -203,6 +206,120 @@ describe('VoiceStore', () => {
       useVoiceStore.setState({ error: 'something broke' });
       useVoiceStore.getState().clearError();
       expect(useVoiceStore.getState().error).toBeNull();
+    });
+  });
+
+  // ── Video state (FR-VOX-006) ──
+  describe('FR-VOX-006 camera video', () => {
+    it('cameraEnabled defaults to false', () => {
+      expect(useVoiceStore.getState().cameraEnabled).toBe(false);
+    });
+
+    it('cameraFacing defaults to front', () => {
+      expect(useVoiceStore.getState().cameraFacing).toBe('front');
+    });
+
+    it('toggleCamera is a no-op when room is null', async () => {
+      useVoiceStore.setState({ cameraEnabled: false, room: null });
+      await useVoiceStore.getState().toggleCamera();
+      expect(useVoiceStore.getState().cameraEnabled).toBe(false);
+    });
+
+    it('toggleCamera enables camera when room has localParticipant.setCameraEnabled', async () => {
+      const setCamera = jest.fn().mockResolvedValue(undefined);
+      useVoiceStore.setState({
+        cameraEnabled: false,
+        room: { localParticipant: { setCameraEnabled: setCamera } },
+      });
+
+      await useVoiceStore.getState().toggleCamera();
+
+      expect(useVoiceStore.getState().cameraEnabled).toBe(true);
+      expect(setCamera).toHaveBeenCalledWith(true, { facingMode: 'user' });
+    });
+
+    it('toggleCamera disables camera when already enabled', async () => {
+      const setCamera = jest.fn().mockResolvedValue(undefined);
+      useVoiceStore.setState({
+        cameraEnabled: true,
+        room: { localParticipant: { setCameraEnabled: setCamera } },
+      });
+
+      await useVoiceStore.getState().toggleCamera();
+
+      expect(useVoiceStore.getState().cameraEnabled).toBe(false);
+      expect(setCamera).toHaveBeenCalledWith(false);
+    });
+
+    it('flipCamera is a no-op when room is null', async () => {
+      useVoiceStore.setState({ cameraEnabled: true, cameraFacing: 'front', room: null });
+      await useVoiceStore.getState().flipCamera();
+      expect(useVoiceStore.getState().cameraFacing).toBe('front');
+    });
+
+    it('flipCamera is a no-op when camera is not enabled', async () => {
+      const setCamera = jest.fn().mockResolvedValue(undefined);
+      useVoiceStore.setState({
+        cameraEnabled: false,
+        cameraFacing: 'front',
+        room: { localParticipant: { setCameraEnabled: setCamera } },
+      });
+
+      await useVoiceStore.getState().flipCamera();
+
+      expect(useVoiceStore.getState().cameraFacing).toBe('front');
+      expect(setCamera).not.toHaveBeenCalled();
+    });
+
+    it('flipCamera switches front to back', async () => {
+      const setCamera = jest.fn().mockResolvedValue(undefined);
+      useVoiceStore.setState({
+        cameraEnabled: true,
+        cameraFacing: 'front',
+        room: { localParticipant: { setCameraEnabled: setCamera } },
+      });
+
+      await useVoiceStore.getState().flipCamera();
+
+      expect(useVoiceStore.getState().cameraFacing).toBe('back');
+      expect(setCamera).toHaveBeenCalledWith(true, { facingMode: 'environment' });
+    });
+
+    it('flipCamera switches back to front', async () => {
+      const setCamera = jest.fn().mockResolvedValue(undefined);
+      useVoiceStore.setState({
+        cameraEnabled: true,
+        cameraFacing: 'back',
+        room: { localParticipant: { setCameraEnabled: setCamera } },
+      });
+
+      await useVoiceStore.getState().flipCamera();
+
+      expect(useVoiceStore.getState().cameraFacing).toBe('front');
+      expect(setCamera).toHaveBeenCalledWith(true, { facingMode: 'user' });
+    });
+
+    it('leave resets cameraEnabled and cameraFacing to defaults', async () => {
+      useVoiceStore.setState({
+        connectionState: 'connected',
+        activeChannelId: 'chan-1',
+        cameraEnabled: true,
+        cameraFacing: 'back',
+        room: {
+          localParticipant: { setCameraEnabled: jest.fn() },
+          disconnect: jest.fn(),
+        },
+      });
+
+      await useVoiceStore.getState().leave();
+
+      expect(useVoiceStore.getState().cameraEnabled).toBe(false);
+      expect(useVoiceStore.getState().cameraFacing).toBe('front');
+    });
+
+    it('setCameraFacing updates facing directly', () => {
+      useVoiceStore.getState().setCameraFacing('back');
+      expect(useVoiceStore.getState().cameraFacing).toBe('back');
     });
   });
 });

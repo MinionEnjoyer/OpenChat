@@ -23,7 +23,16 @@
  *     - disconnects the LiveKit room, calls POST /voice/:id/leave.
  *     - idempotent: no-op if not connected.
  *
+ *   toggleCamera(): Promise<void>  (FR-VOX-006)
+ *     - enables or disables the local camera track.
+ *     - no-op if not connected.
+ *
+ *   flipCamera(): Promise<void>    (FR-VOX-006)
+ *     - switches between front/back camera while active.
+ *     - no-op if camera is not enabled.
+ *
  * @satisfies FR-VOX-001
+ * @satisfies FR-VOX-006
  */
 import { useCallback, useRef } from 'react';
 import { useVoiceStore, type VoiceConnectionState } from './VoiceStore';
@@ -35,6 +44,16 @@ export interface VoiceConnectionAPI {
   participantCount: number;
   join: (channelId: string) => Promise<void>;
   leave: () => Promise<void>;
+
+  // ── Video controls (FR-VOX-006) ──
+  /** Whether the local camera is currently publishing. */
+  cameraEnabled: boolean;
+  /** Which camera facing is active. */
+  cameraFacing: 'front' | 'back';
+  /** Toggle the local camera on or off. */
+  toggleCamera: () => Promise<void>;
+  /** Flip between front and back camera while camera is active. */
+  flipCamera: () => Promise<void>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,12 +139,24 @@ export function useVoiceConnection(): VoiceConnectionAPI {
     await useVoiceStore.getState().leave();
   }, []);
 
+  const toggleCamera = useCallback(async () => {
+    await useVoiceStore.getState().toggleCamera();
+  }, []);
+
+  const flipCamera = useCallback(async () => {
+    await useVoiceStore.getState().flipCamera();
+  }, []);
+
   return {
     connectionState: store.connectionState,
     activeChannelId: store.activeChannelId,
     error: store.error,
     participantCount: store.participantCount,
+    cameraEnabled: store.cameraEnabled,
+    cameraFacing: store.cameraFacing,
     join,
     leave,
+    toggleCamera,
+    flipCamera,
   };
 }

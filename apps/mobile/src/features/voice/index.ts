@@ -40,3 +40,4 @@ export { useVoiceConnection, type VoiceConnectionAPI } from './useVoiceConnectio
 export { useVoiceStore, injectVoiceService, getVoiceService, type VoiceConnectionState, type VoiceState } from './VoiceStore';
 export { VoiceService } from './VoiceService';
 export { VoicePill } from './VoicePill';
+export { VideoTile, type VideoTileProps } from './VideoTile';

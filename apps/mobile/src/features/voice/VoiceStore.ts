@@ -14,11 +14,17 @@
  *   state.setConnectionState(cs)   — called by useVoiceConnection for LiveKit-level state changes
  *   voiceService                   — singleton VoiceService (test-injectable)
  *
+ *   state.cameraEnabled            — boolean (FR-VOX-006)
+ *   state.cameraFacing             — 'front' | 'back' (FR-VOX-006)
+ *   state.toggleCamera()           — toggle local camera on/off (FR-VOX-006)
+ *   state.flipCamera()             — flip front/back camera (FR-VOX-006)
+ *
  * The Room lifecycle is managed externally by useVoiceConnection (the hook).
  * This store tracks the high-level connection state and holds the Room
  * reference so other components can access it without prop drilling.
  *
  * @satisfies FR-VOX-001
+ * @satisfies FR-VOX-006
  */
 import { create } from 'zustand';
 import { api } from '../../stores/session';
@@ -54,6 +60,18 @@ export interface VoiceState {
   setParticipantCount: (n: number) => void;
   /** Clear any error. */
   clearError: () => void;
+
+  // ── Video state (FR-VOX-006) ──
+  /** Whether the local camera is currently publishing. */
+  cameraEnabled: boolean;
+  /** Which camera facing is active: 'front' (user) or 'back' (environment). */
+  cameraFacing: 'front' | 'back';
+  /** Toggle the local camera on or off. */
+  toggleCamera: () => Promise<void>;
+  /** Flip between front and back camera while camera is active. */
+  flipCamera: () => Promise<void>;
+  /** Set camera facing mode (used internally by flipCamera). */
+  setCameraFacing: (facing: 'front' | 'back') => void;
 }
 
 let singleton: VoiceService | null = null;
@@ -69,12 +87,22 @@ export function injectVoiceService(svc: VoiceService): void {
   singleton = svc;
 }
 
+/**
+ * Map our cameraFacing to livekit-client VideoCaptureOptions.facingMode.
+ * 'front' → 'user', 'back' → 'environment'.
+ */
+function toFacingMode(facing: 'front' | 'back'): 'user' | 'environment' {
+  return facing === 'front' ? 'user' : 'environment';
+}
+
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   connectionState: 'idle',
   activeChannelId: null,
   error: null,
   participantCount: 0,
   room: null,
+  cameraEnabled: false,
+  cameraFacing: 'front',
 
   async join(channelId: string) {
     const state = get();
@@ -119,6 +147,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         activeChannelId: null,
         room: null,
         participantCount: 0,
+        cameraEnabled: false,
+        cameraFacing: 'front',
         error: null,
       });
     }
@@ -138,5 +168,40 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   clearError() {
     set({ error: null });
+  },
+
+  // ── Video actions (FR-VOX-006) ──
+  async toggleCamera() {
+    const { room, cameraEnabled, cameraFacing } = get();
+    if (!room) return;
+
+    const newEnabled = !cameraEnabled;
+    if (room.localParticipant && typeof room.localParticipant.setCameraEnabled === 'function') {
+      if (newEnabled) {
+        await room.localParticipant.setCameraEnabled(true, {
+          facingMode: toFacingMode(cameraFacing),
+        });
+      } else {
+        await room.localParticipant.setCameraEnabled(false);
+      }
+    }
+    set({ cameraEnabled: newEnabled });
+  },
+
+  async flipCamera() {
+    const { cameraEnabled, room } = get();
+    if (!room || !cameraEnabled) return;
+
+    const newFacing: 'front' | 'back' = get().cameraFacing === 'front' ? 'back' : 'front';
+    if (room.localParticipant && typeof room.localParticipant.setCameraEnabled === 'function') {
+      await room.localParticipant.setCameraEnabled(true, {
+        facingMode: toFacingMode(newFacing),
+      });
+    }
+    set({ cameraFacing: newFacing });
+  },
+
+  setCameraFacing(facing: 'front' | 'back') {
+    set({ cameraFacing: facing });
   },
 }));
