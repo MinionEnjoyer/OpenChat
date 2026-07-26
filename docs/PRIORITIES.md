@@ -124,3 +124,20 @@ I want to make something clear. Your bandwidth is highly constrained, your limit
 
 
 I want you to really drill in how important delegation is. the cost per task on the artificial analysis index for deepseek is $0.04 while yours is north of $2. You are right alot, but Deepseek can iterate and brute force. limit your tokens and go fucking nuts with subagents. I honestly don't care if you spin up 20-30 at a time I want to maximize the ratio of subagent tokens to your tokens used per task while delivering results. 
+## Soundboard — owner directive, 2026-07-26
+
+**Mandatory feature.** Not currently in specs/15-PHASE6-VOICE.md (no P6-* item) — treat this
+directive as the spec.
+
+**Behaviour:** playing a sound **publishes it into the LiveKit room** so other participants
+hear it, and it also plays locally for the person who triggered it. Not local-only.
+
+**Implementation:** port upstream's contract exactly (origin/main has a complete one —
+`GET/POST/PATCH /servers/:id/sounds` in servers.controller.ts, plus apps/web
+Soundboard.tsx / SoundRecorder.tsx and a server_sounds migration). Our schema already has
+the ServerSound model; endpoints and UI are missing. Upstream contracts win per §2, so do
+not invent a different shape — divergence here becomes merge cost later.
+
+If upstream's playback differs from the behaviour above, the owner's directive governs the
+BEHAVIOUR and upstream governs the CONTRACT; report any conflict rather than silently
+choosing.
