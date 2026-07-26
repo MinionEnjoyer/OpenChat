@@ -958,3 +958,35 @@ user. Emulator geometry differs from real hardware.
 **Lesson:** layout, insets, and keyboard interaction need a real device. No amount of unit
 or selector-based E2E coverage substitutes. Schedule device passes as a routine gate, not a
 pre-release afterthought.
+
+## 2026-07-26 — Push client uses expo-notifications instead of @react-native-firebase/messaging + notifee (FR-NOTIF-002)
+
+**What:** `specs/17-PHASE8-NOTIFICATIONS-RELEASE.md §P8-02` calls for
+`@react-native-firebase/messaging` + notifee. We are using **`expo-notifications`
+~57.0.7** instead.
+
+**Why:** This is an Expo SDK 57 app built via `expo prebuild`. expo-notifications
+uses FCM under the hood on Android, needs no separate Firebase native config, and
+avoids pulling the full Firebase SDK into the build. Same transport (FCM HTTP v1),
+lower risk to the existing Expo-managed native layer.
+
+**Platform scope:** Android only. iOS is deferred per `docs/PRIORITIES.md §5`.
+
+**Mechanism difference:**
+
+| Concern | Spec (Firebase+notifee) | Actual (expo-notifications) |
+|---|---|---|
+| Push token | `messaging().getToken()` | `getDevicePushTokenAsync()` |
+| Token rotation | `messaging().onTokenRefresh` | `addPushTokenListener` |
+| Foreground suppression | notifee `onForegroundEvent` | `setNotificationHandler` |
+| Tap-through | notifee `onPress` event | `addNotificationResponseReceivedListener` |
+| Permission | `messaging().requestPermission()` | `requestPermissionsAsync()` |
+
+**Severity:** Low. Transport is identical (FCM), the backend-facing contract
+(`POST/DELETE /api/devices`) is unchanged, and the expo-notifications plugin
+handles Android native config (google-services.json, notification icon). No API
+surface changes.
+
+**iOS note:** When iOS is unblocked, expo-notifications handles APNs with zero
+additional native config — the same plugin + a push-capable provisioning profile
+is sufficient. No fork cost.

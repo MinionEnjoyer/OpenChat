@@ -30,6 +30,13 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-foreground.png",
+          "color": "#5865F2"
+        }
       ]
     ]
   }
