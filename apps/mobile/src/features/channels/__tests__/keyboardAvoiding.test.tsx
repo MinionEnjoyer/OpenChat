@@ -5,36 +5,17 @@
  * native-only props (behavior, keyboardVerticalOffset). Mocking react-native
  * causes circular-dependency failures in this Expo codebase.
  *
- * Strategy: the KAV wrapper has style `kavRoot: { flex: 1 }`. The overlay
- * below it has `overlay: { flex: 1, backgroundColor: …, justifyContent: … }`.
- * Before the fix, Modal's direct child was the overlay; after, it's the KAV.
- * We detect this structural difference by checking that Modal's immediate
- * child View has `flex: 1` in its style but does NOT have `backgroundColor`.
+ * RIGHT pattern (ccaa487): Modal > opaque overlay (has backgroundColor, direct
+ * child) > KeyboardAvoidingView (scoped, no flex:1) > content.
+ * The opaque overlay must be the direct Modal child so it absorbs the close
+ * transition; the KAV padding reset then cannot race Modal visible=false.
  */
 
 import React from 'react';
 import renderer from 'react-test-renderer';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChannelForm } from '../ChannelForm';
-
-// ── Helpers ──
-
-function findModal(tree: any): any {
-  if (!tree || typeof tree !== 'object') return null;
-  if (typeof tree.type === 'string' && tree.type === 'Modal') return tree;
-  for (const child of tree.children ?? []) {
-    const found = findModal(child);
-    if (found) return found;
-  }
-  return null;
-}
-
-function resolveStyle(node: any): Record<string, unknown> {
-  const s = node?.props?.style;
-  if (!s) return {};
-  if (Array.isArray(s)) return Object.assign({}, ...s);
-  return typeof s === 'object' ? s : {};
-}
+import { assertOverlayIsDirectModalChild } from '../../../ui/__tests__/modalStructureHelpers';
 
 // ── Tests ──
 
@@ -60,7 +41,7 @@ describe('ChannelForm keyboard-avoiding wrapper', () => {
     });
   });
 
-  it('Modal direct child is KAV wrapper (has flex:1, no background)', () => {
+  it('Modal direct child is opaque overlay (has backgroundColor), NOT KAV', () => {
     let tree: renderer.ReactTestRenderer;
     renderer.act(() => {
       tree = renderer.create(
@@ -75,15 +56,7 @@ describe('ChannelForm keyboard-avoiding wrapper', () => {
       );
     });
     const json = tree!.toJSON();
-    const modal = findModal(json);
-    expect(modal).not.toBeNull();
-    const kav = modal.children?.[0];
-    expect(kav).not.toBeNull();
-    expect(kav.type).toBe('View');
-    const style = resolveStyle(kav);
-    expect(style.flex).toBe(1);
-    // KAV root has no backgroundColor — the overlay below it does
-    expect(style.backgroundColor).toBeUndefined();
+    assertOverlayIsDirectModalChild(json);
   });
 
   it('contains channel-name TextInput (full tree intact)', () => {

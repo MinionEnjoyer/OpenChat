@@ -84,13 +84,14 @@ function hasManageMessages(serverId: string | null): boolean {
  * retry (FR-APP-006), edit (FR-MSG-003), delete (FR-MSG-004),
  * reactions (FR-MSG-006), and mentions (FR-MSG-008).
  */
-export function ChatPane({ channelId, serverId, channelType, members, myPermissions, serverOwnerId }: {
+export function ChatPane({ channelId, serverId, channelType, members, myPermissions, serverOwnerId, onMentionTrigger }: {
   channelId: string;
   serverId: string | null;
   channelType?: string;
   members?: MemberBrief[];
   myPermissions?: string;
   serverOwnerId?: string;
+  onMentionTrigger?: () => void;
 }): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const user = useSession((s) => s.user);
@@ -186,6 +187,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
     start: number;
   } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
+  const mentionFetchTriggered = useRef(false);
 
   const mentionMatches: MentionCandidate[] = useMemo(
     () => (mentionTrigger
@@ -207,6 +209,22 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
     },
     [mentionCandidates.length],
   );
+
+  // Trigger members fetch when user types @ (before members are loaded).
+  // This avoids the lazy-load gate where mention autocomplete can't work
+  // until the right drawer is opened.
+  useEffect(() => {
+    if (!onMentionTrigger || mentionFetchTriggered.current) return;
+    if (members !== undefined && members.length > 0) return;
+    if (draft.includes('@')) {
+      mentionFetchTriggered.current = true;
+      onMentionTrigger();
+    }
+  }, [draft, members, onMentionTrigger]);
+  // Reset the trigger flag when channel/server changes.
+  useEffect(() => {
+    mentionFetchTriggered.current = false;
+  }, [channelId, serverId]);
 
   /** Insert a selected mention candidate into the draft. */
   const insertMentionCandidate = useCallback(
@@ -851,12 +869,12 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         animationType="fade"
         onRequestClose={closeEdit}
       >
-        <KeyboardAvoidingView
-          style={styles.modalRoot}
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-        >
-          <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior="padding"
+            keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+            style={styles.modalInner}
+          >
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>{strings.messages.editTitle}</Text>
               <TextInput
@@ -879,8 +897,8 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
                 </Pressable>
               </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* ── Message action sheet (replaces Alert.alert for Android 3-button limit) ── */}
@@ -978,7 +996,7 @@ const styles = StyleSheet.create({
   pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },
   pollBtnText: { fontSize: 20 },
   // Edit modal
-  modalRoot: { flex: 1 },
+  modalInner: {},
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg,
   },

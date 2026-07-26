@@ -229,13 +229,13 @@ export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.
 
       {/* ── Role Editor Modal ── */}
       <Modal visible={showEditor} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          style={styles.modalKavRoot}
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-        >
           <View style={styles.modalBackdrop}>
             <View style={styles.modal} testID="role-editor-modal">
+            <KeyboardAvoidingView
+              behavior="padding"
+              keyboardVerticalOffset={Platform.OS === "android" ? insets.top : 0}
+              style={styles.modalKavInner}
+            >
               <Text style={styles.modalTitle}>
                 {editingRole ? strings.roles.editTitle : strings.roles.createTitle}
               </Text>
@@ -289,9 +289,9 @@ export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.
                 <Text style={styles.buttonText}>{strings.common.cancel}</Text>
               </Pressable>
             </View>
+            </KeyboardAvoidingView>
           </View>
         </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Delete Confirmation ── */}
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   roleInfo: { flex: 1 },
   roleName: { color: palette.text, ...typography.body },
   rolePerms: { color: palette.textMuted, ...typography.caption },
-  modalKavRoot: { flex: 1 },
+  modalKavInner: { flex: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing.lg },
   modal: { backgroundColor: palette.bgElevated, borderRadius: 8, padding: spacing.lg, maxHeight: '80%' },
   modalTitle: { ...typography.title, color: palette.text, marginBottom: spacing.md },

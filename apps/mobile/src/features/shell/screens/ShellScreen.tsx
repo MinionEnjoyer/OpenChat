@@ -581,7 +581,7 @@ export function ShellScreen(): React.JSX.Element {
             onShowChat={handleShowChatFromVoice}
           />
         ) : activeChannelAny ? (
-          <ChatPane channelId={activeChannelAny.id} serverId={serverId} channelType={activeChannel?.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
+          <ChatPane channelId={activeChannelAny.id} serverId={serverId} channelType={activeChannel?.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} onMentionTrigger={() => setMembersQueryEnabled(true)} />
         ) : (
           <View style={styles.chatBody}>
             <Text style={styles.muted} testID="chat-placeholder">

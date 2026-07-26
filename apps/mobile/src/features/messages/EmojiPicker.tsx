@@ -20,14 +20,14 @@ export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.El
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} testID="emoji-picker">
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <View />
+      </Pressable>
       <KeyboardAvoidingView
-        style={styles.kavRoot}
         behavior="padding"
         keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+        style={styles.kavInner}
       >
-        <Pressable style={styles.backdrop} onPress={onClose}>
-          <View />
-        </Pressable>
         <View style={styles.sheet}>
         <View style={styles.header}>
           <Text style={styles.title}>{strings.reactions.pickerTitle}</Text>
@@ -64,7 +64,7 @@ export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.El
 }
 
 const styles = StyleSheet.create({
-  kavRoot: { flex: 1 },
+  kavInner: {},
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

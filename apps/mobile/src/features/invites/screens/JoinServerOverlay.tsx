@@ -84,15 +84,15 @@ export function JoinServerOverlay({ visible, onClose, onJoined }: Props): React.
       onRequestClose={dismiss}
       testID="join-server-overlay"
     >
-      <KeyboardAvoidingView
-        style={styles.kavRoot}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-      >
-        <Pressable style={styles.scrim} onPress={dismiss} testID="join-server-scrim">
-          <View />
-        </Pressable>
-        <View style={styles.sheet} testID="join-server-sheet">
+      <Pressable style={styles.scrim} onPress={dismiss} testID="join-server-scrim">
+        <View />
+      </Pressable>
+      <View style={styles.sheet} testID="join-server-sheet">
+        <KeyboardAvoidingView
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+          style={styles.kavInner}
+        >
         {!preview ? (
           <>
             <Text style={styles.title}>{strings.invites.joinTitle}</Text>
@@ -173,14 +173,14 @@ export function JoinServerOverlay({ visible, onClose, onJoined }: Props): React.
             </View>
           </>
         )}
+        </KeyboardAvoidingView>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  kavRoot: { flex: 1 },
+  kavInner: {},
   scrim: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

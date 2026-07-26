@@ -379,15 +379,15 @@ export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose:
         onRequestClose={() => setAddVisible(false)}
         testID="friends-add-overlay"
       >
-        <KeyboardAvoidingView
-          style={styles.addModalRoot}
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-        >
-          <Pressable style={styles.scrim} onPress={() => setAddVisible(false)}>
-            <View />
-          </Pressable>
-          <View style={styles.addSheet}>
+        <Pressable style={styles.scrim} onPress={() => setAddVisible(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.addSheet}>
+          <KeyboardAvoidingView
+            behavior="padding"
+            keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+            style={styles.addModalInner}
+          >
             <Text style={styles.addTitle}>{strings.friends.addTitle}</Text>
             <TextInput
               style={styles.addInput}
@@ -417,11 +417,10 @@ export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose:
             >
               <Text style={styles.addCancelText}>{strings.common.cancel}</Text>
             </Pressable>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
-    </Modal>
-  );
+    </Modal>  );
 }
 
 const styles = StyleSheet.create({
@@ -482,7 +481,7 @@ const styles = StyleSheet.create({
   },
   actionText: { ...typography.caption, color: palette.accent },
   actionDangerText: { ...typography.caption, color: palette.danger },
-  addModalRoot: { flex: 1 },
+  addModalInner: {},
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   addSheet: {
     position: 'absolute',
