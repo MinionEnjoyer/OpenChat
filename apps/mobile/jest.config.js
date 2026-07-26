@@ -7,6 +7,9 @@
  */
 module.exports = {
   preset: 'jest-expo',
+  moduleNameMapper: {
+    '^expo-notifications$': '<rootDir>/src/__mocks__/expo-notifications.ts',
+  },
   testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts?(x)'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/src/api/__tests__/contract/'],
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
