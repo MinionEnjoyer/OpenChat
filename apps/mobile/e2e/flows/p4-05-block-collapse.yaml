@@ -26,11 +26,14 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'shell-screen'
 
-# ── Phase 1: Open left drawer → tap DM with blocked bob ──
+# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with blocked bob ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
+# DD-023: tap DM entry in the rail to show DM list in the content column
+- tapOn:
+    id: 'rail-dm'
 - assertVisible:
     id: 'dm-section'
 # Tap the DM channel with bob (blocked user)

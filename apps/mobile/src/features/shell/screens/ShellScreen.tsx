@@ -136,6 +136,10 @@ export function ShellScreen(): React.JSX.Element {
   }, []);
 
   const isDm = selectedDmChannelId !== null;
+  // DD-023: track DM rail entry selection separately so the content column
+  // can show DMs list even when no specific DM channel is selected yet.
+  const [dmRailActive, setDmRailActive] = useState(false);
+  const isDmRailActive = isDm || dmRailActive;
 
   const dmsQuery = useQuery({
     queryKey: ['dms'],
@@ -148,7 +152,7 @@ export function ShellScreen(): React.JSX.Element {
     queryFn: () => api.request<Server[]>('/servers'),
   });
 
-  const serverId = isDm ? null : (selectedServerId ?? servers.data?.[0]?.id ?? null);
+  const serverId = isDmRailActive ? null : (selectedServerId ?? servers.data?.[0]?.id ?? null);
   const activeServer = servers.data?.find((s) => s.id === serverId) ?? null;
 
   const channels = useQuery({
@@ -542,35 +546,35 @@ export function ShellScreen(): React.JSX.Element {
       >
         <GestureDetector gesture={leftDrawerDismiss}>
           <View style={styles.drawerContent}>
-            {/* DM list — FR-SOC-002 */}
-            <View style={styles.dmSection} testID="dm-section">
-              <DmsList
-                selectedDmChannelId={selectedDmChannelId}
-                onSelectDm={(dmChannelId) => {
-                  setSelectedDmChannelId(dmChannelId);
-                  setSelectedChannelId(null);
-                  closeLeft();
-                }}
-              />
-            </View>
-
-            {/* Separator between DMs and servers */}
-            <View style={styles.dmSeparator}>
-              <View style={styles.dmSeparatorLine} />
-            </View>
-
-            {/* Server rail */}
+            {/* Rail (narrow column) — DD-023: DM entry pinned at top, then servers */}
             <View style={styles.rail} testID="server-rail">
+              {/* DM entry — Discord-style: pinned at top of rail */}
+              <Pressable
+                style={[styles.railItem, isDmRailActive && styles.railItemActive]}
+                onPress={() => {
+                  setDmRailActive(true);
+                  setSelectedServerId(null);
+                  setSelectedChannelId(null);
+                }}
+                accessibilityLabel={strings.dms.title}
+                testID="rail-dm"
+              >
+                <Text style={styles.railItemText}>{strings.dms.atSign}</Text>
+              </Pressable>
+              {/* Divider between DM entry and server list */}
+              <View style={styles.railSeparator}>
+                <View style={styles.railSeparatorLine} />
+              </View>
+              {/* Server list — DD-023: active only when DM rail is NOT active */}
               <FlatList
                 data={servers.data ?? []}
                 keyExtractor={(s) => s.id}
                 renderItem={({ item }) => (
                   <Pressable
-                    style={[
-                      styles.railItem,
-                      item.id === serverId && styles.railItemActive,
-                    ]}
-                    onPress={() => { setSelectedDmChannelId(null);
+                    style={[styles.railItem, (!isDmRailActive && item.id === serverId) && styles.railItemActive]}
+                    onPress={() => {
+                      setDmRailActive(false);
+                      setSelectedDmChannelId(null);
                       setSelectedServerId(item.id);
                       setSelectedChannelId(null);
                     }}
@@ -603,50 +607,64 @@ export function ShellScreen(): React.JSX.Element {
               </Pressable>
             </View>
 
-            {/* Channel list — FR-SRV-004/005 */}
+            {/* Content column — DD-023: DMs or Channels depending on rail selection */}
             <View style={styles.channels} testID="channel-drawer">
-              <View style={styles.channelHeader}>
-                <Text style={styles.drawerTitle} testID="channel-drawer-title">
-                  {activeServer?.name ?? strings.shell.channelsFallbackTitle}
-                </Text>
-                {activeServer && (
-                  <>
-                    <Pressable
-                      onPress={() => {
-                        setSelectedDmChannelId(null);
-                        setSettingsServerId(activeServer.id);
-                        setShowSettingsServer(true);
-                      }}
-                      accessibilityLabel={strings.servers.settingsButton}
-                      testID="server-settings-button"
-                    >
-                      <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        setShowNotifSettings(true);
-                      }}
-                      accessibilityLabel="Notification settings"
-                      testID="notif-settings-button"
-                      style={{ marginLeft: 8 }}
-                    >
-                      <Text style={styles.settingsGlyph}>{strings.shell.notifBell}</Text>
-                    </Pressable>
-                  </>
-
-                )}
-              </View>
-              {serverId && (
-                <ChannelList
-                  serverId={serverId}
-                  channels={channels.data ?? []}
-                  selectedChannelId={selectedChannelId}
-                  onSelectChannel={(channelId) => selectChannel(channelId)}
-                  onCreateChannel={handleCreateChannel}
-                  onEditChannel={handleEditChannel}
-                  onDeleteChannel={handleDeleteChannel}
-                  onReorder={() => setReorderVisible(true)}
-                />
+              {isDmRailActive ? (
+                <View testID="dm-section">
+                  <DmsList
+                    selectedDmChannelId={selectedDmChannelId}
+                    onSelectDm={(dmChannelId) => {
+                      setSelectedDmChannelId(dmChannelId);
+                      setSelectedChannelId(null);
+                      closeLeft();
+                    }}
+                  />
+                </View>
+              ) : (
+                <>
+                  <View style={styles.channelHeader}>
+                    <Text style={styles.drawerTitle} testID="channel-drawer-title">
+                      {activeServer?.name ?? strings.shell.channelsFallbackTitle}
+                    </Text>
+                    {activeServer && (
+                      <>
+                        <Pressable
+                          onPress={() => {
+                            setSelectedDmChannelId(null);
+                            setSettingsServerId(activeServer.id);
+                            setShowSettingsServer(true);
+                          }}
+                          accessibilityLabel={strings.servers.settingsButton}
+                          testID="server-settings-button"
+                        >
+                          <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            setShowNotifSettings(true);
+                          }}
+                          accessibilityLabel="Notification settings"
+                          testID="notif-settings-button"
+                          style={{ marginLeft: 8 }}
+                        >
+                          <Text style={styles.settingsGlyph}>{strings.shell.notifBell}</Text>
+                        </Pressable>
+                      </>
+                    )}
+                  </View>
+                  {serverId && (
+                    <ChannelList
+                      serverId={serverId}
+                      channels={channels.data ?? []}
+                      selectedChannelId={selectedChannelId}
+                      onSelectChannel={(channelId) => selectChannel(channelId)}
+                      onCreateChannel={handleCreateChannel}
+                      onEditChannel={handleEditChannel}
+                      onDeleteChannel={handleDeleteChannel}
+                      onReorder={() => setReorderVisible(true)}
+                    />
+                  )}
+                </>
               )}
             </View>
           </View>
@@ -1138,15 +1156,18 @@ const styles = StyleSheet.create({
     width: EDGE_WIDTH,
     zIndex: 5,
   },
+  // DD-023 — rail separator (between DM entry and server list)
+  railSeparator: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    alignItems: 'center',
+  },
+  railSeparatorLine: {
+    width: 32,
+    height: 1,
+    backgroundColor: palette.bg,
+  },
   dmSection: {
     paddingTop: spacing.xs,
-  },
-  dmSeparator: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  dmSeparatorLine: {
-    height: 1,
-    backgroundColor: palette.bgElevated,
   },
 });
