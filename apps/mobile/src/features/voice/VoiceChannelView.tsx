@@ -17,6 +17,7 @@ import { VoiceTileGrid } from './VoiceTileGrid';
 import { VoiceControls } from './VoiceControls';
 import { ScreenShareView } from './ScreenShareView';
 import { VideoTile } from './VideoTile';
+import { useProximityScreen } from './useProximityScreen';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 
@@ -83,6 +84,8 @@ export function VoiceChannelView({
   onShowChat,
 }: VoiceChannelViewProps): React.JSX.Element | null {
   const connectionState = useVoiceStore((s) => s.connectionState);
+  // Proximity-screen blanking during earpiece calls (Android only).
+  useProximityScreen();
   // D3: safe-area bottom inset to avoid the Android gesture nav bar
   // clipping the controls.  Same pattern as ChatPane composer (useSafeAreaInsets).
   const insets = useSafeAreaInsets();
