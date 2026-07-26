@@ -44,3 +44,4 @@ export { VoiceTile } from './VoiceTile';
 export { VoiceTileGrid } from './VoiceTileGrid';
 export { useVoiceParticipants } from './useVoiceParticipants';
 export type { VoiceParticipantInfo } from './VoiceStore';
+export { VoiceControls } from './VoiceControls';

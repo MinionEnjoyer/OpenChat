@@ -33,8 +33,20 @@ export interface VoiceConnectionAPI {
   activeChannelId: string | null;
   error: string | null;
   participantCount: number;
+  /** Track-level mic mute. @satisfies FR-VOX-003 */
+  isMuted: boolean;
+  /** Local deafen. @satisfies FR-VOX-003 */
+  isDeafened: boolean;
+  /** Speaker (true) vs earpiece (false). @satisfies FR-VOX-003 */
+  isSpeakerOn: boolean;
   join: (channelId: string) => Promise<void>;
   leave: () => Promise<void>;
+  /** Toggle mic mute. @satisfies FR-VOX-003 */
+  toggleMute: () => void;
+  /** Toggle deafen. @satisfies FR-VOX-003 */
+  toggleDeafen: () => void;
+  /** Toggle speaker/earpiece. @satisfies FR-VOX-003 */
+  toggleSpeaker: () => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,12 +132,19 @@ export function useVoiceConnection(): VoiceConnectionAPI {
     await useVoiceStore.getState().leave();
   }, []);
 
+  const storeControls = useVoiceStore.getState();
   return {
     connectionState: store.connectionState,
     activeChannelId: store.activeChannelId,
     error: store.error,
     participantCount: store.participantCount,
+    isMuted: store.isMuted,
+    isDeafened: store.isDeafened,
+    isSpeakerOn: store.isSpeakerOn,
     join,
     leave,
+    toggleMute: storeControls.toggleMute,
+    toggleDeafen: storeControls.toggleDeafen,
+    toggleSpeaker: storeControls.toggleSpeaker,
   };
 }

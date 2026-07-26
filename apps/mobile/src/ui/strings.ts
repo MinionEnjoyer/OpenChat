@@ -387,6 +387,42 @@ export const strings = {
     tilesEmpty: 'Waiting for participants…',
     tileMutedSymbol: '⊘',
     tileLocalTag: '(you)',
+    /** @satisfies FR-VOX-003 */
+    mute: 'Mute',
+    /** @satisfies FR-VOX-003 */
+    unmute: 'Unmute',
+    /** @satisfies FR-VOX-003 */
+    muteA11y: 'Toggle microphone mute',
+    /** @satisfies FR-VOX-003 */
+    deafen: 'Deafen',
+    /** @satisfies FR-VOX-003 */
+    undeafen: 'Undeafen',
+    /** @satisfies FR-VOX-003 */
+    deafenA11y: 'Toggle deafen',
+    /** @satisfies FR-VOX-003 */
+    speaker: 'Speaker',
+    /** @satisfies FR-VOX-003 */
+    earpiece: 'Earpiece',
+    /** @satisfies FR-VOX-003 */
+    speakerA11y: 'Toggle speaker/earpiece',
+    /** @satisfies FR-VOX-003 */
+    disconnect: 'Disconnect',
+    /** @satisfies FR-VOX-003 */
+    disconnectA11y: 'Disconnect from voice channel',
+    /** @satisfies FR-VOX-003 */
+    iconMuted: '🔇',
+    /** @satisfies FR-VOX-003 */
+    iconUnmuted: '🎙️',
+    /** @satisfies FR-VOX-003 */
+    iconDeafened: '👂',
+    /** @satisfies FR-VOX-003 */
+    iconUndeafened: '🔊',
+    /** @satisfies FR-VOX-003 */
+    iconDisconnect: '❌',
+    /** @satisfies FR-VOX-003 */
+    iconSpeaker: '🔊',
+    /** @satisfies FR-VOX-003 */
+    iconEarpiece: '👂',
   },
 } as const;
 
