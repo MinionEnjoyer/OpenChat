@@ -275,6 +275,16 @@ export interface NotificationSetting {
   level: 'ALL' | 'MENTIONS' | 'NONE';
   mutedUntil: string | null;
 }
+
+/** Push notification device token (FR-NOTIF-001). */
+export interface DeviceToken {
+  id: string;
+  userId: string;
+  token: string;
+  platform: 'android' | 'ios';
+  lastSeen: string;
+}
+
 /** DM user from GET/POST /dms (FR-SOC-002). */
 export interface DmUser {
   id: string;

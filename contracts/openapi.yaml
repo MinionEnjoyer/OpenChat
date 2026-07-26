@@ -1683,6 +1683,64 @@ paths:
           description: Setting not found
       x-evidence: FR-NOTIF-003 implementation
 
+  # ── Device token registry (FR-NOTIF-001) ──
+  /devices:
+    get:
+      operationId: listDevices
+      summary: List the current user's device tokens
+      tags: [devices]
+      responses:
+        '200':
+          description: List of device tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceToken'
+      x-evidence: FR-NOTIF-001 implementation
+    post:
+      operationId: registerDevice
+      summary: Register or refresh a push notification device token (idempotent)
+      tags: [devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [android, ios]
+              required: [token, platform]
+      responses:
+        '201':
+          description: Device token registered or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceToken'
+      x-evidence: FR-NOTIF-001 implementation
+
+  /devices/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: deleteDevice
+      summary: Remove a device token (idempotent — unknown token returns 204)
+      tags: [devices]
+      responses:
+        '204':
+          description: Token removed (or was not present)
+      x-evidence: FR-NOTIF-001 implementation
+
   # ── Voice ──
   /voice/{channelId}/join:
     parameters:
@@ -2382,4 +2440,24 @@ components:
           type: string
           format: date-time
           nullable: true
+      x-added-by: P8
+
+    DeviceToken:
+      description: Push notification device token (FR-NOTIF-001)
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        token:
+          type: string
+        platform:
+          type: string
+          enum: [android, ios]
+        lastSeen:
+          type: string
+          format: date-time
       x-added-by: P8
