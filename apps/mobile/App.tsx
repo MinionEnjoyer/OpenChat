@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './src/sync/queryClient';
@@ -28,21 +29,23 @@ export default function App(): React.JSX.Element {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <QueryClientProvider client={queryClient}>
-        <View style={styles.root}>
-          <StatusBar style="light" />
-          {status === 'restoring' ? (
-            <View style={styles.center} testID="restoring">
-              <ActivityIndicator color={palette.accent} size="large" />
-            </View>
-          ) : status === 'signedIn' ? (
-            <ShellScreen />
-          ) : (
-            <LoginScreen />
-          )}
-          <ToastHost />
-        </View>
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <View style={styles.root}>
+            <StatusBar style="light" />
+            {status === 'restoring' ? (
+              <View style={styles.center} testID="restoring">
+                <ActivityIndicator color={palette.accent} size="large" />
+              </View>
+            ) : status === 'signedIn' ? (
+              <ShellScreen />
+            ) : (
+              <LoginScreen />
+            )}
+            <ToastHost />
+          </View>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
