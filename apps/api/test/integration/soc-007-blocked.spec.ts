@@ -72,14 +72,14 @@ describe('FR-SOC-007 — Blocked users endpoint', () => {
   });
 
   // @satisfies FR-SOC-007
-  it('removes blocked user after unblock (DELETE friend)', async () => {
-    // Alice unblocks Bob by removing the friendship
-    const unblockRes = await apiFetch(`/friends/${bob.userId}`, {
-      method: API.delete,
+  it('removes blocked user after unblock (POST unblock)', async () => {
+    // Alice unblocks Bob via the dedicated unblock endpoint
+    const unblockRes = await apiFetch(`/friends/unblock/${bob.userId}`, {
+      method: API.post,
       jar: alice.jar,
     });
     // 200 or 204 are both acceptable
-    expect([200, 204]).toContain(unblockRes.status);
+    expect([200, 201, 204]).toContain(unblockRes.status);
 
     // Verify Bob is no longer in Alice's blocked list
     const listRes = await apiFetch('/friends/blocked', { jar: alice.jar });
@@ -103,8 +103,8 @@ describe('FR-SOC-007 — Blocked users endpoint', () => {
     expect(bobBlockedIds).not.toContain(alice.userId);
 
     // Cleanup: unblock
-    await apiFetch(`/friends/${bob.userId}`, {
-      method: API.delete,
+    await apiFetch(`/friends/unblock/${bob.userId}`, {
+      method: API.post,
       jar: alice.jar,
     });
   });
