@@ -173,6 +173,8 @@ export const strings = {
     acceptFailed: 'Failed to accept invite',
     invalidCode: 'Invalid invite code',
     createTitle: 'Invite',
+    /** MaterialIcons name — link */
+    createGlyph: 'link',
     createInvite: 'Create invite link',
     creating: 'Creating…',
     createFailed: 'Failed to create invite',
@@ -219,6 +221,8 @@ export const strings = {
   },
   roles: {
     title: 'Roles',
+    /** MaterialIcons name — shield */
+    glyph: 'shield',
     create: 'Create Role',
     noRoles: 'No roles',
     editTitle: 'Edit Role',
@@ -263,7 +267,8 @@ export const strings = {
     originalLabel: 'Original',
     originalBadge: 'ORIG',
     cancelUpload: 'Cancel upload',
-    attach: '+',
+    /** MaterialIcons name — attach-file */
+    attach: 'attach-file',
     uploadFailed: 'Upload failed',
     uploading: 'Uploading\u2026',
     tooManyFiles: 'Maximum 10 files per message',
@@ -487,7 +492,8 @@ export const strings = {
   },
   screenshare: {
     live: 'LIVE',
-    screenIcon: '🖥️',
+    /** MaterialIcons name — screen-share */
+    screenIcon: 'screen-share',
     hide: 'Hide',
     show: 'Show',
     hideA11y: 'Hide screen share',
