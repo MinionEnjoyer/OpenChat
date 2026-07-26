@@ -10,13 +10,14 @@
 #
 # Requires: dev stack up + seeded (alice has bob blocked, bob has a message in the DM).
 # Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+# No hardcoded UUIDs — assertions use text matching so the flow survives re-seed.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with blocked bob ──
+# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with bob ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
@@ -26,9 +27,8 @@ appId: com.openchat.mobile
     id: 'rail-dm'
 - assertVisible:
     id: 'dm-section'
-# Tap the DM channel with bob (blocked user)
-- tapOn:
-    id: 'dm-0060a9cb-c897-44ac-b4db-7d4d7a44ce33'
+# Tap bob's DM row (display name "bob" is unique in the DM list)
+- tapOn: 'bob'
 
 # ── Phase 2: Verify left drawer closes and chat pane loads ──
 - assertNotVisible:
@@ -37,20 +37,17 @@ appId: com.openchat.mobile
     id: 'chat-pane'
 
 # ── Phase 3: Verify blocked message is collapsed ──
-# Bob is blocked; his message should render as a collapsed placeholder.
-# The collapsed placeholder has testID blocked-msg-{msgId} and text from
-# strings.blockedMessages.collapsed = "Blocked message — tap to show"
-- assertVisible:
-    id: 'blocked-msg-5719da3f-0672-4c00-8fa7-4691726e8585'
+# Bob is blocked; his message renders as a collapsed placeholder with text
+# from strings.blockedMessages.collapsed = "Blocked message — tap to show"
 - assertVisible: 'Blocked message — tap to show'
 
 # ── Phase 4: Tap to reveal the blocked message ──
-- tapOn:
-    id: 'blocked-msg-5719da3f-0672-4c00-8fa7-4691726e8585'
+- tapOn: 'Blocked message — tap to show'
 
 # ── Phase 5: Verify message content is now visible ──
 # After reveal, the collapsed placeholder is gone and the real message content
 # appears. The message from bob reads "Hi alice, this is bob".
-- assertNotVisible:
-    id: 'blocked-msg-5719da3f-0672-4c00-8fa7-4691726e8585'
 - assertVisible: 'Hi alice, this is bob'
+- assertNotVisible: 'Blocked message — tap to show'
+
+- takeScreenshot: artifacts/e2e/screens/p4-block
