@@ -26,8 +26,7 @@ if ! adb -s "$DEV" shell pm list packages 2>/dev/null | grep -q com.openchat.mob
   echo "ABORT $DEV: com.openchat.mobile not installed" | tee -a "$OUT"; exit 2
 fi
 if adb -s "$DEV" shell dumpsys package com.openchat.mobile 2>/dev/null | grep -q DEBUGGABLE; then
-  echo "ABORT $DEV: DEBUG build installed — expects Metro, every flow would fail invalidly." \
-       "Reinstall the release APK." | tee -a "$OUT"; exit 2
+  echo "ABORT $DEV: DEBUG build installed (expects Metro) — reinstall the release APK" | tee -a "$OUT"; exit 2
 fi
 echo "[preflight] $DEV ok — release build installed" | tee -a "$OUT"
 while read -r f <&3; do
