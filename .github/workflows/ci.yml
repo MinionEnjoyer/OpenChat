@@ -58,6 +58,12 @@ jobs:
         working-directory: apps/api
         run: npx prisma generate
 
+      - name: Check migration drift
+        working-directory: apps/api
+        env:
+          SHADOW_DATABASE_URL: postgresql://chat_user:chat_pass@localhost:5432/chat_drift_check
+        run: bash ../../tools/db/check-migration-drift.sh
+
       - name: Lint
         working-directory: apps/api
         run: npx eslint "{src,test}/**/*.ts" --max-warnings=0
