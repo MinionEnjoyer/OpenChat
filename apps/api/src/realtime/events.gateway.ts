@@ -26,6 +26,7 @@ type BusEvent =
   | { type: 'NOTIFY'; userId: string }
   | { type: 'MENTION'; userId: string; channelId: string; messageId: string; channelName: string; authorName: string; preview: string }
   | { type: 'CALL_RING'; userId: string; channelId: string; callerId: string; callerName: string; callerAvatar: string | null }
+  | { type: 'VOICE_OCCUPANCY_CHANGED'; channelId: string; serverId: string | null }
   // ── P3 granular guild-structure events ──
   | { type: 'CHANNEL_CREATED'; serverId: string; channel: any }
   | { type: 'CHANNEL_DELETED'; serverId: string; channelId: string }
@@ -245,6 +246,15 @@ export class EventsGateway {
             d: { channelId: event.channelId, callerId: event.callerId, callerName: event.callerName, callerAvatar: event.callerAvatar },
           });
         }
+        continue;
+      }
+
+      // ── Voice occupancy — server-scoped for server channels, channel-scoped for DMs ──
+      if (event.type === 'VOICE_OCCUPANCY_CHANGED') {
+        if (event.serverId) {
+          if (!client.serverIds.has(event.serverId)) continue;
+        } else if (!client.channels.has(event.channelId)) continue;
+        this.send(client.socket, { op: 'voice.occupancy', d: { channelId: event.channelId } });
         continue;
       }
 

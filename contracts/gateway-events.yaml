@@ -383,6 +383,25 @@ components:
       x-unverified: true
       x-note: "Not observed in experiments; documented from spec inventory"
 
+    voiceOccupancy:
+      summary: Voice channel occupancy changed
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: voice.occupancy
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+            required: [channelId]
+        required: [op, d]
+      x-added-by: FR-VOX-004
+      x-evidence: events.gateway.ts#relay
+
     watchpartySync:
       summary: Watchparty synchronization
       payload:
