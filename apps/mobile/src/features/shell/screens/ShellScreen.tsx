@@ -1146,7 +1146,6 @@ const styles = StyleSheet.create({
 
   // ── Rail ──
   rail: {
-    flex: 1,
     width: 64,
     backgroundColor: palette.bgElevated,
     paddingTop: spacing.sm,
