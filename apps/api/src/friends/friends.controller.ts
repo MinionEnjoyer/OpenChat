@@ -68,10 +68,6 @@ export class FriendsController {
     return this.friendsService.remove(user.id, userId);
   }
 
-  @Get('blocked')
-  listBlocked(@CurrentUser() user: User) {
-    return this.friendsService.listBlocked(user.id);
-  }
 
   @Post('block/:userId')
   block(

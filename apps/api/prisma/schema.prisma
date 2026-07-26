@@ -7,384 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model AuditLog {
-  id         String   @id
-  serverId   String
-  actorId    String
-  action     String
-  targetType String?
-  targetId   String?
-  metadata   Json?
-  createdAt  DateTime @default(now())
-  User       User     @relation(fields: [actorId], references: [id])
-  Server     Server   @relation(fields: [serverId], references: [id])
-
-  @@index([serverId])
-}
-
-model Ban {
-  id                         String   @id
-  serverId                   String
-  userId                     String
-  reason                     String?
-  createdById                String
-  deleteMessageDays          Int?
-  createdAt                  DateTime @default(now())
-  User_Ban_createdByIdToUser User     @relation("Ban_createdByIdToUser", fields: [createdById], references: [id], onDelete: Cascade)
-  Server                     Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  User_Ban_userIdToUser      User     @relation("Ban_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([serverId, userId])
-}
-
-model Role {
-  id          String   @id @default(uuid())
-  serverId    String
-  name        String
-  color       Int      @default(0)
-  permissions BigInt   @default(0)
-  position    Int
-  mentionable Boolean  @default(true)
-
-  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  members     ServerMember[]
-  @@index([serverId])
-}
-
-model Category {
-  id       String    @id
-  serverId String
-  name     String
-  position Int
-  Server   Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  Channel  Channel[]
-
-  @@index([serverId])
-}
-
-model Channel {
-  id               String             @id
-  serverId         String?
-  categoryId       String?
-  name             String
-  type             ChannelType        @default(TEXT)
-  topic            String?
-  position         Int                @default(0)
-  parentId         String?
-  Category         Category?          @relation(fields: [categoryId], references: [id])
-  Channel          Channel?           @relation("ChannelToChannel", fields: [parentId], references: [id])
-  other_Channel    Channel[]          @relation("ChannelToChannel")
-  Server           Server?            @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  ChannelOverwrite ChannelOverwrite[]
-  ChannelRecipient ChannelRecipient[]
-  Invite           Invite[]
-  Message          Message[]
-  ReadState        ReadState[]
-  VoiceSession     VoiceSession[]
-  WatchParty       WatchParty[]
-
-  @@index([categoryId])
-  @@index([serverId])
-}
-
-model ChannelOverwrite {
-  id         String              @id
-  channelId  String
-  targetType OverwriteTargetType
-  targetId   String
-  allow      BigInt              @default(0)
-  deny       BigInt              @default(0)
-  Channel    Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
-
-  @@unique([channelId, targetType, targetId])
-  @@index([channelId])
-}
-
-model ChannelRecipient {
-  id        String   @id
-  channelId String
-  userId    String
-  joinedAt  DateTime @default(now())
-  Channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([channelId, userId])
-  @@index([userId])
-}
-
-model DeviceToken {
-  id       String   @id
-  userId   String
-  token    String
-  platform String
-  lastSeen DateTime @default(now())
-  User     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, token])
-  @@index([userId])
-}
-
-model Friendship {
-  id                                String       @id
-  requesterId                       String
-  addresseeId                       String
-  status                            FriendStatus @default(PENDING)
-  createdAt                         DateTime     @default(now())
-  updatedAt                         DateTime
-  User_Friendship_addresseeIdToUser User         @relation("Friendship_addresseeIdToUser", fields: [addresseeId], references: [id], onDelete: Cascade)
-  User_Friendship_requesterIdToUser User         @relation("Friendship_requesterIdToUser", fields: [requesterId], references: [id], onDelete: Cascade)
-
-  @@unique([requesterId, addresseeId])
-  @@index([addresseeId])
-}
-
-model Invite {
-  id        String    @id
-  code      String    @unique
-  serverId  String
-  channelId String?
-  inviterId String
-  maxUses   Int?
-  uses      Int       @default(0)
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-  Channel   Channel?  @relation(fields: [channelId], references: [id])
-  User      User      @relation(fields: [inviterId], references: [id])
-  Server    Server    @relation(fields: [serverId], references: [id])
-
-  @@index([code])
-}
-
-model Message {
-  id                String              @id
-  channelId         String
-  authorId          String
-  content           String
-  createdAt         DateTime            @default(now())
-  editedAt          DateTime?
-  deletedAt         DateTime?
-  replyToId         String?
-  pinned            Boolean             @default(false)
-  User              User                @relation(fields: [authorId], references: [id])
-  Channel           Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  Message           Message?            @relation("MessageToMessage", fields: [replyToId], references: [id])
-  other_Message     Message[]           @relation("MessageToMessage")
-  MessageAttachment MessageAttachment[]
-  Poll              Poll?
-  Reaction          Reaction[]
-
-  @@index([channelId, createdAt])
-}
-
-model MessageAttachment {
-  id           String  @id
-  messageId    String
-  shareAssetId String
-  filename     String
-  mimeType     String
-  size         BigInt
-  url          String
-  thumbnailUrl String?
-  width        Int?
-  height       Int?
-  durationMs   Int?
-  Message      Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-  @@index([messageId])
-}
-
-model NotificationSetting {
-  id         String            @id
-  userId     String
-  mutedUntil DateTime?
-  scope      NotificationScope
-  scopeId    String
-  level      NotificationLevel @default(ALL)
-  User       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, scope, scopeId])
-}
-
-model Poll {
-  id         String       @id
-  messageId  String       @unique
-  question   String
-  multiple   Boolean      @default(false)
-  closesAt   DateTime?
-  createdAt  DateTime     @default(now())
-  Message    Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  PollOption PollOption[]
-}
-
-model PollOption {
-  id       String     @id
-  pollId   String
-  text     String
-  position Int        @default(0)
-  Poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  PollVote PollVote[]
-
-  @@index([pollId])
-}
-
-model PollVote {
-  id         String     @id
-  optionId   String
-  userId     String
-  createdAt  DateTime   @default(now())
-  PollOption PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  User       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([optionId, userId])
-  @@index([optionId])
-}
-
-model Reaction {
-  id        String  @id
-  messageId String
-  userId    String
-  emoji     String
-  Message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  User      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, userId, emoji])
-}
-
-model ReadState {
-  id                String  @id
-  userId            String
-  channelId         String
-  lastReadMessageId String?
-  mentionCount      Int     @default(0)
-  Channel           Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, channelId])
-}
-
-model Server {
-  id               String             @id
-  name             String
-  ownerId          String
-  iconUrl          String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime
-  AuditLog         AuditLog[]
-  Ban              Ban[]
-  Category         Category[]
-  Channel          Channel[]
-  Invite           Invite[]
-  Role             Role[]
-  User             User               @relation(fields: [ownerId], references: [id])
-  ServerInvitation ServerInvitation[]
-  ServerMember     ServerMember[]
-  ServerSound      ServerSound[]
-
-  @@index([ownerId])
-}
-
-model ServerInvitation {
-  id                                    String             @id
-  serverId                              String
-  inviterId                             String
-  inviteeId                             String
-  status                                ServerInviteStatus @default(PENDING)
-  createdAt                             DateTime           @default(now())
-  User_ServerInvitation_inviteeIdToUser User               @relation("ServerInvitation_inviteeIdToUser", fields: [inviteeId], references: [id], onDelete: Cascade)
-  User_ServerInvitation_inviterIdToUser User               @relation("ServerInvitation_inviterIdToUser", fields: [inviterId], references: [id], onDelete: Cascade)
-  Server                                Server             @relation(fields: [serverId], references: [id], onDelete: Cascade)
-
-  @@unique([serverId, inviteeId])
-  @@index([inviteeId, status])
-}
-
-model ServerMember {
-  id            String    @id
-  serverId      String
-  userId        String
-  nickname      String?
-  joinedAt      DateTime  @default(now())
-  timedOutUntil DateTime?
-  Server        Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  User          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  Role          Role[]
-
-  @@unique([serverId, userId])
-}
-
-model ServerSound {
-  id        String   @id
-  serverId  String
-  name      String
-  emoji     String?
-  url       String
-  createdAt DateTime @default(now())
-  Server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
-
-  @@index([serverId])
-}
-
-model User {
-  id                                                String                @id
-  authSub                                           String                @unique
-  username                                          String
-  displayName                                       String?
-  avatarUrl                                         String?
-  status                                            UserStatus            @default(OFFLINE)
-  createdAt                                         DateTime              @default(now())
-  updatedAt                                         DateTime
-  friendCode                                        String?               @unique
-  serverLayout                                      Json?
-  AuditLog                                          AuditLog[]
-  Ban_Ban_createdByIdToUser                         Ban[]                 @relation("Ban_createdByIdToUser")
-  Ban_Ban_userIdToUser                              Ban[]                 @relation("Ban_userIdToUser")
-  ChannelRecipient                                  ChannelRecipient[]
-  DeviceToken                                       DeviceToken[]
-  Friendship_Friendship_addresseeIdToUser           Friendship[]          @relation("Friendship_addresseeIdToUser")
-  Friendship_Friendship_requesterIdToUser           Friendship[]          @relation("Friendship_requesterIdToUser")
-  Invite                                            Invite[]
-  Message                                           Message[]
-  NotificationSetting                               NotificationSetting[]
-  PollVote                                          PollVote[]
-  Reaction                                          Reaction[]
-  ReadState                                         ReadState[]
-  Server                                            Server[]
-  ServerInvitation_ServerInvitation_inviteeIdToUser ServerInvitation[]    @relation("ServerInvitation_inviteeIdToUser")
-  ServerInvitation_ServerInvitation_inviterIdToUser ServerInvitation[]    @relation("ServerInvitation_inviterIdToUser")
-  ServerMember                                      ServerMember[]
-  VoiceSession                                      VoiceSession[]
-  WatchParty                                        WatchParty[]
-
-  @@index([authSub])
-}
-
-model VoiceSession {
-  id        String    @id
-  channelId String
-  userId    String
-  joinedAt  DateTime  @default(now())
-  leftAt    DateTime?
-  Channel   Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  User      User      @relation(fields: [userId], references: [id])
-
-  @@index([channelId])
-}
-
-model WatchParty {
-  id             String    @id
-  channelId      String
-  hostId         String
-  jellyfinItemId String
-  positionMs     Int       @default(0)
-  paused         Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  endedAt        DateTime?
-  Channel        Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  User           User      @relation(fields: [hostId], references: [id])
-
-  @@index([channelId])
-}
-
 enum ChannelType {
   TEXT
   VOICE
@@ -399,22 +21,6 @@ enum FriendStatus {
   BLOCKED
 }
 
-enum NotificationLevel {
-  ALL
-  MENTIONS
-  NONE
-}
-
-enum NotificationScope {
-  SERVER
-  CHANNEL
-}
-
-enum OverwriteTargetType {
-  ROLE
-  MEMBER
-}
-
 enum ServerInviteStatus {
   PENDING
   ACCEPTED
@@ -427,4 +33,435 @@ enum UserStatus {
   DND
   INVISIBLE
   OFFLINE
+}
+
+model User {
+  id           String     @id @default(uuid())
+  authSub      String     @unique
+  username     String
+  displayName  String?
+  avatarUrl    String?
+  friendCode   String?    @unique
+  status       UserStatus @default(OFFLINE)
+  serverLayout Json? // per-user server-rail folders/order (opaque to the server)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  ownedServers        Server[]
+  servers             ServerMember[]
+  messages            Message[]
+  reactions           Reaction[]
+  pollVotes           PollVote[]
+  readStates          ReadState[]
+  invites             Invite[]       @relation("InviteInviter")
+  voiceSessionsJoined VoiceSession[] @relation("VoiceSessionUser")
+  voiceSessionsHosted WatchParty[]   @relation("WatchPartyHost")
+  auditLogs           AuditLog[]
+  bansReceived        Ban[]          @relation("BanTarget")
+  bansIssued          Ban[]          @relation("BanIssuer")
+
+  friendRequestsSent     Friendship[]          @relation("FriendRequester")
+  friendRequestsReceived Friendship[]          @relation("FriendAddressee")
+  dmChannels             ChannelRecipient[]
+  deviceTokens           DeviceToken[]
+  notificationSettings   NotificationSetting[]
+  serverInvitesSent      ServerInvitation[]    @relation("ServerInviteInviter")
+  serverInvitesReceived  ServerInvitation[]    @relation("ServerInviteInvitee")
+
+  @@index([authSub])
+}
+
+model ServerInvitation {
+  id        String             @id @default(uuid())
+  serverId  String
+  inviterId String
+  inviteeId String
+  status    ServerInviteStatus @default(PENDING)
+  createdAt DateTime           @default(now())
+
+  server  Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  inviter User   @relation("ServerInviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee User   @relation("ServerInviteInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, inviteeId])
+  @@index([inviteeId, status])
+}
+
+model Server {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  iconUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner             User               @relation(fields: [ownerId], references: [id])
+  members           ServerMember[]
+  roles             Role[]
+  categories        Category[]
+  channels          Channel[]
+  invites           Invite[]
+  auditLogs         AuditLog[]
+  serverInvitations ServerInvitation[]
+  sounds            ServerSound[]
+  bans              Ban[]              @relation("BanServer")
+
+  @@index([ownerId])
+}
+
+model ServerSound {
+  id        String   @id @default(uuid())
+  serverId  String
+  name      String
+  emoji     String?
+  url       String
+  createdAt DateTime @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+}
+
+model ServerMember {
+  id            String    @id @default(uuid())
+  serverId      String
+  userId        String
+  nickname      String?
+  timedOutUntil DateTime?
+  joinedAt      DateTime  @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles  Role[]
+
+  @@unique([serverId, userId])
+}
+
+model Role {
+  id          String  @id @default(uuid())
+  serverId    String
+  name        String
+  color       Int     @default(0)
+  permissions BigInt  @default(0)
+  position    Int
+  mentionable Boolean @default(true)
+
+  server  Server         @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  members ServerMember[]
+
+  @@index([serverId])
+}
+
+model Category {
+  id       String @id @default(uuid())
+  serverId String
+  name     String
+  position Int
+
+  server   Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  channels Channel[]
+
+  @@index([serverId])
+}
+
+model Channel {
+  id         String      @id @default(uuid())
+  serverId   String?
+  categoryId String?
+  name       String
+  type       ChannelType @default(TEXT)
+  topic      String?
+  position   Int         @default(0)
+  parentId   String?
+
+  server     Server?            @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  category   Category?          @relation(fields: [categoryId], references: [id])
+  recipients ChannelRecipient[]
+
+  // Self-relation for threads
+  parentThread Channel?  @relation("ChannelThreads", fields: [parentId], references: [id])
+  childThreads Channel[] @relation("ChannelThreads")
+
+  messages      Message[]
+  readStates    ReadState[]
+  invites       Invite[]
+  voiceSessions VoiceSession[]
+  watchParties  WatchParty[]
+  overwrites    ChannelOverwrite[]
+
+  @@index([serverId])
+  @@index([categoryId])
+}
+
+enum NotificationLevel {
+  ALL
+  MENTIONS
+  NONE
+}
+
+enum NotificationScope {
+  SERVER
+  CHANNEL
+}
+
+// x-added-by P7: channel-level permission overwrites (FR-ROLE-003)
+enum OverwriteTargetType {
+  ROLE
+  MEMBER
+}
+
+model ChannelOverwrite {
+  id         String              @id @default(uuid())
+  channelId  String
+  targetType OverwriteTargetType
+  targetId   String
+  allow      BigInt              @default(0)
+  deny       BigInt              @default(0)
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, targetType, targetId])
+  @@index([channelId])
+}
+
+model Message {
+  id        String    @id @default(uuid())
+  channelId String
+  authorId  String
+  content   String    @db.Text
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+  replyToId String?
+  pinned    Boolean   @default(false)
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  // Self-relation for replies
+  replyTo Message?  @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies Message[] @relation("MessageReplies")
+
+  attachments MessageAttachment[]
+  reactions   Reaction[]
+  poll        Poll?
+
+  @@index([channelId, createdAt])
+}
+
+model MessageAttachment {
+  id           String  @id @default(uuid())
+  messageId    String
+  shareAssetId String
+  filename     String
+  mimeType     String
+  size         BigInt
+  url          String
+  thumbnailUrl String?
+  width        Int?
+  height       Int?
+  durationMs   Int?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model Reaction {
+  id        String @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model Poll {
+  id        String    @id @default(uuid())
+  messageId String    @unique
+  question  String
+  multiple  Boolean   @default(false)
+  closesAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  message Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  options PollOption[]
+}
+
+model PollOption {
+  id       String @id @default(uuid())
+  pollId   String
+  text     String
+  position Int    @default(0)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id        String   @id @default(uuid())
+  optionId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, userId])
+  @@index([optionId])
+}
+
+model ReadState {
+  id                String  @id @default(uuid())
+  userId            String
+  channelId         String
+  lastReadMessageId String?
+  mentionCount      Int     @default(0)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channelId])
+}
+
+model Invite {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  serverId  String
+  channelId String?
+  inviterId String
+  maxUses   Int?
+  uses      Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  server  Server   @relation(fields: [serverId], references: [id])
+  channel Channel? @relation(fields: [channelId], references: [id])
+  inviter User     @relation("InviteInviter", fields: [inviterId], references: [id])
+
+  @@index([code])
+}
+
+model VoiceSession {
+  id        String    @id @default(uuid())
+  channelId String
+  userId    String
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation("VoiceSessionUser", fields: [userId], references: [id])
+
+  @@index([channelId])
+}
+
+model WatchParty {
+  id             String    @id @default(uuid())
+  channelId      String
+  hostId         String
+  jellyfinItemId String
+  positionMs     Int       @default(0)
+  paused         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  host    User    @relation("WatchPartyHost", fields: [hostId], references: [id])
+
+  @@index([channelId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  serverId   String
+  actorId    String
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  server Server @relation(fields: [serverId], references: [id])
+  actor  User   @relation(fields: [actorId], references: [id])
+
+  @@index([serverId])
+}
+
+// x-added-by P7: server bans
+model Ban {
+  id                String   @id @default(uuid())
+  serverId          String
+  userId            String
+  reason            String?
+  createdById       String
+  deleteMessageDays Int? // 0, 1, or 7 — how many days of messages to purge
+  createdAt         DateTime @default(now())
+
+  server    Server @relation("BanServer", fields: [serverId], references: [id], onDelete: Cascade)
+  user      User   @relation("BanTarget", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("BanIssuer", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, userId])
+  @@index([serverId])
+}
+
+// A directional friend request; status ACCEPTED means the two users are friends.
+model Friendship {
+  id          String       @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  requester User @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId])
+}
+
+model DeviceToken {
+  id       String   @id @default(uuid())
+  userId   String
+  token    String
+  platform String
+  lastSeen DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
+}
+
+model NotificationSetting {
+  id         String            @id @default(uuid())
+  userId     String
+  mutedUntil DateTime?
+  scope      NotificationScope
+  scopeId    String
+  level      NotificationLevel @default(ALL)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scope, scopeId])
+}
+
+// Participant of a DM / group-DM channel (channels with serverId = null).
+model ChannelRecipient {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+  @@index([userId])
 }

@@ -7,7 +7,8 @@
  *
  * @satisfies FR-SOC-004
  */
-import { apiFetch, createJar, devLogin } from '../characterization/helpers';
+import { apiFetch, devLogin } from '../characterization/helpers';
+import type { createJar } from '../characterization/helpers';
 
 describe('P4-03 presence persistence (FR-SOC-004)', () => {
   let jar: ReturnType<typeof createJar>;

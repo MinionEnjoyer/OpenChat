@@ -221,14 +221,6 @@ export class FriendsService {
     });
   }
 
-  async listBlocked(userId: string): Promise<any[]> {
-    const blocked = await this.prisma.friendship.findMany({
-      where: { requesterId: userId, status: 'BLOCKED' },
-      include: { addressee: true },
-    });
-
-    return blocked.map((f) => this.toUserDTO(f.addressee));
-  }
 
   async unblock(userId: string, otherUserId: string): Promise<void> {
     const friendship = await this.prisma.friendship.findFirst({
