@@ -1,0 +1,65 @@
+# p6-03-dm-call-outgoing — login → open DM with bob → tap call button → VoicePill appears → disconnect.
+# @satisfies FR-VOX-005
+#
+# Requires: dev stack up + seeded (alice↔bob DM), emulator reaching 10.0.2.2.
+# This flow does its own dev-login so it runs independently.
+#
+# NOTE: DM channel IDs are dynamic; the DM row is selected by visible text ("bob")
+# in the dm-section of the left drawer. The call button appears in the top bar
+# once a DM is selected.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Open left drawer and navigate to DM with bob ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# The DM section is at the top of the left drawer (before the server rail).
+# Scroll to find bob in the DM list.
+- scrollUntilVisible:
+    element:
+      text: 'bob'
+    direction: DOWN
+    timeout: 20000
+- tapOn: 'bob'
+
+# Left drawer closes, DM opens with call button in top bar
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Assert call button is visible and tap it ──
+- assertVisible:
+    id: 'call-button'
+- tapOn:
+    id: 'call-button'
+
+# ── Phase 4: Assert VoicePill appears ──
+# The join API call returns 201; the pill shows during joining → connected.
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# ── Phase 5: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-dm-call-outgoing

@@ -1,0 +1,89 @@
+# p6-02-voice-pill-controls — join voice → toggle mute → assert badge → toggle deafen → assert badge → leave.
+# @satisfies FR-VOX-003
+#
+# Requires: dev stack up + seeded, voice channel join wired, LiveKit available for stable connection.
+# This flow does its own dev-login so it runs independently.
+#
+# NOTE: Speaker toggle is NOT in the VoicePill — it only exists in the standalone VoiceControls
+# component, which is exported but never imported into any screen (unreachable). This is a
+# "built but unreachable" finding; see report for details.
+# The VoicePill controls tested here: mute, deafen, disconnect.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Join voice channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- scrollUntilVisible:
+    element:
+      id: 'channel-#voice-general'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'channel-#voice-general'
+- assertNotVisible:
+    id: 'left-drawer'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# ── Phase 3: Toggle mute — assert badge appears then disappears ──
+# Before mute: no mute badge
+- assertNotVisible:
+    id: 'voice-pill-muted-badge'
+# Tap mute (label: "Mute")
+- tapOn:
+    id: 'voice-pill-mute'
+# After mute: badge visible with '🔇'
+- assertVisible:
+    id: 'voice-pill-muted-badge'
+# Tap again to unmute (label changes to "Unmute")
+- tapOn:
+    id: 'voice-pill-mute'
+# Badge should be gone
+- assertNotVisible:
+    id: 'voice-pill-muted-badge'
+
+# ── Phase 4: Toggle deafen — assert badge appears then disappears ──
+- assertNotVisible:
+    id: 'voice-pill-deafened-badge'
+- tapOn:
+    id: 'voice-pill-deafen'
+- assertVisible:
+    id: 'voice-pill-deafened-badge'
+- tapOn:
+    id: 'voice-pill-deafen'
+- assertNotVisible:
+    id: 'voice-pill-deafened-badge'
+
+# ── Phase 5: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-pill-controls

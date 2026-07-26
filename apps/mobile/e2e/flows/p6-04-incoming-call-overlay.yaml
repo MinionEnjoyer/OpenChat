@@ -1,0 +1,101 @@
+# p6-04-incoming-call-overlay — alice receives incoming DM call from bob → overlay shows → accept → pill.
+# @satisfies FR-VOX-005
+#
+# Requires: dev stack up + seeded (alice↔bob DM), emulator reaching 10.0.2.2.
+# This flow does its own dev-login so it runs independently.
+#
+# PREREQUISITE: This flow uses runScript to trigger the incoming call via HTTP.
+# Bob joins the alice↔bob DM voice channel, which causes the server to publish
+# a `call.ring` WebSocket event to alice's connected gateway session.
+# If runScript fetch is not available in your Maestro version, trigger the ring
+# externally before running this flow:
+#   curl -s -X POST http://localhost:3030/api/auth/dev-login \
+#     -H 'Content-Type: application/json' -d '{"username":"bob"}' | jq -r .accessToken
+#   # Use that token to join the DM voice channel (fetch /dms first for the channelId)
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as alice ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Trigger incoming call by having bob join the DM ──
+# This runScript logs in as bob via the API, fetches the DM channel with alice,
+# and POSTs to /voice/:channelId/join. The server then publishes call.ring to
+# alice's WebSocket, which populates the CallStore and renders the overlay.
+- runScript:
+    content: |
+      const API = 'http://10.0.2.2:3030/api';
+      async function main() {
+        // 1. Login as bob
+        const bobLogin = await fetch(API + '/auth/dev-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: 'bob' })
+        });
+        const bob = await bobLogin.json();
+        const token = bob.accessToken;
+
+        // 2. Fetch DMs to find the channel with alice
+        const dmsResp = await fetch(API + '/dms', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const dms = await dmsResp.json();
+        const dm = dms.find(function(d) {
+          return d.type === 'DM';
+        });
+        if (!dm) throw new Error('No DM channel found for bob→alice');
+
+        // 3. Join the voice channel as bob — triggers call.ring to alice
+        const joinResp = await fetch(API + '/voice/' + dm.id + '/join', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (joinResp.status !== 201) throw new Error('Join failed: ' + joinResp.status);
+      }
+      main().catch(function(e) { throw e; });
+
+# ── Phase 3: Assert incoming call overlay appeared ──
+- extendedWaitUntil:
+    visible:
+      id: 'incoming-call-overlay'
+    timeout: 20000
+
+# Verify the overlay shows the caller name and controls
+- assertVisible: 'Incoming Call'
+- assertVisible:
+    id: 'incoming-call-accept'
+- assertVisible:
+    id: 'incoming-call-decline'
+
+# ── Phase 4: Tap Accept → join the call → VoicePill appears ──
+- tapOn:
+    id: 'incoming-call-accept'
+
+# Overlay dismissed
+- assertNotVisible:
+    id: 'incoming-call-overlay'
+
+# VoicePill appears after joining
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# ── Phase 5: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-incoming-call
