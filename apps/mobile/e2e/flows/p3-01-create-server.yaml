@@ -1,0 +1,53 @@
+# p3-01-create-server — login → create server → verify it appears in the rail.
+# @satisfies FR-SRV-002
+#
+# Requires: dev stack up + seeded, emulator reaching 10.0.2.2.
+# This flow does its own login so it can run independently.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Open left drawer to see the server rail
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# Tap the Create Server button in the rail
+- tapOn:
+    id: 'rail-create-server'
+- assertVisible:
+    id: 'create-server-screen'
+
+# Type the server name and submit
+- tapOn:
+    id: 'create-server-name'
+- inputText: 'E2E Alpha'
+- tapOn:
+    id: 'create-server-submit'
+
+# After creation, we should be back at the shell with the new server selected.
+# Open the left drawer to verify the new server appears in the rail.
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'rail-server-E2E Alpha'
+
+# The channel drawer title should show the new server name
+- assertVisible: 'E2E Alpha'
+
+- takeScreenshot: artifacts/e2e/screens/p3-create-server
