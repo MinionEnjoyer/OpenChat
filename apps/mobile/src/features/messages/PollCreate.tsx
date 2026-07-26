@@ -103,6 +103,7 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
             onChangeText={setQuestion}
             maxLength={300}
             editable={!sending}
+            testID="poll-create-question"
           />
 
           {/* Options */}
@@ -116,6 +117,7 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
                 onChangeText={(t) => updateOption(i, t)}
                 maxLength={100}
                 editable={!sending}
+                testID={`poll-create-option-${i}`}
               />
               {options.length > MIN_OPTIONS && (
                 <Pressable
@@ -161,6 +163,7 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
               style={[styles.btn, styles.btnPrimary]}
               onPress={() => void handleCreate()}
               disabled={sending}
+              testID="poll-create-submit"
             >
               <Text style={styles.btnPrimaryText}>
                 {sending ? '…' : strings.poll.create}

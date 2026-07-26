@@ -17,7 +17,7 @@ export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.El
   const results = filterEmojis(query);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} testID="emoji-picker">
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View />
       </Pressable>
@@ -35,6 +35,7 @@ export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.El
           value={query}
           onChangeText={setQuery}
           autoFocus={false}
+          testID="emoji-picker-search"
         />
         <View style={styles.grid}>
           {results.map((e) => (
@@ -43,6 +44,7 @@ export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.El
               style={styles.emojiCell}
               onPress={() => { onSelect(e.emoji); setQuery(''); }}
               accessibilityLabel={e.label}
+              testID={`emoji-cell-${e.emoji}`}
             >
               <Text style={styles.emojiText}>{e.emoji}</Text>
             </Pressable>

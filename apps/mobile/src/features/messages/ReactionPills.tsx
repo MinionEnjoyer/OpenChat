@@ -28,6 +28,7 @@ export function ReactionPills({
             style={[styles.pill, active && styles.pillActive]}
             onPress={() => onToggleReaction(r.emoji, active)}
             onLongPress={() => onShowReactors(r.emoji)}
+            testID={`reaction-pill-${r.emoji}`}
           >
             <Text style={styles.emoji}>{r.emoji}</Text>
             <Text style={[styles.count, active && styles.countActive]}>{r.count}</Text>

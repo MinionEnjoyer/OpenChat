@@ -1,0 +1,88 @@
+# msg-rich-pins-polls — create a poll, vote, pin a message, verify in pins panel.
+# Exercises FR-MSG-011 (pins) and FR-MSG-012 (polls); tags only what genuinely applies.
+# @satisfies FR-MSG-007
+#
+# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# alice is Admin — she can manage messages (pin) and create polls.
+# FR-MSG-007 tag applies because the poll question / options are message content
+# that flows through the compose → send → display pipeline.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login and navigate to #general ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 2: Create a poll ──
+- tapOn:
+    id: 'composer-poll'
+# Poll create modal appears
+- assertVisible: 'Create Poll'
+- tapOn:
+    id: 'poll-create-question'
+- inputText: 'Favorite color?'
+- tapOn:
+    id: 'poll-create-option-0'
+- inputText: 'Blue'
+- tapOn:
+    id: 'poll-create-option-1'
+- inputText: 'Red'
+- tapOn:
+    id: 'poll-create-submit'
+
+# ── Phase 3: Verify poll card appeared and vote ──
+# Poll card has testID poll-<pollId>, but we don't know the ID ahead of time.
+# Assert the question text is visible in the message list.
+- assertVisible: 'Favorite color?'
+# Tap the first option ("Blue") to vote — text-based since poll ID is dynamic
+- tapOn: 'Blue'
+# After voting, verify the percentage bar shows 100% (sole voter)
+- assertVisible: '100%'
+
+# ── Phase 4: Send a text message, then pin it ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-pin-test'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'e2e-pin-test'
+
+# Long-press the message to show action sheet, then tap "Pin"
+- longPressOn: 'e2e-pin-test'
+- tapOn: 'Pin'
+
+# ── Phase 5: Open pins panel, verify the pinned message is listed ──
+- tapOn:
+    id: 'pins-toggle'
+# The PinsPanel is a bottom sheet; the pinned message content should appear
+- assertVisible: 'e2e-pin-test'
+
+- takeScreenshot: artifacts/e2e/screens/msg-rich-pins-polls
