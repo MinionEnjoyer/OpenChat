@@ -1,0 +1,46 @@
+# _p6-falsify — falsification for permission grant
+# Same as p6-01-voice-channel-join-leave but with delay for connection establishment
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- scrollUntilVisible:
+    element:
+      id: 'channel-#voice-general'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'channel-#voice-general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# Wait for voice pill
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 30000
+
+# Wait for connection to fully establish — disconnect button only renders when connected
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-disconnect'
+    timeout: 30000
+
+# Now disconnect
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'

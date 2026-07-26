@@ -1,0 +1,68 @@
+# p6-02-falsify — temporary copy for permission grant falsification
+# Changes from original: use extendedWaitUntil for voice-pill-controls
+# to avoid race condition (controls only render when connectionState === 'connected')
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#voice-general'
+- tapOn:
+    id: 'channel-#voice-general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# Wait for voice pill to appear
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 30000
+
+# Wait for connection to fully establish (controls row only renders when connected)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-controls'
+    timeout: 30000
+
+# Toggle camera on
+- assertVisible:
+    id: 'voice-pill-camera'
+- tapOn:
+    id: 'voice-pill-camera'
+
+# After toggle, flip-camera button appears
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-flip-camera'
+    timeout: 15000
+
+# Flip camera
+- tapOn:
+    id: 'voice-pill-flip-camera'
+
+# Toggle camera off
+- tapOn:
+    id: 'voice-pill-camera'
+
+# Flip-camera button disappears when camera is off
+- assertNotVisible:
+    id: 'voice-pill-flip-camera'
+
+# Disconnect
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'

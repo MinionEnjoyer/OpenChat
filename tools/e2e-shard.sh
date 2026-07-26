@@ -30,6 +30,10 @@ for i in "${!ALL[@]}"; do
   # ── Hard clear: pm clear wipes expo-secure-store tokens that Maestro's
   #     clearState may leave behind. Repeat before every flow for isolation.
   adb -s "$DEV" shell pm clear com.openchat.mobile </dev/null
+  # pm clear also wipes runtime permission grants. Re-grant every dangerous
+  # permission the app declares; tolerate failure for permissions the OS refuses.
+  adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.CAMERA </dev/null || true
+  adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.RECORD_AUDIO </dev/null || true
   if maestro --device "$DEV" test "$f" > "/tmp/e2e-$base-$DEV.log" 2>&1; then
     PASS=$((PASS+1)); echo "PASS $base"
   else
