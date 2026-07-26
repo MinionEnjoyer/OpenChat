@@ -87,12 +87,12 @@ export function GifPicker({ visible, onSelect, onClose }: Props): React.JSX.Elem
       animationType="fade"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.kavRoot}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-      >
-        <View style={styles.overlay}>
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+          style={styles.kavInner}
+        >
           <View style={styles.panel}>
             {/* Header */}
             <View style={styles.header}>
@@ -141,14 +141,14 @@ export function GifPicker({ visible, onSelect, onClose }: Props): React.JSX.Elem
               <Text style={styles.footerText}>{strings.gifs.poweredBy}</Text>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  kavRoot: { flex: 1 },
+  kavInner: {},
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

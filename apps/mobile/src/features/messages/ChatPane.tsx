@@ -862,12 +862,12 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         animationType="fade"
         onRequestClose={closeEdit}
       >
-        <KeyboardAvoidingView
-          style={styles.modalRoot}
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-        >
-          <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior="padding"
+            keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+            style={styles.modalInner}
+          >
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>{strings.messages.editTitle}</Text>
               <TextInput
@@ -890,8 +890,8 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
                 </Pressable>
               </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
@@ -982,7 +982,7 @@ const styles = StyleSheet.create({
   pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },
   pollBtnText: { fontSize: 20 },
   // Edit modal
-  modalRoot: { flex: 1 },
+  modalInner: {},
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg,
   },

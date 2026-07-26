@@ -58,12 +58,12 @@ export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): Rea
       transparent
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.kavRoot}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-      >
       <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+          style={styles.kavInner}
+        >
         <View style={styles.sheet} testID="channel-form-sheet">
           <Text style={styles.title}>
             {isEdit ? strings.channels.editTitle : strings.channels.createTitle}
@@ -132,14 +132,14 @@ export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): Rea
             </Pressable>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </View>
-      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  kavRoot: { flex: 1 },
+  kavInner: {},
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
