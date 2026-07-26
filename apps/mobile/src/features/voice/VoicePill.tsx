@@ -1,12 +1,12 @@
 /**
- * VoicePill — ongoing-call pill with mute/deafen/disconnect (FR-VOX-001, FR-VOX-003).
+ * VoicePill — ongoing-call pill with mute/deafen/camera/disconnect (FR-VOX-001, FR-VOX-003, FR-VOX-006).
  *
  * Rendered when the user is connected to a voice channel. Shows a small,
  * persistent banner at the bottom of the screen with the connection status,
- * mute/deafen toggle buttons, and a disconnect button. Navigation-safe: uses the
+ * mute/deafen/camera toggle buttons, and a disconnect button. Navigation-safe: uses the
  * voice store directly, so it survives screen transitions.
  *
- * @satisfies FR-VOX-001, FR-VOX-003
+ * @satisfies FR-VOX-001, FR-VOX-003, FR-VOX-006
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -21,6 +21,9 @@ export function VoicePill(): React.JSX.Element | null {
     isDeafened,
     toggleMute,
     toggleDeafen,
+    cameraEnabled,
+    toggleCamera,
+    flipCamera,
     leave,
   } = useVoiceConnection();
 
@@ -90,6 +93,44 @@ export function VoicePill(): React.JSX.Element | null {
             </Text>
             <Text style={styles.ctrlLabel}>
               {isDeafened ? strings.voice.undeafen : strings.voice.deafen}
+            </Text>
+          </Pressable>
+
+          {/* Flip camera — only visible when camera is active (FR-VOX-006) */}
+          {cameraEnabled && (
+            <Pressable
+              onPress={() => { void flipCamera(); }}
+              style={({ pressed }) => [
+                styles.ctrlBtn,
+                styles.ctrlBtnInactive,
+                pressed && styles.ctrlBtnPressed,
+              ]}
+              accessibilityLabel={strings.voice.flipCameraA11y}
+              accessibilityRole="button"
+              testID="voice-pill-flip-camera"
+            >
+              
+              <Text style={styles.ctrlLabel}>{strings.voice.flipCamera}</Text>
+            </Pressable>
+          )}
+
+          {/* Camera toggle (FR-VOX-006) */}
+          <Pressable
+            onPress={() => { void toggleCamera(); }}
+            style={({ pressed }) => [
+              styles.ctrlBtn,
+              cameraEnabled ? styles.ctrlBtnActive : styles.ctrlBtnInactive,
+              pressed && styles.ctrlBtnPressed,
+            ]}
+            accessibilityLabel={cameraEnabled ? strings.voice.cameraOffA11y : strings.voice.cameraOnA11y}
+            accessibilityRole="button"
+            testID="voice-pill-camera"
+          >
+            <Text style={styles.ctrlIcon}>
+              {cameraEnabled ? '📹' : '📷'}
+            </Text>
+            <Text style={styles.ctrlLabel}>
+              {cameraEnabled ? strings.voice.cameraOff : strings.voice.cameraOn}
             </Text>
           </Pressable>
 

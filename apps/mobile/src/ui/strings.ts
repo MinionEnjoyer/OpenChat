@@ -435,6 +435,21 @@ export const strings = {
     callButtonA11y: 'Start voice call',
     /** @satisfies FR-VOX-005 */
     callButtonLabel: '\u{1F4DE}', // 📞 telephone receiver
+    // ── Video (FR-VOX-006) ──
+    /** @satisfies FR-VOX-006 */
+    cameraOn: 'Turn on camera',
+    /** @satisfies FR-VOX-006 */
+    cameraOff: 'Turn off camera',
+    /** @satisfies FR-VOX-006 */
+    flipCamera: 'Flip camera',
+    /** @satisfies FR-VOX-006 */
+    videoOff: 'Camera off',
+    /** @satisfies FR-VOX-006 */
+    cameraOnA11y: 'Enable camera',
+    /** @satisfies FR-VOX-006 */
+    cameraOffA11y: 'Disable camera',
+    /** @satisfies FR-VOX-006 */
+    flipCameraA11y: 'Switch camera',
   },
 } as const;
 

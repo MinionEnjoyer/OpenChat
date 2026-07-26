@@ -1,7 +1,7 @@
 /**
  * VoiceStore — connection state for the voice layer (FR-VOX-001),
- * participant tile data (FR-VOX-002), and controls for
- * mute/deafen/speaker (FR-VOX-003).
+ * participant tile data (FR-VOX-002), controls for
+ * mute/deafen/speaker (FR-VOX-003), and video camera (FR-VOX-006).
  *
  * PUBLIC SURFACE (for FR-VOX-002/003/005/006/007 agents):
  *   useVoiceStore()                — Zustand hook (import from features/voice)
@@ -14,6 +14,8 @@
  *   state.isMuted                  — boolean (track-level mic mute)
  *   state.isDeafened               — boolean (local deafen)
  *   state.isSpeakerOn              — boolean (speaker vs earpiece)
+ *   state.cameraEnabled            — boolean (is local camera publishing)
+ *   state.cameraFacing             — 'front' | 'back'
  *   state.join(channelId)          — calls API join, sets joining state
  *   state.leave()                  — calls API leave, sets idle state
  *   state.setRoom(room|null)       — called by useVoiceConnection when Room is created/destroyed
@@ -32,7 +34,7 @@
  * This store tracks the high-level connection state and holds the Room
  * reference so other components can access it without prop drilling.
  *
- * @satisfies FR-VOX-001, FR-VOX-002, FR-VOX-003
+ * @satisfies FR-VOX-001, FR-VOX-002, FR-VOX-003, FR-VOX-006
  */
 import { create } from 'zustand';
 import { api } from '../../stores/session';
@@ -85,6 +87,10 @@ export interface VoiceState {
   isDeafened: boolean;
   /** Speaker (true) vs earpiece (false). @satisfies FR-VOX-003 */
   isSpeakerOn: boolean;
+  /** Whether the local camera is publishing. @satisfies FR-VOX-006 */
+  cameraEnabled: boolean;
+  /** Active camera facing: 'front' or 'back'. @satisfies FR-VOX-006 */
+  cameraFacing: 'front' | 'back';
 
   /** Begin joining a voice channel: calls POST /voice/:id/join, sets joining → connected. Returns join response, or undefined if already connected. */
   join: (channelId: string) => Promise<VoiceJoinResponse | undefined>;
@@ -122,6 +128,14 @@ export interface VoiceState {
   toggleSpeaker: () => void;
   /** Reset controls to defaults (called on leave). */
   resetControls: () => void;
+
+  // ── FR-VOX-006 video controls ──
+  /** Toggle the local camera on or off. @satisfies FR-VOX-006 */
+  toggleCamera: () => Promise<void>;
+  /** Flip between front and back camera while active. @satisfies FR-VOX-006 */
+  flipCamera: () => Promise<void>;
+  /** Set camera facing mode (used internally by flipCamera). */
+  setCameraFacing: (facing: 'front' | 'back') => void;
 }
 
 let singleton: VoiceService | null = null;
@@ -137,6 +151,14 @@ export function injectVoiceService(svc: VoiceService): void {
   singleton = svc;
 }
 
+/**
+ * Map our cameraFacing to livekit-client VideoCaptureOptions.facingMode.
+ * 'front' → 'user', 'back' → 'environment'.
+ */
+function toFacingMode(facing: 'front' | 'back'): 'user' | 'environment' {
+  return facing === 'front' ? 'user' : 'environment';
+}
+
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   connectionState: 'idle',
   activeChannelId: null,
@@ -144,6 +166,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   participantCount: 0,
   participants: [],
   room: null,
+  cameraEnabled: false,
+  cameraFacing: 'front',
   isMuted: false,
   isDeafened: false,
   isSpeakerOn: true,
@@ -193,6 +217,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         participantCount: 0,
         participants: [],
         error: null,
+        cameraEnabled: false,
+        cameraFacing: 'front',
         isMuted: false,
         isDeafened: false,
         isSpeakerOn: true,
@@ -329,5 +355,41 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   resetControls() {
     set({ isMuted: false, isDeafened: false, isSpeakerOn: true });
+  },
+
+  // ── FR-VOX-006 video controls ──
+
+  async toggleCamera() {
+    const { room, cameraEnabled, cameraFacing } = get();
+    if (!room) return;
+
+    const newEnabled = !cameraEnabled;
+    if (room.localParticipant && typeof room.localParticipant.setCameraEnabled === 'function') {
+      if (newEnabled) {
+        await room.localParticipant.setCameraEnabled(true, {
+          facingMode: toFacingMode(cameraFacing),
+        });
+      } else {
+        await room.localParticipant.setCameraEnabled(false);
+      }
+    }
+    set({ cameraEnabled: newEnabled });
+  },
+
+  async flipCamera() {
+    const { cameraEnabled, room } = get();
+    if (!room || !cameraEnabled) return;
+
+    const newFacing: 'front' | 'back' = get().cameraFacing === 'front' ? 'back' : 'front';
+    if (room.localParticipant && typeof room.localParticipant.setCameraEnabled === 'function') {
+      await room.localParticipant.setCameraEnabled(true, {
+        facingMode: toFacingMode(newFacing),
+      });
+    }
+    set({ cameraFacing: newFacing });
+  },
+
+  setCameraFacing(facing: 'front' | 'back') {
+    set({ cameraFacing: facing });
   },
 }));

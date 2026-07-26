@@ -24,6 +24,7 @@
  *     - idempotent: no-op if not connected.
  *
  * @satisfies FR-VOX-001
+ * @satisfies FR-VOX-006
  */
 import { useCallback, useRef } from 'react';
 import { useVoiceStore, type VoiceConnectionState } from './VoiceStore';
@@ -47,6 +48,16 @@ export interface VoiceConnectionAPI {
   toggleDeafen: () => void;
   /** Toggle speaker/earpiece. @satisfies FR-VOX-003 */
   toggleSpeaker: () => void;
+
+  // ── Video controls (FR-VOX-006) ──
+  /** Whether the local camera is currently publishing. */
+  cameraEnabled: boolean;
+  /** Which camera facing is active. */
+  cameraFacing: 'front' | 'back';
+  /** Toggle the local camera on or off. */
+  toggleCamera: () => Promise<void>;
+  /** Flip between front and back camera while camera is active. */
+  flipCamera: () => Promise<void>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,6 +143,14 @@ export function useVoiceConnection(): VoiceConnectionAPI {
     await useVoiceStore.getState().leave();
   }, []);
 
+  const toggleCamera = useCallback(async () => {
+    await useVoiceStore.getState().toggleCamera();
+  }, []);
+
+  const flipCamera = useCallback(async () => {
+    await useVoiceStore.getState().flipCamera();
+  }, []);
+
   const storeControls = useVoiceStore.getState();
   return {
     connectionState: store.connectionState,
@@ -146,5 +165,9 @@ export function useVoiceConnection(): VoiceConnectionAPI {
     toggleMute: storeControls.toggleMute,
     toggleDeafen: storeControls.toggleDeafen,
     toggleSpeaker: storeControls.toggleSpeaker,
+    cameraEnabled: store.cameraEnabled,
+    cameraFacing: store.cameraFacing,
+    toggleCamera,
+    flipCamera,
   };
 }
