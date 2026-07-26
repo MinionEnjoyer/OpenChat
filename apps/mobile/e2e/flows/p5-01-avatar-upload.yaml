@@ -10,17 +10,7 @@
 appId: com.openchat.mobile
 
 ---
-- launchApp:
-    clearState: true
-- assertVisible:
-    id: 'login-screen'
-- tapOn:
-    id: 'login-username'
-- inputText: 'alice'
-- tapOn:
-    id: 'login-submit'
-- assertVisible:
-    id: 'shell-screen'
+- runFlow: _login.yaml
 
 # Open left drawer and select Fixture Guild → #general to enter a server context
 - tapOn:

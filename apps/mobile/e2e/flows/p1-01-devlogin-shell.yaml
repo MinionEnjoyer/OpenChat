@@ -16,20 +16,10 @@
 appId: com.openchat.mobile
 
 ---
-- launchApp:
-    clearState: true
-- assertVisible:
-    id: 'login-screen'
-- tapOn:
-    id: 'login-username'
-- inputText: 'alice'
-- tapOn:
-    id: 'login-submit'
+- runFlow: _login.yaml
 
 # 1. At launch, shell is visible but drawers are NOT visible.
 #    Chat pane is visible and dominant.
-- assertVisible:
-    id: 'shell-screen'
 - assertVisible:
     id: 'chat-pane'
 # Left and right drawers must NOT be on screen at launch.

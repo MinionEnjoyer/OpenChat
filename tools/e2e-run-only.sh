@@ -33,6 +33,9 @@ while read -r f <&3; do
   [ -z "$f" ] && continue
   base=$(basename "$f" .yaml)
   echo "[$(date +%H:%M:%S)] RUNNING $base on $DEV" | tee -a "$OUT"
+  # ── Hard clear: pm clear wipes expo-secure-store tokens that Maestro's
+  #     clearState may leave behind. Repeat before every flow for isolation.
+  adb -s "$DEV" shell pm clear com.openchat.mobile </dev/null
   # macOS has no GNU `timeout` and gtimeout needs coreutils, so implement the deadline
   # in bash. This is not optional: a single hung flow blocks the whole run, and with four
   # devices running concurrently one hang stalls every downstream wait indefinitely.

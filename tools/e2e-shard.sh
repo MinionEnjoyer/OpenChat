@@ -27,6 +27,9 @@ for i in "${!ALL[@]}"; do
   # --device pins the flow to this shard's device; without it Maestro picks one
   # arbitrarily and shards collide on the same handset.
   base="$(basename "$f" .yaml)"
+  # ── Hard clear: pm clear wipes expo-secure-store tokens that Maestro's
+  #     clearState may leave behind. Repeat before every flow for isolation.
+  adb -s "$DEV" shell pm clear com.openchat.mobile </dev/null
   if maestro --device "$DEV" test "$f" > "/tmp/e2e-$base-$DEV.log" 2>&1; then
     PASS=$((PASS+1)); echo "PASS $base"
   else
