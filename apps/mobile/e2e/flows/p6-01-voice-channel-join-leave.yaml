@@ -1,0 +1,71 @@
+# p6-01-voice-channel-join-leave — login → join voice channel → pill appears → disconnect → pill gone.
+# @satisfies FR-VOX-001
+#
+# Requires: dev stack up + seeded (Fixture Guild, voice channels), emulator reaching 10.0.2.2.
+# This flow does its own dev-login so it runs independently.
+# NOTE: The voice-channel wiring fix is on branch vox-join-wiring. This flow asserts the CORRECT
+# behaviour: tapping a VOICE channel calls join() and shows the VoicePill.
+#
+# Voice channels seeded in Fixture Guild: #voice-general, #voice-gaming.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Join voice channel from left drawer ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# Select Fixture Guild in the server rail
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+
+# Tap the voice channel (#voice-general) to join
+- scrollUntilVisible:
+    element:
+      id: 'channel-#voice-general'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'channel-#voice-general'
+
+# Left drawer closes
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Assert VoicePill appeared ──
+# The pill shows "Connecting…" then "Voice Connected".
+# extendedWaitUntil handles the join latency.
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# ── Phase 4: Leave via disconnect button in the pill ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+# Pill disappears after disconnect
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-join
