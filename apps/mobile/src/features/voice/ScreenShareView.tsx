@@ -37,14 +37,14 @@ function ScreenShareTile({
   onToggle: (id: string) => void;
 }) {
   // Dynamic require — @livekit/react-native is a native module; Jest mocks it.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { VideoTrack } = require('@livekit/react-native');
 
   return (
     <View style={styles.tile} testID={`screenshare-tile-${id}`}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.screenIcon}>&#x1F5A5;&#xFE0F;</Text>
+          <Text style={styles.screenIcon}>{strings.screenshare.screenIcon}</Text>
           <Text style={styles.participantName} numberOfLines={1}>
             {participantName}
           </Text>

@@ -386,6 +386,7 @@ export const strings = {
   },
   screenshare: {
     live: 'LIVE',
+    screenIcon: '🖥️',
     hide: 'Hide',
     show: 'Show',
     hideA11y: 'Hide screen share',

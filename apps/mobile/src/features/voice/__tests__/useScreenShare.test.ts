@@ -1,3 +1,5 @@
+/* eslint-disable import/first */
+
 /**
  * useScreenShare unit tests — track subscription, toggle visibility, cleanup.
  * Mocks livekit-client at the module boundary since it is a native module.
@@ -7,7 +9,6 @@
  */
 
 // ── Mock livekit-client before any imports ──
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 jest.mock('livekit-client', () => ({
   RoomEvent: {
     TrackSubscribed: 'TrackSubscribed',
@@ -30,8 +31,7 @@ jest.mock('livekit-client', () => ({
   },
 }));
 
-import { useVoiceStore } from '../VoiceStore';
-import { injectVoiceService } from '../VoiceStore';
+import { useVoiceStore, injectVoiceService } from '../VoiceStore';
 import { VoiceService } from '../VoiceService';
 
 // ── helpers ──
@@ -59,11 +59,6 @@ function makeMockRoom(): MockRoom {
   return { on, off, remoteParticipants: new Map(), _handlers: handlers };
 }
 
-function emit(mockRoom: MockRoom, event: string, ...args: unknown[]) {
-  const list = mockRoom._handlers.get(event) || [];
-  for (const h of list) h(...args);
-}
-
 function resetVoiceStore(): void {
   useVoiceStore.setState({
     connectionState: 'idle',
@@ -74,7 +69,7 @@ function resetVoiceStore(): void {
   });
 }
 
-function makeMockApi() {
+function mockApiClient() {
   return {
     request: jest.fn(async () => ({ url: 'ws://lk', token: 'tok', room: 'x' })),
   };
@@ -89,35 +84,18 @@ describe('useScreenShare', () => {
     jest.clearAllMocks();
     resetVoiceStore();
     mockRoom = makeMockRoom();
-    injectVoiceService(new VoiceService(makeMockApi() as any) as VoiceService);
+    injectVoiceService(new VoiceService(mockApiClient() as any));
   });
 
   afterEach(() => {
     injectVoiceService(null as unknown as VoiceService);
   });
 
-  // Helper: simulate the hook being used by wiring the room
-  function wireHook(room: MockRoom) {
-    useVoiceStore.getState().setRoom(room as any);
-    // The hook runs in useEffect; we simulate the subscription directly.
-    // In a real component tree, the hook wires on mount. Here we test the
-    // underlying event handling by directly calling the hook's logic via
-    // the store + event emission pattern.
-
-    // Since we cannot render hooks, we validate the event wiring contract:
-    // the hook calls room.on('TrackSubscribed', ...) and room.on('TrackUnsubscribed', ...).
-  }
-
   describe('track subscription contract', () => {
     it('registers TrackSubscribed and TrackUnsubscribed listeners on mount', () => {
-      // Set the room on the store — the hook would wire events in useEffect.
       useVoiceStore.getState().setRoom(mockRoom as any);
 
-      // In a real test with renderHook, the hook would have called room.on.
-      // Here we validate the contract: we manually wire the handlers the hook would register.
-      // The actual verification is that the hook EXISTS and has the correct API surface.
-
-      // Instead, test the store-level room setter path.
+      // Validate the room is accessible via the store
       const room = useVoiceStore.getState().room;
       expect(room).toBe(mockRoom);
     });
@@ -126,6 +104,7 @@ describe('useScreenShare', () => {
   describe('ScreenShareTrack structure', () => {
     it('has correct shape', () => {
       // Verify the type export — the hook returns { screens, count, toggleVisibility }
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { useScreenShare } = require('../useScreenShare');
       expect(typeof useScreenShare).toBe('function');
     });
@@ -133,7 +112,6 @@ describe('useScreenShare', () => {
 
   describe('screen share track event handling (standalone)', () => {
     it('correctly identifies screen_share source', () => {
-      // This tests the logic inline — equivalent to what the hook does.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { Track } = require('livekit-client');
       expect(Track.Source.ScreenShare).toBe('screen_share');
@@ -169,7 +147,7 @@ describe('useScreenShare', () => {
       room.remoteParticipants = new Map([['dave', mockParticipant]]);
 
       // Scan for screen share tracks
-      const found: Array<{ sid: string; name: string }> = [];
+      const found: { sid: string; name: string }[] = [];
       room.remoteParticipants.forEach((p: any) => {
         const pubs = p.trackPublications;
         if (!pubs || typeof pubs.forEach !== 'function') return;
@@ -198,7 +176,7 @@ describe('useScreenShare', () => {
       const room = makeMockRoom();
       room.remoteParticipants = new Map([['bob', mockParticipant]]);
 
-      const found: Array<{ sid: string }> = [];
+      const found: { sid: string }[] = [];
       room.remoteParticipants.forEach((p: any) => {
         const pubs = p.trackPublications;
         if (!pubs || typeof pubs.forEach !== 'function') return;
