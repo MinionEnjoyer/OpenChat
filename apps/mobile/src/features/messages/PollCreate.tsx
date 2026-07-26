@@ -94,12 +94,12 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
       animationType="fade"
       onRequestClose={handleClose}
     >
-      <KeyboardAvoidingView
-        style={styles.kavRoot}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
-      >
-        <View style={styles.overlay}>
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+          style={styles.kavInner}
+        >
         <View style={styles.content}>
           <Text style={styles.title}>{strings.poll.createTitle}</Text>
 
@@ -180,14 +180,15 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
             </Pressable>
           </View>
         </View>
-      </View>
       </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  kavRoot: { flex: 1 },
+  kavInner: {},
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
