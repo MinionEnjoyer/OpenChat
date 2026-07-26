@@ -22,6 +22,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
+import { PresenceDot, presenceLabel } from '../../presence';
 import { showToast } from '../../../ui/Toast';
 import { api, useSession } from '../../../stores/session';
 import { useConnection } from '../../../stores/connection';
@@ -699,6 +700,19 @@ export function ShellScreen(): React.JSX.Element {
               />
               {/* Profile box (P1-07) */}
               <View style={styles.profileBox}>
+                {/* FR-SOC-004: own status indicator */}
+                <View
+                  style={styles.statusRow}
+                  accessibilityLabel={`${strings.presence.setStatus}: ${presenceLabel(user?.status ?? 'OFFLINE')}`}
+                  testID="status-indicator"
+                >
+                  <PresenceDot
+                    userId={user?.id ?? ''}
+                    fallback={user?.status ?? 'OFFLINE'}
+                    size={10}
+                  />
+                  <Text style={styles.statusText}>{presenceLabel(user?.status ?? 'OFFLINE')}</Text>
+                </View>
                 <Text style={styles.profileLabel}>
                   {strings.profile.displayNameLabel}
                 </Text>
@@ -1022,7 +1036,16 @@ const styles = StyleSheet.create({
     color: palette.text,
     paddingVertical: spacing.xs,
   },
-  profileBox: { marginTop: 'auto' },
+  profileBox: { marginTop: 'auto', marginBottom: spacing.sm },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  statusText: {
+    ...typography.caption,
+    color: palette.textMuted,
+  },
   profileLabel: {
     ...typography.caption,
     color: palette.textMuted,

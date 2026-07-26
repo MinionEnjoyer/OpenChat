@@ -318,9 +318,15 @@ export class EventsGateway {
         case 'TYPING_START':
           this.send(client.socket, { op: 'typing', d: { channelId: event.channelId, userId: event.userId } });
           break;
-        case 'PRESENCE_UPDATE':
-          this.send(client.socket, { op: 'presence', d: { userId: event.userId, status: event.status } });
+        case 'PRESENCE_UPDATE': {
+          // FR-SOC-004: invisible reads as offline to peers.
+          // The user's own sockets see the true status; everyone else sees OFFLINE.
+          const visibleStatus = event.status === 'INVISIBLE' && client.userId !== event.userId
+            ? 'OFFLINE'
+            : event.status;
+          this.send(client.socket, { op: 'presence', d: { userId: event.userId, status: visibleStatus } });
           break;
+        }
         case 'WATCHPARTY_SYNC':
           this.send(client.socket, { op: 'watchparty.sync', d: { channelId: event.channelId, state: event.state } });
           break;

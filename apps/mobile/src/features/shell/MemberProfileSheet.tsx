@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
+import { PresenceDot, presenceLabel } from '../presence';
 import type { Member } from '../../api/schema';
 
 interface Props {
@@ -51,8 +52,8 @@ export function MemberProfileSheet({
             </Text>
           )}
           <View style={styles.statusRow}>
-            <View style={[styles.statusDot, statusDotColor(status)]} />
-            <Text style={styles.statusText}>{status}</Text>
+            <PresenceDot userId={member.userId} fallback={status} size={10} />
+            <Text style={styles.statusText}>{presenceLabel(status)}</Text>
           </View>
           {member.nickname && (
             <Text style={styles.field}>
@@ -84,15 +85,6 @@ export function MemberProfileSheet({
       </View>
     </Modal>
   );
-}
-
-function statusDotColor(status: string) {
-  switch (status) {
-    case 'ONLINE': return { backgroundColor: '#23a55a' };
-    case 'DND': return { backgroundColor: '#da373c' };
-    case 'AWAY': return { backgroundColor: '#f0b232' };
-    default: return { backgroundColor: '#80848e' };
-  }
 }
 
 const styles = StyleSheet.create({
@@ -127,13 +119,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.xs,
-  },
-  statusText: { ...typography.caption, color: palette.textMuted },
+  statusText: { ...typography.caption, color: palette.textMuted, marginTop: spacing.xs },
   field: { ...typography.body, color: palette.text, marginBottom: spacing.xs },
   badge: {
     ...typography.caption,

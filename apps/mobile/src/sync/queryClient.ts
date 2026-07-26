@@ -10,6 +10,7 @@ import type { S2CFrame } from '../realtime/events';
 import { applyCreated, applyUpdated, applyDeleted } from './messages';
 import { useTyping } from '../stores/typing';
 import { handleForegroundNotification } from '../features/notifications';
+import { usePresence } from '../stores/presence';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,19 @@ export function applyEvent(frame: S2CFrame): void {
       useTyping.getState().recordTyping(td.channelId, td.userId);
       break;
     }
+    case 'ready': {
+      // FR-SOC-004: seed own user presence from the ready frame.
+      if (frame.d?.user?.id && frame.d?.user?.status) {
+        usePresence.getState().setPresence(frame.d.user.id, frame.d.user.status);
+      }
+      break;
+    }
+    case 'presence': {
+      // FR-SOC-004: live presence update for any user.
+      const pd = frame.d as { userId: string; status: string };
+      usePresence.getState().setPresence(pd.userId, pd.status);
+      break;
+    }
     case 'notify':
       void queryClient.invalidateQueries();
       handleForegroundNotification({ kind: 'notify' });
@@ -58,7 +72,6 @@ export function applyEvent(frame: S2CFrame): void {
       break;
     }
     default:
-      // Remaining ops (presence/deleted) land later in Phase 2+.
       break;
   }
 }

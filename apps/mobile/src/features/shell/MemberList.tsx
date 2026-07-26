@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
-import { buildMemberGroups, type RoleGroup, PRESENCE_PRIORITY } from '../../domain/members';
+import { buildMemberGroups, type RoleGroup } from '../../domain/members';
+import { PresenceDot } from '../presence';
 import { MemberProfileSheet } from './MemberProfileSheet';
 import type { Member, Role } from '../../api/schema';
 
@@ -79,7 +80,7 @@ export function MemberList({
               onPress={() => setSelectedMember(item)}
               testID={`member-${item.user?.username ?? item.userId}`}
             >
-              <View style={[styles.presenceDot, presenceDotColor(status)]} />
+              <View style={styles.presenceDot}><PresenceDot userId={item.userId} fallback={status} size={8} /></View>
               <Text style={styles.memberName}>{displayName}</Text>
               {item.isOwner && (
                 <Text style={styles.crownBadge}>{strings.members.crown}</Text>
@@ -102,14 +103,6 @@ export function MemberList({
       />
     </View>
   );
-}
-
-function presenceDotColor(status: string) {
-  const pri = PRESENCE_PRIORITY[status] ?? 0;
-  if (pri >= 4) return { backgroundColor: '#23a55a' }; // ONLINE
-  if (pri >= 3) return { backgroundColor: '#da373c' }; // DND
-  if (pri >= 2) return { backgroundColor: '#f0b232' }; // AWAY
-  return { backgroundColor: '#80848e' }; // INVISIBLE/OFFLINE
 }
 
 function intToColor(n: number): string {
