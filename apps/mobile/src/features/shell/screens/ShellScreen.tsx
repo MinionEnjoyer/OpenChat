@@ -53,6 +53,7 @@ import { NotificationSettingsScreen } from '../../notif-settings';
 import { FriendsScreen } from '../../friends';
 import { VoicePill, IncomingCallOverlay, VoiceChannelView } from '../../voice';
 import { useVoiceConnection } from '../../voice/useVoiceConnection';
+import { Permission, hasServerPermission } from '../../../permissions';
 
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
@@ -671,6 +672,15 @@ export function ShellScreen(): React.JSX.Element {
                 >
                   <Text style={styles.railItemText}>{strings.servers.createButtonNav}</Text>
                 </Pressable>
+                {/* FR-SRV-006 — Join server button */}
+                <Pressable
+                  style={styles.railItem}
+                  onPress={() => setJoinServerVisible(true)}
+                  accessibilityLabel={strings.invites.joinTitle}
+                  testID="rail-join-server"
+                >
+                  <Text style={styles.railItemText}>{strings.servers.joinButtonNav}</Text>
+                </Pressable>
                 {/* FR-SOC-001 — Friends button */}
                 <Pressable
                   style={styles.railItem}
@@ -725,6 +735,17 @@ export function ShellScreen(): React.JSX.Element {
                         >
                           <Text style={styles.settingsGlyph}>{strings.shell.notifBell}</Text>
                         </Pressable>
+                        {/* FR-SRV-006 — Invite create button (gated on CREATE_INVITE) */}
+                        {hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
+                          <Pressable
+                            onPress={() => setInviteCreateVisible(true)}
+                            accessibilityLabel={strings.invites.createTitle}
+                            testID="invite-create-button"
+                            style={{ marginLeft: 8 }}
+                          >
+                            <Text style={styles.settingsGlyph}>{strings.invites.createTitle}</Text>
+                          </Pressable>
+                        )}
                       </>
                     )}
                   </View>
