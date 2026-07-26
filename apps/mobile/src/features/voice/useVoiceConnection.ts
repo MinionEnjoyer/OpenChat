@@ -27,7 +27,7 @@
  * @satisfies FR-VOX-006
  */
 import { useCallback, useRef } from 'react';
-import { useVoiceStore, type VoiceConnectionState } from './VoiceStore';
+import { useVoiceStore, applySpeakerDefault, type VoiceConnectionState } from './VoiceStore';
 
 export interface VoiceConnectionAPI {
   connectionState: VoiceConnectionState;
@@ -124,6 +124,8 @@ export function useVoiceConnection(): VoiceConnectionAPI {
 
     try {
       await room.connect(joinResp.url, joinResp.token);
+      // Apply default speaker route after successful connection.
+      applySpeakerDefault();
     } catch (e) {
       // Connection failed — clean up.
       roomRef.current = null;

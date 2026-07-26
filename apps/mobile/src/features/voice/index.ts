@@ -37,7 +37,7 @@
  */
 
 export { useVoiceConnection, type VoiceConnectionAPI } from './useVoiceConnection';
-export { useVoiceStore, injectVoiceService, getVoiceService, type VoiceConnectionState, type VoiceState } from './VoiceStore';
+export { useVoiceStore, injectVoiceService, getVoiceService, applySpeakerDefault, type VoiceConnectionState, type VoiceState } from './VoiceStore';
 export { VoiceService } from './VoiceService';
 export { VoicePill } from './VoicePill';
 export { VoiceTile } from './VoiceTile';
