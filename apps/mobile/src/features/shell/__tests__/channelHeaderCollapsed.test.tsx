@@ -46,7 +46,7 @@ const SERVER_WITH_INVITE = [{
   name: 'Test Server',
   ownerId: 'u1',
   iconUrl: null,
-  myPermissions: '32', // CREATE_INVITE = 1n << 5n = 32
+  myPermissions: '40', // CREATE_INVITE (32) | MANAGE_ROLES (8) = 40
 }];
 
 // ── Mock app dependencies ──
@@ -160,6 +160,7 @@ describe('Channel header controls — collapsed drawer', () => {
     expect(() => tree!.root.findByProps({ testID: 'server-settings-button' })).toThrow();
     expect(() => tree!.root.findByProps({ testID: 'notif-settings-button' })).toThrow();
     expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'roles-editor-button' })).toThrow();
   });
 
   it('controls appear after hamburger press opens the drawer', () => {
@@ -177,10 +178,53 @@ describe('Channel header controls — collapsed drawer', () => {
       hamburger.props.onPress();
     });
 
-    // Now the drawer is open — controls should be present.
+    // Now the drawer is open — all four controls should be present.
     expect(() => tree!.root.findByProps({ testID: 'server-settings-button' })).not.toThrow();
     expect(() => tree!.root.findByProps({ testID: 'notif-settings-button' })).not.toThrow();
     expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'roles-editor-button' })).not.toThrow();
+  });
+
+  it('all four permission-gated controls render with both CREATE_INVITE and MANAGE_ROLES', () => {
+    // Regression: when all controls are present, they must all render —
+    // before the glyph fix, text labels + gear + bell overflowed the
+    // 280px drawer and visually collided.
+    mockQueryClient.setQueryData(['servers'], SERVER_WITH_INVITE);
+    const { ShellScreen } = require('../screens/ShellScreen');
+    const React = require('react');
+    let tree: any;
+    renderer.act(() => {
+      tree = renderer.create(renderShell(React, ShellScreen));
+    });
+
+    const hamburger = tree!.root.findByProps({ testID: 'hamburger-button' });
+    renderer.act(() => {
+      hamburger.props.onPress();
+    });
+
+    expect(() => tree!.root.findByProps({ testID: 'server-settings-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'notif-settings-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'roles-editor-button' })).not.toThrow();
+  });
+
+  it('drawerTitle has flexShrink:1 to yield space to header controls', () => {
+    mockQueryClient.setQueryData(['servers'], SERVER_WITH_INVITE);
+    const { ShellScreen } = require('../screens/ShellScreen');
+    const React = require('react');
+    let tree: any;
+    renderer.act(() => {
+      tree = renderer.create(renderShell(React, ShellScreen));
+    });
+
+    const title = tree!.root.findByProps({ testID: 'channel-drawer-title' });
+    const titleStyle = title.props.style;
+    const flatStyle = Array.isArray(titleStyle)
+      ? Object.assign({}, ...titleStyle.filter(Boolean))
+      : titleStyle;
+    // flexShrink: 1 allows the title to truncate instead of pushing
+    // controls out of the 280px drawer.
+    expect(flatStyle.flexShrink).toBe(1);
   });
 
   it('hamburger and channel-drawer-title always render regardless of drawer state', () => {
