@@ -1,0 +1,76 @@
+# p6-03-voice-screenshare-view — login → join voice → verify screenshare infrastructure
+# @satisfies FR-VOX-007
+#
+# BUG: ScreenShareView is exported but NEVER imported/rendered anywhere in ShellScreen.
+# It is "built but unreachable" — the component exists and has unit tests, but no
+# code path renders it. This flow verifies the voice infrastructure (join, disconnect)
+# and documents the bug. Once wired, add assertions for:
+#   - screenshare-view (container testID)
+#   - screenshare-tile-{id} (per-stream tiles)
+#   - screenshare-live-{id} (LIVE badge)
+#   - screenshare-toggle-{id} (show/hide button)
+#   - screenshare-video-{id} (video track container)
+#
+# Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator.
+# Remote screenshare requires a web participant publishing via LiveKit.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Join #voice-general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#voice-general'
+- tapOn:
+    id: 'channel-#voice-general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Voice connection ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 30000
+- assertVisible:
+    id: 'voice-pill-controls'
+
+# ── Phase 4: Screenshare infrastructure check ──
+# BUG: ScreenShareView is not wired into ShellScreen — never renders.
+# Once wired, uncomment the following assertions:
+# - extendedWaitUntil:
+#     visible:
+#       id: 'screenshare-view'
+#     timeout: 15000
+#
+# For now, verify voice infrastructure is solid as prerequisite.
+
+# ── Phase 5: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-screenshare

@@ -1,0 +1,118 @@
+# p6-01-voice-channel-join-tiles — login → join voice channel → pill + tile grid + occupancy
+# @satisfies FR-VOX-002, FR-VOX-004
+#
+# Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator reaching 10.0.2.2.
+# This flow does its own login so it can run independently.
+#
+# FR-VOX-002: Participant tiles with speaking rings and mute badges.
+# FR-VOX-004: Voice channel occupancy shown live in channel list.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Navigate to Fixture Guild and join #voice-general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#voice-general'
+- tapOn:
+    id: 'channel-#voice-general'
+
+# Left drawer closes
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Verify voice pill appears (FR-VOX-001 seam) ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 30000
+
+# Pill controls are visible when connected
+- assertVisible:
+    id: 'voice-pill-controls'
+
+# Camera toggle is available (FR-VOX-006)
+- assertVisible:
+    id: 'voice-pill-camera'
+
+# Disconnect button is present
+- assertVisible:
+    id: 'voice-pill-disconnect'
+
+# ── Phase 4: Verify participant tile grid (FR-VOX-002) ──
+# The tile grid shows self as a participant
+- extendedWaitUntil:
+    visible:
+      id: 'voice-tile-grid'
+    timeout: 30000
+
+# Mute button exists on the tile for self (mute badge shows when muted)
+- tapOn:
+    id: 'voice-pill-mute'
+
+# Verify mute badge appears on own tile
+- assertVisible:
+    id: 'voice-tile-muted'
+
+# Unmute
+- tapOn:
+    id: 'voice-pill-mute'
+
+# ── Phase 5: Verify channel occupancy in channel list (FR-VOX-004) ──
+# Re-open left drawer to see channel list with participant names
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# The voice channel row should show "alice" as connected participant
+# (Voice channel poll interval is 15s; the join may have already triggered a refetch)
+- extendedWaitUntil:
+    visible: 'alice'
+    timeout: 20000
+
+# Confirm auto-reconnect works: kill app, relaunch, should still be in voice
+# DISABLED — auto-reconnect depends on device storage + LiveKit session state
+# which is unpredictable in emulator.
+
+# ── Phase 6: Leave voice channel ──
+# Open left drawer again and tap the voice channel to re-select it (closes drawer)
+- tapOn:
+    id: 'channel-#voice-general'
+
+# Voice pill should still be visible (re-selecting same channel)
+- assertVisible:
+    id: 'voice-pill'
+
+# Disconnect
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+# Pill disappears after disconnect
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-tiles
