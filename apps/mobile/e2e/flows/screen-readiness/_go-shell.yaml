@@ -1,25 +1,19 @@
 # _go-shell — return to shell screen from any navigation state.
 #
 # Strategy:
-#  1. pressBack to dismiss full-screen overlays (friends, inbox, create-server,
-#     server-settings, notif-settings, invite-create, join-server, etc.)
-#  2. Tap right side to dismiss left drawer
-#  3. Tap left side to dismiss right drawer
-#  4. Assert shell-screen is visible
+#  1. Relaunch the app (same task, no clearState) to bring it to foreground
+#     and dismiss system-level back-navigation that exited to launcher.
+#  2. Assert shell-screen is visible.
+#
+# On tablets with persistent drawer, shell-screen is always visible
+# unless a full-screen overlay is active. Overlays are dismissed by
+# the individual flow steps (back within the flow) or by relaunch.
+#
+# Note: Do NOT use back — on the shell screen, one back exits the app.
 
 appId: com.openchat.mobile
 ---
-- pressBack
-- pressBack
-- pressBack
-# Dismiss left drawer (tap right scrim)
-- tapOn:
-    point: '85%,50%'
-# Dismiss right drawer (tap left scrim)
-- tapOn:
-    point: '15%,50%'
-# One more for safety
-- tapOn:
-    point: '15%,50%'
+- launchApp:
+    clearState: false
 - assertVisible:
     id: 'shell-screen'
