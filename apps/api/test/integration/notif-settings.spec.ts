@@ -17,7 +17,7 @@ async function devLogin(username: string) {
     jar: createJar(),
   });
   expect(res.status).toBe(201);
-  return { token: (res.body as any).token as string, userId: (res.body as any).user.id as string };
+  return { token: (res.body as any).accessToken as string, userId: (res.body as any).id as string };
 }
 
 function auth(token: string) {
