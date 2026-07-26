@@ -30,7 +30,7 @@ import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
 import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
-import { AttachmentGrid, AttachmentTray, useAttachments, AttachPicker } from '../attachments';
+import { AttachmentGrid, AttachmentTray, useAttachments, AttachPicker, useUploadAttachments } from '../attachments';
 import { useGifFeature } from './gifFeature';
 import { useServerConfig } from './serverConfig';
 import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
@@ -118,6 +118,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
 
   // Attachments state (FR-MED-010)
   const attach = useAttachments();
+  const uploadHook = useUploadAttachments();
   const [showAttachPicker, setShowAttachPicker] = useState(false);
 
   // Trigger config fetch + GIF probe once
@@ -685,6 +686,8 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         onToggleOriginal={attach.setSendOriginal}
         onRemove={attach.removeAttachment}
         onCancel={attach.cancelUpload}
+        isImageOriginal={uploadHook.toggle.isOriginal}
+        onToggleImageOriginal={uploadHook.toggle.toggle}
       />
 
       {/* FR-SRV-010: hide composer for announcement channels when user lacks SEND_MESSAGES */}

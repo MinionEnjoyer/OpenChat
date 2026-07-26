@@ -243,6 +243,7 @@ export const strings = {
     originalToggle: 'Original',
     /** @satisfies FR-MED-030 */
     originalLabel: 'Original',
+    originalBadge: 'ORIG',
     cancelUpload: 'Cancel upload',
     attach: '+',
     uploadFailed: 'Upload failed',

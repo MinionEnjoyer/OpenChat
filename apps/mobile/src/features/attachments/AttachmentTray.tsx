@@ -24,6 +24,9 @@ export interface AttachmentTrayProps {
   onToggleOriginal: (v: boolean) => void;
   onRemove: (index: number) => void;
   onCancel: () => void;
+  /** Per-image original toggle (FR-MED-030). When provided, a per-image badge is shown. */
+  isImageOriginal?: (uri: string) => boolean;
+  onToggleImageOriginal?: (uri: string) => void;
 }
 
 /** Format file size in human-readable form. */
@@ -45,6 +48,8 @@ export function AttachmentTray({
   onToggleOriginal,
   onRemove,
   onCancel,
+  isImageOriginal,
+  onToggleImageOriginal,
 }: AttachmentTrayProps): React.JSX.Element | null {
   if (attachments.length === 0) return null;
 
@@ -94,6 +99,12 @@ export function AttachmentTray({
               {item.status === 'done' && (
                 <View style={styles.doneBadge}>
                   <Text style={styles.doneBadgeText}>{strings.attachments.doneIcon}</Text>
+                </View>
+              )}
+              {/* Per-image original badge (FR-MED-030) */}
+              {isImageOriginal && isImageOriginal(item.file.uri) && (
+                <View style={styles.originalBadge}>
+                  <Text style={styles.originalBadgeText}>{strings.attachments.originalBadge}</Text>
                 </View>
               )}
             </View>
@@ -233,6 +244,20 @@ const styles = StyleSheet.create({
   doneBadgeText: {
     color: palette.text,
     fontSize: 10,
+  },
+  originalBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    paddingHorizontal: 2,
+    paddingVertical: 1,
+    backgroundColor: '#f0ad4e',
+    borderTopRightRadius: 4,
+  },
+  originalBadgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '700',
   },
   removeBtn: {
     position: 'absolute',
