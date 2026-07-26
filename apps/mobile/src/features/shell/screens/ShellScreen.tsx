@@ -41,7 +41,7 @@ import { ChannelReorderScreen } from '../../channels/ChannelReorderScreen';
 import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../channels/hooks';
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
-import { saveLastChannel } from '../coldstart';
+import { saveLastChannel, resolveTextChannel } from '../coldstart';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 import { StatusPicker, type SettableStatus } from '../../presence';
 import { AvatarPicker, useAvatarUpload } from '../../avatars';
@@ -197,17 +197,14 @@ export function ShellScreen(): React.JSX.Element {
     }
   }, [servers.data, selectedServerId, serverId]);
 
-  // Phase 2: restore channel once channels for the current server load.
+  // DD-024: auto-select first text channel when opening a server.
+  // Stored preference wins; fallback is the first text channel in server order.
   useEffect(() => {
     if (selectedChannelId !== null) return; // already have a channel
     if (!channels.data || channels.data.length === 0) return;
-    const pref = storage().getJson<{ serverId: string; channelId: string }>('ui.lastChannel');
-    if (!pref) return;
-    if (pref.serverId !== serverId) return; // wrong server — channels will reload
-    const ch = (channels.data as Channel[]).find(
-      (c) => c.id === pref.channelId && (c.type === 'TEXT' || c.type === 'ANNOUNCEMENT'),
-    );
-    if (ch) setSelectedChannelId(ch.id);
+    if (!serverId) return;
+    const resolved = resolveTextChannel(storage(), serverId, channels.data);
+    if (resolved) setSelectedChannelId(resolved);
   }, [channels.data, selectedChannelId, serverId]);
 
   // FR-SRV-010: include ANNOUNCEMENT channels alongside TEXT for chat pane

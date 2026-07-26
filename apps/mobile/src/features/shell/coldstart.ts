@@ -46,3 +46,37 @@ export function resolveLastChannel(
 
   return ch.id;
 }
+
+/**
+ * Resolve which text channel to auto-select for a server.
+ *
+ * Priority:
+ * 1. Stored preference (ui.lastChannel) — if it matches this server and the
+ *    channel still exists as TEXT or ANNOUNCEMENT.
+ * 2. First text channel (TEXT or ANNOUNCEMENT) in server-defined order.
+ *
+ * Returns `undefined` only when there are genuinely no text/announcement
+ * channels — the caller should show an empty-state placeholder.
+ *
+ * @satisfies FR-APP-002, FR-SRV-010, DD-024
+ */
+export function resolveTextChannel(
+  storage: Storage,
+  serverId: string,
+  channels: Channel[],
+): string | undefined {
+  const textChannels = channels.filter(
+    (c) => c.type === 'TEXT' || c.type === 'ANNOUNCEMENT',
+  );
+  if (textChannels.length === 0) return undefined;
+
+  // Try stored preference first
+  const pref = storage.getJson<LastChannel>(KEY);
+  if (pref && pref.serverId === serverId) {
+    const match = textChannels.find((c) => c.id === pref.channelId);
+    if (match) return match.id;
+  }
+
+  // Fallback to first text channel (length > 0 guaranteed by guard above)
+  return textChannels[0]!.id;
+}

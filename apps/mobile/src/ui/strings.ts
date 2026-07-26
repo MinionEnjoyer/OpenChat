@@ -30,7 +30,7 @@ export const strings = {
     noServers: 'No servers yet',
     noChannels: 'No channels',
     selectChannel: 'Select a channel',
-    chatPlaceholder: 'Messages arrive in Phase 2',
+    chatPlaceholder: 'No text channels here yet',
     membersTitle: 'Members',
     menuGlyph: '\u2630',
     settingsGear: '\u2699',
