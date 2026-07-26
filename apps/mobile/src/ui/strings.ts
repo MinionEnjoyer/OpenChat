@@ -458,6 +458,20 @@ export const strings = {
     /** @satisfies FR-VOX-002 */
     showChatA11y: 'Show text channel',
     videoSectionLabel: 'Video',
+    /** @satisfies FR-SOUND-001 */
+    soundboardOpen: '🔊',
+    /** @satisfies FR-SOUND-001 */
+    soundboardOpenA11y: 'Open soundboard',
+    /** @satisfies FR-SOUND-001 */
+    soundboardClose: '✕',
+    /** @satisfies FR-SOUND-001 */
+    soundboardCloseA11y: 'Close soundboard',
+    /** @satisfies FR-SOUND-001 */
+    soundboardTitle: 'Soundboard',
+    /** @satisfies FR-SOUND-001 */
+    soundboardEmpty: 'No sounds yet — upload one from the web app',
+    /** @satisfies FR-SOUND-001 */
+    soundboardError: 'Failed to load sounds',
   },
   screenshare: {
     live: 'LIVE',

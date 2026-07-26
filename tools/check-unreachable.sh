@@ -35,7 +35,7 @@ for idx in src/features/*/index.ts; do
     if [ "$outside" -eq 0 ]; then
       # which siblings reference it?
       for sib in $(grep -rl "\b$comp\b" "$feat" 2>/dev/null | grep -v __tests__ | grep -v '\.test\.' | grep -v "/index.ts$"); do
-        sibname=$(basename "$sib" | sed 's/\.[jt]sx\?$//')
+        sibname=$(basename "$sib" | sed -E 's/\.[jt]sx?$//')
         [ "$sibname" = "$comp" ] && continue
         # is that sibling itself reached from outside the feature?
         if [ "$(grep -rl "\b$sibname\b" src App.tsx index.ts 2>/dev/null | grep -v "^$feat/" | grep -v __tests__ | wc -l | tr -d ' ')" -gt 0 ]; then

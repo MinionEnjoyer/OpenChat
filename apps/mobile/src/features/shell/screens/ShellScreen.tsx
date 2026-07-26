@@ -556,6 +556,7 @@ export function ShellScreen(): React.JSX.Element {
           <VoiceChannelView
             channelName={voiceChannelInServer.name}
             onShowChat={handleShowChatFromVoice}
+            serverId={serverId}
           />
         ) : activeChannelAny ? (
           <ChatPane channelId={activeChannelAny.id} serverId={serverId} channelType={activeChannel?.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />

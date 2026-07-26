@@ -9,13 +9,14 @@
  *
  * @satisfies FR-VOX-002, FR-VOX-006, FR-VOX-007
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useVoiceStore } from './VoiceStore';
 import { VoiceTileGrid } from './VoiceTileGrid';
 import { VoiceControls } from './VoiceControls';
 import { ScreenShareView } from './ScreenShareView';
 import { VideoTile } from './VideoTile';
+import { SoundboardPanel } from './SoundboardPanel';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 
@@ -24,6 +25,8 @@ export interface VoiceChannelViewProps {
   channelName: string;
   /** Called when the user taps "Show Chat" to return to the text channel. */
   onShowChat: () => void;
+  /** The server that owns this voice channel — required for soundboard. */
+  serverId: string | null;
 }
 
 /**
@@ -80,8 +83,10 @@ function RemoteVideoGrid(): React.JSX.Element | null {
 export function VoiceChannelView({
   channelName,
   onShowChat,
+  serverId,
 }: VoiceChannelViewProps): React.JSX.Element | null {
   const connectionState = useVoiceStore((s) => s.connectionState);
+  const [soundboardOpen, setSoundboardOpen] = useState(false);
 
   if (connectionState !== 'connected') return null;
 
@@ -89,11 +94,34 @@ export function VoiceChannelView({
 
   return (
     <View style={styles.container} testID="voice-channel-view">
-      {/* Header: channel name + Show Chat */}
+      {/* Header: channel name + Soundboard toggle + Show Chat */}
       <View style={styles.header}>
         <Text style={styles.heading} numberOfLines={1}>
           {heading}
         </Text>
+        {serverId && (
+          <Pressable
+            onPress={() => setSoundboardOpen((prev) => !prev)}
+            style={({ pressed }) => [
+              styles.showChatBtn,
+              soundboardOpen && styles.soundboardBtnActive,
+              pressed && styles.showChatBtnPressed,
+            ]}
+            accessibilityLabel={
+              soundboardOpen
+                ? strings.voice.soundboardCloseA11y
+                : strings.voice.soundboardOpenA11y
+            }
+            accessibilityRole="button"
+            testID="voice-soundboard-toggle"
+          >
+            <Text style={styles.showChatText}>
+              {soundboardOpen
+                ? strings.voice.soundboardClose
+                : strings.voice.soundboardOpen}
+            </Text>
+          </Pressable>
+        )}
         <Pressable
           onPress={onShowChat}
           style={({ pressed }) => [
@@ -107,6 +135,11 @@ export function VoiceChannelView({
           <Text style={styles.showChatText}>{strings.voice.showChat}</Text>
         </Pressable>
       </View>
+
+      {/* Soundboard panel (FR-SOUND-001) */}
+      {serverId && soundboardOpen && (
+        <SoundboardPanel serverId={serverId} />
+      )}
 
       {/* Scrollable content */}
       <ScrollView
@@ -159,6 +192,9 @@ const styles = StyleSheet.create({
   },
   showChatBtnPressed: {
     backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  soundboardBtnActive: {
+    backgroundColor: 'rgba(88, 101, 242, 0.35)',
   },
   showChatText: {
     color: palette.text,

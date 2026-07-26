@@ -25,3 +25,9 @@ VoiceControls
 VideoTile
 useScreenShare
 ScreenShareView
+
+# publishSoundToRoom — called by SoundboardPanel (FR-SOUND-001).
+# SoundboardPanel is rendered inside VoiceChannelView, which ShellScreen renders
+# when a call connects. The checker's one-level transitive rule stops at
+# SoundboardPanel → VoiceChannelView (detected); this is two levels deep.
+publishSoundToRoom
