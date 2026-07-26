@@ -1,0 +1,12 @@
+{
+  "name": "lk-probe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LiveKit audio verification probe",
+  "dependencies": {
+    "@roamhq/wrtc": "^0.8.0",
+    "livekit-client": "^2.21.0",
+    "livekit-server-sdk": "^2.9.0"
+  }
+}

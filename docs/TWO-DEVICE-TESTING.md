@@ -172,4 +172,124 @@ Screenshots are stored in `artifacts/e2e/screens/`:
 - `alice-pre-send.png` — Alice's view before sending
 - `alice-post-send.png` — Alice's view after sending
 - `bob-pre-receive.png` — Bob's view before message arrives
-- `bob-received.png` — Bob's view showing the received message
+ - `bob-received.png` — Bob's view showing the received message
+
+## Audio Verification (FR-VOX-001)
+
+The host-side audio probe verifies that audio frames actually flow between
+LiveKit participants by asserting on WebRTC stats, not human ears.
+
+### Architecture
+
+```
+┌──────────────────────┐     ┌──────────────────────┐
+│ lk-fake-publisher.mjs│     │    lk-probe.mjs      │
+│ (publishes 440 Hz)   │     │ (subscribes + stats) │
+└─────────┬────────────┘     └──────────┬───────────┘
+          │                             │
+          │   LiveKit SFU (port 7880)    │
+          └─────────────┬───────────────┘
+                        │
+               packetsReceived delta
+               audioLevel from getStats()
+```
+
+- **lk-fake-publisher.mjs**: Joins a room and publishes a 440 Hz sine tone from
+  `tools/probe/tone440.wav` via an `RTCAudioSource`.
+- **lk-probe.mjs**: Joins the same room as subscriber-only, subscribes to all
+  remote audio tracks, and samples `RTCPeerConnection.getStats()` every second.
+  At the end of the window it asserts on:
+  - Participant count
+  - Audio track presence
+  - `packetsReceived` delta (audio must actually flow)
+  - `audioLevel` (must be above silence threshold)
+
+### Why a known injected signal
+
+Silence is NOT a valid signal. With DTX / silence suppression, two idle
+participants can produce almost no RTP packets. A naive "packetsReceived > 0"
+check FAILS on a working call and PASSES on a broken one that happens to emit
+noise. The probe asserts on a KNOWN 440 Hz tone with thresholds meaningful for
+that signal.
+
+### Thresholds
+
+- **min-packets=50**: 48 kHz mono Opus at ~32 kbps sends roughly 50 packets/s.
+  Over a 10s window, a working call sends ~500 packets. 50 is a floor to
+  account for startup jitter and short windows.
+- **min-audio-level=0.01**: A 440 Hz sine at -1 dBFS produces levels well above
+  0.01. Typical silence has levels near 0.0001-0.001.
+
+### Generating the tone fixture
+
+```bash
+node tools/probe/make-tone.mjs --out tools/probe/tone440.wav --duration 5 --rate 48000
+```
+
+Output: 16-bit PCM, mono WAV, 48 kHz, 440 Hz sine with 50ms fade in/out.
+
+### Running the probe (positive test)
+
+Terminal 1 — publisher:
+```bash
+cd tools/probe && node lk-fake-publisher.mjs --room test-audio --duration 35
+```
+
+Terminal 2 — probe:
+```bash
+cd tools/probe && node lk-probe.mjs --room test-audio --duration 10
+```
+
+Expected: probe exits 0 with PASS.
+
+```
+PASS: All assertions met
+  Participants: 2
+  Audio tracks: 1
+  Packets delta: ~450
+  Max audio level: ~0.91
+```
+
+### Running the probe (negative test — no publisher)
+
+```bash
+node tools/probe/lk-probe.mjs --room empty-room --duration 5
+```
+
+Expected: probe exits 1 with FAIL — proves it can detect audio absence.
+
+```
+FAIL: Assertion failures:
+  - Expected >= 2 participants, got 1
+  - No remote audio tracks found
+  - packetsReceived delta 0 < min 50
+  - max audioLevel 0.000000 < min 0.01
+```
+
+### How it slots into the emulator-pair test
+
+Once the mobile client layer lands (FR-VOX-001 client work):
+1. Boot two emulators, sign in as Alice and Bob.
+2. Both join the same voice channel (LiveKit room).
+3. Inject `tone440.wav` as Alice's mic via `adb emu avd hostmicon`.
+4. Run `lk-probe.mjs` as a third host-side participant in the same room.
+5. The probe asserts audio from Alice (known tone) reaches the SFU and is
+   forwarded to subscribers.
+
+This replaces the publisher script in the full integration test — the mobile
+client becomes the publisher instead.
+
+### Dependencies
+
+The probe tools have their own `tools/probe/package.json` with:
+- `@roamhq/wrtc` — Node.js WebRTC implementation
+- `livekit-client` — LiveKit client SDK
+- `livekit-server-sdk` — token minting
+
+Install: `cd tools/probe && npm install` (safe — not part of the shared symlink).
+
+### Credentials
+
+Read from `apps/api/.env`: `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`.
+Defaults for the dev stack: `devkey` / `secretsecretsecretsecretsecret12`.
+LiveKit URL: `ws://localhost:7880`.
