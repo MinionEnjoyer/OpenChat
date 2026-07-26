@@ -1,10 +1,11 @@
 # screen-readiness: PinsPanel
-# Opens the pins panel from the shell. Requires a pinned message to already exist.
-# Navigates to #general in Fixture Guild, sends a message, pins it, then opens pins.
+# Opens the pins panel. Creates and pins a message in #general first.
 # Uses the same pattern as msg-rich-pins-polls flow.
 
 appId: com.openchat.mobile
 ---
+- runFlow: _go-shell.yaml
+
 # ── Navigate to #general ──
 - tapOn:
     id: 'hamburger-button'
