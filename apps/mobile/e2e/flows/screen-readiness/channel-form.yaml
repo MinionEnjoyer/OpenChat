@@ -1,0 +1,23 @@
+# screen-readiness: ChannelForm
+# Opens the channel creation form from the left drawer channel list.
+# Requires an active server with channel management permissions.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'create-channel-button'
+- tapOn:
+    id: 'create-channel-button'
+- assertVisible:
+    id: 'channel-form-sheet'

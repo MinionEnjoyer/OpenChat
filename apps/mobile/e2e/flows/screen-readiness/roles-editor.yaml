@@ -1,0 +1,27 @@
+# screen-readiness: RolesEditorScreen
+# Opens the roles editor from server-settings (roles-create-button).
+# Navigates: shell → left drawer → Fixture Guild → server-settings → roles-create
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'server-settings-button'
+- tapOn:
+    id: 'server-settings-button'
+- assertVisible:
+    id: 'server-settings-screen'
+- tapOn:
+    id: 'roles-create-button'
+- assertVisible:
+    id: 'roles-editor'

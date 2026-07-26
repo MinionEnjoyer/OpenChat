@@ -1,0 +1,22 @@
+# screen-readiness: ChannelReorderScreen
+# Opens the channel reorder sheet from the left drawer channel list.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'reorder-channels-button'
+- tapOn:
+    id: 'reorder-channels-button'
+- assertVisible:
+    id: 'channel-reorder-sheet'
