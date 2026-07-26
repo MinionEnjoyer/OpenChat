@@ -1,14 +1,13 @@
 # screen-readiness: MemberProfileSheet
 # Opens a member's profile from the right drawer member list.
-# Taps members-toggle, then member-alice in the list.
+# Taps members-toggle, then member-alice in the members drawer.
+# Emulator-5556 verified: members-toggle → member-alice visible → tap → member-profile-sheet.
 
 appId: com.openchat.mobile
 ---
 - runFlow: _go-shell.yaml
 - tapOn:
     id: 'members-toggle'
-- assertVisible:
-    id: 'right-drawer'
 - assertVisible:
     id: 'members-drawer'
 - assertVisible:

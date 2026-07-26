@@ -1,0 +1,16 @@
+# _go-shell-recovery — dismiss overlays and drawers to return to shell.
+# Only run when shell-screen is NOT visible. Used by _go-shell.yaml.
+#
+# Strategy: one back to dismiss modal/sheet/overlay, then tap scrims
+# to dismiss any drawers that might be open. We avoid multiple back
+# presses because back from shell exits to launcher.
+
+appId: com.openchat.mobile
+---
+- back
+# Dismiss left drawer (tap right scrim)
+- tapOn:
+    point: '85%,50%'
+# Dismiss right drawer (tap left scrim)
+- tapOn:
+    point: '15%,50%'

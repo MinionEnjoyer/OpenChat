@@ -287,14 +287,16 @@ async function main() {
     { id: 'member-profile', label: 'MemberProfileSheet', flow: 'member-profile.yaml',
       required: ['member-profile-sheet'] },
     { id: 'invite-preview', label: 'InvitePreviewOverlay', flow: 'invite-preview.yaml',
-      required: ['invite-preview-overlay'],
-      unreachableReason: 'UNREACHABLE-BY-DESIGN: requires a real invite link URL in a message' },
+      required: ['invite-preview-overlay'] },
   ];
 
 
 
   const results = [];
-  for (const s of screens) {
+  const onlyArg = (process.argv.find(a => a.startsWith('--only=')) || '').split('=')[1];
+  const _work = onlyArg ? screens.filter(x => onlyArg.split(',').includes(x.id)) : screens;
+  if (onlyArg) console.log(`FILTER --only=${onlyArg} -> ${_work.length} of ${screens.length} screens`);
+  for (const s of _work) {
     console.log(`── ${s.label} ──`);
 
     // UNREACHABLE-BY-DESIGN screens skip the flow file check
