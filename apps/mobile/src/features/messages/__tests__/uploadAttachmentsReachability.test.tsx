@@ -11,6 +11,10 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import renderer from 'react-test-renderer';
 
+// ── Component under test ──
+
+import { useUploadAttachments } from '../../attachments/useUploadAttachments';
+
 // ── Mock dependencies ──
 
 jest.mock('../../../stores/session', () => ({
@@ -24,10 +28,6 @@ jest.mock('../../../lib/config', () => ({
   __esModule: true,
   resolveConfig: () => ({ apiBaseUrl: 'http://localhost:3030/api' }),
 }));
-
-// ── Component under test ──
-
-import { useUploadAttachments } from '../../attachments/useUploadAttachments';
 
 function TestScreen(): React.JSX.Element {
   const hook = useUploadAttachments();
@@ -100,7 +100,10 @@ describe('useUploadAttachments reachability (FR-MED-010/030)', () => {
 interface JSONNode {
   type?: string;
   props?: Record<string, unknown>;
-  children?: (JSONNode | string)[];
+  // react-test-renderer's ReactTestRendererJSON types children as
+  // `ReactTestRendererNode[] | null` — null, not undefined — so the local shape
+  // must accept null or every call site needs a cast.
+  children?: (JSONNode | string)[] | null;
 }
 
 function findByTestID(tree: JSONNode | null, testID: string): JSONNode | null {

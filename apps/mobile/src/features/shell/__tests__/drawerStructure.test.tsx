@@ -105,7 +105,7 @@ const SAFE_AREA_METRICS = {
   insets: { top: 24, left: 0, right: 0, bottom: 34 },
 };
 
-function renderShell(React, ShellScreen) {
+function renderShell(React: typeof import('react'), ShellScreen: React.ComponentType) {
   return React.createElement(SafeAreaProvider, { initialMetrics: SAFE_AREA_METRICS },
     React.createElement(QueryClientProvider, { client: qc },
       React.createElement(ShellScreen),

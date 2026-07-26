@@ -25,8 +25,18 @@ IP="${1:-$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/n
 echo "→ LAN address: $IP"
 
 # 1. LiveKit must advertise the LAN IP for media, not the compose service name.
-echo "→ restarting LiveKit with --node-ip=$IP"
-LIVEKIT_NODE_IP="$IP" docker compose -f docker-compose.dev.yml up -d livekit
+#
+# The dev stack may have been started from a DIFFERENT directory (e.g. the main
+# checkout rather than this worktree). Compose derives its project name from the
+# working directory, so running plain `docker compose up` here would try to create
+# a SECOND project + network and fail with "Pool overlaps with other one on this
+# address space". Detect the real project name from the running container and
+# attach to it.
+PROJECT="$(docker inspect chat-dev-livekit \
+  --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || true)"
+PROJECT="${PROJECT:-$(basename "$PWD")}"
+echo "→ restarting LiveKit with --node-ip=$IP (compose project: $PROJECT)"
+LIVEKIT_NODE_IP="$IP" docker compose -p "$PROJECT" -f docker-compose.dev.yml up -d livekit
 
 # 2. The API must hand clients a reachable LiveKit URL.
 if grep -q '^LIVEKIT_URL=' apps/api/.env; then

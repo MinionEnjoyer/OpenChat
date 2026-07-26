@@ -1,11 +1,27 @@
-HelloScreen
-presenceColor
+# Genuine non-screen exports, or components composed by a container that IS reachable.
+# Each line needs a reason — an unjustified entry defeats the check.
+
+# Pure helpers, not user-facing surfaces:
 computeTargetDimensions
 formatSize
 isImage
-GalleryModal
-compressImage
-useCompression
-createExpoImageProcessor
-expoImageProcessor
+presenceColor
 computeSquareCrop
+
+# Phase 0 skeleton, deliberately retained but not routed:
+HelloScreen
+
+# Composed by VoiceChannelView, which ShellScreen renders when a call connects
+# (verified: ShellScreen.tsx imports VoiceChannelView and gates it on voiceViewVisible).
+# The checker's transitive rule does not resolve this chain; manual verification stands.
+VoiceService
+getVoiceService
+injectVoiceService
+useVoiceStore
+VoiceTile
+VoiceTileGrid
+useVoiceParticipants
+VoiceControls
+VideoTile
+useScreenShare
+ScreenShareView
