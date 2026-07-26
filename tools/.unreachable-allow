@@ -25,3 +25,9 @@ VoiceControls
 VideoTile
 useScreenShare
 ScreenShareView
+
+# Factory function for ImageProcessor — only the singleton instance (expoImageProcessor)
+# is used at runtime (via useUploadAttachments → ChatPane.tsx). Exporting the factory
+# allows consumers (tests, DI containers) to create fresh instances. No screen
+# renders it directly, and no sibling calls it (the singleton covers that).
+createExpoImageProcessor

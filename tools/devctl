@@ -666,6 +666,18 @@ cmd_verify() {
     }
   fi
 
+  # 7. Unreachable components — every feature export must be referenced by a
+  # screen (or allowlisted). This project shipped 14 built-but-unreachable
+  # components because no gate enforced this at verify time.
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "unreachable" ]; then
+    echo "[devctl] unreachable check — exported feature components…"
+    bash "$ROOT/tools/check-unreachable.sh" || {
+      echo "  ✗ unreachable components found"
+      exit 1
+    }
+    echo "  ✓ unreachable pass"
+  fi
+
   echo "  ✓ verify pass"
 }
 
@@ -684,7 +696,7 @@ Commands:
   stack seed    Run seed fixtures (tools/seed/seed.mjs)
   doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
   capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
-  verify        Run full verification suite (doctor + health + codegen + contract + char + trace + nfr); --json
+  verify        Run full verification suite (doctor + health + codegen + contract + char + trace + nfr + unreachable); --json
   selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
   trace         Check or report FR/NFR ↔ test traceability matrix (check|report [--phase N])
   nfr           Run the NFR budget harness; fails on breach, script error, or an
