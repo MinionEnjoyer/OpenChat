@@ -33,6 +33,15 @@ export function configureSession(overrides: { vault?: TokenVault; config?: AppCo
   if (overrides.config) config = overrides.config;
 }
 
+// ── Logout hook for features that need to tear down before sign-out (FR-NOTIF-002) ──
+
+let _logoutHook: (() => Promise<void>) | null = null;
+
+/** Register a hook that runs BEFORE session clear on logout. Registered by push token lifecycle. */
+export function setLogoutHook(hook: (() => Promise<void>) | null): void {
+  _logoutHook = hook;
+}
+
 export const api = new ApiClient({
   get baseUrl() {
     return config.apiBaseUrl;
@@ -43,6 +52,7 @@ export const api = new ApiClient({
     await vault.save(tokens);
   },
   onHardLogout: () => {
+    void _logoutHook?.();
     // FR-AUTH-010: refresh failed for good — clear state, land on login.
     logger.warn('hard logout: refresh failed');
     void vault.clear();
@@ -85,6 +95,7 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async logout() {
     const { tokens } = get();
+    if (_logoutHook) await _logoutHook();
     try {
       if (tokens) {
         await api.request('/auth/logout', { method: 'POST', body: { refreshToken: tokens.refreshToken } });

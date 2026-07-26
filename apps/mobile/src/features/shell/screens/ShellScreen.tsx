@@ -44,6 +44,7 @@ import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../chan
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
 import { saveLastChannel, resolveTextChannel } from '../coldstart';
+import { setupNotificationTapHandler, type NotificationRoute } from '../../notifications';
 import { CreateServerScreen, ServerSettingsScreen } from '../../servers';
 import { StatusPicker, type SettableStatus } from '../../presence';
 import { AvatarPicker, useAvatarUpload } from '../../avatars';
@@ -136,6 +137,25 @@ export function ShellScreen(): React.JSX.Element {
     // Handle warm-start deep links (FR-APP-005)
     const sub = Linking.addEventListener('url', handleUrl);
     return () => sub.remove();
+  }, []);
+  // FR-NOTIF-002: Notification tap-through → navigate to channel/DM/server
+  useEffect(() => {
+    const navigate = (route: NotificationRoute): void => {
+      if (route.type === 'channel' && route.serverId && route.channelId) {
+        setSelectedDmChannelId(null);
+        setSelectedServerId(route.serverId);
+        setSelectedChannelId(route.channelId);
+      } else if (route.type === 'dm' && route.dmChannelId) {
+        setSelectedServerId(null);
+        setSelectedChannelId(null);
+        setSelectedDmChannelId(route.dmChannelId);
+      } else if (route.type === 'server' && route.serverId) {
+        setSelectedDmChannelId(null);
+        setSelectedServerId(route.serverId);
+        setSelectedChannelId(null);
+      }
+    };
+    return setupNotificationTapHandler(navigate);
   }, []);
 
   const isDm = selectedDmChannelId !== null;
