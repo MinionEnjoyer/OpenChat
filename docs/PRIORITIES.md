@@ -37,6 +37,32 @@ Consequences, so nobody re-derives this:
   rather than porting anything written here.
 - It is P2 with a manual-validation criterion, so nothing else depends on it.
 
+## Standing rule — E2E flows are part of DONE, not a separate phase
+
+Learned the expensive way, 2026-07-25: this project reached 69 implemented FRs with only
+4 Maestro flows, all stopping at Phase 2. Phases 3-8 had ZERO E2E coverage.
+
+That gap hid a real bug. FR-VOX-001 "join/leave voice channel" was fully built and
+unit-tested, but the channel list was never wired to call join() — tapping a voice channel
+did nothing. 706 unit tests passed, because every component was individually correct. No
+test asserted the SEAM between them.
+
+Root cause was in the work orders, not the agents: every order required unit + integration
+tests, tsc, eslint, jest, codegen — and never required an E2E flow. Device/E2E work had
+been designated architect-only, so agents could not write flows and the architect did not.
+
+Rules going forward:
+
+- **Any FR with a user-visible surface ships with a Maestro flow.** State it in the work
+  order alongside the unit-test requirement. Agents CAN write flows — they select by
+  testID and need no device to author them.
+- **Adding a missing testID is a legitimate minimal source change**, not scope creep.
+- **A flow must assert an OUTCOME** ("the thing I created is listed", "the message is
+  visible after relaunch"), not merely that the screen rendered. And it must be proven
+  able to fail, same as any other test.
+- **Unit tests verify components; E2E verifies that features are REACHABLE.** A feature
+  that is built, correct, and unwired passes every unit test in the suite.
+
 ## 1a. Milestone sign-offs — GATE between priority 1 and priority 2
 
 Owner's instruction: sign off the phases already worked on **after priority 1 completes**
