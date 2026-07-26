@@ -602,11 +602,13 @@ export function ShellScreen(): React.JSX.Element {
         importantForAccessibility={leftOpenJS || rightOpenJS ? 'yes' : 'no-hide-descendants'}
         accessibilityElementsHidden={!(leftOpenJS || rightOpenJS)}
       >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={closeBoth}
-          testID="drawer-scrim"
-        />
+        {(leftOpenJS || rightOpenJS) && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeBoth}
+            testID="drawer-scrim"
+          />
+        )}
       </Animated.View>
 
       {/* ── Left drawer (rail + channel list) ── */}
