@@ -29,7 +29,7 @@ import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
 import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
-import { AttachmentGrid, useAttachments, AttachPicker } from '../attachments';
+import { AttachmentGrid, AttachmentTray, useAttachments, AttachPicker } from '../attachments';
 import { useGifFeature } from './gifFeature';
 import { useServerConfig } from './serverConfig';
 import { classifyEmbeds, isSingleEmbedUrl } from '../../domain/embeds';
@@ -675,6 +675,16 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         </View>
       )}
 
+      {/* FR-MED-010: attachment tray above composer */}
+      <AttachmentTray
+        attachments={attach.attachments}
+        isUploading={attach.isUploading}
+        sendOriginal={attach.sendOriginal}
+        onToggleOriginal={attach.setSendOriginal}
+        onRemove={attach.removeAttachment}
+        onCancel={attach.cancelUpload}
+      />
+
       {/* FR-SRV-010: hide composer for announcement channels when user lacks SEND_MESSAGES */}
       {canSend ? (
         <View style={styles.composer}>
@@ -748,6 +758,14 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
               <Text style={styles.gifBtnText}>{strings.gifs.button}</Text>
             </Pressable>
           )}
+          <Pressable
+            style={styles.attachBtn}
+            onPress={() => setShowAttachPicker(true)}
+            accessibilityLabel={strings.attachments.pickerTitle}
+            testID="composer-attach"
+          >
+            <Text style={styles.attachBtnText}>{strings.attachments.attach}</Text>
+          </Pressable>
           <Pressable
             style={styles.pollBtn}
             onPress={() => setShowPollCreate(true)}

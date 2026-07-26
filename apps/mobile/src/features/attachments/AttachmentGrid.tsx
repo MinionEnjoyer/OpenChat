@@ -64,6 +64,7 @@ export function AttachmentGrid({ attachments, apiBaseUrl }: Props): React.JSX.El
                 onPress={() => openGallery(idx)}
                 accessibilityRole="imagebutton"
                 accessibilityLabel={`${strings.attachments.imageLabel} ${idx + 1}`}
+                testID={`attach-grid-image-${idx}`}
               >
                 <AuthImage
                   path={item.attachment.thumbnailUrl ?? item.attachment.url}
