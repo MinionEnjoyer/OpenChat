@@ -70,6 +70,7 @@ export function ShellScreen(): React.JSX.Element {
   const updateProfile = useSession((s) => s.updateProfile);
   const connection = useConnection();
   const avatar = useAvatarUpload(resolveConfig().apiBaseUrl);
+  const { join: joinVoice } = useVoiceConnection(); // FR-VOX-001: join voice channel on tap
 
   const [selectedDmChannelId, setSelectedDmChannelId] = useState<string | null>(null);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
@@ -422,12 +423,19 @@ export function ShellScreen(): React.JSX.Element {
 
   const selectChannel = useCallback(
     (channelId: string) => {
+      // @satisfies FR-VOX-001: voice channels join via LiveKit; text channels select normally.
+      const channel = channels.data?.find((c) => c.id === channelId);
+      if (channel?.type === 'VOICE') {
+        void joinVoice(channelId);
+        closeLeft();
+        return;
+      }
       setSelectedChannelId(channelId);
       setSelectedDmChannelId(null);
       saveLastChannel(storage(), serverId, channelId);
       closeLeft();
     },
-    [closeLeft, serverId],
+    [channels.data, closeLeft, joinVoice, serverId],
   );
 
   // ── Render ──────────────────────────────────────────────────────
