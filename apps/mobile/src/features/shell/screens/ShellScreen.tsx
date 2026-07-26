@@ -49,7 +49,7 @@ import { AvatarPicker, useAvatarUpload } from '../../avatars';
 import { resolveConfig } from '../../../lib/config';
 import { NotificationSettingsScreen } from '../../notif-settings';
 import { FriendsScreen } from '../../friends';
-import { VoicePill, IncomingCallOverlay } from '../../voice';
+import { VoicePill, IncomingCallOverlay, VoiceChannelView } from '../../voice';
 import { useVoiceConnection } from '../../voice/useVoiceConnection';
 
 const LEFT_DRAWER_WIDTH = 280;
@@ -72,7 +72,7 @@ export function ShellScreen(): React.JSX.Element {
   const updateProfile = useSession((s) => s.updateProfile);
   const connection = useConnection();
   const avatar = useAvatarUpload(resolveConfig().apiBaseUrl);
-  const { join: joinVoice } = useVoiceConnection(); // FR-VOX-001: join voice channel on tap
+  const { join: joinVoice, connectionState: voiceConnectionState, activeChannelId: voiceActiveChannelId } = useVoiceConnection(); // FR-VOX-001: join voice channel on tap
 
   const [selectedDmChannelId, setSelectedDmChannelId] = useState<string | null>(null);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
@@ -99,6 +99,8 @@ export function ShellScreen(): React.JSX.Element {
   const [channelFormVisible, setChannelFormVisible] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | undefined>(undefined);
   const [reorderVisible, setReorderVisible] = useState(false);
+  // FR-VOX-002: whether the voice channel view is foregrounded (vs text chat)
+  const [voiceViewVisible, setVoiceViewVisible] = useState(false);
 
   // Drawer state lives in shared values for 60fps gesture tracking.
   const leftOpen = useSharedValue(0); // 0 = closed, 1 = open
@@ -205,13 +207,31 @@ export function ShellScreen(): React.JSX.Element {
 
   // DD-024: auto-select first text channel when opening a server.
   // Stored preference wins; fallback is the first text channel in server order.
+  // FR-VOX-002: do NOT fight the voice view — when the voice view is
+  // foregrounded, skip auto-select so the user stays in the voice channel.
   useEffect(() => {
     if (selectedChannelId !== null) return; // already have a channel
+    if (voiceViewVisible) return; // voice view is foregrounded
     if (!channels.data || channels.data.length === 0) return;
     if (!serverId) return;
     const resolved = resolveTextChannel(storage(), serverId, channels.data);
     if (resolved) setSelectedChannelId(resolved);
-  }, [channels.data, selectedChannelId, serverId]);
+  }, [channels.data, selectedChannelId, serverId, voiceViewVisible]);
+
+  // FR-VOX-002: show voice view when connected to a voice channel in this server.
+  // Hide it when the voice connection drops.
+  useEffect(() => {
+    if (voiceConnectionState === 'connected' && voiceActiveChannelId) {
+      const isVoiceInServer = (channels.data ?? []).some(
+        (c) => c.id === voiceActiveChannelId && c.type === 'VOICE',
+      );
+      if (isVoiceInServer) {
+        setVoiceViewVisible(true);
+      }
+    } else if (voiceConnectionState === 'idle') {
+      setVoiceViewVisible(false);
+    }
+  }, [voiceConnectionState, voiceActiveChannelId, channels.data]);
 
   // FR-SRV-010: include ANNOUNCEMENT channels alongside TEXT for chat pane
   const textChannels = (channels.data ?? []).filter((c) => c.type === 'TEXT' || c.type === 'ANNOUNCEMENT');
@@ -430,6 +450,7 @@ export function ShellScreen(): React.JSX.Element {
       const channel = channels.data?.find((c) => c.id === channelId);
       if (channel?.type === 'VOICE') {
         void joinVoice(channelId);
+        setVoiceViewVisible(true);
         closeLeft();
         return;
       }
@@ -440,6 +461,26 @@ export function ShellScreen(): React.JSX.Element {
     },
     [channels.data, closeLeft, joinVoice, serverId],
   );
+
+  // ── Voice view state ─────────────────────────────────────────────
+
+  /** The voice channel we're currently connected to, if it's in the current server. */
+  const voiceChannelInServer = (channels.data ?? []).find(
+    (c) => c.id === voiceActiveChannelId && c.type === 'VOICE',
+  );
+  const showVoiceView =
+    voiceViewVisible &&
+    voiceConnectionState === 'connected' &&
+    voiceChannelInServer != null;
+
+  /** "Show Chat" from voice view: switch to the first text channel without leaving the call. */
+  const handleShowChatFromVoice = useCallback(() => {
+    setVoiceViewVisible(false);
+    if (serverId) {
+      const resolved = resolveTextChannel(storage(), serverId, channels.data ?? []);
+      if (resolved) setSelectedChannelId(resolved);
+    }
+  }, [serverId, channels.data]);
 
   // ── Render ──────────────────────────────────────────────────────
 
@@ -510,7 +551,12 @@ export function ShellScreen(): React.JSX.Element {
           </Pressable>
         </View>
 
-        {activeChannelAny ? (
+        {showVoiceView && voiceChannelInServer ? (
+          <VoiceChannelView
+            channelName={voiceChannelInServer.name}
+            onShowChat={handleShowChatFromVoice}
+          />
+        ) : activeChannelAny ? (
           <ChatPane channelId={activeChannelAny.id} serverId={serverId} channelType={activeChannel?.type} members={members.data} myPermissions={activeServer?.myPermissions} serverOwnerId={activeServer?.ownerId} />
         ) : (
           <View style={styles.chatBody}>
@@ -519,8 +565,8 @@ export function ShellScreen(): React.JSX.Element {
             </Text>
           </View>
         )}
-        {/* FR-VOX-001/005: persistent voice-call pill at bottom of chat */}
-        <VoicePill />
+        {/* FR-VOX-001/005: persistent voice-call pill when voice is active but voice view is not foregrounded */}
+        {!showVoiceView && <VoicePill />}
       </View>
 
       {/* Scrim (overlay behind drawers) */}

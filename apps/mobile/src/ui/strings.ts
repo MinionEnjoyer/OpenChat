@@ -450,6 +450,13 @@ export const strings = {
     cameraOffA11y: 'Disable camera',
     /** @satisfies FR-VOX-006 */
     flipCameraA11y: 'Switch camera',
+    /** @satisfies FR-VOX-002 */
+    voiceViewHeading: 'Voice Channel',
+    /** @satisfies FR-VOX-002 */
+    showChat: 'Chat',
+    /** @satisfies FR-VOX-002 */
+    showChatA11y: 'Show text channel',
+    videoSectionLabel: 'Video',
   },
   screenshare: {
     live: 'LIVE',
