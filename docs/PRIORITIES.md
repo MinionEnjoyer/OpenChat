@@ -152,3 +152,25 @@ should deliberately SKIP it rather than assume it belongs.
 
 Voice input on mobile is open-mic with mute; no push-to-talk affordance, no input-mode
 preference. If a port includes PTT, strip it.
+
+## Scope decision — 2026-07-26 (Will)
+
+**Deprioritised for now — do NOT build mobile UI for these:**
+- Bans (`/ban`) — backend complete with tests, zero mobile call sites. Leave backend-only.
+- Timeouts (`/timeout`) — same. Leave backend-only.
+- Server roles / role assignment — role CRUD is wired (5 call sites); assignment and
+  permission-overwrite endpoints stay backend-only.
+
+These were found by the refresh-coverage matrix (a692890) as endpoints with no mobile
+usage. They are NOT gaps to close — they are deliberately out of scope for now.
+Do not count them against priority 1.
+
+**IN SCOPE NOW — notifications (FR-NOTIF-001..004, all P1):**
+Current state: `DeviceToken` and `NotificationSetting` Prisma models exist; notification
+settings API + UI exist; foreground toast (FR-NOTIF-004) works. Missing entirely: the
+`/api/devices` registry endpoints, the dispatch worker, FCM transport, and any client
+push integration. A user who closes the app receives nothing.
+
+Blocker for real end-to-end delivery: FCM credentials (Will supplies). Build and test
+against an FCM mock per the spec's own strategy ("Integration with FCM emulator/mock").
+Upstream has no push either — this is net-new, not inheritable.
