@@ -49,12 +49,17 @@ appId: com.openchat.mobile
       id: 'rail-server-Fixture Guild'
     direction: DOWN
     timeout: 20000
+# Tap the rail item to select Fixture Guild (loads its channels)
+- tapOn:
+    id: 'rail-server-Fixture Guild'
 # The channel drawer title should show the server name
 - assertVisible:
     id: 'channel-drawer'
 - assertVisible: 'Fixture Guild'
 
 # 3. Selecting a channel closes the drawer and shows the channel.
+- assertVisible:
+    id: 'channel-#general'
 - tapOn:
     id: 'channel-#general'
 # After selecting a channel, left drawer closes automatically.
