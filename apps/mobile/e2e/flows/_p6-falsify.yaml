@@ -1,5 +1,5 @@
 # _p6-falsify — falsification for permission grant
-# Same pattern as p6-01-voice-channel-join-leave: join → voice view → show chat → pill → disconnect
+# T4: Uses provisioned test world.
 
 appId: com.openchat.mobile
 
@@ -12,18 +12,18 @@ appId: com.openchat.mobile
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - scrollUntilVisible:
     element:
-      id: 'channel-#voice-general'
+      id: 'channel-${E2E_CHANNEL_VOICE}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 - assertNotVisible:
     id: 'left-drawer'
 

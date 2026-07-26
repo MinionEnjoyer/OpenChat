@@ -1,8 +1,8 @@
 # p3-01-create-server — login → create server → verify it appears in the rail.
 # @satisfies FR-SRV-002
 #
-# Requires: dev stack up + seeded, emulator reaching 10.0.2.2.
-# This flow does its own login so it can run independently.
+# T4: Uses provisioned test world for login. Creates a new server.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 

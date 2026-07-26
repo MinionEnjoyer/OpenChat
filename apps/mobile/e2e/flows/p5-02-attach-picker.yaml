@@ -2,40 +2,30 @@
 # @satisfies FR-MED-010
 # @satisfies FR-MED-030
 #
-# Proves the attachment picker is reachable from the composer and shows all
-# expected source options (Photo Library, Camera, Files, Cancel).
-# Does NOT complete a file-picker interaction (OS-level, not automatable),
-# but verifies the entire picker UI is wired and dismissible.
-#
-# FR-MED-030 coverage: the "original" toggle is part of AttachmentTray
-# which only renders when attachments are in the queue. Since Maestro
-# cannot interact with the OS file picker, we verify the attach button
-# is present and the picker sheet is fully wired. The compression unit
-# tests cover the actual resize/quality logic.
-#
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# Open left drawer and select Fixture Guild → #general
+# Open left drawer and select provisioned server → general channel
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
 

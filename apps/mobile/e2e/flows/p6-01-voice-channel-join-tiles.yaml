@@ -1,11 +1,8 @@
 # p6-01-voice-channel-join-tiles — login → join voice channel → voice view + tile grid + controls + occupancy
 # @satisfies FR-VOX-002, FR-VOX-004
 #
-# Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator reaching 10.0.2.2.
-# This flow does its own login so it can run independently.
-#
-# FR-VOX-002: Participant tiles with speaking rings and mute badges.
-# FR-VOX-004: Voice channel occupancy shown live in channel list.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
 
 appId: com.openchat.mobile
 
@@ -13,22 +10,22 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Navigate to Fixture Guild and join #voice-general ──
+# ── Phase 2: Navigate to provisioned server, join voice channel ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 - tapOn:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 
 # Left drawer closes
 - assertNotVisible:
@@ -49,13 +46,12 @@ appId: com.openchat.mobile
     id: 'voice-control-disconnect'
 
 # ── Phase 4: Verify participant tile grid (FR-VOX-002) ──
-# The tile grid shows self as a participant (rendered inside voice view)
 - extendedWaitUntil:
     visible:
       id: 'voice-tile-grid'
     timeout: 30000
 
-# Mute using voice view controls (not pill — pill is hidden while voice view shows)
+# Mute using voice view controls
 - tapOn:
     id: 'voice-control-mute'
 
@@ -68,21 +64,19 @@ appId: com.openchat.mobile
     id: 'voice-control-mute'
 
 # ── Phase 5: Verify channel occupancy in channel list (FR-VOX-004) ──
-# Re-open left drawer to see channel list with participant names
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 
-# The voice channel row should show "alice" as connected participant
+# The voice channel row should show the test user as connected participant
 - extendedWaitUntil:
-    visible: 'alice'
+    visible: ${E2E_USERNAME}
     timeout: 20000
 
 # ── Phase 6: Navigate away → pill, then leave ──
-# Close drawer by tapping voice channel again → voice view re-appears
 - tapOn:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 
 # VoiceChannelView is visible (still connected)
 - assertVisible:
@@ -102,7 +96,7 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'voice-pill-disconnect'
 
-# Pill disappears after disconnect (async — wait for it)
+# Pill disappears after disconnect
 - extendedWaitUntil:
     notVisible:
       id: 'voice-pill'

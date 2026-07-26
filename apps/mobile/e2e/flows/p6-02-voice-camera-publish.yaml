@@ -1,13 +1,8 @@
 # p6-02-voice-camera-publish — login → join voice → navigate to text channel → toggle camera on pill
 # @satisfies FR-VOX-006
 #
-# Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator reaching 10.0.2.2.
-# Camera permission must be granted on emulator for video publish to work.
-#
-# FR-VOX-006: Camera video publish + remote video render in voice/DM calls.
-# Camera toggle lives on the VoicePill, which only renders when the voice view
-# is not foregrounded. Navigate to a text channel via "Show Chat" first, then
-# toggle camera on the pill.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
 
 appId: com.openchat.mobile
 
@@ -15,22 +10,22 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Join #voice-general ──
+# ── Phase 2: Join provisioned voice channel ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 - tapOn:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 - assertNotVisible:
     id: 'left-drawer'
 
@@ -41,17 +36,14 @@ appId: com.openchat.mobile
     timeout: 30000
 
 # ── Phase 4: Navigate to text channel so pill appears ──
-# Camera toggle is on the pill, which only shows when voice view is not foregrounded.
 - tapOn:
     id: 'voice-show-chat'
 
-# Pill appears after navigating away from voice view
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
     timeout: 15000
 
-# Controls visible when connected
 - assertVisible:
     id: 'voice-pill-controls'
 
@@ -61,7 +53,6 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'voice-pill-camera'
 
-# After toggle, flip-camera button appears (only when camera is active; async — wait)
 - extendedWaitUntil:
     visible:
       id: 'voice-pill-flip-camera'
@@ -75,7 +66,6 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'voice-pill-camera'
 
-# Flip-camera button disappears when camera is off (async — wait)
 - extendedWaitUntil:
     notVisible:
       id: 'voice-pill-flip-camera'
@@ -85,7 +75,6 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'voice-pill-disconnect'
 
-# Pill disappears after disconnect (async — wait for it)
 - extendedWaitUntil:
     notVisible:
       id: 'voice-pill'

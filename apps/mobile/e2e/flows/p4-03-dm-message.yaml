@@ -1,42 +1,33 @@
-# p4-03-dm-message — dev-login → open DM with friend → send message → verify it appears.
+# p4-03-dm-message — dev-login → open DM with provisioned friend → send message → verify.
 # @satisfies FR-SOC-002
 #
-# Verifies:
-#  1. DM list is accessible from the left drawer.
-#  2. Tapping a DM channel opens it and shows the chat pane with composer.
-#  3. Typing and sending a message places it in the chat view.
-#  4. The sent message text is visible in the message list.
-#
-# Requires: dev stack up + seeded (alice-eve DM channel exists).
-# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+# T4: Uses provisioned test world. DM channel exists between test user and friend.
+# Requires: dev stack up + provisioned world.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with eve ──
+# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with friend ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
-# DD-023: tap DM entry in the rail to show DM list in the content column
 - tapOn:
     id: 'rail-dm'
 # DM section now visible in the content column
 - assertVisible:
     id: 'dm-section'
-# Tap the DM channel with eve
+# Tap the DM channel with friend (by channel ID)
 - tapOn:
-    id: 'dm-728e2f19-5ad2-44be-9546-875f4c317915'
+    id: 'dm-${E2E_DM_CHANNEL_ID}'
 
 # ── Phase 2: Verify chat pane and composer ──
-# Left drawer closes, chat pane shows the DM
 - assertNotVisible:
     id: 'left-drawer'
 - assertVisible:
     id: 'chat-pane'
-# Composer must be available (not readonly)
 - assertVisible:
     id: 'composer-input'
 - assertVisible:
@@ -45,10 +36,11 @@ appId: com.openchat.mobile
 # ── Phase 3: Type and send a message ──
 - tapOn:
     id: 'composer-input'
-- inputText: 'Hello eve from e2e!'
+- inputText: 'Hello from e2e test world!'
 - tapOn:
     id: 'composer-send'
 
 # ── Phase 4: Verify message appears in chat ──
-# We cannot predict the server-assigned message ID, so verify by text content.
-- assertVisible: 'Hello eve from e2e!'
+- assertVisible: 'Hello from e2e test world!'
+
+- takeScreenshot: artifacts/e2e/screens/p4-dm-message

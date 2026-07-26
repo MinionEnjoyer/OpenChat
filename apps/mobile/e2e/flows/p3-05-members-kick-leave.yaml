@@ -1,30 +1,32 @@
-# p3-05-members-kick-leave — login → open member list → verify members →
+# p3-05-members-kick-leave — login → open member list → verify members + friend →
 #   tap member profile → verify kick button on others, leave on self.
 # @satisfies FR-SRV-007 FR-SRV-008
 #
-# Uses only the seeded Fixture Guild (non-destructive — does not actually
-# kick or leave, only verifies the UI actions are reachable).
-#
-# Requires: dev stack up + seeded, emulator reaching 10.0.2.2.
-# This flow does its own login so it can run independently.
+# T4: Uses provisioned test world. Verifies test user + friend.
+# NOTE: The original seed had 4 members (alice, bob, carol, dave).
+# The test world contract provides one friend. This flow now verifies
+# the test user and the friend. Multi-member coverage is deferred to the
+# backend's richer world provisioning.
+# Non-destructive — does not actually kick or leave.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# Open left drawer and select Fixture Guild
+# Open left drawer and select the provisioned server
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 
 # Open the right drawer (members list) via the Members toggle
 - tapOn:
@@ -34,31 +36,25 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'members-drawer'
 
-# Verify seeded users appear in the member list
+# Verify test user and friend appear in the member list
 - assertVisible:
-    id: 'member-alice'
+    id: 'member-${E2E_USERNAME}'
 - assertVisible:
-    id: 'member-bob'
-- assertVisible:
-    id: 'member-dave'
+    id: 'member-${E2E_FRIEND_USERNAME}'
 
-# ── Tap bob: profile sheet should appear with kick button (alice is owner) ──
+# ── Tap friend: profile sheet should appear with kick button (test user is owner) ──
 - tapOn:
-    id: 'member-bob'
-# The MemberProfileSheet opens — verify kick button is visible
+    id: 'member-${E2E_FRIEND_USERNAME}'
 - assertVisible:
     id: 'member-profile-kick'
-
-# Close profile sheet by tapping scrim (backdrop in RN modal)
 - tapOn:
     point: '20%,50%'
 
-# ── Tap alice (self): profile sheet should show leave button instead ──
+# ── Tap self: profile sheet should show leave button instead ──
 - tapOn:
-    id: 'member-alice'
+    id: 'member-${E2E_USERNAME}'
 - assertVisible:
     id: 'member-profile-leave'
-# Ensure kick button is NOT shown for self
 - assertNotVisible:
     id: 'member-profile-kick'
 

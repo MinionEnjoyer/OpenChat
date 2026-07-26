@@ -1,29 +1,28 @@
 # p3-02-rename-server — login → open server settings → rename → verify.
 # @satisfies FR-SRV-003
 #
-# Uses the Fixture Guild (seeded). Renames it to "Fixture Renamed",
-# then verifies the drawer title reflects the change.
+# T4: Uses provisioned test world. Renames the server, verifies, then renames it
+# back. Each run gets its own world, so the rename-back is for intra-flow cleanliness.
 #
-# Requires: dev stack up + seeded, emulator reaching 10.0.2.2.
-# This flow does its own login so it can run independently.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# Open left drawer and select Fixture Guild
+# Open left drawer and select the provisioned server
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 
 # Open server settings (gear icon in channel header)
 - tapOn:
@@ -36,7 +35,7 @@ appId: com.openchat.mobile
     id: 'server-settings-name'
 # Clear existing text and type new name
 - eraseText: 100
-- inputText: 'Fixture Renamed'
+- inputText: '${E2E_SERVER_NAME} Renamed'
 - tapOn:
     id: 'server-settings-rename-save'
 
@@ -52,12 +51,12 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'left-drawer'
 - assertVisible:
-    id: 'rail-server-Fixture Renamed'
+    id: 'rail-server-${E2E_SERVER_NAME} Renamed'
 
 # Channel drawer title should show new name
-- assertVisible: 'Fixture Renamed'
+- assertVisible: '${E2E_SERVER_NAME} Renamed'
 
-# Rename back to original so other tests see the expected name
+# Rename back to original so other flows see the expected name
 - tapOn:
     id: 'server-settings-button'
 - assertVisible:
@@ -65,7 +64,7 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'server-settings-name'
 - eraseText: 100
-- inputText: 'Fixture Guild'
+- inputText: ${E2E_SERVER_NAME}
 - tapOn:
     id: 'server-settings-rename-save'
 - tapOn:

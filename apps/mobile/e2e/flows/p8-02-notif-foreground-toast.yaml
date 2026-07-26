@@ -1,17 +1,8 @@
 # p8-02-notif-foreground-toast — login → verify notification infrastructure for foreground handling
 # @satisfies FR-NOTIF-004
 #
-# FR-NOTIF-004: In-app foreground handling (suppress push, show toast).
-# Acceptance criterion: Unit.
-#
-# The foreground notification handler (foregroundHandler.ts) is covered by unit tests.
-# Full E2E verification of in-app toasts requires a second device — another user must
-# send a message or trigger a WS mention/call.ring event while the app is in the foreground.
-#
-# This flow verifies the prerequisite: notification settings UI is reachable and the
-# shell wiring is intact (the notif-settings-button renders when a server is active).
-#
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
@@ -19,33 +10,31 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Navigate to Fixture Guild, select #general ──
+# ── Phase 2: Navigate to provisioned server, select general channel ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
 
-# ── Phase 3: Re-open drawer and verify notif-settings bell is reachable ──
+# ── Phase 3: Verify notif-settings bell is reachable ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 
-# The bell icon (notif-settings-button) is rendered when a server is active.
-# This confirms the notification module wiring in ShellScreen (FR-NOTIF-003 + NOTIF-004).
 - assertVisible:
     id: 'notif-settings-button'
 
@@ -60,11 +49,5 @@ appId: com.openchat.mobile
     id: 'notif-settings-done'
 - assertNotVisible:
     id: 'notif-settings-done'
-
-# NOTE: Foreground toast verification (FR-NOTIF-004 core behavior) requires:
-#   1. A second device logged in as bob/dave
-#   2. Sending a message or triggering a WS event while this device is in foreground
-#   3. Asserting a toast element appears
-# This is deferred to two-device E2E suite.
 
 - takeScreenshot: artifacts/e2e/screens/p8-notif-foreground
