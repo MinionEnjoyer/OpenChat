@@ -22,6 +22,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useQuery } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PresenceDot, presenceLabel } from '../../presence';
 import { showToast } from '../../../ui/Toast';
 import { api, useSession } from '../../../stores/session';
@@ -65,6 +66,7 @@ const SPRING_CONFIG = { damping: 30, stiffness: 300 };
  * right-edge swipe opens right drawer; tap scrim closes.
  */
 export function ShellScreen(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const user = useSession((s) => s.user);
   const logout = useSession((s) => s.logout);
   const updateProfile = useSession((s) => s.updateProfile);
@@ -442,9 +444,9 @@ export function ShellScreen(): React.JSX.Element {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'android' ? -(StatusBar.currentHeight ?? 0) : 0}
+      style={[styles.root, { paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
       testID="shell-screen"
     >
       {/* Connection banner (FR-APP-003) */}
@@ -535,7 +537,7 @@ export function ShellScreen(): React.JSX.Element {
 
       {/* ── Left drawer (rail + channel list) ── */}
       <Animated.View
-        style={[styles.leftDrawer, leftDrawerStyle]}
+        style={[styles.leftDrawer, leftDrawerStyle, { top: insets.top }]}
         testID="left-drawer"
         importantForAccessibility={leftOpenJS ? 'yes' : 'no-hide-descendants'}
         accessibilityElementsHidden={!leftOpenJS}
@@ -656,7 +658,7 @@ export function ShellScreen(): React.JSX.Element {
 
       {/* ── Right drawer (members + profile) ── */}
       <Animated.View
-        style={[styles.rightDrawer, rightDrawerStyle]}
+        style={[styles.rightDrawer, rightDrawerStyle, { top: insets.top }]}
         testID="right-drawer"
         importantForAccessibility={rightOpenJS ? 'yes' : 'no-hide-descendants'}
         accessibilityElementsHidden={!rightOpenJS}
@@ -924,7 +926,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: palette.bg,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   banner: {
     backgroundColor: palette.danger,

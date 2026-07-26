@@ -12,6 +12,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showToast } from '../../ui/Toast';
 import { api, useSession } from '../../stores/session';
 import { gateway } from '../../realtime';
@@ -87,6 +88,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
   myPermissions?: string;
   serverOwnerId?: string;
 }): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const user = useSession((s) => s.user);
   const [draft, setDraft] = useState('');
   const nonceCounter = useRef(0);
@@ -687,7 +689,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
 
       {/* FR-SRV-010: hide composer for announcement channels when user lacks SEND_MESSAGES */}
       {canSend ? (
-        <View style={styles.composer}>
+        <View style={[styles.composer, { paddingBottom: insets.bottom }]}>
           {replyTarget && (
             <View style={styles.replyChip}>
               <Text style={styles.replyChipText} numberOfLines={1}>
@@ -784,7 +786,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
           </Pressable>
         </View>
       ) : (
-        <View style={styles.composerReadOnly} testID="composer-readonly">
+        <View style={[styles.composerReadOnly, { paddingBottom: insets.bottom }]} testID="composer-readonly">
           <Text style={styles.composerReadOnlyText}>{strings.messages.announcementReadOnly}</Text>
         </View>
       )}
