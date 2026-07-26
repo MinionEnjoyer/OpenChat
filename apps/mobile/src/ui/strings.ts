@@ -384,6 +384,13 @@ export const strings = {
     pillLeave: 'Leave',
     pillLeaveA11y: 'Disconnect voice',
   },
+  screenshare: {
+    live: 'LIVE',
+    hide: 'Hide',
+    show: 'Show',
+    hideA11y: 'Hide screen share',
+    showA11y: 'Show screen share',
+  },
 } as const;
 
 export type Strings = typeof strings;
