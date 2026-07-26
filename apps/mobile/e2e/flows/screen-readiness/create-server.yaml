@@ -1,8 +1,12 @@
 # screen-readiness: CreateServerScreen
 # Opens create-server from the left drawer rail.
+# Inline recovery: back dismisses inbox, then opens left drawer.
+# Leaves create-server screen open.
 
 appId: com.openchat.mobile
 ---
+# Dismiss inbox full-screen overlay
+- back
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:

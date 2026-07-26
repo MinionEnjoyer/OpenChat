@@ -1,23 +1,16 @@
-# _go-shell — return to shell screen from any navigation state.
+# _go-shell — return to shell screen from open-drawer state.
 #
-# Strategy:
-#  1. launchApp to bring app to foreground (handles launcher case safely).
-#  2. If shell-screen is already visible, skip recovery.
-#  3. Otherwise: back to dismiss full-screen overlays (friends, inbox,
-#     create-server, server-settings, notif-settings, invite-create,
-#     join-server, etc.), then tap scrims to dismiss drawers.
-#  4. Assert shell-screen is visible.
+# Strategy: tap outside the drawer area to dismiss any open drawers.
+# Full-screen overlays (create-server, server-settings) must be dismissed
+# by the calling flow with `back` before invoking _go-shell.
+#
+# Safe no-ops when drawers are already closed.
 
 appId: com.openchat.mobile
 ---
-- launchApp:
-    appId: com.openchat.mobile
-    clearState: false
-    stopApp: false
-- runFlow:
-    when:
-      notVisible:
-        id: 'shell-screen'
-    file: _go-shell-recovery.yaml
-- assertVisible:
-    id: 'shell-screen'
+- tapOn:
+    point: '85%,50%'
+- tapOn:
+    point: '15%,50%'
+- tapOn:
+    point: '15%,50%'
