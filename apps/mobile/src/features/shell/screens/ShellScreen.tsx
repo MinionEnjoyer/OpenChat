@@ -516,9 +516,12 @@ export function ShellScreen(): React.JSX.Element {
             <Text style={styles.topBarAction}>{strings.shell.hamburger}</Text>
           </Pressable>
           <Text style={styles.chatTitle} testID="chat-title" numberOfLines={1}>
-            {activeChannelAny
-              ? (isDm ? `${strings.dms.atSign} ${activeChannelAny.name}` : `${strings.shell.channelHash} ${activeChannelAny.name}`)
-              : strings.shell.selectChannel}
+            {/* D4: when the voice view is foregrounded, show the voice channel */}
+            {showVoiceView && voiceChannelInServer
+              ? `${strings.voice.voiceViewHeading}: ${voiceChannelInServer.name}`
+              : activeChannelAny
+                ? (isDm ? `${strings.dms.atSign} ${activeChannelAny.name}` : `${strings.shell.channelHash} ${activeChannelAny.name}`)
+                : strings.shell.selectChannel}
           </Text>
           {activeChannelAny && (
             <Pressable

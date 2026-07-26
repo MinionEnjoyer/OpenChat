@@ -252,6 +252,18 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         next[idx] = { ...next[idx], ...p };
         return { participants: next };
       }
+      // D1: enforce single-local invariant.
+      // When a new isLocal:true entry arrives with a different id than
+      // any existing local entry, the stale entry must be removed so
+      // there is never more than one "(you)" tile.
+      if (p.isLocal) {
+        const localIdx = state.participants.findIndex((x) => x.isLocal);
+        if (localIdx >= 0 && state.participants[localIdx]!.id !== p.id) {
+          const next = [...state.participants];
+          next[localIdx] = p;
+          return { participants: next };
+        }
+      }
       return { participants: [...state.participants, p] };
     });
   },
