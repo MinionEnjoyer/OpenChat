@@ -9,6 +9,7 @@ module.exports = {
   preset: 'jest-expo',
   moduleNameMapper: {
     '^expo-notifications$': '<rootDir>/src/__mocks__/expo-notifications.ts',
+    '^@expo/vector-icons$': '<rootDir>/src/__mocks__/@expo-vector-icons.ts',
   },
   testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts?(x)'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/src/api/__tests__/contract/'],

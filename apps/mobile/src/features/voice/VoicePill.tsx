@@ -10,9 +10,12 @@
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useVoiceConnection } from './useVoiceConnection';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 export function VoicePill(): React.JSX.Element | null {
   const {
@@ -45,10 +48,10 @@ export function VoicePill(): React.JSX.Element | null {
             {isConnected ? strings.voice.pillConnected : strings.voice.pillConnecting}
           </Text>
           {isMuted && (
-            <Text style={styles.badge} testID="voice-pill-muted-badge">{strings.voice.iconMuted}</Text>
+            <MaterialIcons name={strings.voice.iconMuted as MI} size={12} color={palette.text} style={styles.badge} testID="voice-pill-muted-badge" />
           )}
           {isDeafened && (
-            <Text style={styles.badge} testID="voice-pill-deafened-badge">{strings.voice.iconDeafened}</Text>
+            <MaterialIcons name={strings.voice.iconDeafened as MI} size={12} color={palette.text} style={styles.badge} testID="voice-pill-deafened-badge" />
           )}
         </View>
       </View>
@@ -68,9 +71,7 @@ export function VoicePill(): React.JSX.Element | null {
             accessibilityRole="button"
             testID="voice-pill-mute"
           >
-            <Text style={styles.ctrlIcon}>
-              {isMuted ? strings.voice.iconMuted : strings.voice.iconUnmuted}
-            </Text>
+            <MaterialIcons name={isMuted ? strings.voice.iconMuted as MI : strings.voice.iconUnmuted as MI} size={18} color={palette.text} style={styles.ctrlIconMargin} />
             <Text style={styles.ctrlLabel}>
               {isMuted ? strings.voice.unmute : strings.voice.mute}
             </Text>
@@ -88,9 +89,7 @@ export function VoicePill(): React.JSX.Element | null {
             accessibilityRole="button"
             testID="voice-pill-deafen"
           >
-            <Text style={styles.ctrlIcon}>
-              {isDeafened ? strings.voice.iconUndeafened : strings.voice.iconMuted}
-            </Text>
+            <MaterialIcons name={isDeafened ? strings.voice.iconUndeafened as MI : strings.voice.iconDeafened as MI} size={18} color={palette.text} style={styles.ctrlIconMargin} />
             <Text style={styles.ctrlLabel}>
               {isDeafened ? strings.voice.undeafen : strings.voice.deafen}
             </Text>
@@ -126,9 +125,7 @@ export function VoicePill(): React.JSX.Element | null {
             accessibilityRole="button"
             testID="voice-pill-camera"
           >
-            <Text style={styles.ctrlIcon}>
-              {cameraEnabled ? '📹' : '📷'}
-            </Text>
+            <MaterialIcons name={cameraEnabled ? strings.voice.iconCameraOn as MI : strings.voice.iconCameraOff as MI} size={18} color={palette.text} style={styles.ctrlIconMargin} />
             <Text style={styles.ctrlLabel}>
               {cameraEnabled ? strings.voice.cameraOff : strings.voice.cameraOn}
             </Text>
@@ -146,7 +143,7 @@ export function VoicePill(): React.JSX.Element | null {
             accessibilityRole="button"
             testID="voice-pill-disconnect"
           >
-            <Text style={styles.ctrlIcon}>{strings.voice.iconDisconnect}</Text>
+            <MaterialIcons name={strings.voice.iconDisconnect as MI} size={18} color="#ff6b6b" style={styles.ctrlIconMargin} />
             <Text style={[styles.ctrlLabel, styles.ctrlLabelDanger]}>
               {strings.voice.disconnect}
             </Text>
@@ -193,7 +190,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   badge: {
-    fontSize: 12,
     marginLeft: spacing.xs,
   },
   controlsRow: {
@@ -224,8 +220,7 @@ const styles = StyleSheet.create({
   ctrlBtnPressed: {
     opacity: 0.7,
   },
-  ctrlIcon: {
-    fontSize: 18,
+  ctrlIconMargin: {
     marginBottom: 2,
   },
   ctrlLabel: {

@@ -412,19 +412,24 @@ export const strings = {
     /** @satisfies FR-VOX-003 */
     disconnectA11y: 'Disconnect from voice channel',
     /** @satisfies FR-VOX-003 */
-    iconMuted: '🔇',
-    /** @satisfies FR-VOX-003 */
-    iconUnmuted: '🎙️',
-    /** @satisfies FR-VOX-003 */
-    iconDeafened: '👂',
-    /** @satisfies FR-VOX-003 */
-    iconUndeafened: '🔊',
-    /** @satisfies FR-VOX-003 */
-    iconDisconnect: '❌',
-    /** @satisfies FR-VOX-003 */
-    iconSpeaker: '🔊',
-    /** @satisfies FR-VOX-003 */
-    iconEarpiece: '👂',
+    /** MaterialIcons name — mic-off */
+    iconMuted: 'mic-off',
+    /** MaterialIcons name — mic */
+    iconUnmuted: 'mic',
+    /** MaterialIcons name — hearing-disabled */
+    iconDeafened: 'hearing-disabled',
+    /** MaterialIcons name — headset */
+    iconUndeafened: 'headset',
+    /** MaterialIcons name — call-end */
+    iconDisconnect: 'call-end',
+    /** MaterialIcons name — volume-up */
+    iconSpeaker: 'volume-up',
+    /** MaterialIcons name — volume-down */
+    iconEarpiece: 'volume-down',
+    /** MaterialIcons name — videocam */
+    iconCameraOn: 'videocam',
+    /** MaterialIcons name — videocam-off */
+    iconCameraOff: 'videocam-off',
     /** @satisfies FR-VOX-005 */
     incomingCall: 'Incoming Call',
     /** @satisfies FR-VOX-005 */
@@ -436,7 +441,8 @@ export const strings = {
     /** @satisfies FR-VOX-005 */
     callButtonA11y: 'Start voice call',
     /** @satisfies FR-VOX-005 */
-    callButtonLabel: '\u{1F4DE}', // 📞 telephone receiver
+    /** MaterialIcons name — call */
+    iconCall: 'call',
     // ── Video (FR-VOX-006) ──
     /** @satisfies FR-VOX-006 */
     cameraOn: 'Turn on camera',

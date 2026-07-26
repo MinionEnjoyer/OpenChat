@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -56,6 +57,7 @@ import { VoicePill, IncomingCallOverlay, VoiceChannelView } from '../../voice';
 import { useVoiceConnection } from '../../voice/useVoiceConnection';
 import { Permission, hasServerPermission } from '../../../permissions';
 
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
 const EDGE_WIDTH = 30; // edge gesture hit-slop for swipe-from-edge
@@ -1049,9 +1051,12 @@ function CallButton({ channelId }: { channelId: string }): React.JSX.Element {
       testID="call-button"
       disabled={isConnected}
     >
-      <Text style={[styles.topBarAction, isConnected && { color: palette.textMuted }]}>
-        {strings.voice.callButtonLabel}
-      </Text>
+      <MaterialIcons
+        name={strings.voice.iconCall as MI}
+        size={20}
+        color={isConnected ? palette.textMuted : palette.accent}
+        style={styles.topBarActionIcon}
+      />
     </Pressable>
   );
 }
@@ -1087,6 +1092,9 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
   },
   topBarAction: { ...typography.body, color: palette.accent },
+  topBarActionIcon: {
+    marginHorizontal: spacing.xs,
+  },
   inboxIconContainer: {
     position: 'relative',
   },
