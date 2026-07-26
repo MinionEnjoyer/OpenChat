@@ -26,10 +26,26 @@ for i in "${!ALL[@]}"; do
   f="${ALL[$i]}"
   # --device pins the flow to this shard's device; without it Maestro picks one
   # arbitrarily and shards collide on the same handset.
-  if maestro --device "$DEV" test "$f" > "/tmp/e2e-$(basename "$f" .yaml)-$DEV.log" 2>&1; then
-    PASS=$((PASS+1)); echo "PASS $(basename "$f")"
+  base="$(basename "$f" .yaml)"
+  if maestro --device "$DEV" test "$f" > "/tmp/e2e-$base-$DEV.log" 2>&1; then
+    PASS=$((PASS+1)); echo "PASS $base"
   else
-    FAIL=$((FAIL+1)); FAILED+=("$(basename "$f")"); echo "FAIL $(basename "$f")"
+    FAIL=$((FAIL+1)); FAILED+=("$base"); echo "FAIL $base"
+    # Maestro's debug output contains only maestro.log — NO view hierarchy. Without
+    # the hierarchy a failure is unactionable: you cannot tell a misspelled testID
+    # from a genuinely absent element from a real product bug. Capture it here.
+    adb -s "$DEV" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+    adb -s "$DEV" pull /sdcard/ui.xml "/tmp/e2e-$base-$DEV-hierarchy.xml" >/dev/null 2>&1
+    adb -s "$DEV" shell screencap -p /sdcard/s.png >/dev/null 2>&1
+    adb -s "$DEV" pull /sdcard/s.png "/tmp/e2e-$base-$DEV-screen.png" >/dev/null 2>&1
+    # The single most useful artifact: which testIDs ACTUALLY exist on screen right
+    # now. A failing assertion plus this list usually makes the fix obvious.
+    grep -oE 'resource-id="[^"]*"' "/tmp/e2e-$base-$DEV-hierarchy.xml" 2>/dev/null \
+      | sed 's/resource-id="//;s/"$//' | grep -v '^$' | sort -u \
+      > "/tmp/e2e-$base-$DEV-available-ids.txt"
+    echo "     hierarchy: /tmp/e2e-$base-$DEV-hierarchy.xml"
+    echo "     screenshot: /tmp/e2e-$base-$DEV-screen.png"
+    echo "     ids on screen: /tmp/e2e-$base-$DEV-available-ids.txt"
   fi
 done
 echo "--- shard $IDX/$CNT on $DEV: $PASS passed, $FAIL failed ---"
