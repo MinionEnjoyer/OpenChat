@@ -45,6 +45,9 @@ while read -r f <&3; do
   # permission the app declares; tolerate failure for permissions the OS refuses.
   adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.CAMERA </dev/null || true
   adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.RECORD_AUDIO </dev/null || true
+  # POST_NOTIFICATIONS is runtime on Android 13+; expo-notifications prompts for it and the
+  # permissioncontroller dialog steals focus, failing every subsequent assertion.
+  adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.POST_NOTIFICATIONS </dev/null || true
   # macOS has no GNU `timeout` and gtimeout needs coreutils, so implement the deadline
   # in bash. This is not optional: a single hung flow blocks the whole run, and with four
   # devices running concurrently one hang stalls every downstream wait indefinitely.

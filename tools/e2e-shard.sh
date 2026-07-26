@@ -39,6 +39,9 @@ for i in "${!ALL[@]}"; do
   # permission the app declares; tolerate failure for permissions the OS refuses.
   adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.CAMERA </dev/null || true
   adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.RECORD_AUDIO </dev/null || true
+  # POST_NOTIFICATIONS is runtime on Android 13+; expo-notifications prompts for it and the
+  # permissioncontroller dialog steals focus, failing every subsequent assertion.
+  adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.POST_NOTIFICATIONS </dev/null || true
   if maestro --device "$DEV" test "$f" > "/tmp/e2e-$base-$DEV.log" 2>&1; then
     PASS=$((PASS+1)); echo "PASS $base"
   else
