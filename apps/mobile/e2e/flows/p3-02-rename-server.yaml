@@ -1,0 +1,84 @@
+# p3-02-rename-server — login → open server settings → rename → verify.
+# @satisfies FR-SRV-003
+#
+# Uses the Fixture Guild (seeded). Renames it to "Fixture Renamed",
+# then verifies the drawer title reflects the change.
+#
+# Requires: dev stack up + seeded, emulator reaching 10.0.2.2.
+# This flow does its own login so it can run independently.
+
+appId: com.openchat.mobile
+
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Open left drawer and select Fixture Guild
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+
+# Open server settings (gear icon in channel header)
+- tapOn:
+    id: 'server-settings-button'
+- assertVisible:
+    id: 'server-settings-screen'
+
+# Rename the server
+- tapOn:
+    id: 'server-settings-name'
+# Clear existing text and type new name
+- eraseText: 100
+- inputText: 'Fixture Renamed'
+- tapOn:
+    id: 'server-settings-rename-save'
+
+# Return to shell via cancel
+- tapOn:
+    id: 'server-settings-cancel'
+- assertNotVisible:
+    id: 'server-settings-screen'
+
+# Open left drawer and verify the name changed in the rail
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'rail-server-Fixture Renamed'
+
+# Channel drawer title should show new name
+- assertVisible: 'Fixture Renamed'
+
+# Rename back to original so other tests see the expected name
+- tapOn:
+    id: 'server-settings-button'
+- assertVisible:
+    id: 'server-settings-screen'
+- tapOn:
+    id: 'server-settings-name'
+- eraseText: 100
+- inputText: 'Fixture Guild'
+- tapOn:
+    id: 'server-settings-rename-save'
+- tapOn:
+    id: 'server-settings-cancel'
+
+- takeScreenshot: artifacts/e2e/screens/p3-rename-server

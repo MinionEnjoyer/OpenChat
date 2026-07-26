@@ -69,6 +69,7 @@ export function MemberProfileSheet({
             style={styles.kickButton}
             onPress={() => { onClose(); onKick(); }}
             accessibilityLabel={strings.members.kick}
+            testID="member-profile-kick"
           >
             <Text style={styles.kickText}>{strings.members.kick}</Text>
           </Pressable>
@@ -78,6 +79,7 @@ export function MemberProfileSheet({
             style={styles.leaveButton}
             onPress={() => { onClose(); onLeave(); }}
             accessibilityLabel={strings.members.leave}
+            testID="member-profile-leave"
           >
             <Text style={styles.leaveText}>{strings.members.leave}</Text>
           </Pressable>
