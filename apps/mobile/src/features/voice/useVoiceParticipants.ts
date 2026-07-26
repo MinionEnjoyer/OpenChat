@@ -10,10 +10,26 @@
  * LiveKit imports are deferred via require() so Jest suites not testing
  * voice can import features/voice without loading native WebRTC modules.
  *
+ * D1 (duplicate local participant) diagnosis:
+ *   On Android LiveKit RN, the room.remoteParticipants map can transiently
+ *   include the local participant during room setup (timing window in the
+ *   native bridge).  The ParticipantConnected event is specified to fire
+ *   only for remote participants but the seed path (remoteParticipants.forEach)
+ *   may pick up the local participant before the identity check completes.
+ *   Fix: skip any participant whose identity matches room.localParticipant.identity
+ *   in both the event handler and the remote seed loop.
+ *
+ * D2 (raw UUID display name):
+ *   LiveKit participants carry identity = userId (UUID).  The tile needs a
+ *   human-readable username.  After seeding from LiveKit, fetch
+ *   GET /voice/:channelId/participants and merge displayName / username
+ *   into the store.
+ *
  * @satisfies FR-VOX-002
  */
 import { useEffect, useRef } from 'react';
-import { useVoiceStore } from './VoiceStore';
+import { useVoiceStore, getVoiceService } from './VoiceStore';
+import type { VoiceParticipant } from '../../api/schema';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RoomType = any;
@@ -22,14 +38,18 @@ type ParticipantType = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TrackPubType = any;
 
-/** Returns the display name to show in the tile. */
+/**
+ * Returns the display name to show in the tile.
+ *
+ * On first call, returns the identity as a fallback username.
+ * Enriched later via mergeParticipantDisplay() from the API response
+ * (GET /voice/:channelId/participants), which provides the real username.
+ * @satisfies D2
+ */
 function displayNameFor(
   identity: string,
   _metadata: string | undefined,
 ): { username: string; displayName: string | null } {
-  // LiveKit participant.name defaults to identity.
-  // Per-contract, our identity = userId, so we use that as username initially.
-  // The caller can enrich from the GET participants response later.
   return { username: identity, displayName: null };
 }
 
@@ -88,9 +108,36 @@ export function useVoiceParticipants(): void {
     }
 
     // ── Participant join/leave ──
+    // D1: skip the local participant — on Android the native bridge may
+    // transiently include the local identity in remoteParticipants or fire
+    // ParticipantConnected for it.  We already add the local participant
+    // explicitly below.
+    const localIdentity = (() => {
+      try {
+        return String(room.localParticipant?.identity ?? '');
+      } catch {
+        return '';
+      }
+    })();
 
     room.on(RE.ParticipantConnected, (p: ParticipantType) => {
-      store().upsertParticipant(participantToInfo(p, false));
+      const identity = String(p.identity ?? '');
+      // @satisfies D1 — skip duplicate local participant when identity
+      // was already captured at mount time.  When localIdentity is empty
+      // (Android RN timing), the second guard below catches the real
+      // local participant and adds it with isLocal:true.
+      if (identity && identity === localIdentity) return;
+      // D1: when identity was empty at mount time, detect the local
+      // participant by comparing against the live localParticipant.identity
+      // (which may have been populated since the effect ran).
+      const liveLocalId = (() => {
+        try { return String(room.localParticipant?.identity ?? ''); } catch { return ''; }
+      })();
+      if (identity && liveLocalId && identity === liveLocalId) {
+        store().upsertParticipant(participantToInfo(p, true));
+      } else {
+        store().upsertParticipant(participantToInfo(p, false));
+      }
     });
 
     room.on(RE.ParticipantDisconnected, (p: ParticipantType) => {
@@ -142,25 +189,61 @@ export function useVoiceParticipants(): void {
     });
 
     // Wire local participant
+    // D1: if identity is empty (Android RN timing — native bridge hasn't
+    // synchronised yet), skip the local add.  The ParticipantConnected
+    // handler detects the local participant when identity arrives and
+    // adds it with isLocal:true.
     try {
       const local = room.localParticipant;
       if (local) {
-        store().upsertParticipant(participantToInfo(local, true));
-        updateMute(local);
+        const identity = String(local.identity ?? '');
+        if (identity) {
+          store().upsertParticipant(participantToInfo(local, true));
+          updateMute(local);
+        }
       }
     } catch {
       // best-effort
     }
 
     // Seed existing remote participants
+    // @satisfies D1 — skip any participant whose identity matches the local
+    // participant, because on Android the remoteParticipants map can
+    // transiently include it during room setup.
     try {
       if (typeof room.remoteParticipants?.forEach === 'function') {
         (room.remoteParticipants as Map<string, ParticipantType>).forEach((p: ParticipantType) => {
+          const identity = String(p.identity ?? '');
+          if (identity && identity === localIdentity) return;
           store().upsertParticipant(participantToInfo(p, false));
         });
       }
     } catch {
       // best-effort
+    }
+
+    // ── D2: enrich participant display names from API ──
+    // Fetch GET /voice/:channelId/participants to resolve UUID identities
+    // to human-readable usernames, then merge into store.
+    // @satisfies D2
+    const channelId = useVoiceStore.getState().activeChannelId;
+    if (channelId) {
+      getVoiceService().getParticipants(channelId)
+        .then((apiParticipants: VoiceParticipant[]) => {
+          for (const ap of apiParticipants) {
+            const current = useVoiceStore.getState().participants.find((p) => p.id === ap.id);
+            if (!current) continue; // only enrich already-known participants
+            useVoiceStore.getState().upsertParticipant({
+              ...current,
+              username: ap.username,
+              displayName: ap.displayName,
+              avatarUrl: ap.avatarUrl,
+            });
+          }
+        })
+        .catch(() => {
+          // best-effort: tiles fall back to identity as username
+        });
     }
 
     // ── Cleanup on disconnect ──

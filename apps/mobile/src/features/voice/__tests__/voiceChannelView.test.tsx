@@ -32,6 +32,10 @@ jest.mock('react-native/Libraries/Animated/Animated', () => {
 
 // ── Import after mocks ──
 
+// D3: VoiceChannelView uses useSafeAreaInsets — wrap tests in SafeAreaProvider
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { SafeAreaProvider } = require('react-native-safe-area-context');
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { VoiceChannelView } = require('../VoiceChannelView');
 
@@ -68,10 +72,17 @@ function render(opts: { connected?: boolean; withRoom?: boolean } = {}) {
   let tree: TestRenderer.ReactTestRenderer;
   act(() => {
     tree = TestRenderer.create(
-      <VoiceChannelView
-        channelName="Test Voice"
-        onShowChat={jest.fn()}
-      />,
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 412, height: 892 },
+          insets: { top: 32, bottom: 48, left: 0, right: 0 },
+        }}
+      >
+        <VoiceChannelView
+          channelName="Test Voice"
+          onShowChat={jest.fn()}
+        />
+      </SafeAreaProvider>,
     );
   });
   return tree!;
@@ -103,7 +114,9 @@ describe('VoiceChannelView reachability (FR-VOX-002)', () => {
 
   it('does NOT render when voice is not connected (returns null)', () => {
     const tree = render({ connected: false });
-    expect(tree.toJSON()).toBeNull();
+    // D3: wrapped in SafeAreaProvider, so tree.toJSON() is non-null.
+    // Instead verify that the voice-channel-view is absent from the tree.
+    expect(() => tree.root.findByProps({ testID: 'voice-channel-view' })).toThrow();
   });
 
   it('renders voice-channel-view testID when connected', () => {
@@ -124,7 +137,14 @@ describe('VoiceChannelView reachability (FR-VOX-002)', () => {
     let tree: TestRenderer.ReactTestRenderer;
     act(() => {
       tree = TestRenderer.create(
-        <VoiceChannelView channelName="Test" onShowChat={mockShowChat} />,
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 412, height: 892 },
+            insets: { top: 32, bottom: 48, left: 0, right: 0 },
+          }}
+        >
+          <VoiceChannelView channelName="Test" onShowChat={mockShowChat} />
+        </SafeAreaProvider>,
       );
     });
     const btn = tree!.root.findByProps({ testID: 'voice-show-chat' });

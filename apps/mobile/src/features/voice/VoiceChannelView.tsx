@@ -11,6 +11,7 @@
  */
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVoiceStore } from './VoiceStore';
 import { VoiceTileGrid } from './VoiceTileGrid';
 import { VoiceControls } from './VoiceControls';
@@ -82,6 +83,9 @@ export function VoiceChannelView({
   onShowChat,
 }: VoiceChannelViewProps): React.JSX.Element | null {
   const connectionState = useVoiceStore((s) => s.connectionState);
+  // D3: safe-area bottom inset to avoid the Android gesture nav bar
+  // clipping the controls.  Same pattern as ChatPane composer (useSafeAreaInsets).
+  const insets = useSafeAreaInsets();
 
   if (connectionState !== 'connected') return null;
 
@@ -124,7 +128,10 @@ export function VoiceChannelView({
       </ScrollView>
 
       {/* Controls bar (FR-VOX-003): mute / deafen / speaker / disconnect */}
-      <VoiceControls />
+      {/* D3: wrap in safe-area View so controls clear the Android gesture nav bar */}
+      <View style={[styles.controlsWrapper, { paddingBottom: insets.bottom }]}>
+        <VoiceControls />
+      </View>
     </View>
   );
 }
@@ -171,6 +178,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: spacing.md,
   },
+  // D3: controls wrapper — safe-area bottom inset applied inline.
+  // VoiceControls supplies its own background; wrapper only adds safe-area padding.
+  controlsWrapper: {},
   videoSection: {
     paddingHorizontal: spacing.sm,
     marginTop: spacing.sm,
