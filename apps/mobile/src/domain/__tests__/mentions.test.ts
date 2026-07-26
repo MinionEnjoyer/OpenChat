@@ -215,6 +215,17 @@ describe('buildMentionCandidates', () => {
     expect(candidates).toHaveLength(2); // everyone + here only
   });
 
+  // DEFECT 2 (fix-mentions-kav): when members not loaded (empty or undefined),
+  // only @everyone + @here appear. No real usernames in candidates → mention
+  // picker can't show user mentions. Fix: ChatPane triggers members fetch
+  // when the user types @, populating candidates before the picker renders.
+  it('returns only @everyone/@here when members is empty (no real users)', () => {
+    const candidates = buildMentionCandidates([], true);
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0]!.id).toBe('__everyone__');
+    expect(candidates[1]!.id).toBe('__here__');
+  });
+
   it('filters out members with null user', () => {
     const ms: MemberBrief[] = [
       member('1', 'alice'),
@@ -231,6 +242,14 @@ describe('buildMentionCandidates', () => {
 describe('detectMentionTrigger', () => {
   it('returns null when no candidates exist', () => {
     expect(detectMentionTrigger('Hello @al', 9, false)).toBeNull();
+  });
+
+  // DEFECT 2 (fix-mentions-kav): when members aren't loaded, `hasCandidates` is false
+  // and @-mention detection is completely gated. Typing @bob returns null, so the
+  // mention picker never renders and real users can't be mentioned.
+  // Fix: ChatPane now triggers members fetch via onMentionTrigger when draft contains @.
+  it('returns null for @bob when hasCandidates is false (members not loaded)', () => {
+    expect(detectMentionTrigger('@bob', 4, false)).toBeNull();
   });
 
   it('detects @ at cursor position', () => {
