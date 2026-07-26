@@ -292,6 +292,7 @@ async function main() {
   ];
 
 
+
   const results = [];
   for (const s of screens) {
     console.log(`── ${s.label} ──`);
@@ -319,8 +320,6 @@ async function main() {
       console.log(`  UNREACHED — ${reason}`);
       if (mr.stderr) console.log(`  stderr: ${mr.stderr.split('\n').slice(0, 5).join('\n')}`);
       results.push({ screen: s.label, id: s.id, reached: false, pass: false, failures: [reason] });
-      // Run go-shell to recover for next screen
-      runGoShell();
       continue;
     }
 
@@ -353,8 +352,7 @@ async function main() {
       results.push({ screen: s.label, id: s.id, reached: true, pass: true, failures: [] });
     }
 
-    // Return to shell for next screen
-    runGoShell();
+    // Each flow handles its own go-shell recovery inline
   }
 
   // ── Report ─────────────────────────────────────────────────────────────
