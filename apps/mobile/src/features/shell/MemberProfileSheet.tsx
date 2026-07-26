@@ -38,10 +38,10 @@ export function MemberProfileSheet({
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View />
       </Pressable>
-      <View style={styles.sheet}>
+      <View style={styles.sheet} testID="member-profile-sheet">
         <View style={styles.header}>
           <Text style={styles.title}>{displayName}</Text>
-          <Pressable onPress={onClose} accessibilityLabel={strings.common.cancel}>
+          <Pressable onPress={onClose} accessibilityLabel={strings.common.cancel} testID="member-profile-close">
             <Text style={styles.cancelText}>{strings.common.cancel}</Text>
           </Pressable>
         </View>

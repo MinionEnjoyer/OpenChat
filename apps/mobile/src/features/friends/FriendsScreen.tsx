@@ -213,7 +213,7 @@ export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose:
   );
 
   const renderFriendItem = (user: User, actions?: React.ReactNode) => (
-    <View key={user.id} style={styles.item}>
+    <View key={user.id} style={styles.item} testID={`friend-item-${user.username}`}>
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>
           {user.displayName ?? user.username}
