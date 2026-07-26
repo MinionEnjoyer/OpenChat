@@ -347,3 +347,103 @@ Fix: fail fast with a clear message. In the shared test setup, probe the configu
 URL once and, if unreachable, throw something like
 `API unreachable at <url> — set API_BASE to a running API` rather than letting each
 individual request produce an opaque AggregateError.
+
+---
+
+# Tooling wants — recorded 2026-07-26 (Will)
+
+Explicitly NOT current priorities. Parked so they are not lost. None block
+priorities 1–5 in PRIORITIES.md.
+
+## B-01 — GUI for CodeWhale fleet observability
+
+**Want:** a separate window showing, per running agent: live log tail, current
+task, **step count consumed vs cap as a progress bar**, elapsed time, and a
+clear stalled/orphaned indicator.
+
+**Why — measured pain this session:**
+- An orphaned `zsh` wrapper (parent agent killed; its `sleep && kill` watchdog
+  child reparented to launchd) sat for **38 minutes** looking like live work.
+  Will spotted it, the architect did not — because the architect counts
+  `codewhale exec` processes and that misses orphans entirely.
+- **Five separate agents** step-capped with good work uncommitted. Nothing ever
+  surfaced "this agent is near its step budget" until after it died.
+- The architect detects trouble by waiting for completion notifications. A hung
+  agent never sends one, so the fleet can be dead while appearing busy. This is
+  the single biggest risk when Will is away for hours.
+
+**Stopgap already built:** `tools/fleet-health.sh` — flags stalled agents (log
+silent > N min), orphaned wrappers (ppid == 1), device count, and uncommitted
+work per worktree. First run found **35 worktrees** with uncommitted files,
+including a *completed* refresh fix nobody had committed. It is polling, not a
+live view, and still depends on the architect remembering to run it.
+
+**Sketch:** codewhale would need to emit structured step/status events (JSONL per
+run) rather than only free-text logs; the GUI is then tail + parse. The step-count
+progress bar is the highest-value single element — it turns "is it stuck?" into a
+glance instead of an investigation.
+
+## B-02 — Test scheduler / device broker
+
+**Want:** a service owning the 4 devices that accepts run requests from agents and
+the architect, queues them, and keeps a durable record independent of the
+requesting process.
+
+**Why — measured pain this session:**
+- **Contention corrupts results.** `e2e-run-only.sh` writes verdicts to
+  `/tmp/e2e-verdicts-$DEV.txt`, keyed by device only. Two concurrent runs on
+  emulator-5556 interleaved into one file, and one run's deliberate abort tests
+  were read as the other's product failures. An entire voice-flow run was void.
+- **Results die with the process.** Evicted agents left logs only in orphaned
+  process output; 158 artifact files survived only because they had been written
+  to disk first.
+- **Manual device budgeting does not scale.** The architect hand-writes "use
+  emulator-5554 ONLY" into each work order and got it wrong twice today.
+- **Stale-build runs, three times.** Results measured against an APK that did not
+  contain the code under test (stale APK; wrong `EXPO_PUBLIC_API_HOST` inlined;
+  then stale again). A broker could refuse any run whose APK predates the commit
+  under test — centrally, instead of per-caller preconditions.
+
+**Minimum viable shape:** lease/release per device so requests block or fail fast
+rather than silently colliding; persisted run records (device, commit sha, APK
+mtime, flow list, verdicts, artifact paths, exit reason incl. TIMEOUT); refusal on
+failed build-freshness or debuggable-build preconditions; and a query interface —
+"what ran on the tablet today, and what happened".
+
+## B-03 — Bottle the validation model for future projects
+
+**Want:** extract the verification methodology into a reusable kit, separate from
+this app, once OpenChat Mobile is in a good state.
+`~/workspace/workflows/codewhale-fanout/` is the seed.
+
+**Why:** the patterns that caught real defects here are project-independent, and
+rediscovering them cost real time.
+
+**The load-bearing ones, all earned:**
+- **Verify the verifier.** A gate is not a control until watched failing;
+  perturb-then-restore. Caught: a codegen gate comparing against a deleted file;
+  an API-host precondition that passed on *any* host because the bundle contains
+  both; a readiness sweep reporting "18 screens, 0 violations" having visited 3.
+- **The oracle must be independent of the code under test.** Caught: search tests
+  deriving expectations from the search endpoint itself; invalidation tests that
+  *reimplemented* the mutation and asserted against the copy.
+- **Absence of evidence renders as evidence of absence.** Unreached screens,
+  dropped timeout verdicts and skipped flows all report clean. Every gate needs an
+  explicit reached/total denominator.
+- **Split roles by capability, both directions.** Images to the vision-capable
+  reviewer (agents cannot see and must not claim to); text — uiautomator dumps,
+  logcat, Maestro logs — to the cheap text agents, who read them and report in
+  words. Violating this in *either* direction produced wrong conclusions today.
+- **Separate run / diagnose / fix into different dispatches.** Combining them
+  burned 4h22m and two step caps on a nine-line change.
+- **When fixing a pattern, demand the inventory** — "list every other place this
+  occurs, even if you only fix one". Turned a single modal bug into a ranked list
+  of 7 more latent races. Cheapest instruction of the day.
+- **Commit-first as step 1**, never as a closing line. Five agents lost work.
+- **Gate the merged result, not the branch.**
+
+**Also worth extracting:** `tools/check-unreachable.sh` (built-but-unreachable
+components — this project shipped 14), the screen-readiness sweep concept
+(zero-bounds / off-screen / keyboard-occluded / placeholder assertions across
+device densities), `tools/fleet-health.sh`, and
+`docs/AGENT-PREAMBLE-NOTES.md` (dispatcher failure modes).
