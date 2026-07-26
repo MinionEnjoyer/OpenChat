@@ -1,20 +1,15 @@
 # screen-readiness: ChannelReorderScreen
-# Opens the channel reorder sheet from the left drawer channel list.
+# Opens the channel reorder sheet from the left drawer channel list footer.
+# Does NOT switch servers — uses whichever server is active after login.
 
 appId: com.openchat.mobile
 ---
-- runFlow: _go-shell.yaml
+- assertVisible:
+    id: 'shell-screen'
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
-- scrollUntilVisible:
-    element:
-      id: 'rail-server-Fixture Guild'
-    direction: DOWN
-    timeout: 20000
-- tapOn:
-    id: 'rail-server-Fixture Guild'
 - assertVisible:
     id: 'reorder-channels-button'
 - tapOn:
