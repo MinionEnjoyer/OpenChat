@@ -27,7 +27,9 @@ describe('FriendsScreen add-friend modal source structure', () => {
     expect(modalIdx).toBeGreaterThan(-1);
     // Extract content between <Modal ... > and </Modal>
     const afterModalOpen = SRC.slice(modalIdx);
-    const modalChildStart = afterModalOpen.indexOf('>') + 1;
+    // Find closing > of the Modal opening tag (after testID to skip arrow >)
+    const testIdEnd = afterModalOpen.indexOf('friends-add-overlay"') + 'friends-add-overlay"'.length;
+    const modalChildStart = afterModalOpen.indexOf('>', testIdEnd) + 1;
     const modalCloseIdx = afterModalOpen.indexOf('</Modal>');
     const between = afterModalOpen.slice(modalChildStart, modalCloseIdx);
     const trimmed = between.trim();
