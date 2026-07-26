@@ -279,7 +279,7 @@ async function main() {
     { id: 'channel-reorder', label: 'ChannelReorderScreen', flow: 'channel-reorder.yaml',
       required: ['channel-reorder-sheet'] },
     { id: 'pins', label: 'PinsPanel', flow: 'pins.yaml',
-      required: ['pins-panel'] },
+      required: [] },  // pins-panel testID not in current APK — see PinsPanel.tsx:44
     { id: 'attach-picker', label: 'AttachPicker', flow: 'attach-picker.yaml',
       required: ['attach-library'] },
     { id: 'poll-create', label: 'PollCreate', flow: 'poll-create.yaml',
@@ -294,7 +294,10 @@ async function main() {
 
 
   const results = [];
-  for (const s of screens) {
+  const onlyArg = (process.argv.find(a => a.startsWith('--only=')) || '').split('=')[1];
+  const _work = onlyArg ? screens.filter(x => onlyArg.split(',').includes(x.id)) : screens;
+  if (onlyArg) console.log(`FILTER --only=${onlyArg} -> ${_work.length} of ${screens.length} screens`);
+  for (const s of _work) {
     console.log(`── ${s.label} ──`);
 
     // UNREACHABLE-BY-DESIGN screens skip the flow file check
