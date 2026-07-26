@@ -40,6 +40,7 @@ import { MemberList } from '../MemberList';
 import { ChannelList } from '../../channels/ChannelList';
 import { ChannelForm } from '../../channels/ChannelForm';
 import { ChannelReorderScreen } from '../../channels/ChannelReorderScreen';
+import { RolesEditorScreen } from './RolesEditorScreen';
 import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../channels/hooks';
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
@@ -93,6 +94,7 @@ export function ShellScreen(): React.JSX.Element {
   const [invitePreviewCode, setInvitePreviewCode] = useState<string | null>(null);
   const [joinServerVisible, setJoinServerVisible] = useState(false);
   const [inviteCreateVisible, setInviteCreateVisible] = useState(false);
+  const [showRolesEditor, setShowRolesEditor] = useState(false);
   const [inboxVisible, setInboxVisible] = useState(false);
 
   // FR-SOC-001 — Friends screen
@@ -746,6 +748,17 @@ export function ShellScreen(): React.JSX.Element {
                             <Text style={styles.settingsGlyph}>{strings.invites.createTitle}</Text>
                           </Pressable>
                         )}
+                        {/* FR-ROLE-001 — Roles editor (gated on MANAGE_ROLES) */}
+                        {hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES) && (
+                          <Pressable
+                            onPress={() => setShowRolesEditor(true)}
+                            accessibilityLabel={strings.roles.title}
+                            testID="roles-editor-button"
+                            style={{ marginLeft: 8 }}
+                          >
+                            <Text style={styles.settingsGlyph}>{strings.roles.title}</Text>
+                          </Pressable>
+                        )}
                       </>
                     )}
                   </View>
@@ -1008,6 +1021,15 @@ export function ShellScreen(): React.JSX.Element {
         visible={inboxVisible}
         onClose={() => setInboxVisible(false)}
       />
+
+      {/* FR-ROLE-001 — Roles editor overlay (gated on MANAGE_ROLES) */}
+      {serverId && (
+        <RolesEditorScreen
+          serverId={serverId}
+          visible={showRolesEditor}
+          onClose={() => setShowRolesEditor(false)}
+        />
+      )}
 
       {/* FR-VOX-005: full-screen incoming call overlay */}
       <IncomingCallOverlay />
