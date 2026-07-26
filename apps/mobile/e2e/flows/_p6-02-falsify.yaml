@@ -1,6 +1,5 @@
 # p6-02-falsify — temporary copy for permission grant falsification
-# Changes from original: use extendedWaitUntil for voice-pill-controls
-# to avoid race condition (controls only render when connectionState === 'connected')
+# Same as p6-02-voice-camera-publish: join → voice view → show chat → pill → toggle camera
 
 appId: com.openchat.mobile
 
@@ -25,11 +24,21 @@ appId: com.openchat.mobile
 - assertNotVisible:
     id: 'left-drawer'
 
-# Wait for voice pill to appear
+# Wait for voice view to appear
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# Navigate to text channel → pill appears
+- tapOn:
+    id: 'voice-show-chat'
+
+# Wait for pill
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
-    timeout: 30000
+    timeout: 15000
 
 # Wait for connection to fully establish (controls row only renders when connected)
 - extendedWaitUntil:
@@ -64,5 +73,8 @@ appId: com.openchat.mobile
 # Disconnect
 - tapOn:
     id: 'voice-pill-disconnect'
-- assertNotVisible:
-    id: 'voice-pill'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000

@@ -4,9 +4,8 @@
 # Requires: dev stack up + seeded (alice↔bob DM), emulator reaching 10.0.2.2.
 # This flow does its own dev-login so it runs independently.
 #
-# NOTE: DM channel IDs are dynamic; the DM row is selected by visible text ("bob")
-# in the dm-section of the left drawer. The call button appears in the top bar
-# once a DM is selected.
+# NOTE: DM channels are in the dm-section of the channel drawer, reached by
+# tapping the rail-dm entry in the server rail first.
 
 appId: com.openchat.mobile
 
@@ -20,8 +19,15 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'left-drawer'
 
-# The DM section is at the top of the left drawer (before the server rail).
-# Scroll to find bob in the DM list.
+# Tap DM entry in the server rail to switch the channel drawer to DM mode
+- tapOn:
+    id: 'rail-dm'
+
+# DM section is now visible in the channel drawer
+- assertVisible:
+    id: 'dm-section'
+
+# Scroll to find bob in the DM list
 - scrollUntilVisible:
     element:
       text: 'bob'
@@ -40,7 +46,8 @@ appId: com.openchat.mobile
     id: 'call-button'
 
 # ── Phase 4: Assert VoicePill appears ──
-# The join API call returns 201; the pill shows during joining → connected.
+# DM calls do NOT auto-show the voice view (voice view is server-channel-only).
+# The pill appears directly.
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
@@ -49,7 +56,10 @@ appId: com.openchat.mobile
 # ── Phase 5: Disconnect ──
 - tapOn:
     id: 'voice-pill-disconnect'
-- assertNotVisible:
-    id: 'voice-pill'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
 
 - takeScreenshot: artifacts/e2e/screens/p6-dm-call-outgoing

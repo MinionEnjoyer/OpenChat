@@ -1,13 +1,11 @@
-# p6-02-voice-pill-controls — join voice → toggle mute → assert badge → toggle deafen → assert badge → leave.
+# p6-02-voice-pill-controls — join voice → navigate to text channel → toggle mute/deafen on pill → leave.
 # @satisfies FR-VOX-003
 #
 # Requires: dev stack up + seeded, voice channel join wired, LiveKit available for stable connection.
 # This flow does its own dev-login so it runs independently.
 #
-# NOTE: Speaker toggle is NOT in the VoicePill — it only exists in the standalone VoiceControls
-# component, which is exported but never imported into any screen (unreachable). This is a
-# "built but unreachable" finding; see report for details.
-# The VoicePill controls tested here: mute, deafen, disconnect.
+# The VoicePill only appears when the voice view is not foregrounded.
+# Navigate away from the voice view via "Show Chat", then test pill controls.
 
 appId: com.openchat.mobile
 
@@ -36,44 +34,65 @@ appId: com.openchat.mobile
     id: 'channel-#voice-general'
 - assertNotVisible:
     id: 'left-drawer'
+
+# ── Phase 3: Wait for voice view ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 15000
+
+# ── Phase 4: Navigate to text channel → pill appears ──
+- tapOn:
+    id: 'voice-show-chat'
+
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
     timeout: 15000
 
-# ── Phase 3: Toggle mute — assert badge appears then disappears ──
+# ── Phase 5: Toggle mute — assert badge appears then disappears ──
 # Before mute: no mute badge
 - assertNotVisible:
     id: 'voice-pill-muted-badge'
-# Tap mute (label: "Mute")
+# Tap mute (async — wait for LiveKit state to propagate)
 - tapOn:
     id: 'voice-pill-mute'
-# After mute: badge visible with '🔇'
-- assertVisible:
-    id: 'voice-pill-muted-badge'
-# Tap again to unmute (label changes to "Unmute")
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-muted-badge'
+    timeout: 10000
+# Tap again to unmute
 - tapOn:
     id: 'voice-pill-mute'
-# Badge should be gone
-- assertNotVisible:
-    id: 'voice-pill-muted-badge'
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill-muted-badge'
+    timeout: 10000
 
-# ── Phase 4: Toggle deafen — assert badge appears then disappears ──
+# ── Phase 6: Toggle deafen — assert badge appears then disappears ──
 - assertNotVisible:
     id: 'voice-pill-deafened-badge'
 - tapOn:
     id: 'voice-pill-deafen'
-- assertVisible:
-    id: 'voice-pill-deafened-badge'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-deafened-badge'
+    timeout: 10000
 - tapOn:
     id: 'voice-pill-deafen'
-- assertNotVisible:
-    id: 'voice-pill-deafened-badge'
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill-deafened-badge'
+    timeout: 10000
 
-# ── Phase 5: Disconnect ──
+# ── Phase 7: Disconnect ──
 - tapOn:
     id: 'voice-pill-disconnect'
-- assertNotVisible:
-    id: 'voice-pill'
+
+# Pill disappears after disconnect (async — wait for it)
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
 
 - takeScreenshot: artifacts/e2e/screens/p6-voice-pill-controls
