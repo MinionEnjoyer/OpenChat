@@ -378,6 +378,12 @@ export const strings = {
     acceptFailed: 'Failed to accept invitation',
     declineFailed: 'Failed to decline invitation',
   },
+  voice: {
+    pillConnected: 'Voice Connected',
+    pillConnecting: 'Connecting…',
+    pillLeave: 'Leave',
+    pillLeaveA11y: 'Disconnect voice',
+  },
 } as const;
 
 export type Strings = typeof strings;

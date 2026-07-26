@@ -1,0 +1,208 @@
+/**
+ * VoiceStore unit tests — state transitions, join/leave orchestration,
+ * idempotency, error paths. Tests mock the VoiceService; no network calls.
+ *
+ * @satisfies FR-VOX-001
+ */
+import { useVoiceStore, injectVoiceService } from '../VoiceStore';
+import { VoiceService } from '../VoiceService';
+
+// ── helpers ──
+
+interface MockSvc extends VoiceService {
+  joinedChannels: string[];
+  leftChannels: string[];
+  mockApi: { request: jest.Mock };
+}
+
+function makeMockService(): MockSvc {
+  const joinedChannels: string[] = [];
+  const leftChannels: string[] = [];
+
+  const mockApi = {
+    request: jest.fn(async (_path: string, init: { method?: string }) => {
+      const path = String(_path);
+      if (init.method === 'POST' && path.startsWith('/voice/') && path.endsWith('/join')) {
+        const channelId = path.split('/')[2];
+        if (channelId) joinedChannels.push(channelId);
+        return { url: 'ws://lk:7880', token: 'tok', room: channelId };
+      }
+      if (init.method === 'POST' && path.startsWith('/voice/') && path.endsWith('/leave')) {
+        const channelId = path.split('/')[2];
+        if (channelId) leftChannels.push(channelId);
+        return { success: true };
+      }
+      throw new Error('Unexpected request: ' + init.method + ' ' + path);
+    }),
+  };
+
+  const svc = new VoiceService(mockApi as any);
+  (svc as any).joinedChannels = joinedChannels;
+  (svc as any).leftChannels = leftChannels;
+  (svc as any).mockApi = mockApi;
+  return svc as unknown as MockSvc;
+}
+
+function resetStore(): void {
+  useVoiceStore.setState({
+    connectionState: 'idle',
+    activeChannelId: null,
+    error: null,
+    participantCount: 0,
+    room: null,
+  });
+}
+
+// ── tests ──
+
+describe('VoiceStore', () => {
+  let svc: MockSvc;
+
+  beforeEach(() => {
+    svc = makeMockService();
+    injectVoiceService(svc as unknown as VoiceService);
+    resetStore();
+  });
+
+  afterEach(() => {
+    injectVoiceService(null as unknown as VoiceService);
+  });
+
+  describe('initial state', () => {
+    it('starts idle with no active channel', () => {
+      const state = useVoiceStore.getState();
+      expect(state.connectionState).toBe('idle');
+      expect(state.activeChannelId).toBeNull();
+      expect(state.error).toBeNull();
+      expect(state.participantCount).toBe(0);
+      expect(state.room).toBeNull();
+    });
+  });
+
+  describe('join', () => {
+    it('transitions idle to joining to connected on success', async () => {
+      await useVoiceStore.getState().join('chan-1');
+
+      const final = useVoiceStore.getState();
+      expect(final.activeChannelId).toBe('chan-1');
+      expect(final.connectionState).toBe('connected');
+      expect(final.error).toBeNull();
+    });
+
+    it('returns the VoiceJoinResponse on success', async () => {
+      const result = await useVoiceStore.getState().join('chan-1');
+      expect(result).toEqual({ url: 'ws://lk:7880', token: 'tok', room: 'chan-1' });
+    });
+
+    it('no-ops if already connected to same channel', async () => {
+      await useVoiceStore.getState().join('chan-1');
+      expect(useVoiceStore.getState().activeChannelId).toBe('chan-1');
+
+      const result = await useVoiceStore.getState().join('chan-1');
+      expect(result).toBeUndefined();
+      expect(svc.joinedChannels).toEqual(['chan-1']);
+    });
+
+    it('auto-leaves previous channel when joining a different one', async () => {
+      await useVoiceStore.getState().join('chan-1');
+      expect(useVoiceStore.getState().activeChannelId).toBe('chan-1');
+
+      await useVoiceStore.getState().join('chan-2');
+      expect(useVoiceStore.getState().activeChannelId).toBe('chan-2');
+
+      expect(svc.leftChannels).toEqual(['chan-1']);
+      expect(svc.joinedChannels).toEqual(['chan-1', 'chan-2']);
+    });
+
+    it('sets error and resets to idle on API failure', async () => {
+      svc.mockApi.request = jest.fn(async () => {
+        const err: Error & { status?: number } = new Error('API down');
+        err.status = 500;
+        throw err;
+      });
+
+      const store = useVoiceStore.getState();
+      await expect(store.join('chan-1')).rejects.toThrow('API down');
+
+      const final = useVoiceStore.getState();
+      expect(final.connectionState).toBe('idle');
+      expect(final.activeChannelId).toBeNull();
+      expect(final.error).toBe('API down');
+    });
+  });
+
+  describe('leave', () => {
+    it('transitions connected to idle on leave', async () => {
+      await useVoiceStore.getState().join('chan-1');
+      expect(useVoiceStore.getState().connectionState).toBe('connected');
+
+      await useVoiceStore.getState().leave();
+      const final = useVoiceStore.getState();
+      expect(final.connectionState).toBe('idle');
+      expect(final.activeChannelId).toBeNull();
+      expect(final.participantCount).toBe(0);
+    });
+
+    it('no-ops if not connected', async () => {
+      await useVoiceStore.getState().leave();
+      expect(useVoiceStore.getState().connectionState).toBe('idle');
+      expect(svc.leftChannels).toEqual([]);
+    });
+
+    it('calls POST /voice/:id/leave on the API', async () => {
+      await useVoiceStore.getState().join('chan-1');
+      await useVoiceStore.getState().leave();
+      expect(svc.leftChannels).toEqual(['chan-1']);
+    });
+
+    it('disconnects room if one exists', async () => {
+      await useVoiceStore.getState().join('chan-1');
+      const mockRoom = { disconnect: jest.fn() };
+      useVoiceStore.getState().setRoom(mockRoom);
+
+      await useVoiceStore.getState().leave();
+
+      expect(mockRoom.disconnect).toHaveBeenCalled();
+      expect(useVoiceStore.getState().room).toBeNull();
+    });
+
+    it('goes idle even if API leave fails', async () => {
+      await useVoiceStore.getState().join('chan-1');
+      useVoiceStore.getState().setRoom({ disconnect: jest.fn() });
+
+      // Make leave fail
+      svc.mockApi.request = jest.fn(async (path: string) => {
+        if (path.includes('/leave')) throw new Error('network');
+        return { success: true };
+      });
+
+      await useVoiceStore.getState().leave();
+
+      expect(useVoiceStore.getState().connectionState).toBe('idle');
+    });
+  });
+
+  describe('setters', () => {
+    it('setRoom updates the room ref', () => {
+      const mockRoom = { test: true };
+      useVoiceStore.getState().setRoom(mockRoom);
+      expect(useVoiceStore.getState().room).toBe(mockRoom);
+    });
+
+    it('setConnectionState updates state', () => {
+      useVoiceStore.getState().setConnectionState('joining');
+      expect(useVoiceStore.getState().connectionState).toBe('joining');
+    });
+
+    it('setParticipantCount updates count', () => {
+      useVoiceStore.getState().setParticipantCount(3);
+      expect(useVoiceStore.getState().participantCount).toBe(3);
+    });
+
+    it('clearError clears error', () => {
+      useVoiceStore.setState({ error: 'something broke' });
+      useVoiceStore.getState().clearError();
+      expect(useVoiceStore.getState().error).toBeNull();
+    });
+  });
+});
