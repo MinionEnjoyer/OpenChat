@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import renderer from 'react-test-renderer';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PollCard } from '../PollCard';
 import { PollCreate } from '../PollCreate';
 import type { Poll } from '../../../api/schema';
@@ -138,12 +139,19 @@ describe('PollCreate (FR-MSG-012)', () => {
     let tree: renderer.ReactTestRenderer;
     renderer.act(() => {
       tree = renderer.create(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { width: 412, height: 892, x: 0, y: 0 },
+            insets: { top: 32, bottom: 48, left: 0, right: 0 },
+          }}
+        >
         <PollCreate
           visible={true}
           channelId="chan-1"
           onClose={jest.fn()}
           onCreated={jest.fn()}
-        />,
+        />
+        </SafeAreaProvider>,
       );
     });
 
@@ -157,16 +165,28 @@ describe('PollCreate (FR-MSG-012)', () => {
     let tree: renderer.ReactTestRenderer;
     renderer.act(() => {
       tree = renderer.create(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { width: 412, height: 892, x: 0, y: 0 },
+            insets: { top: 32, bottom: 48, left: 0, right: 0 },
+          }}
+        >
         <PollCreate
           visible={false}
           channelId="chan-1"
           onClose={jest.fn()}
           onCreated={jest.fn()}
-        />,
+        />
+        </SafeAreaProvider>,
       );
     });
 
-    // Transparent Modal with visible=false renders null in test renderer
-    expect(tree!.toJSON()).toBeNull();
+    // SafeAreaProvider always renders its container; Modal with
+    // visible=false renders nothing inside — no poll inputs present
+    const json = tree!.toJSON();
+    expect(json).not.toBeNull();
+    // No poll inputs should be findable when modal is hidden
+    const root = tree!.root;
+    expect(() => root.findByProps({ testID: 'poll-create-question' })).toThrow();
   });
 });

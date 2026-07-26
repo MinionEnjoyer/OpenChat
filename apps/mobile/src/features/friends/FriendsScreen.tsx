@@ -25,6 +25,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
@@ -45,6 +46,7 @@ interface PendingData {
 }
 
 export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose: () => void }): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('online');
   const [addVisible, setAddVisible] = useState(false);
   const [addInput, setAddInput] = useState('');
@@ -349,7 +351,8 @@ export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose:
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} testID="friends-screen">
       <KeyboardAvoidingView
         style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -376,40 +379,46 @@ export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose:
         onRequestClose={() => setAddVisible(false)}
         testID="friends-add-overlay"
       >
-        <Pressable style={styles.scrim} onPress={() => setAddVisible(false)}>
-          <View />
-        </Pressable>
-        <View style={styles.addSheet}>
-          <Text style={styles.addTitle}>{strings.friends.addTitle}</Text>
-          <TextInput
-            style={styles.addInput}
-            placeholder={strings.friends.addPlaceholder}
-            placeholderTextColor={palette.textMuted}
-            value={addInput}
-            onChangeText={setAddInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-            testID="friends-add-input"
-          />
-          <Pressable
-            style={[styles.addButton, !addInput.trim() && styles.buttonDisabled]}
-            onPress={() => void handleAdd()}
-            disabled={!addInput.trim()}
-            testID="friends-add-send"
-          >
-            <Text style={styles.addButtonText}>{strings.friends.addButton}</Text>
+        <KeyboardAvoidingView
+          style={styles.addModalRoot}
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+        >
+          <Pressable style={styles.scrim} onPress={() => setAddVisible(false)}>
+            <View />
           </Pressable>
-          <Pressable
-            style={styles.addCancel}
-            onPress={() => {
-              setAddVisible(false);
-              setAddInput('');
-            }}
-            testID="friends-add-cancel"
-          >
-            <Text style={styles.addCancelText}>{strings.common.cancel}</Text>
-          </Pressable>
-        </View>
+          <View style={styles.addSheet}>
+            <Text style={styles.addTitle}>{strings.friends.addTitle}</Text>
+            <TextInput
+              style={styles.addInput}
+              placeholder={strings.friends.addPlaceholder}
+              placeholderTextColor={palette.textMuted}
+              value={addInput}
+              onChangeText={setAddInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="friends-add-input"
+            />
+            <Pressable
+              style={[styles.addButton, !addInput.trim() && styles.buttonDisabled]}
+              onPress={() => void handleAdd()}
+              disabled={!addInput.trim()}
+              testID="friends-add-send"
+            >
+              <Text style={styles.addButtonText}>{strings.friends.addButton}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.addCancel}
+              onPress={() => {
+                setAddVisible(false);
+                setAddInput('');
+              }}
+              testID="friends-add-cancel"
+            >
+              <Text style={styles.addCancelText}>{strings.common.cancel}</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
@@ -473,6 +482,7 @@ const styles = StyleSheet.create({
   },
   actionText: { ...typography.caption, color: palette.accent },
   actionDangerText: { ...typography.caption, color: palette.danger },
+  addModalRoot: { flex: 1 },
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   addSheet: {
     position: 'absolute',

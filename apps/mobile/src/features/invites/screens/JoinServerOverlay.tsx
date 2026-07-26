@@ -6,13 +6,16 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
@@ -26,6 +29,7 @@ interface Props {
 }
 
 export function JoinServerOverlay({ visible, onClose, onJoined }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [code, setCode] = useState('');
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,10 +84,15 @@ export function JoinServerOverlay({ visible, onClose, onJoined }: Props): React.
       onRequestClose={dismiss}
       testID="join-server-overlay"
     >
-      <Pressable style={styles.scrim} onPress={dismiss} testID="join-server-scrim">
-        <View />
-      </Pressable>
-      <View style={styles.sheet} testID="join-server-sheet">
+      <KeyboardAvoidingView
+        style={styles.kavRoot}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+      >
+        <Pressable style={styles.scrim} onPress={dismiss} testID="join-server-scrim">
+          <View />
+        </Pressable>
+        <View style={styles.sheet} testID="join-server-sheet">
         {!preview ? (
           <>
             <Text style={styles.title}>{strings.invites.joinTitle}</Text>
@@ -165,11 +174,13 @@ export function JoinServerOverlay({ visible, onClose, onJoined }: Props): React.
           </>
         )}
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: { flex: 1 },
   scrim: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

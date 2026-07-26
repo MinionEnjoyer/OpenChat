@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { filterEmojis } from '../../domain/reactions';
@@ -13,15 +14,21 @@ interface Props {
 const COLS = 5;
 
 export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const results = filterEmojis(query);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} testID="emoji-picker">
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <View />
-      </Pressable>
-      <View style={styles.sheet}>
+      <KeyboardAvoidingView
+        style={styles.kavRoot}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+      >
+        <Pressable style={styles.backdrop} onPress={onClose}>
+          <View />
+        </Pressable>
+        <View style={styles.sheet}>
         <View style={styles.header}>
           <Text style={styles.title}>{strings.reactions.pickerTitle}</Text>
           <Pressable onPress={onClose} accessibilityLabel={strings.common.cancel}>
@@ -51,11 +58,13 @@ export function EmojiPicker({ visible, onSelect, onClose }: Props): React.JSX.El
           ))}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: { flex: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

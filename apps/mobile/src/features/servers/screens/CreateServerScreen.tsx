@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
@@ -18,6 +19,7 @@ import type { Server } from '../../../api/schema';
  * @satisfies FR-SRV-002
  */
 export function CreateServerScreen({ onDone }: { onDone: (serverId?: string) => void }): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const queryClient = useQueryClient();
@@ -44,7 +46,8 @@ export function CreateServerScreen({ onDone }: { onDone: (serverId?: string) => 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
       testID="create-server-screen"
     >
       <Text style={styles.title}>{strings.servers.createTitle}</Text>

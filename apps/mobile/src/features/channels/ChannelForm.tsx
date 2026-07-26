@@ -3,13 +3,16 @@
  */
 import { useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import type { Channel } from '../../api/schema';
@@ -28,6 +31,7 @@ interface Props {
 }
 
 export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const isEdit = !!channel;
   const [name, setName] = useState(channel?.name ?? '');
   const [type, setType] = useState<'TEXT' | 'VOICE'>(channel?.type === 'VOICE' ? 'VOICE' : 'TEXT');
@@ -54,6 +58,11 @@ export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): Rea
       transparent
       onRequestClose={onClose}
     >
+      <KeyboardAvoidingView
+        style={styles.kavRoot}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+      >
       <View style={styles.overlay}>
         <View style={styles.sheet} testID="channel-form-sheet">
           <Text style={styles.title}>
@@ -124,11 +133,13 @@ export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): Rea
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: { flex: 1 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

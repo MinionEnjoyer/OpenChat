@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -842,30 +844,36 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         animationType="fade"
         onRequestClose={closeEdit}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{strings.messages.editTitle}</Text>
-            <TextInput
-              style={styles.editInput}
-              value={editDraft}
-              onChangeText={setEditDraft}
-              multiline
-              autoFocus
-              accessibilityLabel={strings.messages.editTitle}
-            />
-            <View style={styles.modalButtons}>
-              <Pressable style={styles.modalBtn} onPress={closeEdit}>
-                <Text style={styles.modalBtnText}>{strings.messages.editCancel}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnPrimary]}
-                onPress={() => void doEdit()}
-              >
-                <Text style={styles.modalBtnPrimaryText}>{strings.messages.editSave}</Text>
-              </Pressable>
+        <KeyboardAvoidingView
+          style={styles.modalRoot}
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{strings.messages.editTitle}</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editDraft}
+                onChangeText={setEditDraft}
+                multiline
+                autoFocus
+                accessibilityLabel={strings.messages.editTitle}
+              />
+              <View style={styles.modalButtons}>
+                <Pressable style={styles.modalBtn} onPress={closeEdit}>
+                  <Text style={styles.modalBtnText}>{strings.messages.editCancel}</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalBtn, styles.modalBtnPrimary]}
+                  onPress={() => void doEdit()}
+                >
+                  <Text style={styles.modalBtnPrimaryText}>{strings.messages.editSave}</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -956,6 +964,7 @@ const styles = StyleSheet.create({
   pollBtn: { paddingHorizontal: spacing.sm, justifyContent: 'center' },
   pollBtnText: { fontSize: 20 },
   // Edit modal
+  modalRoot: { flex: 1 },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg,
   },

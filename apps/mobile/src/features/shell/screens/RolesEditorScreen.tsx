@@ -7,7 +7,9 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +18,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
@@ -87,6 +90,7 @@ function toggleBit(perms: string, bit: bigint, on: boolean): string {
 }
 
 export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -209,13 +213,18 @@ export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.
 
       {/* ── Role Editor Modal ── */}
       <Modal visible={showEditor} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modal} testID="role-editor-modal">
-            <Text style={styles.modalTitle}>
-              {editingRole ? strings.roles.editTitle : strings.roles.createTitle}
-            </Text>
-            <ScrollView>
-              <TextInput
+        <KeyboardAvoidingView
+          style={styles.modalKavRoot}
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modal} testID="role-editor-modal">
+              <Text style={styles.modalTitle}>
+                {editingRole ? strings.roles.editTitle : strings.roles.createTitle}
+              </Text>
+              <ScrollView>
+                <TextInput
                 style={styles.input}
                 value={draftName}
                 onChangeText={setDraftName}
@@ -266,6 +275,7 @@ export function RolesEditorScreen({ serverId, visible, onClose }: Props): React.
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Delete Confirmation ── */}
@@ -307,6 +317,7 @@ const styles = StyleSheet.create({
   roleInfo: { flex: 1 },
   roleName: { color: palette.text, ...typography.body },
   rolePerms: { color: palette.textMuted, ...typography.caption },
+  modalKavRoot: { flex: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing.lg },
   modal: { backgroundColor: palette.bgElevated, borderRadius: 8, padding: spacing.lg, maxHeight: '80%' },
   modalTitle: { ...typography.title, color: palette.text, marginBottom: spacing.md },

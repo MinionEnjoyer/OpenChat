@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
@@ -26,6 +27,7 @@ export function ServerSettingsScreen({
   server: Server;
   onDone: (deleted?: boolean) => void;
 }): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const user = useSession((s) => s.user);
   const [name, setName] = useState(server.name);
   const [busy, setBusy] = useState(false);
@@ -90,7 +92,8 @@ export function ServerSettingsScreen({
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
       testID="server-settings-screen"
     >
       <ScrollView contentContainerStyle={styles.scroll}>

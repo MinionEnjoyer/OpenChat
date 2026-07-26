@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../../ui/tokens';
 import { strings } from '../../../ui/strings';
 import { showToast } from '../../../ui/Toast';
@@ -13,6 +14,7 @@ import { useSession } from '../../../stores/session';
  * nightly lane and arrives once an Authentik fixture exists (see LOG).
  */
 export function LoginScreen(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const devLogin = useSession((s) => s.devLogin);
@@ -33,7 +35,8 @@ export function LoginScreen(): React.JSX.Element {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
       testID="login-screen"
     >
       <Text style={styles.title} testID="login-title">

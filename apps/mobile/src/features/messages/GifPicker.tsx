@@ -5,13 +5,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { api } from '../../stores/session';
@@ -31,6 +34,7 @@ interface Props {
 }
 
 export function GifPicker({ visible, onSelect, onClose }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [q, setQ] = useState('');
   const [gifs, setGifs] = useState<GifResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,61 +87,68 @@ export function GifPicker({ visible, onSelect, onClose }: Props): React.JSX.Elem
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.panel}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={strings.gifs.searchPlaceholder}
-              placeholderTextColor={palette.textMuted}
-              value={q}
-              onChangeText={setQ}
-              autoFocus
-              returnKeyType="search"
-            />
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>{strings.gifs.close}</Text>
-            </Pressable>
-          </View>
+      <KeyboardAvoidingView
+        style={styles.kavRoot}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.panel}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder={strings.gifs.searchPlaceholder}
+                placeholderTextColor={palette.textMuted}
+                value={q}
+                onChangeText={setQ}
+                autoFocus
+                returnKeyType="search"
+              />
+              <Pressable onPress={onClose} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>{strings.gifs.close}</Text>
+              </Pressable>
+            </View>
 
-          {/* Body */}
-          <View style={styles.body}>
-            {error && <Text style={styles.error}>{error}</Text>}
-            {loading && gifs.length === 0 && !error && (
-              <Text style={styles.status}>{strings.gifs.loading}</Text>
-            )}
-            <FlatList
-              data={gifs}
-              keyExtractor={(g) => g.id}
-              numColumns={2}
-              columnWrapperStyle={styles.row}
-              renderItem={({ item: g }) => (
-                <Pressable
-                  style={styles.gifItem}
-                  onPress={() => onSelect(g)}
-                >
-                  <Image
-                    source={{ uri: g.previewUrl }}
-                    style={styles.gifPreview}
-                    resizeMode="cover"
-                  />
-                </Pressable>
+            {/* Body */}
+            <View style={styles.body}>
+              {error && <Text style={styles.error}>{error}</Text>}
+              {loading && gifs.length === 0 && !error && (
+                <Text style={styles.status}>{strings.gifs.loading}</Text>
               )}
-            />
-          </View>
+              <FlatList
+                data={gifs}
+                keyExtractor={(g) => g.id}
+                numColumns={2}
+                columnWrapperStyle={styles.row}
+                renderItem={({ item: g }) => (
+                  <Pressable
+                    style={styles.gifItem}
+                    onPress={() => onSelect(g)}
+                  >
+                    <Image
+                      source={{ uri: g.previewUrl }}
+                      style={styles.gifPreview}
+                      resizeMode="cover"
+                    />
+                  </Pressable>
+                )}
+              />
+            </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>{strings.gifs.poweredBy}</Text>
+            {/* Footer */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>{strings.gifs.poweredBy}</Text>
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: { flex: 1 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

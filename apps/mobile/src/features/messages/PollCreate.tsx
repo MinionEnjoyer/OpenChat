@@ -1,12 +1,15 @@
 import { useState, useCallback } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { showToast } from '../../ui/Toast';
@@ -25,6 +28,7 @@ const MIN_OPTIONS = 2;
 const MAX_OPTIONS = 10;
 
 export function PollCreate({ visible, channelId, onClose, onCreated }: Props): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<string[]>(['', '']);
   const [sending, setSending] = useState(false);
@@ -90,7 +94,12 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
       animationType="fade"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.kavRoot}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}
+      >
+        <View style={styles.overlay}>
         <View style={styles.content}>
           <Text style={styles.title}>{strings.poll.createTitle}</Text>
 
@@ -172,11 +181,13 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  kavRoot: { flex: 1 },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
