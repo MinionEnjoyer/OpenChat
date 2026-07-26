@@ -905,3 +905,56 @@ Generate the missing migrations from the current schema. Do NOT resolve this by 
 `db push` part of the normal provisioning path — that would make the divergence permanent.
 Add a drift check (`prisma migrate diff` between migrations and schema, expected empty) to
 the gate so this cannot recur silently.
+
+---
+
+## DD-023 — Three device-found UI defects (manual pass, physical hardware)
+
+**Date:** 2026-07-25  **Severity:** HIGH (two make core chat unusable)  **Status:** fixes dispatched
+
+Found by the owner in ~10 minutes on a Pixel 3 XL and a Samsung SM-P613. None were caught
+by 709 unit tests or by any automated gate. All three are layout/interaction defects that
+are close to invisible without eyes on real hardware.
+
+### 1a. Composer sits behind the system navigation bar — UNUSABLE
+
+The message input renders underneath the Android nav buttons on both devices, so it cannot
+be tapped.
+
+Root cause: `react-native-safe-area-context` was not a dependency. `ShellScreen` handles the
+TOP inset by hand (`paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0`)
+and nothing handles the BOTTOM inset. Emulators hid this: the default AVD skin's gesture bar
+overlaps less than real hardware, and nobody had tapped the composer on a physical device.
+
+### 1b. Composer does not lift with the keyboard
+
+On real Discord the composer rises above the keyboard so you can see what you are typing.
+Here it stays put and is covered.
+
+Root cause: `ShellScreen.tsx:446`
+`behavior={Platform.OS === 'ios' ? 'padding' : undefined}` — behaviour is **undefined on
+Android**, so `KeyboardAvoidingView` is inert on the platform we ship. Compounded by
+`keyboardVerticalOffset={-(StatusBar.currentHeight ?? 0)}`, a NEGATIVE offset.
+`windowSoftInputMode=adjustResize` is set, which is necessary but not sufficient.
+
+### 2. Drawer is three columns; Discord is two
+
+Current: DMs | Servers | Channels, all inside a 280px drawer — the channel column is
+compressed until channel names are unreadable.
+
+Discord's actual structure: a server rail with a **DM entry at the top**; selecting it shows
+friends/DMs in the same column position channels normally occupy. Two columns, never three.
+
+This is a spec-conformance defect, not a taste question: the layout does not match the
+reference implementation the product is modelled on.
+
+### Why automated testing missed all three
+
+Unit tests assert component behaviour, not physical layout. E2E flows (all 4 of them at the
+time) select by testID, which resolves fine on an element that is rendered but visually
+occluded — a control behind the nav bar is *present* in the hierarchy and *invisible* to the
+user. Emulator geometry differs from real hardware.
+
+**Lesson:** layout, insets, and keyboard interaction need a real device. No amount of unit
+or selector-based E2E coverage substitutes. Schedule device passes as a routine gate, not a
+pre-release afterthought.
