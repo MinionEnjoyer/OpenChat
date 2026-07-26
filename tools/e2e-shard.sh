@@ -16,6 +16,16 @@ source tools/env.sh 2>/dev/null || true
 export JAVA_HOME ANDROID_HOME
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 PER_FLOW_TIMEOUT="${PER_FLOW_TIMEOUT:-90}"
+
+# ── Collision detection: two concurrent runs on the same device corrupt
+# each other's results (pm clear races, maestro clashes). mkdir is atomic
+# on local filesystems — the first writer wins.
+LOCKDIR="/tmp/e2e-lock-$DEV"
+if ! mkdir "$LOCKDIR" 2>/dev/null; then
+  echo "ABORT: another e2e run is already active on $DEV (lockdir $LOCKDIR exists)"
+  exit 2
+fi
+trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
 APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
 BUNDLE="apps/mobile/android/app/build/generated/assets/react/release/index.android.bundle"
 EXPECTED_API_HOST="${EXPECTED_API_HOST:-}"
@@ -46,16 +56,23 @@ fi
 # ══════════════════════════════════════════════════════════════════════
 # PREFLIGHT 2 — wrong API host baked into the bundle
 # ══════════════════════════════════════════════════════════════════════
+# The bundle contains BOTH the ANDROID_EMULATOR_HOST constant ("10.0.2.2")
+# AND the inlined EXPO_PUBLIC_API_HOST value, so grepping for the bare
+# host matches either — the check passes no matter which host the app
+# actually uses.  Instead, search for the full composed URL that only the
+# resolved config produces (config.ts: apiBaseUrl = `http://${API_HOST}:3030/api`).
 if [ -n "$EXPECTED_API_HOST" ]; then
   if [ ! -f "$BUNDLE" ]; then
     echo "ABORT $DEV: bundle not found at $BUNDLE — cannot verify API host"
     exit 2
   fi
-  if ! strings "$BUNDLE" | grep -q "$EXPECTED_API_HOST"; then
-    echo "ABORT $DEV: bundle does not contain expected API host '$EXPECTED_API_HOST'"
+  EXPECTED_URL="http://${EXPECTED_API_HOST}:3030/api"
+  if ! strings "$BUNDLE" | grep -qF "$EXPECTED_URL"; then
+    echo "ABORT $DEV: bundle does not contain expected API URL '$EXPECTED_URL'"
+    echo "  hint: EXPO_PUBLIC_API_HOST was not inlined as '$EXPECTED_API_HOST' at build time"
     exit 2
   fi
-  echo "[preflight] API host '$EXPECTED_API_HOST' confirmed in bundle"
+  echo "[preflight] API URL '$EXPECTED_URL' confirmed in bundle"
 fi
 
 # ══════════════════════════════════════════════════════════════════════
