@@ -51,3 +51,4 @@ export type { IncomingCall, CallState } from './CallStore';
 export { VideoTile, type VideoTileProps } from './VideoTile';
 export { useScreenShare, type ScreenShareTrack, type UseScreenShareResult } from './useScreenShare';
 export { ScreenShareView } from './ScreenShareView';
+export { VoiceChannelView, type VoiceChannelViewProps } from './VoiceChannelView';
