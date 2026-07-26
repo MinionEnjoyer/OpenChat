@@ -865,3 +865,43 @@ anyway removes the architect's ability to reason about what changed there.
 **Process fix:** future orders should state that touching a forbidden path is itself a
 reportable failure, not merely discouraged — and the architect must diff forbidden paths on
 every branch rather than trusting the prohibition held.
+
+---
+
+## DD-022 — Two models exist in schema.prisma with no migration
+
+**Date:** 2026-07-25  **Severity:** HIGH (deployment correctness)  **Status:** fix dispatched
+
+`NotificationSetting` and `DeviceToken` are declared in `apps/api/prisma/schema.prisma`
+but appear in **zero** files under `prisma/migrations/`:
+
+```
+NotificationSetting: found in 0 migration file(s)
+DeviceToken:         found in 0 migration file(s)
+```
+
+A fresh environment provisioned with `prisma migrate deploy` alone would not create these
+tables, and FR-NOTIF-001 / FR-NOTIF-003 would fail at runtime against it. The shared dev
+database has them only because someone ran `prisma db push` at some point, which applies
+schema changes WITHOUT recording a migration.
+
+### How it surfaced
+
+Incidentally, while building per-agent database isolation: `tools/db/make-template.sh`
+could not build a working template from migrations alone and needed
+`prisma db push --accept-data-loss` as a follow-up step. That workaround was the symptom;
+the missing migrations are the defect.
+
+### Why this matters beyond the two tables
+
+`db push` silently diverging from the migration history means the migration set is no
+longer a faithful description of the schema. Any environment built from migrations —
+CI, a new developer, production — gets a different database than the one every test has
+been running against. Tests passing here is not evidence that a deployed instance works.
+
+### Adjudication
+
+Generate the missing migrations from the current schema. Do NOT resolve this by making
+`db push` part of the normal provisioning path — that would make the divergence permanent.
+Add a drift check (`prisma migrate diff` between migrations and schema, expected empty) to
+the gate so this cannot recur silently.
