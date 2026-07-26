@@ -25,12 +25,13 @@ function auth(token: string) {
 }
 
 describe('FR-NOTIF-003 — notification settings CRUD', () => {
+  const TEST_USERNAME = `notif-test-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   let user: { token: string; userId: string };
   let serverId: string;
   let channelId: string;
 
   beforeAll(async () => {
-    user = await devLogin('notif-test-user');
+    user = await devLogin(TEST_USERNAME);
     expect(user.token).toBeTruthy();
 
     // Create a server so we have scopeIds to work with
@@ -52,6 +53,17 @@ describe('FR-NOTIF-003 — notification settings CRUD', () => {
     expect(ch.status).toBe(201);
     channelId = (ch.body as any).id;
     expect(channelId).toBeTruthy();
+  });
+
+  afterAll(async () => {
+    // Clean up: delete channel, server, and leave no trace
+    try {
+      await apiFetch(`/servers/${serverId}/channels/${channelId}`, {
+        method: API.delete,
+        headers: auth(user.token),
+      });
+    } catch { /* best-effort */ }
+    await apiFetch(`/servers/${serverId}`, { method: API.delete, headers: auth(user.token) }).catch(() => {});
   });
 
   it('starts with no settings', async () => {
