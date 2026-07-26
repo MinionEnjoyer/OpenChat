@@ -1,0 +1,9 @@
+# screen-readiness: InboxScreen
+# Opens inbox from the shell top bar.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'inbox-button'
+- assertVisible:
+    id: 'inbox-screen'

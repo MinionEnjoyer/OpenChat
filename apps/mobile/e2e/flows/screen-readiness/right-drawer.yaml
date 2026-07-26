@@ -1,0 +1,11 @@
+# screen-readiness: Right Drawer (members)
+# Opens the right drawer from shell and verifies the members panel.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'right-drawer'
+- assertVisible:
+    id: 'members-drawer'

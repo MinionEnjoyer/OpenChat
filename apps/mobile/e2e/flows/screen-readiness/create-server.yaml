@@ -1,0 +1,13 @@
+# screen-readiness: CreateServerScreen
+# Opens create-server from the left drawer rail.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-create-server'
+- assertVisible:
+    id: 'create-server-screen'
