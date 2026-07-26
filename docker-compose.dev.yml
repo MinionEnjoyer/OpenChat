@@ -85,7 +85,19 @@ services:
     image: livekit/livekit-server:latest
     container_name: chat-dev-livekit
     restart: unless-stopped
-    command: --config /etc/livekit/livekit.yaml --node-ip=livekit
+    # --node-ip is the address LiveKit advertises to clients as its ICE candidate
+    # for MEDIA (UDP 50000). It OVERRIDES rtc.node_ip in livekit.dev.yaml.
+    #
+    # Getting this wrong fails silently in the worst way: signalling succeeds,
+    # participants join and appear in the room, and no audio ever flows — nothing
+    # in the app looks broken.
+    #
+    # Default "livekit" (the compose service name) resolves inside dev_net, which
+    # is right for host/emulator clients. A PHYSICAL device on the LAN cannot
+    # resolve it, so device testing needs the dev machine's LAN address:
+    #   LIVEKIT_NODE_IP=192.168.0.106 docker compose -f docker-compose.dev.yml up -d livekit
+    # Not hardcoded: DHCP reassigns it, and a baked-in IP breaks other machines and CI.
+    command: --config /etc/livekit/livekit.yaml --node-ip=${LIVEKIT_NODE_IP:-livekit}
     volumes:
       - ./livekit.dev.yaml:/etc/livekit/livekit.yaml:ro
     ports:

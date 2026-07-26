@@ -21,9 +21,23 @@ export interface AppConfig {
  */
 export const ANDROID_EMULATOR_HOST = '10.0.2.2';
 
+/**
+ * Host the app talks to. Defaults to the emulator alias above.
+ *
+ * A PHYSICAL device cannot reach 10.0.2.2 (emulator-only) or localhost (its own
+ * loopback), so device builds must point at the dev machine's LAN address. Set
+ * EXPO_PUBLIC_API_HOST at build time — Expo inlines EXPO_PUBLIC_* at bundle time:
+ *
+ *   EXPO_PUBLIC_API_HOST=192.168.0.106 npm run apk:release
+ *
+ * Deliberately NOT hardcoded: a LAN IP baked into committed config breaks the
+ * moment DHCP reassigns it, and breaks other machines and CI immediately.
+ */
+export const API_HOST = process.env.EXPO_PUBLIC_API_HOST ?? ANDROID_EMULATOR_HOST;
+
 export const DEFAULT_DEV_CONFIG: AppConfig = {
-  apiBaseUrl: `http://${ANDROID_EMULATOR_HOST}:3030/api`,
-  wsUrl: `ws://${ANDROID_EMULATOR_HOST}:3030/ws`,
+  apiBaseUrl: `http://${API_HOST}:3030/api`,
+  wsUrl: `ws://${API_HOST}:3030/ws`,
   e2e: false,
 };
 
