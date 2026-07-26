@@ -58,18 +58,13 @@ import {
   setupNotificationTapHandler,
   parseNotificationRoute,
   initializePush,
-  _setNotificationsForTest,
   _resetMocksForTest,
-  _setStoredTokenForTest,
-  _resetInitializedForTest,
 } from '../push';
 import type { NotificationRoute } from '../push';
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
   _resetMocksForTest();
-  _setStoredTokenForTest(null);
-  _resetInitializedForTest();
 });
 
 // ── Permission flow ──
@@ -168,7 +163,6 @@ describe('subscribeToTokenRotation (FR-NOTIF-002)', () => {
     await registerPushToken();
 
     // Simulate rotation: FCM fires listener with new token
-    mockGetDevicePushToken.mockResolvedValueOnce({ type: 'android', data: 'token-v2' });
     mockApiRequest.mockResolvedValueOnce({ status: 201 }); // DELETE token-v1
     mockApiRequest.mockResolvedValueOnce({ status: 201 }); // POST token-v2
 

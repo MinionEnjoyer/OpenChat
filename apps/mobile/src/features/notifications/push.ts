@@ -89,6 +89,10 @@ export function _resetMocksForTest(): void {
   _addResponseListener = Notifications.addNotificationResponseReceivedListener.bind(Notifications);
   _getLastResponse = Notifications.getLastNotificationResponse.bind(Notifications);
   _clearLastResponse = Notifications.clearLastNotificationResponse.bind(Notifications);
+  _storedToken = null;
+  _initialized = false;
+  _platformOS = 'android';
+  _onNavigate = null;
 }
 
 export function _setStoredTokenForTest(token: string | null): void {
