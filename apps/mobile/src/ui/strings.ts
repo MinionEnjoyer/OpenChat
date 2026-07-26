@@ -167,6 +167,7 @@ export const strings = {
     acceptFailed: 'Failed to accept invite',
     invalidCode: 'Invalid invite code',
     createTitle: 'Invite',
+    createGlyph: '\u{1F517}',
     createInvite: 'Create invite link',
     creating: 'Creating…',
     createFailed: 'Failed to create invite',
@@ -206,6 +207,7 @@ export const strings = {
   },
   roles: {
     title: 'Roles',
+    glyph: '\u{1F6E1}',
     create: 'Create Role',
     noRoles: 'No roles',
     editTitle: 'Edit Role',

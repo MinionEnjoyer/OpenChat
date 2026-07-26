@@ -11,6 +11,7 @@
  *   MUST FAIL before the fix (rail has no flex, FlatList has no style).
  */
 import renderer from 'react-test-renderer';
+import { FlatList } from 'react-native';
 
 // ── Mock native libraries ──
 
@@ -149,7 +150,7 @@ describe('Rail overflow — bottom controls survive many servers', () => {
     expect(() => root.findByProps({ testID: 'rail-friends' })).not.toThrow();
   });
 
-  it('rail View has flex: 1 to constrain FlatList from overflowing', () => {
+  it('rail does NOT have flex:1 (that causes horizontal expansion in row parent)', () => {
     const { ShellScreen } = require('../screens/ShellScreen');
     const React = require('react');
     let tree: any;
@@ -159,13 +160,35 @@ describe('Rail overflow — bottom controls survive many servers', () => {
     const root = tree!.root;
 
     const rail = root.findByProps({ testID: 'server-rail' });
-    // The rail must have flex: 1 so the FlatList scrolls within remaining space
-    // instead of greedily consuming all vertical space and collapsing bottom controls.
     const railStyle = rail.props.style;
-    // Style can be an array — flatten it
     const flatStyle = Array.isArray(railStyle)
       ? Object.assign({}, ...railStyle.filter(Boolean))
       : railStyle;
-    expect(flatStyle.flex).toBe(1);
+    // Regression: flex:1 on rail in a row-direction parent overrides width:64
+    // and steals horizontal space. railServerList: { flex: 1 } is the correct
+    // vertical constraint for the FlatList.
+    expect(flatStyle.flex).toBeUndefined();
+  });
+
+  it('railServerList FlatList has flex:1 for vertical scroll constraint', () => {
+    const { ShellScreen } = require('../screens/ShellScreen');
+    const React = require('react');
+    let tree: any;
+    renderer.act(() => {
+      tree = renderer.create(renderShell(React, ShellScreen));
+    });
+    const root = tree!.root;
+
+    // Find the FlatList inside the rail — it's the scrollable server list.
+    const rail = root.findByProps({ testID: 'server-rail' });
+    const flatLists = rail.findAllByType(FlatList);
+    expect(flatLists.length).toBeGreaterThanOrEqual(1);
+    const listStyle = flatLists[0].props.style;
+    const flatListStyle = Array.isArray(listStyle)
+      ? Object.assign({}, ...listStyle.filter(Boolean))
+      : listStyle;
+    // railServerList: { flex: 1 } ensures the FlatList scrolls within remaining
+    // vertical space instead of pushing bottom controls off-screen.
+    expect(flatListStyle.flex).toBe(1);
   });
 });

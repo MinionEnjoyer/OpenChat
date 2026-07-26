@@ -713,7 +713,7 @@ export function ShellScreen(): React.JSX.Element {
               ) : (
                 <>
                   <View style={styles.channelHeader}>
-                    <Text style={styles.drawerTitle} testID="channel-drawer-title">
+                    <Text style={styles.drawerTitle} testID="channel-drawer-title" numberOfLines={1}>
                       {activeServer?.name ?? strings.shell.channelsFallbackTitle}
                     </Text>
                     {leftOpenJS && activeServer && (
@@ -747,7 +747,7 @@ export function ShellScreen(): React.JSX.Element {
                             testID="invite-create-button"
                             style={{ marginLeft: 8 }}
                           >
-                            <Text style={styles.settingsGlyph}>{strings.invites.createTitle}</Text>
+                            <Text style={styles.settingsGlyph}>{strings.invites.createGlyph}</Text>
                           </Pressable>
                         )}
                         {/* FR-ROLE-001 — Roles editor (gated on MANAGE_ROLES) */}
@@ -758,7 +758,7 @@ export function ShellScreen(): React.JSX.Element {
                             testID="roles-editor-button"
                             style={{ marginLeft: 8 }}
                           >
-                            <Text style={styles.settingsGlyph}>{strings.roles.title}</Text>
+                            <Text style={styles.settingsGlyph}>{strings.roles.glyph}</Text>
                           </Pressable>
                         )}
                       </>
@@ -1148,7 +1148,6 @@ const styles = StyleSheet.create({
 
   // ── Rail ──
   rail: {
-    flex: 1,
     width: 64,
     backgroundColor: palette.bgElevated,
     paddingTop: spacing.sm,
@@ -1179,6 +1178,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: palette.text,
     fontWeight: '700',
+    flexShrink: 1,
   },
   channelHeader: {
     flexDirection: 'row',
