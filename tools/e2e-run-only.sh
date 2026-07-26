@@ -35,7 +35,12 @@ while read -r f <&3; do
   echo "[$(date +%H:%M:%S)] RUNNING $base on $DEV" | tee -a "$OUT"
   # ── Hard clear: pm clear wipes expo-secure-store tokens that Maestro's
   #     clearState may leave behind. Repeat before every flow for isolation.
-  adb -s "$DEV" shell pm clear com.openchat.mobile </dev/null
+  #     Skip for flows annotated with # e2e:no-clear (e.g. session-restore).
+  if grep -q 'e2e:no-clear' "$f" 2>/dev/null; then
+    echo "[$(date +%H:%M:%S)] no-clear $base" | tee -a "$OUT"
+  else
+    adb -s "$DEV" shell pm clear com.openchat.mobile </dev/null
+  fi
   # pm clear also wipes runtime permission grants. Re-grant every dangerous
   # permission the app declares; tolerate failure for permissions the OS refuses.
   adb -s "$DEV" shell pm grant com.openchat.mobile android.permission.CAMERA </dev/null || true

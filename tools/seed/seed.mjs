@@ -360,6 +360,43 @@ async function main() {
     console.log('  alice → bob DM already exists');
   }
 
+  // ── Block bob + send message in DM (for p4-05-block-collapse) ──
+  console.log('[seed] Setting up block + blocked message…');
+  const dmsAfter = await apiFetch('/dms', { jar: alice.jar });
+  const dmBob = Array.isArray(dmsAfter.body) ? dmsAfter.body.find(d => {
+    const recipients = d.recipients || d.members || [];
+    return recipients.some(r => (r.userId || r.id) === bob.userId);
+  }) : null;
+  const dmChannelId = dmBob?.id;
+  if (!dmChannelId) throw new Error('DM channel for bob not found');
+
+  // Block bob (idempotent)
+  const blockedList = await apiFetch('/friends/blocked', { jar: alice.jar });
+  const alreadyBlocked = Array.isArray(blockedList.body)
+    ? blockedList.body.some(b => b.id === bob.userId)
+    : false;
+  if (!alreadyBlocked) {
+    const blockRes = await apiFetch('/friends/block/' + bob.userId, { method: 'POST', jar: alice.jar });
+    console.log('  bob blocked (status ' + blockRes.status + ')');
+  } else {
+    console.log('  bob already blocked');
+  }
+
+  // Send message from bob in the DM (idempotent)
+  let blockedMessageId;
+  const dmMsgs = await apiFetch('/channels/' + dmChannelId + '/messages?limit=1', { jar: alice.jar });
+  const hasDmMessage = Array.isArray(dmMsgs.body) && dmMsgs.body.length > 0;
+  if (!hasDmMessage) {
+    const msg = await apiFetch('/channels/' + dmChannelId + '/messages', {
+      method: 'POST', body: { content: 'Hi alice, this is bob' }, jar: bob.jar,
+    });
+    blockedMessageId = msg.body.id;
+    console.log('  DM message sent: ' + blockedMessageId);
+  } else {
+    blockedMessageId = dmMsgs.body[0].id;
+    console.log('  DM message already exists: ' + blockedMessageId);
+  }
+
   // ── Pending friend request carol → dave (idempotent) ──
   const carolPending = await apiFetch('/friends/requests', { jar: carol.jar });
   const hasPendingToDave = Array.isArray(carolPending.body) ? carolPending.body.some(r => r.username === 'dave') : false;
