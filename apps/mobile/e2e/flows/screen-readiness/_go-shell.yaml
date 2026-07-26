@@ -1,0 +1,18 @@
+# _go-shell — return to shell screen from any navigation state.
+#
+# Taps the scrim area to dismiss drawers/overlays, then asserts shell-screen
+# is visible. Used between screen-readiness flows to reset state.
+#
+# Does NOT clear app state — just dismisses visible overlays.
+
+appId: com.openchat.mobile
+---
+# Tap scrim area (left side) to dismiss drawers and overlays
+- tapOn:
+    point: '15%,50%'
+- tapOn:
+    point: '15%,50%'
+- tapOn:
+    point: '15%,50%'
+- assertVisible:
+    id: 'shell-screen'
