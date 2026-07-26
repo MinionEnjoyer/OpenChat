@@ -94,7 +94,24 @@ jest.mock('../../inbox', () => ({
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { QueryClient, QueryClientProvider } = require('@tanstack/react-query');
+const { SafeAreaProvider } = require('react-native-safe-area-context');
 const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+// ShellScreen calls useSafeAreaInsets() (DD-023 composer inset fix), which throws
+// outside a provider. initialMetrics avoids waiting on an onLayout that never fires
+// in react-test-renderer.
+const SAFE_AREA_METRICS = {
+  frame: { x: 0, y: 0, width: 390, height: 844 },
+  insets: { top: 24, left: 0, right: 0, bottom: 34 },
+};
+
+function renderShell(React, ShellScreen) {
+  return React.createElement(SafeAreaProvider, { initialMetrics: SAFE_AREA_METRICS },
+    React.createElement(QueryClientProvider, { client: qc },
+      React.createElement(ShellScreen),
+    ),
+  );
+}
 
 // ── Tests ──
 
@@ -104,11 +121,7 @@ describe('DD-023 — Drawer structure (2 columns, DM in rail)', () => {
     const React = require('react');
     let tree;
     renderer.act(() => {
-      tree = renderer.create(
-        React.createElement(QueryClientProvider, { client: qc },
-          React.createElement(ShellScreen),
-        ),
-      );
+      tree = renderer.create(renderShell(React, ShellScreen));
     });
     const root = tree!.root;
 
@@ -130,11 +143,7 @@ describe('DD-023 — Drawer structure (2 columns, DM in rail)', () => {
     const React = require('react');
     let tree;
     renderer.act(() => {
-      tree = renderer.create(
-        React.createElement(QueryClientProvider, { client: qc },
-          React.createElement(ShellScreen),
-        ),
-      );
+      tree = renderer.create(renderShell(React, ShellScreen));
     });
     const root = tree!.root;
 
