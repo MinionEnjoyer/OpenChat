@@ -287,15 +287,22 @@ async function main() {
     { id: 'member-profile', label: 'MemberProfileSheet', flow: 'member-profile.yaml',
       required: ['member-profile-sheet'] },
     { id: 'invite-preview', label: 'InvitePreviewOverlay', flow: 'invite-preview.yaml',
-      required: ['invite-preview-overlay'] },
+      required: ['invite-preview-overlay'],
+      unreachableReason: 'UNREACHABLE-BY-DESIGN: requires a real invite link URL in a message' },
   ];
 
-  // Phase 1: just shell-chat for commit
-  // screens.splice(1);
 
   const results = [];
   for (const s of screens) {
     console.log(`── ${s.label} ──`);
+
+    // UNREACHABLE-BY-DESIGN screens skip the flow file check
+    if (s.unreachableReason) {
+      console.log(`  UNREACHED — ${s.unreachableReason}`);
+      results.push({ screen: s.label, id: s.id, reached: false, pass: false, failures: [s.unreachableReason] });
+      continue;
+    }
+
     const flowPath = join(SCREEN_FLOWS, s.flow);
 
     if (!existsSync(flowPath)) {

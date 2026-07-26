@@ -1,0 +1,25 @@
+# screen-readiness: InviteCreateOverlay
+# Opens the invite create overlay from the channel drawer header.
+# invite-create-button is gated on CREATE_INVITE permission (alice has it on Fixture Guild).
+# Must select Fixture Guild first so the button renders in the header.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+# invite-create-button appears in the channel-drawer header next to settings gear
+- assertVisible:
+    id: 'invite-create-button'
+- tapOn:
+    id: 'invite-create-button'
+- assertVisible:
+    id: 'invite-create-overlay'

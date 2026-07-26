@@ -1,0 +1,19 @@
+# screen-readiness: JoinServerOverlay
+# Opens the join server overlay from the left drawer rail.
+# rail-join-server is below rail-create-server in the server rail area.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-join-server'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-join-server'
+- assertVisible:
+    id: 'join-server-overlay'

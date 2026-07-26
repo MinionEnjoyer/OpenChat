@@ -1,0 +1,27 @@
+# screen-readiness: PollCreate
+# Opens the poll creation modal from the composer in a channel.
+# Navigates to #general in Fixture Guild, then taps composer-poll.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+- assertVisible:
+    id: 'composer-poll'
+- tapOn:
+    id: 'composer-poll'
+- assertVisible:
+    id: 'poll-create-question'

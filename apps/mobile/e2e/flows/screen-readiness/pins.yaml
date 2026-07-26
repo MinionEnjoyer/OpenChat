@@ -1,0 +1,43 @@
+# screen-readiness: PinsPanel
+# Opens the pins panel from the shell. Requires a pinned message to already exist.
+# Navigates to #general in Fixture Guild, sends a message, pins it, then opens pins.
+# Uses the same pattern as msg-rich-pins-polls flow.
+
+appId: com.openchat.mobile
+---
+# ── Navigate to #general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#general'
+- tapOn:
+    id: 'channel-#general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Send a message so we have something to pin ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'sr-pin-test'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'sr-pin-test'
+
+# ── Pin the message ──
+- longPressOn: 'sr-pin-test'
+- tapOn: 'Pin'
+
+# ── Open the pins panel ──
+- tapOn:
+    id: 'pins-toggle'
+# The pinned message should be visible in the pins panel
+- assertVisible: 'sr-pin-test'
