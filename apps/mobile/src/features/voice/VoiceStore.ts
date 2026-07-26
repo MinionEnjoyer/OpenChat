@@ -1,5 +1,6 @@
 /**
- * VoiceStore — connection state for the voice layer (FR-VOX-001).
+ * VoiceStore — connection state for the voice layer (FR-VOX-001),
+ * plus controls for mute/deafen/speaker (FR-VOX-003).
  *
  * PUBLIC SURFACE (for FR-VOX-002/003/005/006/007 agents):
  *   useVoiceStore()                — Zustand hook (import from features/voice)
@@ -8,17 +9,23 @@
  *   state.error                    — string | null
  *   state.participantCount         — number (cached from last participants fetch)
  *   state.room                     — livekit-client Room | null
+ *   state.isMuted                  — boolean (track-level mic mute)
+ *   state.isDeafened               — boolean (local deafen)
+ *   state.isSpeakerOn              — boolean (speaker vs earpiece)
  *   state.join(channelId)          — calls API join, sets joining state
  *   state.leave()                  — calls API leave, sets idle state
  *   state.setRoom(room|null)       — called by useVoiceConnection when Room is created/destroyed
  *   state.setConnectionState(cs)   — called by useVoiceConnection for LiveKit-level state changes
+ *   state.toggleMute()             — toggle mic mute (track-level)
+ *   state.toggleDeafen()           — toggle deafen (local-only)
+ *   state.toggleSpeaker()          — toggle speaker/earpiece
  *   voiceService                   — singleton VoiceService (test-injectable)
  *
  * The Room lifecycle is managed externally by useVoiceConnection (the hook).
  * This store tracks the high-level connection state and holds the Room
  * reference so other components can access it without prop drilling.
  *
- * @satisfies FR-VOX-001
+ * @satisfies FR-VOX-001, FR-VOX-003
  */
 import { create } from 'zustand';
 import { api } from '../../stores/session';
@@ -41,6 +48,12 @@ export interface VoiceState {
   participantCount: number;
   /** The livekit-client Room. Managed by useVoiceConnection, read by UI. */
   room: RoomRef | null;
+  /** Track-level mic mute. @satisfies FR-VOX-003 */
+  isMuted: boolean;
+  /** Local deafen (disable remote audio + implies mute). @satisfies FR-VOX-003 */
+  isDeafened: boolean;
+  /** Speaker (true) vs earpiece (false). @satisfies FR-VOX-003 */
+  isSpeakerOn: boolean;
 
   /** Begin joining a voice channel: calls POST /voice/:id/join, sets joining → connected. Returns join response, or undefined if already connected. */
   join: (channelId: string) => Promise<VoiceJoinResponse | undefined>;
@@ -54,6 +67,14 @@ export interface VoiceState {
   setParticipantCount: (n: number) => void;
   /** Clear any error. */
   clearError: () => void;
+  /** Toggle mic mute (track-level). Calls room.localParticipant.setMicrophoneEnabled. @satisfies FR-VOX-003 */
+  toggleMute: () => void;
+  /** Toggle deafen (local-only: disables remote audio + implies mute). @satisfies FR-VOX-003 */
+  toggleDeafen: () => void;
+  /** Toggle speaker/earpiece output. @satisfies FR-VOX-003 */
+  toggleSpeaker: () => void;
+  /** Reset controls to defaults (called on leave). */
+  resetControls: () => void;
 }
 
 let singleton: VoiceService | null = null;
@@ -75,6 +96,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   error: null,
   participantCount: 0,
   room: null,
+  isMuted: false,
+  isDeafened: false,
+  isSpeakerOn: true,
 
   async join(channelId: string) {
     const state = get();
@@ -120,6 +144,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         room: null,
         participantCount: 0,
         error: null,
+        isMuted: false,
+        isDeafened: false,
+        isSpeakerOn: true,
       });
     }
   },
@@ -138,5 +165,63 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   clearError() {
     set({ error: null });
+  },
+
+  // ── FR-VOX-003 controls ──
+
+  toggleMute() {
+    const { room, isMuted, isDeafened } = get();
+    // If deafened, mute is enforced — only allow unmute if also undeafening.
+    if (isDeafened) return;
+
+    const newMuted = !isMuted;
+    if (room?.localParticipant && typeof room.localParticipant.setMicrophoneEnabled === 'function') {
+      room.localParticipant.setMicrophoneEnabled(!newMuted);
+    }
+    set({ isMuted: newMuted });
+  },
+
+  toggleDeafen() {
+    const { room, isDeafened, isMuted } = get();
+    const newDeafened = !isDeafened;
+
+    if (newDeafened) {
+      // Deafening: mute mic + disable all remote audio.
+      if (room?.localParticipant && typeof room.localParticipant.setMicrophoneEnabled === 'function') {
+        room.localParticipant.setMicrophoneEnabled(false);
+      }
+      // Disable remote participant audio tracks.
+      if (room?.remoteParticipants) {
+        for (const [, p] of room.remoteParticipants) {
+          if (p.audioTrackPublications) {
+            for (const [, pub] of p.audioTrackPublications) {
+              if (pub.track && typeof pub.track.stop === 'function') {
+                pub.track.stop();
+              }
+            }
+          }
+        }
+      }
+      set({ isDeafened: true, isMuted: true });
+    } else {
+      // Undeafening: re-enable mic (respecting previous mute state).
+      if (room?.localParticipant && typeof room.localParticipant.setMicrophoneEnabled === 'function') {
+        room.localParticipant.setMicrophoneEnabled(!isMuted);
+      }
+      set({ isDeafened: false });
+    }
+  },
+
+  toggleSpeaker() {
+    const { room, isSpeakerOn } = get();
+    const newSpeaker = !isSpeakerOn;
+    if (room && typeof room.switchActiveDevice === 'function') {
+      room.switchActiveDevice(newSpeaker ? 'speaker' : 'earpiece');
+    }
+    set({ isSpeakerOn: newSpeaker });
+  },
+
+  resetControls() {
+    set({ isMuted: false, isDeafened: false, isSpeakerOn: true });
   },
 }));
