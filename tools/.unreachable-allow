@@ -3,3 +3,9 @@ presenceColor
 computeTargetDimensions
 formatSize
 isImage
+GalleryModal
+compressImage
+useCompression
+createExpoImageProcessor
+expoImageProcessor
+computeSquareCrop
