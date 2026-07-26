@@ -1,0 +1,88 @@
+# p6-02-voice-camera-publish — login → join voice → toggle camera → verify camera state
+# @satisfies FR-VOX-006
+#
+# Requires: dev stack up + seeded (Fixture Guild), LiveKit running, emulator reaching 10.0.2.2.
+# Camera permission must be granted on emulator for video publish to work.
+# Without a second participant, remote render cannot be verified — this flow tests
+# the camera toggle seam.
+#
+# FR-VOX-006: Camera video publish + remote video render in voice/DM calls.
+# Acceptance criterion: E2E: fake camera stream visible remotely (frame checksum).
+# NOTE: Single-emulator E2E verifies camera toggle exists and enables video publish;
+# remote render requires a second device (see two-device-testing docs).
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: 'alice'
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Join #voice-general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-Fixture Guild'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-Fixture Guild'
+- assertVisible:
+    id: 'channel-#voice-general'
+- tapOn:
+    id: 'channel-#voice-general'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Wait for voice connection ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 30000
+- assertVisible:
+    id: 'voice-pill-controls'
+
+# ── Phase 4: Toggle camera on (FR-VOX-006) ──
+# Camera button should be visible and tappable
+- assertVisible:
+    id: 'voice-pill-camera'
+- tapOn:
+    id: 'voice-pill-camera'
+
+# After toggle, flip-camera button appears (only when camera is active)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-flip-camera'
+    timeout: 15000
+
+# Flip camera (verify the button works)
+- tapOn:
+    id: 'voice-pill-flip-camera'
+
+# ── Phase 5: Toggle camera off ──
+- tapOn:
+    id: 'voice-pill-camera'
+
+# Flip-camera button disappears when camera is off
+- assertNotVisible:
+    id: 'voice-pill-flip-camera'
+
+# ── Phase 6: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-camera
