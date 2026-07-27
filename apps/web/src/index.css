@@ -58,6 +58,52 @@ body {
 
 button, input, textarea { font-family: inherit; }
 
+/* connecting spinner */
+@keyframes oc-spin { to { transform: rotate(360deg); } }
+.oc-spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  animation: oc-spin 0.8s linear infinite;
+}
+
+/* Desktop (Tauri) shell: stack the custom title bar above the app shell. */
+#root.tauri { display: flex; flex-direction: column; }
+#root.tauri > .app-shell { flex: 1 1 0; min-height: 0; height: auto; }
+
+/* --- interaction polish + accessibility --- */
+
+/* Smooth the many inline background/opacity swaps (mute toggle, hovers, etc.)
+   without changing any colors. */
+button, a, input, textarea, select {
+  transition: background-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease, border-color 0.12s ease;
+}
+
+/* Visible keyboard-focus ring. Components set inline `outline: none`, which beats a
+   stylesheet outline — so use a box-shadow ring, which inline styles don't touch.
+   :focus-visible keeps it keyboard-only (no ring on mouse clicks). */
+button:focus-visible, a:focus-visible, input:focus-visible,
+textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.55);
+}
+
+/* Consistent disabled affordance. */
+button:disabled { cursor: default; }
+
+::selection { background: rgba(88, 101, 242, 0.35); }
+
+/* Scrollbar thumb reacts to hover (desktop). */
+*::-webkit-scrollbar-thumb:hover { background: var(--muted-2); }
+
+/* Respect users who prefer less motion — mute the pulses/flash + long transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 /* iOS zooms the page in when a focused input's font-size is < 16px; force 16px
    on touch layouts to keep typing smooth and prevent the jarring auto-zoom. */
 @media (max-width: 768px) {
@@ -73,10 +119,17 @@ button, input, textarea { font-family: inherit; }
    The intrinsic-size hint keeps the scrollbar stable before a row is rendered. */
 .msg-row { content-visibility: auto; contain-intrinsic-size: auto 56px; }
 
-/* message hover actions */
+/* message actions: a hover-revealed row on desktop… */
 .msg-del { opacity: 0; transition: opacity 0.12s ease; }
 .msg-row:hover .msg-del { opacity: 1; }
-@media (hover: none) { .msg-del { opacity: 1; } }
+
+/* …collapsed behind a single ⋯ toggle on touch / narrow screens to reclaim space */
+.msg-actions-trigger { display: none; }
+@media (hover: none), (max-width: 768px) {
+  .msg-del { display: none !important; }
+  .msg-actions-trigger { display: inline-flex !important; }
+  .msg-scroll { padding: 10px 8px !important; }
+}
 
 /* jump-to-message highlight (when opening a pinned message) */
 @keyframes msgFlash { 0% { background: var(--accent); } 100% { background: transparent; } }

@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Watch Party</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+    #player { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <!--
+    Controllable YouTube player for the watch party. Loaded in an iframe from the app's
+    real https origin (Tauri webviews use tauri://localhost, which YouTube rejects — error
+    153 — so the desktop app points the iframe at this page on the deployed https origin).
+    Bridges the YouTube IFrame Player API to the parent via postMessage:
+      parent -> here: { ns:'ytparty-cmd', action:'sync', time, paused } / 'load'
+      here -> parent: { ns:'ytparty', type:'ready' | 'state', time, paused }
+  -->
+  <div id="player"></div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var vid = /^[A-Za-z0-9_-]{6,20}$/.test(params.get('v') || '') ? params.get('v') : '';
+      var host = params.get('host') === '1';
+      var player = null, ready = false;
+
+      function post(msg) {
+        msg.ns = 'ytparty';
+        try { parent.postMessage(msg, '*'); } catch (e) {}
+      }
+      function isPaused() {
+        // YT.PlayerState.PLAYING === 1, BUFFERING === 3 (treat as playing).
+        var s = player && player.getPlayerState ? player.getPlayerState() : -1;
+        return !(s === 1 || s === 3);
+      }
+      function report(type) {
+        if (!player || !ready) return;
+        try { post({ type: type, time: player.getCurrentTime() || 0, paused: isPaused(), muted: player.isMuted ? player.isMuted() : false }); } catch (e) {}
+      }
+
+      window.onYouTubeIframeAPIReady = function () {
+        player = new YT.Player('player', {
+          videoId: vid,
+          // Only the host gets YouTube controls. Followers are locked (controls:0) and start
+          // muted so playback can autoplay without a gesture; they unmute via a custom button.
+          playerVars: {
+            autoplay: 0, controls: host ? 1 : 0, rel: 0, modestbranding: 1,
+            mute: host ? 0 : 1, playsinline: 1, fs: 1, iv_load_policy: 3,
+          },
+          events: {
+            onReady: function () { ready = true; post({ type: 'ready' }); report('state'); },
+            onStateChange: function () { report('state'); },
+          },
+        });
+      };
+
+      var s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(s);
+
+      // Commands from the parent (followers get synced; host uses native controls).
+      window.addEventListener('message', function (ev) {
+        var d = ev.data;
+        if (!d || d.ns !== 'ytparty-cmd' || !player || !ready) return;
+        try {
+          if (d.action === 'sync') {
+            var target = d.time || 0;
+            if (Math.abs((player.getCurrentTime() || 0) - target) > 1.5) player.seekTo(target, true);
+            if (d.paused) { if (!isPaused()) player.pauseVideo(); }
+            else { if (isPaused()) player.playVideo(); }
+          } else if (d.action === 'play') {
+            player.playVideo();
+          } else if (d.action === 'unmute') {
+            player.unMute(); player.setVolume(100); report('state');
+          } else if (d.action === 'load' && d.v) {
+            player.loadVideoById(d.v);
+          }
+        } catch (e) {}
+      });
+
+      // Steady position/state heartbeat so the host keeps everyone in sync.
+      setInterval(function () { report('time'); }, 1000);
+    })();
+  </script>
+</body>
+</html>

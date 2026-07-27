@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YouTube</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+    iframe { border: 0; width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <!--
+    Embed shim: native (Tauri) webviews load their page from tauri://localhost, an
+    origin YouTube's player rejects ("error 153"). Loading this page from the app's
+    real https origin and nesting the player here makes the player's referrer a valid
+    https URL, so it plays inline in the desktop client.
+  -->
+  <script>
+    var id = new URLSearchParams(location.search).get('v') || '';
+    if (/^[A-Za-z0-9_-]{6,20}$/.test(id)) {
+      var f = document.createElement('iframe');
+      f.src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0';
+      f.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+      f.setAttribute('allowfullscreen', 'true');
+      document.body.appendChild(f);
+    }
+  </script>
+</body>
+</html>

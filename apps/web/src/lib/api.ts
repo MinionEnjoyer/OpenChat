@@ -1,11 +1,15 @@
-import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif, ServerSound } from './types';
-
-const BASE_URL = '/api';
+import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken } from './types';
+import { apiBase, getToken } from './serverConfig';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${url}`, {
+  const token = getToken();
+  const res = await fetch(`${apiBase()}${url}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
     method: 'GET',
     ...options,
   });
@@ -90,6 +94,8 @@ export const listMessages = (channelId: string, before?: string) => {
   if (before) params.set('before', before);
   return request<Message[]>(`/channels/${channelId}/messages?${params.toString()}`);
 };
+export const searchMessages = (channelId: string, q: string) =>
+  request<Message[]>(`/channels/${channelId}/messages/search?q=${encodeURIComponent(q)}`);
 export const sendMessage = (channelId: string, data: { content: string; attachments?: unknown[] }) =>
   request<Message>(`/channels/${channelId}/messages`, { method: 'POST', body: JSON.stringify(data) });
 export const updateMessage = (messageId: string, data: { content: string }) =>
@@ -117,6 +123,12 @@ export const markRead = (channelId: string, lastReadMessageId: string) =>
   });
 export const getWsTicket = () => request<WsTicket>('/auth/ws-ticket');
 
+export const listAppTokens = () => request<ApiToken[]>('/auth/tokens');
+export const createAppToken = (name: string) =>
+  request<CreatedApiToken>('/auth/tokens', { method: 'POST', body: JSON.stringify({ name }) });
+export const revokeAppToken = (id: string) =>
+  request<{ success: true }>(`/auth/tokens/${id}`, { method: 'DELETE' });
+
 export const voiceJoin = (channelId: string) =>
   request<{ url: string; token: string; room: string }>(`/voice/${channelId}/join`, { method: 'POST' });
 export const voiceLeave = (channelId: string) =>
@@ -125,13 +137,15 @@ export const voiceParticipants = (channelId: string) =>
   request<{ id: string; username: string; displayName: string | null; avatarUrl: string | null }[]>(`/voice/${channelId}/participants`);
 
 export const watchpartyGet = (channelId: string) => request<WatchPartyState | null>(`/watchparty/${channelId}`);
-export const watchpartyStart = (channelId: string, itemId: string) =>
-  request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ itemId }) });
+export const watchpartyStart = (channelId: string, itemId: string, audio = false) =>
+  request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ itemId, audio }) });
+export const watchpartyStartYoutube = (channelId: string, youtubeId: string) =>
+  request<WatchPartyState>(`/watchparty/${channelId}/start`, { method: 'POST', body: JSON.stringify({ youtubeId }) });
 export const watchpartyState = (channelId: string, positionMs: number, paused: boolean) =>
   request<WatchPartyState>(`/watchparty/${channelId}/state`, { method: 'POST', body: JSON.stringify({ positionMs, paused }) });
 export const watchpartyStop = (channelId: string) =>
   request<{ success: true }>(`/watchparty/${channelId}/stop`, { method: 'POST' });
-export const watchpartySearch = (q: string) =>
-  request<LibraryItem[]>(`/watchparty/library?q=${encodeURIComponent(q)}`);
+export const watchpartySearch = (q: string, type: 'all' | 'movie' | 'show' | 'music' = 'all') =>
+  request<LibraryItem[]>(`/watchparty/library?q=${encodeURIComponent(q)}&type=${type}`);
 
 export const gifSearch = (q: string) => request<Gif[]>(`/gifs/search?q=${encodeURIComponent(q)}`);

@@ -104,13 +104,9 @@ export class FriendsService {
       },
     });
 
-    const friends = friendships.map((f) => {
-      const friendId = f.requesterId === userId ? f.addresseeId : f.requesterId;
-      return this.prisma.user.findUnique({ where: { id: friendId } });
-    });
-
-    const users = await Promise.all(friends);
-    return users.map((u) => (u ? this.toUserDTO(u) : null)).filter(Boolean);
+    const friendIds = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
+    const users = await this.prisma.user.findMany({ where: { id: { in: friendIds } } });
+    return users.map((u) => this.toUserDTO(u));
   }
 
   async listPending(userId: string): Promise<{ incoming: any[]; outgoing: any[] }> {

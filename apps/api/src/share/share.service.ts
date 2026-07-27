@@ -1,5 +1,6 @@
-import { Injectable, HttpException, HttpStatus, Logger, Module } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 import { Readable } from 'stream';
 import { ReadableStream as WebReadableStream } from 'stream/web';
 
@@ -25,11 +26,13 @@ import { ReadableStream as WebReadableStream } from 'stream/web';
  *   POST /auth/dev-login  — dev-only session bootstrap (DEV_AUTH=1)
  */
 
+/** One uploaded file's stored reference, in the shape chat attachments use. */
 export interface UploadedAttachment {
+  id: string;
   shareAssetId: string;
   filename: string;
   mimeType: string;
-  size: number;
+  size: string;
   url: string;
   thumbnailUrl: string | null;
   width: number | null;
@@ -55,19 +58,34 @@ interface ShareUploadResponse {
   rejected: Array<{ name: string; reason: string }>;
 }
 
+export interface UploadInput {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+  size: number;
+}
+
+interface ShareUploadResult {
+  saved: { id: string; media_type: string }[];
+  rejected: { name: string; reason: string }[];
+}
+
 @Injectable()
 export class ShareService {
   private readonly logger = new Logger(ShareService.name);
   private readonly shareBaseUrl: string;
-  private readonly shareApiKey: string | undefined;
+  private readonly shareApiKey: string;
 
   /** Cached OpenShare session cookie (obtained via dev-login). Lazily initialized. */
   private shareCookie: string | null = null;
   private cookieExpiresAt: number = 0;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.shareBaseUrl = this.configService.get<string>('SHARE_BASE_URL')!;
-    this.shareApiKey = this.configService.get<string>('SHARE_API_KEY');
+    this.shareApiKey = this.configService.get<string>('SHARE_API_KEY')!;
     if (this.shareApiKey) {
       this.logger.log('SHARE_API_KEY configured — service API available');
     }
@@ -181,10 +199,11 @@ export class ShareService {
    */
   private metadataToAttachment(meta: AssetMetadata, original: { filename: string; buffer: Buffer; mimeType: string }): UploadedAttachment {
     return {
+      id: meta.id,
       shareAssetId: meta.id,
       filename: meta.filename ?? original.filename,
       mimeType: meta.mimeType ?? original.mimeType,
-      size: meta.size ?? original.buffer.length,
+      size: String(meta.size ?? original.buffer.length),
       url: `/api/media/${meta.id}/raw`,
       thumbnailUrl: `/api/media/${meta.id}/thumb`,
       width: meta.width ?? null,
@@ -249,10 +268,11 @@ export class ShareService {
         // Match files by index (OpenShare preserves order for accepted files)
         const file = files[i];
         return {
+          id: s.id,
           shareAssetId: s.id,
           filename: file?.filename ?? s.id,
           mimeType: file?.mimeType ?? 'application/octet-stream',
-          size: file?.buffer.length ?? 0,
+          size: String(file?.buffer.length ?? 0),
           url: `/api/media/${s.id}/raw`,
           thumbnailUrl: `/api/media/${s.id}/thumb`,
           width: null,
@@ -361,10 +381,62 @@ export class ShareService {
     const nodeStream = Readable.fromWeb(resp.body as WebReadableStream);
     return { stream: nodeStream, headers, status: resp.status };
   }
-}
 
-@Module({
-  providers: [ShareService],
-  exports: [ShareService],
-})
-export class ShareModule {}
+  // ── Upstream: authenticated upload for native/desktop clients ─────
+
+  /**
+   * Upload files to Share on behalf of a user (server-to-server, using the shared
+   * service key + the user's Authentik sub as owner). Lets native clients upload
+   * through the API without holding Share credentials or a browser cookie.
+   */
+  async uploadForUser(userId: string, files: UploadInput[]): Promise<{ attachments: UploadedAttachment[]; rejected: { name: string; reason: string }[] }> {
+    if (!this.shareBaseUrl) throw new HttpException('File hosting is not configured', HttpStatus.SERVICE_UNAVAILABLE);
+    if (files.length === 0) return { attachments: [], rejected: [] };
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { authSub: true, username: true } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const form = new FormData();
+    for (const f of files) form.append('files', new Blob([new Uint8Array(f.buffer)], { type: f.mimetype }), f.originalname);
+    form.append('source', 'chat');
+
+    let res: Response;
+    try {
+      res = await fetch(`${this.shareBaseUrl}/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.shareApiKey}`,
+          'X-Share-User-Sub': user.authSub,
+          'X-Share-User-Name': user.username,
+        },
+        body: form,
+      });
+    } catch {
+      throw new HttpException('Could not reach file hosting', HttpStatus.BAD_GATEWAY);
+    }
+    if (!res.ok) {
+      throw new HttpException('File hosting rejected the upload', HttpStatus.BAD_GATEWAY);
+    }
+
+    const data = (await res.json()) as ShareUploadResult;
+    const rejectedNames = new Set((data.rejected ?? []).map((r) => r.name));
+    const accepted = files.filter((f) => !rejectedNames.has(f.originalname));
+
+    const attachments: UploadedAttachment[] = (data.saved ?? []).map((sv, i) => {
+      const f = accepted[i] ?? files[i];
+      return {
+        id: sv.id,
+        shareAssetId: sv.id,
+        filename: f?.originalname ?? sv.id,
+        mimeType: f?.mimetype ?? '',
+        size: String(f?.size ?? 0),
+        url: `${this.shareBaseUrl}/raw/${sv.id}`,
+        thumbnailUrl: `${this.shareBaseUrl}/thumb/${sv.id}`,
+        width: null,
+        height: null,
+        durationMs: null,
+      };
+    });
+    return { attachments, rejected: data.rejected ?? [] };
+  }
+}

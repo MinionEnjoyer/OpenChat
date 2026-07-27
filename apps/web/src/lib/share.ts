@@ -1,4 +1,5 @@
 import type { Attachment } from './types';
+import { apiBase, getToken } from './serverConfig';
 
 export interface ShareConfig {
   shareBaseUrl: string;
@@ -6,7 +7,11 @@ export interface ShareConfig {
 }
 
 export async function getConfig(): Promise<ShareConfig> {
-  const res = await fetch('/api/config', { credentials: 'include' });
+  const token = getToken();
+  const res = await fetch(`${apiBase()}/config`, {
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   if (!res.ok) {
     const err = new Error(`config ${res.status}`) as Error & { status?: number };
     err.status = res.status;
@@ -15,52 +20,61 @@ export async function getConfig(): Promise<ShareConfig> {
   return res.json();
 }
 
-interface UploadResponse {
-  saved: { id: string; media_type: string; bundle?: boolean }[];
-  rejected: { name: string; reason: string }[];
-}
-
 /**
- * Upload files directly to the Share service (the user is SSO'd to Share too, so the
- * browser's Share session cookie authorizes it). Returns Chat attachment references.
+ * Upload files through the API's authenticated upload endpoint, which stores them in Share
+ * on the user's behalf using the shared service key + the user's SSO sub. This needs NO
+ * Share session or account, so it works for users who have never opened OpenShare (the old
+ * web path posted straight to Share with a browser cookie, which such users don't have).
+ * Web authenticates with the session cookie; native clients send a bearer app token.
+ * `shareBaseUrl` is unused now (the API builds the returned URLs) but kept for call sites.
  */
 export async function uploadToShare(
   files: File[],
-  shareBaseUrl: string,
+  shareBaseUrl?: string,
 ): Promise<{ attachments: Attachment[]; rejected: { name: string; reason: string }[] }> {
+  void shareBaseUrl;
+  const token = getToken();
   const form = new FormData();
   for (const f of files) form.append('files', f);
-  form.append('source', 'chat'); // routes into the user's "Chat" folder on Share + enables dedup
-
-  const res = await fetch(`${shareBaseUrl}/upload`, {
+  const res = await fetch(`${apiBase()}/uploads`, {
     method: 'POST',
     body: form,
-    credentials: 'include',
+    // Native clients auth with the bearer token cross-origin — omit cookies so the request
+    // doesn't require CORS credentials support. Web (no token) sends its same-origin cookie.
+    credentials: token ? 'omit' : 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-  if (!res.ok) throw new Error(`Share upload failed (${res.status})`);
-  const data: UploadResponse = await res.json();
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 200); } catch { /* ignore */ }
+    throw new Error(`Upload failed (${res.status})${detail ? `: ${detail}` : ''}`);
+  }
+  return (await res.json()) as { attachments: Attachment[]; rejected: { name: string; reason: string }[] };
+}
 
-  // Share returns accepted files (in order) under `saved` and skips rejected ones.
-  const rejectedNames = new Set((data.rejected ?? []).map((r) => r.name));
-  const accepted = files.filter((f) => !rejectedNames.has(f.name));
-
-  const attachments: Attachment[] = data.saved.map((s, i) => {
-    const file = accepted[i] ?? files[i];
+/**
+ * Compute a waveform (audio-level peaks, normalized 0..1) + duration for a clip WITHOUT
+ * storing it — used by the recorder to bake the preview waveform right after recording.
+ * Returns null on any failure (caller falls back to no waveform).
+ */
+export async function analyzeWaveform(
+  file: File,
+  shareBaseUrl: string,
+): Promise<{ peaks: number[]; duration: number | null } | null> {
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${shareBaseUrl}/waveform`, { method: 'POST', body: form });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data?.peaks) || !data.peaks.length) return null;
     return {
-      id: s.id,
-      shareAssetId: s.id,
-      filename: file?.name ?? s.id,
-      mimeType: file?.type ?? '',
-      size: String(file?.size ?? 0),
-      url: `${shareBaseUrl}/raw/${s.id}`,
-      thumbnailUrl: `${shareBaseUrl}/thumb/${s.id}`,
-      width: null,
-      height: null,
-      durationMs: null,
+      peaks: data.peaks.map((p: number) => Math.max(0, Math.min(1, p / 100))),
+      duration: typeof data.duration === 'number' ? data.duration : null,
     };
-  });
-
-  return { attachments, rejected: data.rejected ?? [] };
+  } catch {
+    return null;
+  }
 }
 
 const VIEWER_PREFIX: Record<string, string> = {

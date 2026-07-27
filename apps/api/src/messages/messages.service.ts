@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { ServersService } from '../servers/servers.service';
+import { PresenceService } from '../realtime/presence.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
 
@@ -92,6 +93,7 @@ export class MessagesService {
     private readonly redis: RedisService,
     private readonly auditLog: AuditLogService,
     private readonly servers: ServersService,
+    private readonly presence: PresenceService,
   ) {}
 
   private readonly logger = new Logger(MessagesService.name);
@@ -393,34 +395,46 @@ export class MessagesService {
     let authorName = 'Someone';
 
     if (channel.serverId) {
-      const members = await this.prisma.serverMember.findMany({
-        where: { serverId: channel.serverId },
-        include: { user: true, roles: true },
-      });
-      const author = members.find((m) => m.userId === authorId);
-      authorName = author?.user.displayName || author?.user.username || 'Someone';
+      const author = await this.prisma.user.findUnique({ where: { id: authorId }, select: { displayName: true, username: true } });
+      authorName = author?.displayName || author?.username || 'Someone';
 
+      // @everyone / @here need the whole membership (+ a permission check); do that only when present.
       if (hasEveryone || hasHere) {
-        const server = await this.prisma.server.findUnique({ where: { id: channel.serverId }, select: { ownerId: true } });
+        const [server, authorMember, members] = await Promise.all([
+          this.prisma.server.findUnique({ where: { id: channel.serverId }, select: { ownerId: true } }),
+          this.prisma.serverMember.findUnique({ where: { serverId_userId: { serverId: channel.serverId, userId: authorId } }, include: { roles: true } }),
+          this.prisma.serverMember.findMany({ where: { serverId: channel.serverId }, select: { userId: true, user: { select: { status: true } } } }),
+        ]);
         const perms = server?.ownerId === authorId
           ? ALL_PERMISSIONS
-          : (author?.roles.reduce((a, r) => a | r.permissions, 0n) ?? 0n);
+          : (authorMember?.roles.reduce((a, r) => a | r.permissions, 0n) ?? 0n);
         if (hasPermission(perms, Permission.MENTION_EVERYONE)) {
           for (const m of members) {
             if (hasEveryone) targets.add(m.userId);
-            else if (hasHere && ['ONLINE', 'AWAY', 'DND'].includes(m.user.status)) targets.add(m.userId);
+            else if (hasHere && this.presence.isActive(m.userId)) targets.add(m.userId);
           }
         }
       }
-      for (const u of userMentions) {
-        const m = members.find((mm) => mm.user.username.toLowerCase() === u);
-        if (m) targets.add(m.userId);
+
+      // Plain @user mentions: resolve only the named users who are members of this server.
+      if (userMentions.length) {
+        const mentioned = await this.prisma.serverMember.findMany({
+          where: { serverId: channel.serverId, OR: userMentions.map((u) => ({ user: { username: { equals: u, mode: 'insensitive' as const } } })) },
+          select: { userId: true },
+        });
+        for (const m of mentioned) targets.add(m.userId);
       }
       // FR-ROLE-007: fan-out to all members with a mentioned role
-      for (const role of mentionedRoles) {
-        for (const m of members) {
-          if (m.roles.some((r) => r.id === role.id)) {
-            targets.add(m.userId);
+      if (mentionedRoles.length) {
+        const roleMembers = await this.prisma.serverMember.findMany({
+          where: { serverId: channel.serverId },
+          include: { roles: true },
+        });
+        for (const role of mentionedRoles) {
+          for (const m of roleMembers) {
+            if (m.roles.some((r) => r.id === role.id)) {
+              targets.add(m.userId);
+            }
           }
         }
       }
@@ -652,6 +666,20 @@ export class MessagesService {
     return messages.map((m) => this.serializeMessage(m));
   }
 
+  /** Case-insensitive substring search over a channel's (non-deleted) messages. */
+  async search(channelId: string, userId: string, q: string, options?: { limit?: number }): Promise<MessageWithRelations[]> {
+    await this.assertChannelAccess(channelId, userId);
+    const query = q.trim();
+    if (query.length < 2) return [];
+    const messages = await this.prisma.message.findMany({
+      where: { channelId, deletedAt: null, content: { contains: query, mode: 'insensitive' } },
+      include: MESSAGE_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+      take: options?.limit ?? 50,
+    });
+    return messages.map((m) => this.serializeMessage(m));
+  }
+
   async markRead(channelId: string, userId: string, lastReadMessageId: string) {
     // Update or create ReadState
     await this.prisma.readState.upsert({
@@ -663,7 +691,7 @@ export class MessagesService {
       },
       update: {
         lastReadMessageId,
-        mentionCount: 0, // Reset mentions on read? Usually yes.
+        mentionCount: 0, // reading the channel clears its unread mention count
       },
       create: {
         userId,
@@ -673,9 +701,7 @@ export class MessagesService {
       },
     });
 
-    // Note: Presence/Typing events are handled via WS, but ReadState is DB only unless we want to broadcast read receipts.
-    // The contract doesn't explicitly ask for a 'read.updated' event, so we skip publishing.
-    
+    // ReadState is persisted only; read receipts are out of scope (no WS broadcast).
     return { success: true };
   }
 
@@ -763,50 +789,6 @@ export class MessagesService {
           }
         : null,
     };
-  }
-
-  /**
-   * Search messages in a channel. Uses PostgreSQL full-text search
-   * (to_tsvector / plainto_tsquery) internally.
-   *
-   * // @satisfies FR-MSG-020
-   */
-  async search(channelId: string, userId: string, q: string, options?: { limit?: number }): Promise<MessageWithRelations[]> {
-    await this.assertChannelAccess(channelId, userId);
-    const query = q.trim();
-    if (!query) return [];
-
-    const limit = Math.min(options?.limit ?? 50, 100);
-
-    // Full-text search to find matching message IDs
-    const searchIds = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
-      `SELECT m."id"
-       FROM "Message" m
-       WHERE m."channelId" = $1
-         AND m."deletedAt" IS NULL
-         AND to_tsvector('english', m."content") @@ plainto_tsquery('english', $2)
-       ORDER BY ts_rank(to_tsvector('english', m."content"), plainto_tsquery('english', $2)) DESC, m."createdAt" DESC
-       LIMIT $3`,
-      channelId,
-      query,
-      limit,
-    );
-
-    if (searchIds.length === 0) return [];
-
-    const ids = searchIds.map((r) => r.id);
-
-    // Fetch full messages with relations
-    const messages = await this.prisma.message.findMany({
-      where: { id: { in: ids } },
-      include: MESSAGE_INCLUDE,
-    });
-
-    // Preserve search order (findMany with 'in' doesn't guarantee order)
-    const idOrder = new Map(ids.map((id, i) => [id, i]));
-    messages.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
-
-    return messages.map((m) => this.serializeMessage(m));
   }
 
   private groupReactions(reactions: Array<{ emoji: string; userId: string }>) {

@@ -12,6 +12,11 @@ const GetMessagesQuery = z.object({
   limit: z.coerce.number().int().positive().max(100).default(50),
 });
 
+const SearchMessagesQuery = z.object({
+  q: z.string().min(1).max(200),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+});
+
 const AttachmentSchema = z.object({
   shareAssetId: z.string(),
   filename: z.string(),
@@ -45,6 +50,15 @@ export class MessagesController {
     @Query(new ZodValidationPipe(GetMessagesQuery)) query: { before?: string; around?: string; limit?: number },
   ) {
     return this.messages.list(channelId, user.id, query);
+  }
+
+  @Get('channels/:id/messages/search')
+  search(
+    @Param('id') channelId: string,
+    @CurrentUser() user: User,
+    @Query(new ZodValidationPipe(SearchMessagesQuery)) query: { q: string; limit?: number },
+  ) {
+    return this.messages.search(channelId, user.id, query.q, { limit: query.limit });
   }
 
   @Post('channels/:id/messages')
@@ -120,20 +134,6 @@ export class MessagesController {
   @Post('polls/options/:optionId/vote')
   votePoll(@Param('optionId') optionId: string, @CurrentUser() user: User) {
     return this.messages.votePollOption(optionId, user.id);
-  }
-
-  // ── Search (FR-MSG-020) ──
-
-  @Get('channels/:id/messages/search')
-  search(
-    @Param('id') channelId: string,
-    @CurrentUser() user: User,
-    @Query(new ZodValidationPipe(z.object({
-      q: z.string().min(1).max(200),
-      limit: z.coerce.number().int().positive().max(100).default(50),
-    }))) query: { q: string; limit?: number },
-  ) {
-    return this.messages.search(channelId, user.id, query.q, { limit: query.limit });
   }
 
   @Post('channels/:id/read')
