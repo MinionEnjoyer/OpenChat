@@ -1,0 +1,28 @@
+# _login_friend — shared login subflow for E2E tests that need the FRIEND user.
+#
+# Identical to _login.yaml except it logs in as E2E_FRIEND_USERNAME instead
+# of E2E_USERNAME. Use this when a two-device flow needs the provisioned
+# friend to act as the second participant.
+#
+# Usage in a flow:
+#   - runFlow: _login_friend.yaml
+#   # ... flow continues after shell-screen is visible
+#
+# Requires the following Maestro env vars (set via --env or exported):
+#   E2E_FRIEND_USERNAME — the friend's login name (provisioned by test-world)
+#
+# After this subflow completes, the app is on shell-screen signed in as the friend.
+
+appId: com.openchat.mobile
+---
+- launchApp:
+    clearState: false
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${E2E_FRIEND_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'

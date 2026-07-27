@@ -1,0 +1,50 @@
+# msg-pins-cross-device-B — device B (friend): wait for pin to appear in pins panel.
+# Companion to msg-pins-cross-device-A.yaml.
+#
+# FR-MSG-011 — Pins cross-device propagation (Part B: observer).
+# @satisfies withheld: cross-device pin propagation requires two-device coordination.
+#
+# Requires: dev stack up + provisioned world, two emulators reaching 10.0.2.2.
+# Start this flow FIRST so device B is at the channel when A pins.
+# After A finishes pinning, open the pins panel to verify the pin propagated.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as friend ──
+- runFlow: _login_friend.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Wait for the pinned message to arrive, then verify it (live delivery ≤2s)
+#            or open the pins panel (on-open) ──
+# Device A sends + pins "e2e-cross-pin". We wait for the message to render first.
+- extendedWaitUntil:
+    visible: 'e2e-cross-pin'
+    timeout: 10000
+
+# ── Phase 4: Open pins panel and verify the pinned message is listed ──
+- tapOn:
+    id: 'pins-toggle'
+- assertVisible:
+    id: 'pins-panel'
+- assertVisible: 'e2e-cross-pin'
+
+- takeScreenshot: artifacts/e2e/screens/msg-pins-cross-device-B

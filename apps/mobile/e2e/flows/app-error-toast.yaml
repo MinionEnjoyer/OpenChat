@@ -1,0 +1,42 @@
+# app-error-toast — trigger a failed mutation, verify error toast + retry affordance.
+# @satisfies FR-APP-006
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+#
+# Proves: a mutation that fails server-side (name >100 chars → Zod 400)
+# shows an error toast with a retry button. No silent failure.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Open left drawer, tap Create Server ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-create-server'
+- assertVisible:
+    id: 'create-server-screen'
+
+# ── Phase 3: Enter a server name >100 chars (bypasses client-side trim check,
+#            but fails Zod validation at the API → 400 → error toast) ──
+- tapOn:
+    id: 'create-server-name'
+- inputText: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+- tapOn:
+    id: 'create-server-submit'
+
+# ── Phase 4: Error toast appears with retry button ──
+- assertVisible:
+    id: 'toast'
+- assertVisible:
+    id: 'toast-message'
+- assertVisible:
+    id: 'toast-retry'
+
+- takeScreenshot: artifacts/e2e/screens/app-error-toast

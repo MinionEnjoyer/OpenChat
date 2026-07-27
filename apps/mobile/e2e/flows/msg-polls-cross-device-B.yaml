@@ -1,0 +1,48 @@
+# msg-polls-cross-device-B — device B (friend): wait for poll, vote, verify counts.
+# Companion to msg-polls-cross-device-A.yaml.
+#
+# FR-MSG-012 — Polls vote convergence (Part B: second voter).
+# @satisfies withheld: vote count convergence requires two-device coordination.
+#
+# Requires: dev stack up + provisioned world, two emulators reaching 10.0.2.2.
+# Start this flow FIRST so device B is at the channel when A creates the poll.
+# After A votes TypeScript, B votes Rust and verifies counts converge to 50/50.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as friend ──
+- runFlow: _login_friend.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Wait for the poll to appear (live delivery from device A) ──
+- extendedWaitUntil:
+    visible: 'Best language?'
+    timeout: 10000
+
+# ── Phase 4: Vote for Rust (different choice from device A) ──
+- tapOn: 'Rust'
+
+# ── Phase 5: After voting, verify counts show 50% (1 of 2 votes per option)
+#            The poll card updates live with vote count percentages ──
+- assertVisible: '50%'
+
+- takeScreenshot: artifacts/e2e/screens/msg-polls-cross-device-B

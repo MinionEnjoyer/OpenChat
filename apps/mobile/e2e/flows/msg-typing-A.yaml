@@ -1,0 +1,45 @@
+# msg-typing-A — device A (friend): login, navigate to general, type in composer.
+# Companion to msg-typing-B.yaml. Run concurrently on two devices sharing the
+# same test-world env vars. Start B first so it's waiting, then start A.
+#
+# FR-MSG-009 — Typing indicators (two-device, Part A: sender).
+# @satisfies withheld: multi-user aggregation requires two-device coordination.
+#
+# Requires: dev stack up + provisioned world, two emulators reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as friend ──
+- runFlow: _login_friend.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Type in composer (sends typing.start to server) ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'typing from friend device'
+
+# ── Phase 4: Send the message ──
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'typing from friend device'
+
+- takeScreenshot: artifacts/e2e/screens/msg-typing-A
