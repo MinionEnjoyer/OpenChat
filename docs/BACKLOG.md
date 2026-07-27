@@ -303,6 +303,30 @@ suite covers every route with a contract schema. Routes without schemas are trac
 
 ---
 
+## UNBUILT-006: FR-ROLE-001 mobile member role assignment unbuilt
+
+- **Evidence:** `apps/mobile/src/` (232 files searched, 2026-07-26) — zero
+  references to `assignRole`, `unassignRole`, `setMemberRole`, or
+  `toggleMemberRole`. The server has `PUT/DELETE /servers/:id/members/:userId/roles/:roleId`
+  endpoints (`apps/api/src/servers/servers.controller.ts:268-307`) with an
+  integration test proving the flow (`apps/api/test/integration/s5-roles.spec.ts:128-169`).
+  The web client implements per-member role toggles in `ServerSettingsModal.tsx:429-446`.
+  Mobile has `MemberList.tsx` (display-only, grouped by role) and `RolesEditorScreen.tsx`
+  (role CRUD: name, color, 11 permission toggles, BigInt-safe), but no UI to assign
+  or remove roles from individual members. Full investigation:
+  `docs/audits/FR-ROLE-001-investigation.md`.
+- **User-visible impact:** Server owners/admins on mobile cannot assign roles to
+  members. Roles can be created and edited, but there is no way to attach them to
+  users from a phone.
+- **Priority:** HIGH — P0, Phase 3. Blocks the mobile admin workflow for role
+  management. The server API is complete; this is a mobile UI gap.
+- **Phase:** Phase 3 — add per-member role toggle UI to `MemberList` or
+  `MemberProfileSheet`, backed by existing `api.assignRole`/`api.unassignRole`
+  calls. Also fix stale web PERMISSION_LIST (8 entries, missing BAN_MEMBERS,
+  SEND_MESSAGES, READ_MESSAGES at `apps/web/src/lib/permissions.ts:14-23`).
+
+---
+
 ## Tooling debt (P0-16)
 
 - **`devctl commit` is unusable.** It aborts when `git diff-index --quiet HEAD`
