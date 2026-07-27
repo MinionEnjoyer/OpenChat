@@ -228,7 +228,8 @@ suite covers every route with a contract schema. Routes without schemas are trac
   is missing.
 - **Priority:** HIGH — this is a Phase 1 requirement that blocks real auth.
 - **Phase:** Phase 1 (Auth) — needs `expo-auth-session` PKCE against
-  `GET /api/auth/oidc-metadata`.
+    `GET /api/auth/oidc-metadata`.
+- **Status:** RESOLVED — commit 7824cd6 implemented the mobile PKCE client.
 
 ---
 

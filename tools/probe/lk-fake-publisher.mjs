@@ -11,7 +11,7 @@
  * Credentials derived from apps/api/.env (LIVEKIT_API_KEY / LIVEKIT_API_SECRET).
  * Do NOT hardcode credentials; they are read from the env.
  *
- * @satisfies FR-VOX-001: provides known injected signal for probe assertion.
+ * @infra FR-VOX-001: provides known injected signal for probe assertion.
  */
 
 import { readFileSync, statSync } from 'node:fs';
