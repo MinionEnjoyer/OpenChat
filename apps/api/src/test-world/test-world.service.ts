@@ -69,6 +69,11 @@ export class TestWorldService {
       data: { serverId: server.id, userId: primaryUser.id },
     });
 
+    // ── Server member (friend — needed for kick/member-list E2E flows) ──
+    await this.prisma.serverMember.create({
+      data: { serverId: server.id, userId: friendUser.id },
+    });
+
     // ── Channels ──
     const general = await this.prisma.channel.create({
       data: { name: 'general', type: ChannelType.TEXT, serverId: server.id, position: 0 },
