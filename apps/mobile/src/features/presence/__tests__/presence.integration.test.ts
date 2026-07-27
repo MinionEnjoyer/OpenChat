@@ -37,7 +37,7 @@ function httpJson(method: string, url: string, body?: unknown, token?: string): 
 }
 
 describe('presence status persistence (FR-SOC-004 integration)', () => {
-  const BASE = process.env.API_BASE ?? 'http://localhost:3104/api';
+  const BASE = process.env.API_BASE ?? 'http://localhost:3030/api';
 
   let token = '';
 
