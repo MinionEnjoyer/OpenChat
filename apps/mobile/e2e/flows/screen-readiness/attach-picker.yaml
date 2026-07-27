@@ -4,6 +4,9 @@
 
 appId: com.openchat.mobile
 ---
+- tapOn:
+    id: 'invite-decline'
+    optional: true
 - assertVisible:
     id: 'shell-screen'
 - assertVisible:
