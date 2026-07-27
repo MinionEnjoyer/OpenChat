@@ -32,8 +32,8 @@ Companion documents:
 | 11 | Granular WS guild events | No | None | Low |
 
 ¹ Category model already shared; guide flags one field to verify.
-² `timedOutUntil` column on `ServerMember` — verify whether upstream has it; if not, ALTER TABLE.
-³ `AuditLog` model is already shared; only the read route and controller are new.
+² `timedOutUntil` is ABSENT upstream — confirmed; ALTER TABLE on `ServerMember` is required.
+³ `AuditLog` model confirmed present upstream; only the read route and controller are new.
 ⁴ Already works in the browser — auth proxying makes media links reliable.
 
 ---
@@ -960,13 +960,19 @@ migrations.
   `apps/api/src/`.
 - The Prisma schema at `apps/api/prisma/schema.prisma` was read in full.
 - Routes were cross-referenced against `docs/UPSTREAM-DIVERGENCE.md`.
-- **UNVERIFIED:** Whether `timedOutUntil` exists on `ServerMember` in the
-  upstream schema. The divergence report's field-set diff found no removals; it
-  did not explicitly enumerate additions to shared models.
-- **UNVERIFIED:** Whether the `AuditLog` and `Category` models exist in
-  upstream. The divergence report's 21-shared-model claim implies they do;
-  verify against `upstream/main` before skipping migrations.
-- **UNVERIFIED:** Whether the `BLOCKED` value in the `FriendStatus` enum exists
-  upstream. The `block`/`unblock` endpoints are new, but they use the existing
-  `Friendship` table with status `BLOCKED`. If upstream's enum lacks `BLOCKED`,
-  that's an enum migration.
+### Schema claims — verified against `origin/main` (2026-07-26)
+
+Checked directly against `git show origin/main:apps/api/prisma/schema.prisma`:
+
+| Item | Upstream | Ours | Consequence |
+|---|---|---|---|
+| `timedOutUntil` on `ServerMember` | **absent** | present | **Migration REQUIRED** for timeouts (ALTER TABLE) |
+| `model AuditLog` | present | present | Already shared — no migration; only the read route is new |
+| `model Category` | present | present | Already shared — no migration |
+| `BLOCKED` in `FriendStatus` | present | present | Already shared — friend blocking needs **no** enum migration |
+
+Net: of the features in the table above, **only timeouts require a schema
+migration on a model upstream already has**. Bans, permission overwrites, push
+notifications and notification settings add entirely new tables (additive, no
+ALTER on existing tables). Audit log, categories and friend blocking need no
+schema change whatsoever.
