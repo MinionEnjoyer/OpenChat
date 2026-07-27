@@ -184,8 +184,9 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
   let pushDispatch: PushDispatchService;
   let prisma: ReturnType<typeof buildMockPrisma>;
   let redis: ReturnType<typeof buildMockRedis>;
+  let capturedHandler: (channel: string, raw: string) => void;
 
-  const mkSvc = (
+  const mkSvc = async (
     cfg: MockPrismaConfig = {},
     serversOverride?: Partial<ReturnType<typeof makeServers>>,
   ) => {
@@ -195,7 +196,9 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
     redis = buildMockRedis();
 
     pushDispatch = new PushDispatchService(redis as any, prisma as any, transport as any);
-    // Skip onModuleInit — no real Redis subscriber
+    await pushDispatch.onModuleInit();
+    // Capture the real subscriber callback registered in onModuleInit
+    capturedHandler = redis.getSubscriber().on.mock.calls[0][1];
 
     const servers = Object.assign(makeServers(cfg.authorId ?? 'author-1'), serversOverride);
     const auditLog = { write: jest.fn().mockResolvedValue(undefined) };
@@ -236,7 +239,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
   // ── Case 1: DM received ──────────────────────────────────────
   describe('Case 1 — DM received (recipient not author)', () => {
     it('publishes NOTIFY to redis, then handleEvent dispatches push', async () => {
-      mkSvc({
+      await mkSvc({
         channelServerId: null,
         channelName: 'DM with Recip',
         authorId: 'author-1',
@@ -255,8 +258,8 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       expect(notifyEvents[0].channelId).toBe('ch-1');
 
       // Simulate the PushDispatchService subscriber: feed the published event
-      await pushDispatch.handleEvent(notifyEvents[0] as any);
-
+      capturedHandler('chat:events', JSON.stringify(notifyEvents[0]));
+      await new Promise((r) => setTimeout(r, 50));
       // Now verify transport received the send
       expect(transport.sends.length).toBe(1);
       const s = transport.sends[0];
@@ -270,7 +273,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
   // ── Case 2: Server channel message ───────────────────────────
   describe('Case 2 — Server channel message', () => {
     it('publishes NOTIFY to all non-author server members via redis', async () => {
-      mkSvc({
+      await mkSvc({
         channelServerId: 'srv-1',
         channelName: 'general',
         authorId: 'author-1',
@@ -290,9 +293,9 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       // Author should NOT be in the published events
       expect(notifyEvents.find((e) => e.userId === 'author-1')).toBeUndefined();
 
-      // Simulate subscriber for each event
       for (const evt of notifyEvents) {
-        await pushDispatch.handleEvent(evt as any);
+        capturedHandler('chat:events', JSON.stringify(evt));
+        await new Promise((r) => setTimeout(r, 50));
       }
 
       // Verify transport sends for each non-author member
@@ -311,7 +314,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
   // ── Case 3: @mention ─────────────────────────────────────────
   describe('Case 3 — @mention in a server channel', () => {
     it('publishes MENTION to redis (exactly one), then handleEvent dispatches exactly one push', async () => {
-      mkSvc({
+      await mkSvc({
         channelServerId: 'srv-1',
         channelName: 'general',
         authorId: 'author-1',
@@ -333,8 +336,8 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       expect(mentionEvents[0].userId).toBe('member-2');
       expect(mentionEvents[0].type).toBe('MENTION');
 
-      // Simulate subscriber
-      await pushDispatch.handleEvent(mentionEvents[0] as any);
+      capturedHandler('chat:events', JSON.stringify(mentionEvents[0]));
+      await new Promise((r) => setTimeout(r, 50));
 
       // Exactly ONE MENTION send
       const mentionSends = transport.sends.filter((s) => s.payload.data?.type === 'mention');
@@ -352,7 +355,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
   // ── Case 4: Double-dispatch is dead ──────────────────────────
   describe('Case 4 — double-dispatch proof', () => {
     it('one @mention produces EXACTLY ONE send, not two', async () => {
-      mkSvc({
+      await mkSvc({
         channelServerId: 'srv-1',
         channelName: 'general',
         authorId: 'author-1',
@@ -371,13 +374,40 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       const mentionEvents = publishedEvents('MENTION');
       expect(mentionEvents.length).toBe(1);
 
-      // Feed the single event to handleEvent
-      await pushDispatch.handleEvent(mentionEvents[0] as any);
+      capturedHandler('chat:events', JSON.stringify(mentionEvents[0]));
+      await new Promise((r) => setTimeout(r, 50));
 
       // Exactly one send
       expect(transport.sends.length).toBe(1);
       const mentionSends = transport.sends.filter((s) => s.payload.data?.type === 'mention');
       expect(mentionSends.length).toBe(1);
+    });
+  });
+
+  // ── Negative: filter guards ───────────────────────────────────
+  describe('Negative — filter guards', () => {
+    it('ignores non-push event types (e.g. MESSAGE_CREATED)', async () => {
+      await mkSvc({
+        channelServerId: null,
+        authorId: 'author-1',
+        dmRecipients: ['author-1', 'recip-1'],
+        deviceTokens: ['tok-recip-1'],
+      });
+      capturedHandler('chat:events', JSON.stringify({ type: 'MESSAGE_CREATED', userId: 'recip-1', channelId: 'ch-1' }));
+      await new Promise((r) => setTimeout(r, 50));
+      expect(transport.sends.length).toBe(0);
+    });
+
+    it('ignores malformed JSON without throwing', async () => {
+      await mkSvc({
+        channelServerId: null,
+        authorId: 'author-1',
+        dmRecipients: ['author-1', 'recip-1'],
+        deviceTokens: ['tok-recip-1'],
+      });
+      expect(() => capturedHandler('chat:events', 'not valid json{{{')).not.toThrow();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(transport.sends.length).toBe(0);
     });
   });
 });
@@ -387,13 +417,17 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
 // To prove these tests are not vacuous, temporarily remove the redis.publish calls:
 //
 //   1. In dispatchMentions (messages.service.ts), comment out the
-//      `await this.redis.publish('chat:events', { type: 'MENTION', ... })` line.
-//      Cases 3 and 4 FAIL — no MENTION published, handleEvent never receives it.
+//      `await this.redis.publish('chat:events', { ... })` line.
+//      Cases 3 and 4 FAIL — no MENTION published, the subscriber callback never fires.
 //
 //   2. In dispatchNotify (messages.service.ts), comment out the
-//      `this.redis.publish('chat:events', { type: 'NOTIFY', ... }).catch(() => {})` line.
-//      Cases 1 and 2 FAIL — no NOTIFY published, handleEvent never receives it.
+//      `this.redis.publish('chat:events', { ... }).catch(() => {})` line.
+//      Cases 1 and 2 FAIL — no NOTIFY published, the subscriber callback never fires.
+//
+//   3. To prove the JSON round-trip is exercised: temporarily pass a raw object
+//      instead of JSON.stringify(...) to capturedHandler. The tests FAIL because
+//      JSON.parse receives an object instead of a string. Restore JSON.stringify
+//      and all tests PASS. A test that passes with object input is not exercising
+//      the real subscriber callback.
 //
 // Restore the lines and all tests PASS again.
-//
-// Run:  npx jest -- src/push/push-message-integration.spec.ts
