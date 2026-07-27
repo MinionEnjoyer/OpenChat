@@ -1,6 +1,6 @@
 # OpenChat — Canonical Project Status
 
-**Canonical live-status document.** Last reconciled: **2026-07-26 22:44 PDT**
+**Canonical live-status document.** Last reconciled: **2026-07-26 22:57 PDT**
 by Codex, from repository state and the locally stored Claude transcript.
 
 This file exists so work can move between Codex, Claude, or a fresh operator
@@ -76,7 +76,7 @@ was executed by someone other than the author.**
 | Integration cleanliness | **DIRTY — preserve** |
 | Linked OpenChat worktrees | 188 |
 | Dirty `openchat-*` worktrees | 59 |
-| Running CodeWhale agents | 0 |
+| Running agents | 2 trusted Wave 1 builders + 2 CodeWhale research agents at reconciliation |
 | Devices available to `adb` | No device serial observed during reconciliation |
 | Current integration gates | **NOT RUN** at `70908d7` by this reconciler |
 
@@ -122,17 +122,18 @@ that current deterministic/device gates were not run as part of the audit.
 ### Seven requirement investigations
 
 Claude dispatched seven device-free investigations immediately before its
-session ended. All produced reports.
+session ended. All produced reports. **All seven reports are now merged into
+`integration`** at merge HEAD `90b5ef7`.
 
 | Requirement | Verdict | Worktree state |
 |---|---|---|
-| FR-AUTH-001 | A — built, required E2E missing | Report uncommitted on `p2-auth001`; generated trace file also dirty |
-| FR-AUTH-006 | A — built, required two-client E2E missing | Report uncommitted on `p2-auth006` |
-| FR-MSG-014 | A — built, required evidence missing | Report committed as `7574c52`; generated trace file remains dirty |
-| FR-ROLE-001 | B — partially built | Report and backlog edits uncommitted on `p2-role001` |
-| FR-SRV-006 | A — built, invite deep-link E2E missing | Report committed as `b27e312`; unmerged |
-| FR-SRV-008 | A — built, existing E2E is non-destructive | Report committed as `03cb807`; unmerged |
-| FR-SRV-009 | B — partially built | Report and backlog edits uncommitted on `p2-srv009` |
+| FR-AUTH-001 | A — built, required E2E missing | Merged |
+| FR-AUTH-006 | A — built, required two-client E2E missing | Merged |
+| FR-MSG-014 | A — built, required evidence missing | Merged |
+| FR-ROLE-001 | B — partially built | Merged with backlog entry |
+| FR-SRV-006 | A — built, invite deep-link E2E missing | Merged |
+| FR-SRV-008 | A — built, existing E2E is non-destructive | Merged |
+| FR-SRV-009 | B — partially built | Merged with backlog entry |
 
 Important product finding: FR-SRV-009's server publishes granular guild events,
 but the mobile `applyEvent` path silently drops them. FR-ROLE-001 also requires
@@ -146,6 +147,16 @@ product work, not merely a stronger test.
 clean trees. External provider access requires the approved network escalation.
 
 The smoke-test worktrees and `.fanout-logs/cw-smoke-*.log` remain as evidence.
+
+### External CodeWhale authorization
+
+On 2026-07-26 the owner authorized Codex to send OpenChat and device-scheduler
+source code, specifications, tests, and scoped work orders to DeepSeek through
+CodeWhale for this project until revoked.
+
+Exclusions remain absolute: do not send credentials, `.env` contents, API keys,
+tokens, private user data, or unrelated files. Every CodeWhale order must repeat
+these exclusions when its read scope includes repository content.
 
 ## Device scheduler — active objective
 
@@ -188,15 +199,16 @@ but are not assumed to support programmatic boot, shutdown, or reset.
 
 | Artifact | State |
 |---|---|
-| `SPEC.md` | Draft committed at `78cb9ed`; requires review reconciliation |
+| `SPEC.md` | Reviews reconciled; approved v1 committed at `63e04a6` |
 | `REVIEW-A.md` | Committed at `e4f3d85`; adversarial review |
 | `REVIEW-B.md` | Committed at `dcf5158`; implementability review |
-| Implementation | None |
+| Implementation | Wave 1 core/store and provider/fakes in progress |
 | Validation | None |
 
-Reviewer A found five blockers, ten serious issues, ten scheduler-created
-failure modes, and several vacuous gates. The original draft must not be
-implemented verbatim.
+Reviewer A's blockers were reconciled into the approved v1. Two trusted
+in-workspace builders own disjoint Wave 1 packages. Two scoped CodeWhale agents
+are concurrently deriving the Android-provider ground truth and the executable
+G1–G11 validation plan.
 
 The revised v1 must resolve at least:
 
@@ -221,32 +233,26 @@ The revised v1 must resolve at least:
 
 Do these in order:
 
-1. **Preserve the investigation wave.**
-   Re-dispatch continuations to checkpoint the four dirty reports. Review all
-   seven findings, regenerate shared trace artifacts once centrally, and merge
-   the accepted investigation records into `integration`.
+1. **Complete and gate scheduler Wave 1.**
+   Merge the atomic store and provider/fake packages, then run their combined
+   tests independently. Adjudicate the Android and validation research reports.
 
-2. **Revise the scheduler specification.**
-   Reconcile both reviews, close Reviewer A's blockers, define the v1 cut line,
-   and make every acceptance gate executable and non-vacuous.
-
-3. **Build the scheduler through CodeWhale fan-out.**
+2. **Build the remaining scheduler waves through agent fan-out.**
    Suggested dependency waves:
-   - lease/state core and device registry in parallel;
    - acquire/run lifecycle and status/observability in parallel;
    - CLI integration;
    - independent adversarial verifier on the assembled result.
 
-4. **Validate trivial scenarios before product use.**
+3. **Validate trivial scenarios before product use.**
    Demonstrate both failure and success for concurrent acquisition, holder
    death, lease recovery, failing-command cleanup, stale APK rejection,
    explicit serial targeting, memory refusal, and physical-device safety.
 
-5. **Resume product closure only through the scheduler.**
+4. **Resume product closure only through the scheduler.**
    Fix the partial FR-ROLE-001 and FR-SRV-009 implementations, then assign one
    leased device per agent to close required E2E evidence.
 
-6. **Gate and re-audit.**
+5. **Gate and re-audit.**
    Gate every accepted branch, gate the merged `integration`, then re-run Phase
    1–3 audits and grant only the signoffs supported by executed acceptance
    evidence.
