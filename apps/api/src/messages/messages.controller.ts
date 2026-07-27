@@ -122,34 +122,18 @@ export class MessagesController {
     return this.messages.votePollOption(optionId, user.id);
   }
 
-  // ── Search (FR-MSG-020, P7-05) ──
+  // ── Search (FR-MSG-020) ──
 
-  @Get('channels/:id/search')
-  searchChannel(
+  @Get('channels/:id/messages/search')
+  search(
     @Param('id') channelId: string,
     @CurrentUser() user: User,
     @Query(new ZodValidationPipe(z.object({
       q: z.string().min(1).max(200),
-      author: z.string().uuid().optional(),
-      before: z.string().optional(),
-      limit: z.coerce.number().int().positive().max(100).default(25),
-    }))) query: { q: string; author?: string; before?: string; limit?: number },
+      limit: z.coerce.number().int().positive().max(100).default(50),
+    }))) query: { q: string; limit?: number },
   ) {
-    return this.messages.search({ channelId, query: query.q, authorId: query.author, before: query.before, limit: query.limit, userId: user.id });
-  }
-
-  @Get('servers/:id/search')
-  searchServer(
-    @Param('id') serverId: string,
-    @CurrentUser() user: User,
-    @Query(new ZodValidationPipe(z.object({
-      q: z.string().min(1).max(200),
-      author: z.string().uuid().optional(),
-      before: z.string().optional(),
-      limit: z.coerce.number().int().positive().max(100).default(25),
-    }))) query: { q: string; author?: string; before?: string; limit?: number },
-  ) {
-    return this.messages.search({ serverId, query: query.q, authorId: query.author, before: query.before, limit: query.limit, userId: user.id });
+    return this.messages.search(channelId, user.id, query.q, { limit: query.limit });
   }
 
   @Post('channels/:id/read')
