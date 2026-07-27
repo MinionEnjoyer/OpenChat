@@ -3,12 +3,11 @@ import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { AuthModule } from '../auth/auth.module';
 import { ServersModule } from '../servers/servers.module';
-import { PushModule } from '../push/push.module';
 
 // PrismaModule + RedisModule are @Global. AuthModule provides SessionGuard.
 // MessagesService is exported so the realtime gateway can reuse it.
 @Module({
-  imports: [AuthModule, ServersModule, PushModule],
+  imports: [AuthModule, ServersModule],
   controllers: [MessagesController],
   providers: [MessagesService],
   exports: [MessagesService],

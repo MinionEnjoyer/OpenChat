@@ -2,13 +2,17 @@
  * @satisfies FR-NOTIF-001
  * @satisfies FR-NOTIF-003
  *
- * Integration tests: MessagesService.create() → PushDispatchService → MockPushTransport.
+ * Integration tests: MessagesService.create() → redis.publish → PushDispatchService.handleEvent → MockPushTransport.
  * Services are manually wired to avoid NestJS DI complexity — we test the business
  * chain, not the DI container.
  *
- * One test per push case: DM, server-channel message, and @mention.
+ * Every push path goes through the redis event bus. PushDispatchService is reached
+ * ONLY by subscribing to chat:events, never by a direct method call from a service.
  *
- * Perturb-and-restore: temporarily remove the dispatch call, confirm test FAILS,
+ * One test per push case: DM, server-channel message, and @mention.
+ * Plus a double-dispatch proof: one @mention → exactly ONE send.
+ *
+ * Perturb-and-restore: temporarily remove the redis publish, confirm test FAILS,
  * restore, confirm it PASSES. A test that passes with the feature removed proves nothing.
  */
 import { MessagesService } from '../messages/messages.service';
@@ -113,7 +117,7 @@ function buildMockPrisma(cfg: MockPrismaConfig = {}) {
   const deviceTokenFindMany = jest.fn().mockResolvedValue(
     tokens.map((t) => ({ token: t })),
   );
-  const deviceTokenUpdateMany = jest.fn().mockResolvedValue({ count: tokens.length });
+  const deviceTokenUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
   const deviceTokenDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
 
   const roleFindMany = jest.fn().mockResolvedValue([]);
@@ -174,9 +178,10 @@ function buildMockRedis() {
 }
 
 // ── Tests ──────────────────────────────────────────────────────
-describe('Push dispatch integration — MessagesService → PushDispatchService', () => {
+describe('Push dispatch integration — MessagesService → redis → PushDispatchService', () => {
   let svc: MessagesService;
   let transport: MockPushTransport;
+  let pushDispatch: PushDispatchService;
   let prisma: ReturnType<typeof buildMockPrisma>;
   let redis: ReturnType<typeof buildMockRedis>;
 
@@ -189,13 +194,14 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
     prisma = buildMockPrisma(cfg);
     redis = buildMockRedis();
 
-    const pushDispatch = new PushDispatchService(redis as any, prisma as any, transport as any);
+    pushDispatch = new PushDispatchService(redis as any, prisma as any, transport as any);
     // Skip onModuleInit — no real Redis subscriber
 
     const servers = Object.assign(makeServers(cfg.authorId ?? 'author-1'), serversOverride);
     const auditLog = { write: jest.fn().mockResolvedValue(undefined) };
 
-    svc = new MessagesService(prisma as any, redis as any, auditLog as any, servers as any, pushDispatch);
+    // MessagesService no longer injects PushDispatchService — everything goes through redis
+    svc = new MessagesService(prisma as any, redis as any, auditLog as any, servers as any);
     (svc as any).logger = { error: jest.fn() }; // suppress real logger noise
     return { pushDispatch, servers };
   };
@@ -210,9 +216,26 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
     };
   }
 
+  /**
+   * Helper: extract events published to 'chat:events' by type.
+   * redis.publish(channel, payload) — we capture calls to redis.publish.
+   */
+  function publishedEvents(type?: string): Array<Record<string, unknown>> {
+    const calls = (redis.publish as jest.Mock).mock.calls;
+    const events: Array<Record<string, unknown>> = [];
+    for (const [channel, payload] of calls) {
+      if (channel === 'chat:events') {
+        if (!type || (payload as Record<string, unknown>).type === type) {
+          events.push(payload as Record<string, unknown>);
+        }
+      }
+    }
+    return events;
+  }
+
   // ── Case 1: DM received ──────────────────────────────────────
   describe('Case 1 — DM received (recipient not author)', () => {
-    it('pushes NOTIFY to DM recipient when a message is created', async () => {
+    it('publishes NOTIFY to redis, then handleEvent dispatches push', async () => {
       mkSvc({
         channelServerId: null,
         channelName: 'DM with Recip',
@@ -222,9 +245,19 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
       });
 
       await svc.create('ch-1', 'author-1', { content: 'hey from DM' });
-      // Let fire-and-forget dispatchNotify settle
+      // Let fire-and-forget dispatchNotify settle (now uses redis.publish)
       await new Promise((r) => setTimeout(r, 100));
 
+      // Verify redis publish happened
+      const notifyEvents = publishedEvents('NOTIFY');
+      expect(notifyEvents.length).toBe(1);
+      expect(notifyEvents[0].userId).toBe('recip-1');
+      expect(notifyEvents[0].channelId).toBe('ch-1');
+
+      // Simulate the PushDispatchService subscriber: feed the published event
+      await pushDispatch.handleEvent(notifyEvents[0] as any);
+
+      // Now verify transport received the send
       expect(transport.sends.length).toBe(1);
       const s = transport.sends[0];
       expect(s.tokens).toContain('tok-recip-1');
@@ -236,7 +269,7 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
 
   // ── Case 2: Server channel message ───────────────────────────
   describe('Case 2 — Server channel message', () => {
-    it('pushes NOTIFY to all non-author server members', async () => {
+    it('publishes NOTIFY to all non-author server members via redis', async () => {
       mkSvc({
         channelServerId: 'srv-1',
         channelName: 'general',
@@ -246,15 +279,27 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
       });
 
       await svc.create('ch-1', 'author-1', { content: 'hello server' });
-      // Let fire-and-forget dispatchNotify settle
       await new Promise((r) => setTimeout(r, 100));
 
-      // member-2 and member-3 should each get a push
+      // Verify redis publish happened for each non-author member
+      const notifyEvents = publishedEvents('NOTIFY');
+      expect(notifyEvents.length).toBe(2);
+      const userIds = notifyEvents.map((e) => e.userId).sort();
+      expect(userIds).toEqual(['member-2', 'member-3']);
+
+      // Author should NOT be in the published events
+      expect(notifyEvents.find((e) => e.userId === 'author-1')).toBeUndefined();
+
+      // Simulate subscriber for each event
+      for (const evt of notifyEvents) {
+        await pushDispatch.handleEvent(evt as any);
+      }
+
+      // Verify transport sends for each non-author member
       expect(transport.sends.length).toBe(2);
       const allTokens = transport.sends.flatMap((s) => s.tokens);
       expect(allTokens).toContain('tok-m2');
       expect(allTokens).toContain('tok-m3');
-      // Author token should NOT be included
       for (const s of transport.sends) {
         expect(s.tokens).not.toContain('tok-author');
         expect(s.payload.data?.type).toBe('notify');
@@ -265,13 +310,13 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
 
   // ── Case 3: @mention ─────────────────────────────────────────
   describe('Case 3 — @mention in a server channel', () => {
-    it('pushes MENTION to the mentioned user', async () => {
+    it('publishes MENTION to redis (exactly one), then handleEvent dispatches exactly one push', async () => {
       mkSvc({
         channelServerId: 'srv-1',
         channelName: 'general',
         authorId: 'author-1',
         serverMembers: ['author-1', 'member-2', 'member-3'],
-        deviceTokens: ['tok-m2', 'tok-m3'],
+        deviceTokens: ['tok-m2'],
         memberDetails: [
           { userId: 'author-1', user: { username: 'author', displayName: 'Author Name', status: 'ONLINE' }, roles: [] },
           { userId: 'member-2', user: { username: 'member2', displayName: 'Member Two', status: 'ONLINE' }, roles: [] },
@@ -280,28 +325,74 @@ describe('Push dispatch integration — MessagesService → PushDispatchService'
       });
 
       await svc.create('ch-1', 'author-1', { content: 'hey @member2 check this' });
-      // Let fire-and-forget dispatchMentions settle
       await new Promise((r) => setTimeout(r, 100));
 
-      // dispatchMentions fires → publishes MENTION to Redis AND calls handleEvent directly
-      // The direct handleEvent call produces a MENTION push via transport
+      // ── DOUBLE-DISPATCH PROOF: exactly ONE MENTION publish ──
+      const mentionEvents = publishedEvents('MENTION');
+      expect(mentionEvents.length).toBe(1);
+      expect(mentionEvents[0].userId).toBe('member-2');
+      expect(mentionEvents[0].type).toBe('MENTION');
+
+      // Simulate subscriber
+      await pushDispatch.handleEvent(mentionEvents[0] as any);
+
+      // Exactly ONE MENTION send
       const mentionSends = transport.sends.filter((s) => s.payload.data?.type === 'mention');
       expect(mentionSends.length).toBe(1);
       expect(mentionSends[0].tokens).toContain('tok-m2');
       expect(mentionSends[0].payload.title).toContain('mentioned you');
+
+      // NOTIFY events also publish (for non-author recipients without @mention)
+      const notifyEvents = publishedEvents('NOTIFY');
+      const notifyTargets = notifyEvents.map((e) => e.userId).sort();
+      expect(notifyTargets).toEqual(['member-2', 'member-3']);
+    });
+  });
+
+  // ── Case 4: Double-dispatch is dead ──────────────────────────
+  describe('Case 4 — double-dispatch proof', () => {
+    it('one @mention produces EXACTLY ONE send, not two', async () => {
+      mkSvc({
+        channelServerId: 'srv-1',
+        channelName: 'general',
+        authorId: 'author-1',
+        serverMembers: ['author-1', 'member-2'],
+        deviceTokens: ['tok-m2'],
+        memberDetails: [
+          { userId: 'author-1', user: { username: 'author', displayName: 'Author Name', status: 'ONLINE' }, roles: [] },
+          { userId: 'member-2', user: { username: 'member2', displayName: 'Member Two', status: 'ONLINE' }, roles: [] },
+        ],
+      });
+
+      await svc.create('ch-1', 'author-1', { content: '@member2 hello' });
+      await new Promise((r) => setTimeout(r, 100));
+
+      // Only one MENTION published to redis
+      const mentionEvents = publishedEvents('MENTION');
+      expect(mentionEvents.length).toBe(1);
+
+      // Feed the single event to handleEvent
+      await pushDispatch.handleEvent(mentionEvents[0] as any);
+
+      // Exactly one send
+      expect(transport.sends.length).toBe(1);
+      const mentionSends = transport.sends.filter((s) => s.payload.data?.type === 'mention');
+      expect(mentionSends.length).toBe(1);
     });
   });
 });
 
 // ── Perturb-and-restore proof ──────────────────────────────────
 //
-// To prove these tests are not vacuous, temporarily remove the dispatch calls:
+// To prove these tests are not vacuous, temporarily remove the redis.publish calls:
 //
-//   1. In messages.service.ts, comment out the `this.dispatchNotify(...)` line in create().
-//      Cases 1 and 2 FAIL — transport.sends is empty.
+//   1. In dispatchMentions (messages.service.ts), comment out the
+//      `await this.redis.publish('chat:events', { type: 'MENTION', ... })` line.
+//      Cases 3 and 4 FAIL — no MENTION published, handleEvent never receives it.
 //
-//   2. In dispatchMentions, comment out the `await this.pushDispatch.handleEvent(...)` call.
-//      Case 3 FAILS — no MENTION send via transport.
+//   2. In dispatchNotify (messages.service.ts), comment out the
+//      `this.redis.publish('chat:events', { type: 'NOTIFY', ... }).catch(() => {})` line.
+//      Cases 1 and 2 FAIL — no NOTIFY published, handleEvent never receives it.
 //
 // Restore the lines and all tests PASS again.
 //

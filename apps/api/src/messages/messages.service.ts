@@ -3,7 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { ServersService } from '../servers/servers.service';
-import { PushDispatchService } from '../push/push-dispatch.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
 
@@ -93,7 +92,6 @@ export class MessagesService {
     private readonly redis: RedisService,
     private readonly auditLog: AuditLogService,
     private readonly servers: ServersService,
-    private readonly pushDispatch: PushDispatchService,
   ) {}
 
   private readonly logger = new Logger(MessagesService.name);
@@ -442,10 +440,6 @@ export class MessagesService {
       await this.redis.publish('chat:events', {
         type: 'MENTION', userId: uid, channelId, messageId, channelName: channel.name, authorName, preview,
       });
-      // Also dispatch locally so the PushDispatchService processes immediately
-      await this.pushDispatch.handleEvent({
-        type: 'MENTION', userId: uid, channelId, messageId, channelName: channel.name, authorName, preview,
-      });
     }
   }
 
@@ -491,8 +485,7 @@ export class MessagesService {
     }
 
     for (const uid of targets) {
-      // NOTIFY events respect notification settings (channel/server level) inside handleEvent
-      await this.pushDispatch.handleEvent({
+      this.redis.publish('chat:events', {
         type: 'NOTIFY',
         userId: uid,
         channelId,
@@ -500,7 +493,7 @@ export class MessagesService {
         messageId,
         preview,
         channelName: channel.name,
-      });
+      }).catch(() => {});
     }
   }
 
