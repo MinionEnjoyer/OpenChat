@@ -4,6 +4,9 @@
 
 appId: com.openchat.mobile
 ---
+# Dismiss any open left drawer (tap right-side scrim)
+- tapOn:
+    point: '85%,50%'
 - tapOn:
     id: 'members-toggle'
 - assertVisible:
