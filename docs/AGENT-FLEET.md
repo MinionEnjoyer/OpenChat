@@ -4,22 +4,27 @@
 CodeWhale/DeepSeek wrappers. This file survives context compaction and handoff.
 The canonical project state remains `docs/PROJECT-STATUS.md`.
 
-**Last reconciled:** 2026-07-26 23:24 PDT
+**Last reconciled:** 2026-07-27 00:24 PDT
 
 ## Live work
 
 | Control plane | ID | Scope | Worktree / branch | State | Last evidence |
 |---|---:|---|---|---|---|
-| CodeWhale | `13348` | Remediate atomic-bundle schema/migration gaps | `device-scheduler-bundle-schema` / `build/bundle-schema` | RUNNING | First pass rejected; strict continuation active |
-| CodeWhale | `63715` | Review observer distributed/CLI contract | `codewhale-observer-review-distributed` / `review/distributed-contract` | RUNNING | DeepSeek review checkpoint |
-| CodeWhale | `65733` | Review observer GUI/security/operator UX | `codewhale-observer-review-gui` / `review/gui-security` | RUNNING | DeepSeek review checkpoint |
-| CodeWhale | `72080` | Finish capability-document corrections | `openchat-fix-product-capabilities` / `fix/product-capabilities` | RUNNING | First correction left verified stale claims |
-| CodeWhale | `94192` | Complete bounded worktree inventory refresh | `openchat-refresh-worktree-inventory` / `fix/worktree-inventory-refresh` | RUNNING | First run capped/stuck; useful script preserved |
+| CodeWhale | `52594` | Repair merged migration/parser incompatibility | `device-scheduler-bundle-parser` / `fix/bundle-migration-parser` | RUNNING | Combined gate fails 36/36 migration tests near `new`; scoped continuation dispatched |
+| CodeWhale | `9665` | Implement frozen batch-capacity API | `device-scheduler-batch-capacity` / `build/batch-capacity` | RUNNING | Awaiting output |
+| CodeWhale | `78728` | Observer Phase 0 calibration/goldens | `codewhale-observer-phase0` / `build/phase0-calibration` | RUNNING | DeepSeek implementation dispatched |
+| CodeWhale | `64030` | Observer Phase 1 domain/projections | `codewhale-observer-phase1` / `build/phase1-domain` | RUNNING | DeepSeek implementation dispatched |
+| CodeWhale | `15522` | Independent observer Phase 0 gates | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | RUNNING | DeepSeek verifier dispatched |
 
 ## Completed outputs awaiting integration decisions
 
 | Work | Commit | Gate / disposition |
 |---|---|---|
+| Observer review adjudication / authorization | `6144442`, `f83f870` | All 32 findings adjudicated; exact implementation baseline authorized |
+| Strict bundle schema remediation | `2f427b5`, merge `2fe5bd4` | Isolated 36 migration tests passed; merged gate RED due SQL parser interaction, remediation running |
+| Capacity verifier v2 | `dbb5b59` | 18 pass, 3 batch skips, 1 intentional contract failure before implementation |
+| Product-capability final corrections | `4a93965` | Awaiting final independent document gate |
+| Worktree inventory refresh | `86ab938` | Completed; awaiting final independent methodology gate |
 | Multi-device architecture review | no commit | Complete; supplied matching, barrier, migration, cleanup, and work-split corrections to spec author |
 | P0 multi-device/security specification | `a652a98` | Docs-only amendment complete; implementation and independent gates running |
 | Concurrent migration safety | `6ebfd5a`, merge `529b748` | Independently gated and merged into scheduler main |
@@ -49,7 +54,8 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 
 ## Current gate truth
 
-- Scheduler `main` is **RED**, not releasable.
+- Scheduler `main` is **RED**, not releasable: merge `2fe5bd4` exposes a
+  transaction-runner SQL parsing incompatibility (`36` migration errors).
 - Latest unrestricted audit reports 243 tests with one genuine error:
   `AdmissionResult` versus implemented `CapacityResult`.
 - Sandboxed process-list failures are environment-induced until contradicted by
