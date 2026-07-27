@@ -319,6 +319,8 @@ export const strings = {
     kickConfirmOk: 'Kick',
     leaveConfirm: 'Leave this server?',
     leaveConfirmOk: 'Leave',
+    roleLabel: 'Roles',
+    roleToggleFailed: 'Could not update role',
   },
   presence: {
     title: 'Set Status',

@@ -20,6 +20,9 @@ export const PERMISSION_LIST: { name: keyof typeof Permission; bit: bigint; labe
   { name: 'CREATE_INVITE', bit: Permission.CREATE_INVITE, label: 'Create Invites' },
   { name: 'MANAGE_MESSAGES', bit: Permission.MANAGE_MESSAGES, label: 'Manage Messages' },
   { name: 'MENTION_EVERYONE', bit: Permission.MENTION_EVERYONE, label: 'Mention @everyone / @here' },
+  { name: 'BAN_MEMBERS', bit: Permission.BAN_MEMBERS, label: 'Ban Members' },
+  { name: 'SEND_MESSAGES', bit: Permission.SEND_MESSAGES, label: 'Send Messages' },
+  { name: 'READ_MESSAGES', bit: Permission.READ_MESSAGES, label: 'Read Messages' },
 ];
 
 const MANAGEMENT =
