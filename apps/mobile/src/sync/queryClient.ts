@@ -4,6 +4,8 @@
  * `notify` is the backend's coarse "something changed" signal (E3) until
  * FR-SRV-009 adds granular events, and on reconnect we refetch everything
  * active because there is no upstream event replay.
+ *
+ * @satisfies FR-SRV-009 — granular guild-structure event cache updates
  */
 import { QueryClient } from '@tanstack/react-query';
 import type { S2CFrame } from '../realtime/events';
@@ -13,6 +15,9 @@ import { useTyping } from '../stores/typing';
 import { handleForegroundNotification } from '../features/notifications';
 import { useCallStore } from '../features/voice/CallStore';
 import { usePresence } from '../stores/presence';
+import { useSession } from '../stores/session';
+import { logger } from '../lib/logger';
+import type { Channel, Role, Member, Server } from '../api/schema';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +27,12 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/** Return all server IDs from the cached servers list, or empty array. */
+function getCachedServerIds(): string[] {
+  const servers = queryClient.getQueryData<Server[]>(keys.servers);
+  return servers?.map((s) => s.id) ?? [];
+}
 
 export function applyEvent(frame: S2CFrame): void {
   switch (frame.op) {
@@ -86,7 +97,106 @@ export function applyEvent(frame: S2CFrame): void {
       void queryClient.invalidateQueries({ queryKey: keys.voiceParticipants(vd.channelId) });
       break;
     }
+    // ── FR-SRV-009: granular guild-structure events ──
+    case 'channel.created': {
+      const ch = frame.d.channel as unknown as Channel;
+      if (ch?.serverId) {
+        queryClient.setQueryData<Channel[]>(keys.channels(ch.serverId), (old) =>
+          old ? [ch, ...old] : [ch],
+        );
+      }
+      break;
+    }
+    case 'channel.deleted': {
+      const channelId = frame.d.channelId;
+      let removed = false;
+      for (const sid of getCachedServerIds()) {
+        const prev = queryClient.getQueryData<Channel[]>(keys.channels(sid));
+        if (prev?.some((c) => c.id === channelId)) {
+          queryClient.setQueryData<Channel[]>(keys.channels(sid), (old) =>
+            (old ?? []).filter((c) => c.id !== channelId),
+          );
+          removed = true;
+          break;
+        }
+      }
+      if (!removed) {
+        for (const sid of getCachedServerIds()) {
+          void queryClient.invalidateQueries({ queryKey: keys.channels(sid) });
+        }
+      }
+      break;
+    }
+    case 'role.created': {
+      const role = frame.d.role as unknown as Role;
+      if (role?.serverId) {
+        void queryClient.invalidateQueries({ queryKey: keys.roles(role.serverId) });
+      }
+      break;
+    }
+    case 'role.updated': {
+      const role = frame.d.role as unknown as Role;
+      if (role?.serverId) {
+        void queryClient.invalidateQueries({ queryKey: keys.roles(role.serverId) });
+      }
+      break;
+    }
+    case 'role.deleted': {
+      for (const sid of getCachedServerIds()) {
+        void queryClient.invalidateQueries({ queryKey: keys.roles(sid) });
+      }
+      break;
+    }
+    case 'member.joined': {
+      for (const sid of getCachedServerIds()) {
+        void queryClient.invalidateQueries({ queryKey: keys.members(sid) });
+      }
+      break;
+    }
+    case 'member.left': {
+      const userId = frame.d.userId;
+      for (const sid of getCachedServerIds()) {
+        queryClient.setQueryData<Member[]>(keys.members(sid), (old) =>
+          (old ?? []).filter((m) => m.userId !== userId),
+        );
+      }
+      break;
+    }
+    case 'member.kicked': {
+      const userId = frame.d.userId;
+      const currentUserId = useSession.getState().user?.id;
+      if (userId === currentUserId) {
+        void queryClient.invalidateQueries({ queryKey: keys.servers });
+      }
+      for (const sid of getCachedServerIds()) {
+        queryClient.setQueryData<Member[]>(keys.members(sid), (old) =>
+          (old ?? []).filter((m) => m.userId !== userId),
+        );
+      }
+      break;
+    }
+    case 'server.updated': {
+      const srv = frame.d.server as unknown as Server;
+      if (srv?.id) {
+        queryClient.setQueryData<Server[]>(keys.servers, (old) =>
+          (old ?? []).map((s) => (s.id === srv.id ? srv : s)),
+        );
+      }
+      break;
+    }
+    case 'server.deleted': {
+      const serverId = frame.d.serverId;
+      queryClient.setQueryData<Server[]>(keys.servers, (old) =>
+        (old ?? []).filter((s) => s.id !== serverId),
+      );
+      void queryClient.invalidateQueries({ queryKey: keys.channels(serverId) });
+      void queryClient.invalidateQueries({ queryKey: keys.members(serverId) });
+      void queryClient.invalidateQueries({ queryKey: keys.roles(serverId) });
+      break;
+    }
     default:
+      // FR-SRV-009: unknown op — make observable instead of silent drop.
+      logger.warn('applyEvent: unhandled op', { op: (frame as { op: string }).op });
       break;
   }
 }
