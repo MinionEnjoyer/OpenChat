@@ -4,6 +4,7 @@
 
 appId: com.openchat.mobile
 ---
+- runFlow: ../_login.yaml
 - tapOn:
     id: 'members-toggle'
 - assertVisible:
