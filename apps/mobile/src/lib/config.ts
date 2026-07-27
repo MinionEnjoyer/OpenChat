@@ -30,6 +30,11 @@ export const ANDROID_EMULATOR_HOST = '10.0.2.2';
  *
  *   EXPO_PUBLIC_API_HOST=192.168.0.106 npm run apk:release
  *
+ * For E2E builds, also enable the dev-login UI (compile-time gated, see
+ * LoginScreen.tsx and P1-04):
+ *
+ *   EXPO_PUBLIC_ENABLE_DEV_LOGIN=true EXPO_PUBLIC_API_HOST=10.0.2.2 npm run apk:release
+ *
  * Deliberately NOT hardcoded: a LAN IP baked into committed config breaks the
  * moment DHCP reassigns it, and breaks other machines and CI immediately.
  */
