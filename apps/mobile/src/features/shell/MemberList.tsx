@@ -14,6 +14,8 @@ interface Props {
   myPermissions: string | undefined;
   onKick: (userId: string) => void;
   onLeave: () => void;
+  canManageRoles: boolean;
+  onToggleRole: (userId: string, roleId: string, assign: boolean) => void;
 }
 
 /**
@@ -29,6 +31,8 @@ export function MemberList({
   myPermissions,
   onKick,
   onLeave,
+  canManageRoles,
+  onToggleRole,
 }: Props): React.JSX.Element {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
@@ -100,6 +104,9 @@ export function MemberList({
         isSelf={selectedMember?.userId === myUserId}
         onKick={selectedMember ? () => onKick(selectedMember.userId) : undefined}
         onLeave={onLeave}
+        roles={roles}
+        canManageRoles={canManageRoles}
+        onToggleRole={selectedMember ? (roleId, assign) => onToggleRole(selectedMember.userId, roleId, assign) : undefined}
       />
     </View>
   );

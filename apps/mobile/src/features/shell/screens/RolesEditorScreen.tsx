@@ -26,7 +26,7 @@ import { showToast } from '../../../ui/Toast';
 import { api } from '../../../stores/session';
 import { keys } from '../../../sync/keys';
 import { Permission } from '../../../api/schema';
-import type { Role } from '../../../api/schema';
+import type { Member, Role } from '../../../api/schema';
 
 // ═══════════════════════════════════════════════════════════════
 //  PERMISSION_LIST — mirrors apps/api/src/permissions/permissions.ts
@@ -115,6 +115,26 @@ export function useDeleteRole(serverId: string) {
     mutationFn: (roleId: string) =>
       api.request<{ success: true }>(`/servers/${serverId}/roles/${roleId}`, { method: 'DELETE' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: keys.roles(serverId) }); },
+  });
+}
+
+/** @satisfies FR-ROLE-001 */
+export function useAssignRole(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
+      api.request<Member>(`/servers/${serverId}/members/${userId}/roles/${roleId}`, { method: 'PUT' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.members(serverId) }); },
+  });
+}
+
+/** @satisfies FR-ROLE-001 */
+export function useUnassignRole(serverId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
+      api.request<Member>(`/servers/${serverId}/members/${userId}/roles/${roleId}`, { method: 'DELETE' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.members(serverId) }); },
   });
 }
 

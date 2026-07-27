@@ -19,7 +19,7 @@ import { useCreateRole, useUpdateRole, useDeleteRole } from '../screens/RolesEdi
 import { api } from '../../../stores/session';
 import { keys } from '../../../sync/keys';
 import { runInvalidationTest } from '../../../__tests__/mutationInvalidationHelper';
-import type { Role } from '../../../api/schema';
+import type { Member, Role } from '../../../api/schema';
 
 jest.mock('../../../stores/session', () => ({
   api: { request: jest.fn() },
@@ -85,5 +85,47 @@ describe('role mutation invalidation', () => {
     // Today these resolve identically. If keys.roles ever changes,
     // mutations invalidate the new key while ShellScreen reads the old one.
     expect(['roles', SERVER_ID]).toEqual(keys.roles(SERVER_ID));
+  });
+});
+
+/** FR-ROLE-001 — assign/unassign role mutation invalidation. */
+describe('role assignment invalidation', () => {
+  const { useAssignRole, useUnassignRole } = require('../screens/RolesEditorScreen');
+  const MEMBER_KEY = keys.members(SERVER_ID);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('ASSIGN ROLE — must invalidate keys.members(serverId)', async () => {
+    (api.request as jest.Mock).mockResolvedValue({
+      userId: 'u2', roleIds: ['r1'], nickname: null, isOwner: false,
+      joinedAt: '2026-01-01T00:00:00Z', user: null,
+    } as Member);
+
+    const result = await runInvalidationTest(
+      'useAssignRole',
+      () => useAssignRole(SERVER_ID),
+      { userId: 'u2', roleId: 'r1' },
+      MEMBER_KEY,
+    );
+
+    expect(result.invalidated).toBe(true);
+  });
+
+  it('UNASSIGN ROLE — must invalidate keys.members(serverId)', async () => {
+    (api.request as jest.Mock).mockResolvedValue({
+      userId: 'u2', roleIds: [], nickname: null, isOwner: false,
+      joinedAt: '2026-01-01T00:00:00Z', user: null,
+    } as Member);
+
+    const result = await runInvalidationTest(
+      'useUnassignRole',
+      () => useUnassignRole(SERVER_ID),
+      { userId: 'u2', roleId: 'r1' },
+      MEMBER_KEY,
+    );
+
+    expect(result.invalidated).toBe(true);
   });
 });

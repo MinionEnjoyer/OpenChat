@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -41,7 +41,7 @@ import { MemberList } from '../MemberList';
 import { ChannelList } from '../../channels/ChannelList';
 import { ChannelForm } from '../../channels/ChannelForm';
 import { ChannelReorderScreen } from '../../channels/ChannelReorderScreen';
-import { RolesEditorScreen } from './RolesEditorScreen';
+import { RolesEditorScreen, useAssignRole, useUnassignRole } from './RolesEditorScreen';
 import { useCreateChannel, useUpdateChannel, useDeleteChannel } from '../../channels/hooks';
 import { storage } from '../../../lib/storageInstance';
 import { queryClient } from '../../../sync/queryClient';
@@ -200,6 +200,15 @@ export function ShellScreen(): React.JSX.Element {
     enabled: serverId !== null && membersQueryEnabled,
     queryFn: () => api.request<Member[]>(`/servers/${serverId}/members`),
   });
+
+  // FR-ROLE-001 — role assignment mutations
+  const assignRole = useAssignRole(serverId ?? 'none');
+  const unassignRole = useUnassignRole(serverId ?? 'none');
+
+  const canManageRoles = useMemo(() => {
+    if (!activeServer) return false;
+    return hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES);
+  }, [activeServer]);
 
   // FR-SOC-005 — notifications badge (lightweight fetch for count)
   const notifications = useQuery({
@@ -855,6 +864,14 @@ export function ShellScreen(): React.JSX.Element {
                       }
                     } },
                   ]);
+                }}
+                canManageRoles={canManageRoles}
+                onToggleRole={(userId, roleId, assign) => {
+                  if (assign) {
+                    assignRole.mutate({ userId, roleId }, { onError: () => showToast(strings.members.roleToggleFailed) });
+                  } else {
+                    unassignRole.mutate({ userId, roleId }, { onError: () => showToast(strings.members.roleToggleFailed) });
+                  }
                 }}
               />
               {/* FR-AUTH-007 — Presence status picker */}
