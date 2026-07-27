@@ -19,6 +19,30 @@ The owner is returning orchestration to Claude. Codex automation
 Running CodeWhale jobs were intentionally left alive and must be reconciled by
 session ID or log before re-dispatch.
 
+### Updated owner split
+
+The owner subsequently assigned Claude all primary OpenChat/product
+specification work. Codex owns only:
+
+1. the CodeWhale Observer implementation, GUI, and agent-session failure-mode
+   verification; and
+2. the device scheduler backlog, local control dashboard, and scheduler/device
+   failure-mode verification.
+
+Claude has exclusive use of Android emulators for product device tests. Codex
+may use only the physical Android device for final scheduler validation, and
+only after all device-free scheduler gates are green. Never persist or send its
+raw identifier; use a local ephemeral variable and pseudonymous evidence label.
+
+The paused heartbeat remains paused. Completion is announced only by creating:
+
+- `/Users/williambsexton/work/CODEWHALE-OBSERVER-READY.md`; or
+- `/Users/williambsexton/work/DEVICE-SCHEDULER-READY.md`.
+
+Do not create either marker for partial progress. A marker requires independent
+acceptance evidence, adversarial failure modes, merged-result gates, and (for
+the scheduler) physical-device success/failure evidence without emulator use.
+
 ### Owner direction and economics
 
 - Use Codex/premium reasoning for architecture, precise work orders,
@@ -90,6 +114,21 @@ Active scheduler job:
 |---:|---|---|
 | `52594` | `device-scheduler-bundle-parser` / `fix/bundle-migration-parser` | Preserve lock/re-read concurrency and strict schema while replacing naive SQL splitting; running at handoff |
 
+The parser fix completed at `f08c456`, independently passed 76 focused
+migration/model/concurrency tests, and was integrated on scheduler main as
+`fee5f65`. Capacity verifier remediation was integrated as `6df5e5f`.
+
+Current scheduler fan-out:
+
+| Session | Worktree / branch | Scope |
+|---:|---|---|
+| `18260` | `device-scheduler-v2-bundle-store` / `build/v2-bundle-store` | Atomic bundle store APIs |
+| `42233` | `device-scheduler-v2-matching` / `build/v2-matching` | Pure complete bundle matching |
+| `47262` | `device-scheduler-v2-process-boundary` / `build/v2-process-boundary` | G16 controlled subprocess boundary |
+| `88753` | `device-scheduler-v2-transcript-output` / `build/v2-transcript-output` | G17 transcript-safe projections |
+| `67830` | `device-scheduler-dashboard` / `build/local-dashboard` | Local loopback device/run dashboard with guarded cancel seam |
+| `38158` | `device-scheduler-dashboard-verify` / `verify/local-dashboard` | Independent dashboard/security/cancel failure gates |
+
 Do not build bundle store/runner/CLI on scheduler `main` until the parser fix is
 gated and merged. Pure matching, process-boundary, transcript-safety, Android
 hygiene, and isolated verifier work can proceed in parallel.
@@ -113,6 +152,10 @@ Repository: `/Users/williambsexton/work/codewhale-observer`
 | `78728` | `codewhale-observer-phase0` / `build/phase0-calibration` | Calibration, fake CodeWhale, legacy goldens, prompt-transport canary |
 | `64030` | `codewhale-observer-phase1` / `build/phase1-domain` | Rust domain model, schemas, projections, property tests |
 | `15522` | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | Independent AC-01–04 and Phase 0 adversarial gates |
+
+Phase 0 builder completed at `fec3b75`; Codex independently ran its complete
+contract script: 60/60 passed. Phase 1 and verifier hit the step cap and were
+continued as sessions `20550` and `54887` after checkpoint-first orders.
 
 Observer must not be adopted into live fanout workflows until implementer output
 is merged and the independent verifier passes the combined result.

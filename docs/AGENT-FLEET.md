@@ -4,21 +4,27 @@
 CodeWhale/DeepSeek wrappers. This file survives context compaction and handoff.
 The canonical project state remains `docs/PROJECT-STATUS.md`.
 
-**Last reconciled:** 2026-07-27 00:27 PDT — Codex monitor paused for Claude handoff
+**Last reconciled:** 2026-07-27 00:38 PDT — scoped Codex tool work resumed; heartbeat remains paused
 
 ## Live work
 
 | Control plane | ID | Scope | Worktree / branch | State | Last evidence |
 |---|---:|---|---|---|---|
-| CodeWhale | `52594` | Repair merged migration/parser incompatibility | `device-scheduler-bundle-parser` / `fix/bundle-migration-parser` | RUNNING | Combined gate fails 36/36 migration tests near `new`; scoped continuation dispatched |
-| CodeWhale | `78728` | Observer Phase 0 calibration/goldens | `codewhale-observer-phase0` / `build/phase0-calibration` | RUNNING | DeepSeek implementation dispatched |
-| CodeWhale | `64030` | Observer Phase 1 domain/projections | `codewhale-observer-phase1` / `build/phase1-domain` | RUNNING | DeepSeek implementation dispatched |
-| CodeWhale | `15522` | Independent observer Phase 0 gates | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | RUNNING | DeepSeek verifier dispatched |
+| CodeWhale | `20550` | Observer Phase 1 domain/projections continuation | `codewhale-observer-phase1` / `build/phase1-domain` | RUNNING | Checkpoint-first continuation |
+| CodeWhale | `54887` | Independent observer Phase 0 gates continuation | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | RUNNING | Checkpoint-first continuation |
+| CodeWhale | `18260` | Atomic bundle store APIs | `device-scheduler-v2-bundle-store` / `build/v2-bundle-store` | RUNNING | Fresh current-main worktree |
+| CodeWhale | `42233` | Pure complete bundle matching | `device-scheduler-v2-matching` / `build/v2-matching` | RUNNING | Fresh current-main worktree |
+| CodeWhale | `47262` | Controlled subprocess boundary G16 | `device-scheduler-v2-process-boundary` / `build/v2-process-boundary` | RUNNING | Fresh current-main worktree |
+| CodeWhale | `88753` | Transcript-safe output boundary G17 | `device-scheduler-v2-transcript-output` / `build/v2-transcript-output` | RUNNING | Fresh current-main worktree |
+| CodeWhale | `67830` | Local scheduler dashboard | `device-scheduler-dashboard` / `build/local-dashboard` | RUNNING | Loopback/pseudonymous GUI with cancel seam |
+| CodeWhale | `38158` | Independent dashboard verifier | `device-scheduler-dashboard-verify` / `verify/local-dashboard` | RUNNING | Failure/security/UX gates |
 
 ## Completed outputs awaiting integration decisions
 
 | Work | Commit | Gate / disposition |
 |---|---|---|
+| Scheduler migration parser repair | `f08c456`, integrated `fee5f65` | Independent focused gate 76/76 passed |
+| Observer Phase 0 calibration/goldens | `fec3b75` | Independent contract gate 60/60 passed; awaiting merge with verifier |
 | Capacity verifier contract remediation | `06bf9aa` | 22/22 pass against capacity implementation; not yet integrated |
 | Product-capabilities final audit | `5b7f2a7` | 37 PASS / 2 DRIFT; substantive disputed claims pass |
 | Observer review adjudication / authorization | `6144442`, `f83f870` | All 32 findings adjudicated; exact implementation baseline authorized |
