@@ -27,9 +27,9 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-${E2E_CHANNEL_GENERAL}'
+    id: 'channel-general'
 - tapOn:
-    id: 'channel-${E2E_CHANNEL_GENERAL}'
+    id: 'channel-general'
 - assertNotVisible:
     id: 'left-drawer'
 
@@ -41,7 +41,16 @@ appId: com.openchat.mobile
     id: 'composer-send'
 - assertVisible: 'e2e-cross-pin'
 
-- longPressOn: 'e2e-cross-pin'
-- tapOn: 'Pin'
+# Maestro's longPressOn doesn't trigger RN onLongPress on Android (tested 2.7.0).
+# Use swipe with stationary coordinates as a long-press workaround.
+# Target the message at ~50% width, ~90% height (bottom of message list).
+- swipe:
+    start: '50%,90%'
+    end: '50%,90%'
+    duration: 3000
+- assertVisible:
+    id: 'msg-action-pin'
+- tapOn:
+    id: 'msg-action-pin'
 
 - takeScreenshot: artifacts/e2e/screens/msg-pins-cross-device-A
