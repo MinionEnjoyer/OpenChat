@@ -1,6 +1,6 @@
 # p4-04-presence-profile — dev-login → select server → open right drawer → verify presence
 # dots, status picker, and member profile sheet.
-# @satisfies FR-SOC-004, FR-SOC-006
+# @satisfies FR-SOC-004
 #
 # T4: Uses provisioned test world. Fresh world every run.
 # displayName assertion: dev-login users have displayName === username.

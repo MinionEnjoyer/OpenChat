@@ -232,6 +232,77 @@ suite covers every route with a contract schema. Routes without schemas are trac
 
 ---
 
+## UNBUILT-002: FR-APP-004 settings screens unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-APP-004 has zero
+  `@satisfies` annotations. No settings screens exist for account, appearance
+  (dark/light/system), about, or licenses. `apps/mobile/src/ui/tokens.ts` defines
+  only a dark palette (comment says light/system "follow in FR-APP-004" but they
+  don't). No `useColorScheme`, no `Appearance` API usage, no theme context, no
+  theme toggle. No E2E flow for settings. No dedicated account or about/licenses
+  screen exists — the "Account" form is inline in `ShellScreen.tsx:870-913`, not
+  a standalone screen. Phase 8 spec P8-04 calls for "Maestro walk + theme snapshot
+  both modes" — nothing exists.
+- **User-visible impact:** Users cannot change theme (dark-only hardcoded),
+  cannot view account settings as a screen, cannot see app version/licenses.
+- **Priority:** LOW — Phase 8 (release), not blocking priority 1.
+- **Phase:** Phase 8 — needs dark+light palette tokens, theme context/provider,
+  `useColorScheme` integration, theme selector UI, account screen, about/licenses
+  screen, and a Maestro walk.
+
+## UNBUILT-003: FR-APP-005 channels deep link unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-APP-005 had a
+  misleading `@satisfies` on `links.ts:38` and `links.test.ts:31` that only
+  covered `parseInviteLink` (the invite half). The `openchat://channels/<serverId>/<channelId>`
+  pattern is completely unimplemented: no parser, no route handler, no navigation
+  target. The `parseInviteLink` function handles only `openchat://invite/<code>`.
+  `ShellScreen.tsx:126-145` wires invite deep links but not channels deep links.
+  The `@satisfies FR-APP-005` was removed in this triage (now `@satisfies FR-SRV-006`
+  only, which the invite-link test genuinely proves).
+- **User-visible impact:** Deep-linking to a specific channel from a notification
+  or external link does not work. Only invite deep links function.
+- **Priority:** MEDIUM — Phase 3 requirement. Invite links work; channels links
+  are the missing half.
+- **Phase:** Phase 3 (Servers) — needs `openchat://channels/<serverId>/<channelId>`
+  parser + route handler + navigation to the specified channel.
+
+## UNBUILT-004: FR-SOC-003 group DMs unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-SOC-003 has zero
+  `@satisfies` annotations. The Prisma schema supports `GROUP_DM` channel type
+  and `ChannelRecipient`, but no API endpoint exists for: creating a group DM
+  (2-10 recipients), adding/removing recipients, or renaming. The existing
+  `POST /dms` only opens 1:1 DMs. `apps/mobile/src/features/dms/hooks.ts`
+  only has `useOpenDm()` for 1:1. No E2E flow exists. The Phase 4 spec
+  (P4-02) calls for this work — it is unstarted.
+- **User-visible impact:** Users cannot create or manage group DMs. Only 1:1
+  DMs function.
+- **Priority:** HIGH — Phase 4 (Social), the largest perceived gap per
+  PRIORITIES.md.
+- **Phase:** Phase 4 — needs `POST /dms` with multiple recipients, group DM
+  create/rename/add/remove endpoints, mobile UI, and an E2E flow.
+
+## UNBUILT-005: FR-SOC-006 user profile sheet v2 unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-SOC-006 had a
+  misleading `@satisfies` on `p4-04-presence-profile.yaml:3` whose E2E flow
+  only proves the profile sheet opens and shows a name — no avatar, no mutual
+  servers, no DM/friend/block actions. The `MemberProfileSheet.tsx` component
+  is scoped to server members (FR-SRV-007), not a general user profile. Phase 4
+  spec explicitly defers the full profile to P4-05: "Profile sheet v2 — avatar,
+  status, mutual servers (client-computed from cached servers/members), actions:
+  Message / Add-remove friend / Block (FR-SOC-006)". This work item is unstarted.
+  The `@satisfies FR-SOC-006` was removed in this triage (now `@satisfies FR-SOC-004`
+  only, which the presence/profile-sheet-open E2E flow genuinely proves).
+- **User-visible impact:** User profile sheets show only name and presence — no
+  avatar, no mutual servers, no DM/friend/block actions from the profile.
+- **Priority:** MEDIUM — Phase 4 (Social), sub-item P4-05 after group DMs.
+- **Phase:** Phase 4 — needs avatar rendering, mutual-server computation,
+  DM/friend/block action buttons, and an E2E flow.
+
+---
+
 ## Tooling debt (P0-16)
 
 - **`devctl commit` is unusable.** It aborts when `git diff-index --quiet HEAD`
