@@ -1,4 +1,10 @@
-# Handoff — state as of 2026-07-25 11:26 PDT
+# Handoff — historical snapshot
+
+> **This file is stale and retained for historical context.**
+> The canonical cross-tool handoff and live state is
+> [`docs/PROJECT-STATUS.md`](./PROJECT-STATUS.md). Read and update that file
+> instead. `docs/PRIORITIES.md` remains authoritative for standing owner
+> priorities and scope decisions.
 
 For a session starting cold. Read `docs/PRIORITIES.md` first — it is the authoritative
 ordering and it comes from the project owner.

@@ -1,5 +1,9 @@
 # Priorities — set by the project owner, 2026-07-25
 
+> This file remains authoritative for owner priorities and scope decisions.
+> Current repository state, active work, and cross-tool handoff live in
+> [`docs/PROJECT-STATUS.md`](./PROJECT-STATUS.md).
+
 This is the authoritative ordering. It overrides the spec's phase sequencing where the
 two conflict, **except** that phase signoff gates still apply to work already done.
 
