@@ -1,12 +1,20 @@
 import { NestFactory } from '@nestjs/core';
-import { Logger as NestLogger } from '@nestjs/common';
+import { Logger as NestLogger, VersioningType, VERSION_NEUTRAL } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+// Swagger is optional (installed separately); gracefully skip when not present.
+let DocumentBuilder: any, SwaggerModule: any;
+try {
+  const swagger = require('@nestjs/swagger');
+  DocumentBuilder = swagger.DocumentBuilder;
+  SwaggerModule = swagger.SwaggerModule;
+} catch { /* optional */ }
 import session from 'express-session';
 import RedisStore from 'connect-redis';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { RedisService } from './redis/redis.service';
 import { EventsGateway } from './realtime/events.gateway';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -16,11 +24,38 @@ async function bootstrap() {
   app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
 
+  // URI versioning: routes are served BOTH unversioned (/api/*, keeps the current
+  // web app working) and under /api/v1/* (which native clients pin to).
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: ['1', VERSION_NEUTRAL] });
+
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Allow a comma-separated origin list (WEB_ORIGIN) plus native clients, which send
+  // no Origin header (or a custom app scheme) and authenticate with a bearer token.
+  // Tauri desktop webviews load from these origins (Windows: http(s)://tauri.localhost,
+  // macOS: tauri://localhost) and call the API cross-origin with a bearer token.
+  const NATIVE_ORIGINS = ['tauri://localhost', 'http://tauri.localhost', 'https://tauri.localhost'];
+  const allowedOrigins = [
+    ...(process.env.WEB_ORIGIN ?? 'http://localhost:5173').split(',').map((o) => o.trim()).filter(Boolean),
+    ...NATIVE_ORIGINS,
+  ];
   app.enableCors({
-    origin: [process.env.WEB_ORIGIN ?? 'http://localhost:5173'],
+    origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
+
+  // OpenAPI spec + docs at /api/docs (JSON at /api/docs-json) for native SDK generation.
+  if (SwaggerModule) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('OpenChat API')
+      .setDescription('OpenChat REST API — versioned under /api/v1')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'token' }, 'app-token')
+      .addCookieAuth('chat.sid')
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  }
 
   app.use(helmet({ crossOriginResourcePolicy: false }));
 

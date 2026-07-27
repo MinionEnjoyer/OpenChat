@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { getAudioPrefs, type AudioPrefs } from '../lib/audioPrefs';
+import { getAudioPrefs, type AudioControls, type InputMode, type PttKeybind } from '../lib/audioPrefs';
+import { keybindFromEvent } from '../lib/ptt';
 import { ToggleSwitch } from './ToggleSwitch';
+import { ScreenQualityControls } from './ScreenQualityControls';
 
-export interface AudioControls {
-  getPrefs: () => AudioPrefs;
-  setInputDevice: (id: string) => void;
-  setOutputDevice: (id: string) => void;
-  setOutputVolume: (v: number) => void;
-  setMuteSoundboard: (m: boolean) => void;
-}
+export type { AudioControls };
 
 /**
  * Voice call audio settings: microphone + speaker device selection, output
@@ -27,6 +23,9 @@ export function VoiceSettings({ audio, label, input }: {
   const [outputId, setOutputId] = useState(initial.outputDeviceId || '');
   const [volume, setVolume] = useState(initial.outputVolume);
   const [muteFx, setMuteFx] = useState(initial.muteSoundboard);
+  const [mode, setMode] = useState<InputMode>(initial.inputMode);
+  const [keybind, setKeybind] = useState<PttKeybind | null>(initial.pttKeybind);
+  const [capturing, setCapturing] = useState(false);
   const [permError, setPermError] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [level, setLevel] = useState(0);
@@ -99,6 +98,28 @@ export function VoiceSettings({ audio, label, input }: {
   function onOutput(id: string) { setOutputId(id); audio.setOutputDevice(id); }
   function onVolume(v: number) { setVolume(v); audio.setOutputVolume(v); }
   function onMuteFx(m: boolean) { setMuteFx(m); audio.setMuteSoundboard(m); }
+  function onMode(m: InputMode) { setMode(m); audio.setInputMode(m); }
+
+  // Capture the next real keypress as the PTT keybind (Esc cancels; bare modifiers ignored).
+  useEffect(() => {
+    if (!capturing) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'Escape') { setCapturing(false); return; }
+      const kb = keybindFromEvent(e);
+      if (!kb) return;
+      setKeybind(kb); audio.setPttKeybind(kb); setCapturing(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [capturing, audio]);
+
+  const modeBtn = (active: boolean): React.CSSProperties => ({
+    flex: 1, padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+    background: 'var(--input-bg)', color: 'var(--text)',
+    border: active ? '2px solid var(--accent)' : '2px solid var(--border)',
+  });
 
   const deviceLabel = (d: MediaDeviceInfo, i: number, kind: string) =>
     d.label || `${kind} ${i + 1}`;
@@ -140,6 +161,43 @@ export function VoiceSettings({ audio, label, input }: {
         </div>
       </div>
 
+      {/* Input mode: open mic (voice activity) vs push-to-talk */}
+      <label style={{ fontSize: 13, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Input Mode</label>
+      <div style={{ display: 'flex', gap: 8, marginBottom: mode === 'ptt' ? 10 : 16 }}>
+        <button style={modeBtn(mode === 'vad')} onClick={() => onMode('vad')}>🎙 Voice Activity</button>
+        <button style={modeBtn(mode === 'ptt')} onClick={() => onMode('ptt')}>⌨️ Push to Talk</button>
+      </div>
+      {mode === 'ptt' && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={() => setCapturing((c) => !c)}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                border: '1px solid var(--border)',
+                background: capturing ? 'var(--accent)' : 'var(--input-bg)',
+                color: capturing ? 'var(--accent-text)' : 'var(--text)',
+              }}
+            >
+              {capturing ? 'Press a key… (Esc to cancel)' : keybind ? `Keybind: ${keybind.label}` : 'Set keybind'}
+            </button>
+            {keybind && !capturing && (
+              <button
+                onClick={() => { setKeybind(null); audio.setPttKeybind(null); }}
+                style={{ padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: keybind ? 'var(--muted)' : 'var(--danger)' }}>
+            {keybind
+              ? 'Your mic stays muted until you hold this key. On the desktop app it works even when OpenChat is unfocused.'
+              : 'Set a key — your mic stays muted until one is assigned.'}
+          </p>
+        </div>
+      )}
+
       {/* Speaker device */}
       <label style={{ fontSize: 13, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Output Device</label>
       {supportsSink ? (
@@ -164,6 +222,10 @@ export function VoiceSettings({ audio, label, input }: {
         onChange={(e) => onVolume(Number(e.target.value))}
         style={{ width: '100%', accentColor: 'var(--accent)' }}
       />
+
+      {/* Screen share quality */}
+      <div style={{ fontSize: 13, color: 'var(--muted)', margin: '16px 0 8px', fontWeight: 600 }}>Screen Share</div>
+      <ScreenQualityControls audio={audio} />
 
       {/* Soundboard */}
       <div style={{ marginTop: 16 }}>

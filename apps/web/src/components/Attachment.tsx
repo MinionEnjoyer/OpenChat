@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Attachment as AttachmentModel } from '../lib/types';
+import { AudioPlayer } from './AudioPlayer';
+import { Lightbox } from './Lightbox';
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -29,32 +31,45 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
   shareBaseUrl 
 }) => {
   const { mimeType, filename, size, url, thumbnailUrl, shareAssetId } = attachment;
+  const [zoomed, setZoomed] = useState(false);
 
   if (mimeType.startsWith('image/')) {
     return (
-      <img 
-        src={url} 
-        alt={filename} 
-        loading="lazy" 
-        style={{ maxWidth: '400px', maxHeight: '300px', objectFit: 'contain' }} 
-      />
+      <>
+        <img
+          src={url}
+          alt={filename}
+          loading="lazy"
+          onClick={() => setZoomed(true)}
+          style={{ maxWidth: '400px', maxHeight: '300px', objectFit: 'contain', cursor: 'zoom-in', borderRadius: 4 }}
+        />
+        {zoomed && <Lightbox src={url} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
+      </>
     );
   }
 
   if (mimeType.startsWith('video/')) {
     return (
-      <video controls src={url} style={{ maxWidth: '400px', maxHeight: '300px' }}>
-        Your browser does not support the video tag.
-      </video>
+      <>
+        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '400px' }}>
+          <video controls src={url} style={{ maxWidth: '400px', maxHeight: '300px', display: 'block', borderRadius: 4 }}>
+            Your browser does not support the video tag.
+          </video>
+          <button
+            onClick={() => setZoomed(true)}
+            title="Enlarge"
+            style={{ position: 'absolute', top: 6, right: 6, width: 30, height: 30, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff', cursor: 'pointer', fontSize: 15, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            ⛶
+          </button>
+        </div>
+        {zoomed && <Lightbox src={url} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
+      </>
     );
   }
 
   if (mimeType.startsWith('audio/')) {
-    return (
-      <audio controls src={url} style={{ maxWidth: '400px', width: '100%' }}>
-        Your browser does not support the audio tag.
-      </audio>
-    );
+    return <AudioPlayer src={url} filename={filename} peaksUrl={`${shareBaseUrl}/waveform/${shareAssetId}`} />;
   }
 
   // File card for other types

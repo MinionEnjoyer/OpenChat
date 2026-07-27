@@ -1,13 +1,12 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import type { User, Server, Channel, Message, Attachment as Att, DmChannel, ServerMemberInfo } from './lib/types';
 import * as api from './lib/api';
 import { listDms } from './lib/social';
-import { getConfig } from './lib/share';
+import { getConfig, uploadToShare } from './lib/share';
 import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
 import { AttachmentPicker } from './components/AttachmentPicker';
-import { Attachment } from './components/Attachment';
 import { Avatar } from './components/Avatar';
 import { FriendsView } from './components/FriendsView';
 import { ServerActions } from './components/ServerActions';
@@ -15,20 +14,27 @@ import { UserPanel } from './components/UserPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { ServerSettingsModal } from './components/ServerSettingsModal';
 import { NotificationHub } from './components/NotificationHub';
+import { HeaderPanel } from './components/HeaderPanel';
 import { MemberListPanel } from './components/MemberListPanel';
 import { CallView } from './components/CallView';
 import { CreateChannelModal } from './components/CreateChannelModal';
 import { WatchPartyPicker } from './components/WatchPartyPicker';
 import { EmojiPicker } from './components/EmojiPicker';
-import { MessageEmbeds, isSingleEmbedUrl, setShareHost } from './components/MessageEmbeds';
+import { setShareHost } from './components/MessageEmbeds';
 import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
-import { PollView } from './components/PollView';
 import { PollModal } from './components/PollModal';
 import { Soundboard } from './components/Soundboard';
+import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
+import { wsUrl, serverOrigin, getToken, setToken } from './lib/serverConfig';
+import { TitleBar, isTauri, isMac } from './components/TitleBar';
+import { DesktopSetup } from './components/DesktopSetup';
+import { LoadingScreen } from './components/LoadingScreen';
+import { UpdateGate } from './components/UpdateGate';
+import { notifyNative } from './lib/notify';
 import { canManageServer, has, Permission } from './lib/permissions';
 
 interface AppState {
@@ -47,6 +53,7 @@ interface AppState {
   set: (p: Partial<AppState>) => void;
   setChannels: (serverId: string, channels: Channel[]) => void;
   setMessages: (channelId: string, messages: Message[]) => void;
+  prependMessages: (channelId: string, older: Message[]) => void;
   addMessage: (m: Message) => void;
   updateMessage: (m: Message) => void;
   deleteMessage: (channelId: string, id: string) => void;
@@ -75,6 +82,14 @@ const useStore = create<AppState>((set) => ({
     set((s) => ({ channelsByServer: { ...s.channelsByServer, [serverId]: channels } })),
   setMessages: (channelId, messages) =>
     set((s) => ({ messagesByChannel: { ...s.messagesByChannel, [channelId]: messages } })),
+  prependMessages: (channelId, older) =>
+    set((s) => {
+      const cur = s.messagesByChannel[channelId] || [];
+      const seen = new Set(cur.map((m) => m.id));
+      const fresh = older.filter((m) => !seen.has(m.id));
+      if (fresh.length === 0) return s;
+      return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...fresh, ...cur] } };
+    }),
   addMessage: (m) =>
     set((s) => {
       const cur = s.messagesByChannel[m.channelId] || [];
@@ -124,7 +139,29 @@ const useStore = create<AppState>((set) => ({
 
 export default function App() {
   const s = useStore();
+  // Custom title bar on Windows/Linux desktop only; macOS keeps native chrome.
+  const showChrome = isTauri() && !isMac;
   const wsRef = useRef<WebSocket | null>(null);
+  const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
+  const manualStatusRef = useRef<string>('ONLINE'); // the user's chosen status (drives auto-away restore)
+  const autoAwayRef = useRef(false); // true while we've auto-flipped to AWAY on idle
+
+  // Broadcast a presence change over WS. transient=true (auto-away) updates live presence
+  // only; a manual change (settings) also persists as the user's saved preference.
+  const sendPresence = useCallback((status: string, transient: boolean) => {
+    if (!transient) autoAwayRef.current = false;
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ op: 'presence.update', d: { status, transient } }));
+    }
+  }, []);
+  const [wsDown, setWsDown] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [updateChecked, setUpdateChecked] = useState(() => !isTauri()); // desktop gates on an update check first
+  const finishUpdateCheck = useCallback(() => setUpdateChecked(true), []);
+  const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
   const [homeView, setHomeView] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
   const [dmTitle, setDmTitle] = useState('');
@@ -132,7 +169,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [serverSettingsOpen, setServerSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const voice = useVoice();
   const voiceRef = useRef(voice);
@@ -146,8 +182,13 @@ export default function App() {
   const [typing, setTyping] = useState<Record<string, Record<string, number>>>({});
   const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string; content: string } | null>(null);
   // Only one header dropdown (pins / notifications) is open at a time.
-  const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | null>(null);
+  const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | 'search' | null>(null);
   const pinsOpen = openPanel === 'pins';
+  const openPanelRef = useRef(openPanel);
+  openPanelRef.current = openPanel;
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [searchBusy, setSearchBusy] = useState(false);
   const [pins, setPins] = useState<Message[]>([]);
   const [incomingCall, setIncomingCall] = useState<{ channelId: string; callerId: string; callerName: string; callerAvatar: string | null } | null>(null);
   const [soundboardOpen, setSoundboardOpen] = useState(false);
@@ -158,12 +199,28 @@ export default function App() {
   // Server-rail drag/drop: dragKey is a serverId or "f:<folderId>"; dropHint highlights the active target.
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropHint, setDropHint] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  function showToast(msg: string) { setToast(msg); window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2800); }
+  const [toast, setToast] = useState<{ msg: string; action?: { label: string; onClick: () => void } } | null>(null);
+  const showToast = useCallback((msg: string, action?: { label: string; onClick: () => void }) => {
+    const t = { msg, action };
+    setToast(t);
+    window.setTimeout(() => setToast((cur) => (cur === t ? null : cur)), action ? 8000 : 2800);
+  }, []);
+  const knownStreams = useRef<Set<string>>(new Set());
+
+  // Track + (re)send channel subscriptions so they survive WebSocket reconnects.
+  const wsSubscribe = useCallback((channelId: string) => {
+    subscribedRef.current.add(channelId);
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId } }));
+  }, []);
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (showChrome) document.getElementById('root')?.classList.add('tauri');
+  }, [showChrome]);
 
   useEffect(() => {
     (async () => {
@@ -190,28 +247,66 @@ export default function App() {
           openDm(dm.id, title);
         }
       } catch (e: any) {
-        if (e?.status === 401) window.location.href = '/api/auth/login';
-        else console.error('init failed', e);
+        if (e?.status === 401) {
+          // Invalid/expired auth. Desktop (token): clear it and return to setup.
+          if (isTauri()) { setToken(null); window.location.reload(); }
+          else window.location.href = `${serverOrigin()}/api/auth/login`;
+        } else {
+          console.error('init failed', e);
+          setConnectError(`Couldn't connect to ${serverOrigin() || 'the server'}. Check the address and your connection.`);
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Back off the loading screen if we can't reach the server within 10s.
+  useEffect(() => {
+    if (s.user || connectError) return;
+    const t = window.setTimeout(() => {
+      if (!useStore.getState().user) setConnectError((e) => e ?? `Still can't reach ${serverOrigin() || 'the server'}. It may be offline.`);
+    }, 10000);
+    return () => window.clearTimeout(t);
+  }, [s.user, connectError]);
+
   useEffect(() => {
     if (!s.user) return;
-    let ws: WebSocket;
-    (async () => {
-      const { ticket } = await api.getWsTicket();
-      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${window.location.host}/ws?ticket=${ticket}`);
+    let closedByUs = false;
+    let attempt = 0;
+    let reconnectTimer: number | undefined;
+
+    function scheduleReconnect() {
+      if (closedByUs) return;
+      setWsDown(true);
+      attempt += 1;
+      const delay = Math.min(30000, 1000 * 2 ** Math.min(attempt, 5)) + Math.floor(Math.random() * 500);
+      reconnectTimer = window.setTimeout(connect, delay);
+    }
+
+    async function connect() {
+      if (closedByUs) return;
+      let ticket: string;
+      try { ({ ticket } = await api.getWsTicket()); }
+      catch { scheduleReconnect(); return; }
+      if (closedByUs) return;
+      const ws = new WebSocket(wsUrl(`/ws?ticket=${ticket}`));
       wsRef.current = ws;
       ws.onopen = () => {
+        attempt = 0;
+        setWsDown(false);
+        autoAwayRef.current = false; // a fresh connection starts active
         const st = useStore.getState();
         const status = st.user?.status && st.user.status !== 'OFFLINE' ? st.user.status : 'ONLINE';
         ws.send(JSON.stringify({ op: 'presence.update', d: { status } }));
-        // subscribe to DM channels so we get their messages (for unread + live delivery)
-        for (const dm of st.dms) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: dm.id } }));
+        // Re-subscribe to every tracked channel (DMs + opened server channels).
+        for (const dm of st.dms) subscribedRef.current.add(dm.id);
+        for (const id of subscribedRef.current) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: id } }));
+        // Catch up on anything missed while the socket was down.
+        const active = st.activeChannelId;
+        if (active) api.listMessages(active).then((m) => useStore.getState().setMessages(active, m.reverse())).catch(() => {});
       };
+      ws.onclose = () => { if (wsRef.current === ws) wsRef.current = null; scheduleReconnect(); };
+      ws.onerror = () => { try { ws.close(); } catch { /* onclose handles reconnect */ } };
       ws.onmessage = (ev) => {
         const { op, d } = JSON.parse(ev.data);
         const st = useStore.getState();
@@ -222,8 +317,14 @@ export default function App() {
             st.bumpUnread(d.message.channelId);
           }
           // Bubble the DM to the top of the list on new activity.
-          if (st.dms.some((dm) => dm.id === d.message.channelId)) {
+          const isDm = st.dms.some((dm) => dm.id === d.message.channelId);
+          if (isDm) {
             st.set({ dms: st.dms.map((dm) => (dm.id === d.message.channelId ? { ...dm, lastMessageAt: d.message.createdAt } : dm)) });
+            if (d.message.authorId !== st.user?.id) {
+              const name = d.message.author?.displayName || d.message.author?.username || 'New message';
+              const body = (d.message.content === '​' ? '(attachment)' : d.message.content || '').slice(0, 120);
+              notifyNative(name, body);
+            }
           }
         } else if (op === 'message.updated') st.updateMessage(d.message);
         else if (op === 'message.deleted') st.deleteMessage(d.channelId, d.id);
@@ -232,6 +333,7 @@ export default function App() {
         else if (op === 'mention') {
           if (d.channelId !== st.activeChannelId) st.bumpUnread(d.channelId);
           showToast(`💬 ${d.authorName} mentioned you in #${d.channelName}`);
+          notifyNative(`Mention in #${d.channelName}`, `${d.authorName} mentioned you`);
         }
         else if (op === 'call.ring') {
           // Ignore if we're already in this call; otherwise ring for ~30s.
@@ -239,24 +341,74 @@ export default function App() {
             setIncomingCall({ channelId: d.channelId, callerId: d.callerId, callerName: d.callerName, callerAvatar: d.callerAvatar });
             if (ringTimer.current) window.clearTimeout(ringTimer.current);
             ringTimer.current = window.setTimeout(() => setIncomingCall(null), 30000);
+            notifyNative('Incoming call', `${d.callerName} is calling`);
           }
         }
-        else if (op === 'presence') st.setPresence(d.userId, d.status);
+        else if (op === 'presence.snapshot') {
+          // Authoritative online set on (re)connect — replace, dropping stale entries.
+          const map: Record<string, string> = {};
+          for (const u of d.users || []) map[u.userId] = u.status;
+          st.set({ presenceById: map });
+        }
+        // Our own status is authoritative locally (settings/invisible); ignore echoes for self.
+        else if (op === 'presence') { if (d.userId !== st.user?.id) st.setPresence(d.userId, d.status); }
         else if (op === 'typing' && d.userId !== st.user?.id) {
           setTyping((prev) => ({ ...prev, [d.channelId]: { ...(prev[d.channelId] || {}), [d.userId]: Date.now() + 5000 } }));
         }
       };
-    })();
-    return () => ws?.close();
+    }
+
+    connect();
+    return () => {
+      closedByUs = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      wsRef.current?.close();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.user?.id]);
 
+  // Mirror the user's chosen status into a ref so auto-away can restore it.
+  useEffect(() => {
+    manualStatusRef.current = (s.user?.status as string) || 'ONLINE';
+  }, [s.user?.status]);
+
+  // Auto-away: after 5 min with no activity, flip ONLINE → AWAY (transient); restore on
+  // the next activity. Only auto-aways from a plain ONLINE status — Away/DND/Invisible are
+  // explicit choices we leave alone.
+  useEffect(() => {
+    if (!s.user) return;
+    const IDLE_MS = 5 * 60 * 1000;
+    let last = Date.now();
+    const markActive = () => {
+      last = Date.now();
+      if (autoAwayRef.current) {
+        autoAwayRef.current = false;
+        sendPresence(manualStatusRef.current, true);
+      }
+    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') markActive(); };
+    const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'focus'];
+    events.forEach((e) => window.addEventListener(e, markActive, { passive: true }));
+    document.addEventListener('visibilitychange', onVisibility);
+    const iv = window.setInterval(() => {
+      if (autoAwayRef.current || manualStatusRef.current !== 'ONLINE') return;
+      if (Date.now() - last >= IDLE_MS) {
+        autoAwayRef.current = true;
+        sendPresence('AWAY', true);
+      }
+    }, 30000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, markActive));
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.user?.id, sendPresence]);
+
   // Keep DM subscriptions current as the conversation list loads/changes.
   useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    for (const dm of s.dms) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: dm.id } }));
-  }, [s.dms]);
+    for (const dm of s.dms) wsSubscribe(dm.id);
+  }, [s.dms, wsSubscribe]);
 
   // Keep the member panel fresh: on any notify + periodically while a server is open.
   useEffect(() => {
@@ -448,10 +600,7 @@ export default function App() {
     const channels = await api.listChannels(serverId);
     useStore.getState().setChannels(serverId, channels);
     // subscribe to every channel in this server so unread counts track background channels too
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      for (const c of channels) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: c.id } }));
-    }
+    for (const c of channels) wsSubscribe(c.id);
     const first = channels.find((c) => c.type === 'TEXT') || channels[0];
     if (first) selectChannel(first.id);
     // load the member list for the right-hand online panel
@@ -471,12 +620,10 @@ export default function App() {
     useStore.getState().clearUnread(channelId);
     setOpenPanel(null);
     if (title !== undefined) setDmTitle(title);
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      // Stay subscribed to previously-opened channels so their unread counts keep updating.
-      ws.send(JSON.stringify({ op: 'subscribe', d: { channelId } }));
-    }
+    // Stay subscribed to previously-opened channels so their unread counts keep updating.
+    wsSubscribe(channelId);
     const msgs = await api.listMessages(channelId);
+    setHasMoreByChannel((h) => ({ ...h, [channelId]: msgs.length >= 50 }));
     useStore.getState().setMessages(channelId, msgs.reverse());
     setNavOpen(false);
     // remember where we are for refresh-persistence
@@ -490,7 +637,16 @@ export default function App() {
     setWatchPickerOpen(false);
     if (!s.activeChannelId) return;
     try {
-      const state = await api.watchpartyStart(s.activeChannelId, item.id);
+      const state = await api.watchpartyStart(s.activeChannelId, item.id, item.type === 'Audio');
+      setPartyByChannel((prev) => ({ ...prev, [state.channelId]: state }));
+    } catch { alert('Could not start the watch party.'); }
+  }
+
+  async function startWatchPartyYoutube(videoId: string) {
+    setWatchPickerOpen(false);
+    if (!s.activeChannelId) return;
+    try {
+      const state = await api.watchpartyStartYoutube(s.activeChannelId, videoId);
       setPartyByChannel((prev) => ({ ...prev, [state.channelId]: state }));
     } catch { alert('Could not start the watch party.'); }
   }
@@ -542,7 +698,7 @@ export default function App() {
     voice.join(ch.id).then(() => refreshVoiceMembers(ch.id)).catch((e) => showToast('Voice failed: ' + (e?.message || 'could not connect')));
   }
 
-  async function handleDeleteMessage(channelId: string, id: string) {
+  const handleDeleteMessage = useCallback(async (channelId: string, id: string) => {
     // optimistic removal; the WS message.deleted event confirms/repeats it
     useStore.getState().deleteMessage(channelId, id);
     try {
@@ -550,23 +706,84 @@ export default function App() {
     } catch (e) {
       console.error('delete failed', e);
     }
-  }
+  }, []);
 
-  async function loadPins(channelId: string) {
+  const loadPins = useCallback(async (channelId: string) => {
     try { setPins(await api.listPins(channelId)); } catch { /* ignore */ }
-  }
+  }, []);
 
-  async function handlePin(m: Message, pinned: boolean) {
+  const handlePin = useCallback(async (m: Message, pinned: boolean) => {
     useStore.getState().updateMessage({ ...m, pinned }); // optimistic; WS message.updated confirms
     try {
       await api.pinMessage(m.id, pinned);
-      if (pinsOpen) loadPins(m.channelId);
+      if (openPanelRef.current === 'pins') loadPins(m.channelId);
       showToast(pinned ? '📌 Message pinned' : 'Unpinned');
     } catch (e) {
       useStore.getState().updateMessage({ ...m, pinned: !pinned });
       showToast('Could not update pin — you may lack permission.');
     }
-  }
+  }, [loadPins, showToast]);
+
+  // Debounced text-channel search (runs while the search panel is open).
+  useEffect(() => {
+    if (openPanel !== 'search' || !s.activeChannelId) return;
+    const q = searchQ.trim();
+    if (q.length < 2) { setSearchResults([]); setSearchBusy(false); return; }
+    const chId = s.activeChannelId;
+    setSearchBusy(true);
+    const t = setTimeout(async () => {
+      try { setSearchResults(await api.searchMessages(chId, q)); }
+      catch { setSearchResults([]); }
+      finally { setSearchBusy(false); }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchQ, openPanel, s.activeChannelId]);
+
+  // Navigate to wherever the current voice call is shown (its channel / DM).
+  const goToCall = useCallback(() => {
+    const vid = voiceRef.current?.channelId;
+    if (!vid) return;
+    const st = useStore.getState();
+    let owning: string | null = null;
+    for (const [sid, chs] of Object.entries(st.channelsByServer)) {
+      if ((chs as Channel[]).some((c) => c.id === vid)) { owning = sid; break; }
+    }
+    if (owning) { setHomeView(false); st.set({ activeServerId: owning, activeChannelId: vid }); }
+    else { setHomeView(true); st.set({ activeServerId: null, activeChannelId: vid }); }
+    setNavOpen(false);
+  }, []);
+
+  // Notify (with a one-click "Watch") when someone else starts a screen share and
+  // we're not already looking at the call.
+  useEffect(() => {
+    const remote = voice.screens.filter((s) => !s.isMe);
+    const ids = new Set(remote.map((s) => s.id));
+    const viewing = useStore.getState().activeChannelId === voiceRef.current?.channelId;
+    if (!viewing) {
+      for (const sh of remote) {
+        if (!knownStreams.current.has(sh.id)) showToast(`🖥️ ${sh.name} started streaming`, { label: 'Watch', onClick: goToCall });
+      }
+    }
+    knownStreams.current = ids;
+  }, [voice.screens, showToast, goToCall]);
+
+  // Load a page of older messages (scroll-up history) for the active channel.
+  const loadOlder = useCallback(async () => {
+    if (loadingOlderRef.current) return;
+    const st = useStore.getState();
+    const chId = st.activeChannelId;
+    if (!chId) return;
+    const cur = st.messagesByChannel[chId] || [];
+    if (cur.length === 0) return;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const older = await api.listMessages(chId, cur[0].id);
+      useStore.getState().prependMessages(chId, older.slice().reverse());
+      setHasMoreByChannel((h) => ({ ...h, [chId]: older.length >= 50 }));
+    } catch { /* ignore */ }
+    finally { loadingOlderRef.current = false; setLoadingOlder(false); }
+  }, []);
 
   function jumpToMessage(id: string) {
     setOpenPanel(null);
@@ -630,16 +847,16 @@ export default function App() {
     }
   }
 
-  async function handlePollVote(optionId: string) {
+  const handlePollVote = useCallback(async (optionId: string) => {
     try {
       const updated = await api.votePollOption(optionId);
       if (updated && (updated as Message).id) useStore.getState().updateMessage(updated as Message);
     } catch (e) {
       showToast('Could not record your vote.');
     }
-  }
+  }, [showToast]);
 
-  async function toggleReaction(messageId: string, emoji: string, mine: boolean) {
+  const toggleReaction = useCallback(async (messageId: string, emoji: string, mine: boolean) => {
     setReactPickerFor(null);
     try {
       // Apply the server's updated message immediately (instant feedback); the WS echo re-confirms.
@@ -648,19 +865,75 @@ export default function App() {
     } catch (e) {
       console.error('reaction failed', e);
     }
-  }
+  }, []);
 
-  async function saveEdit(messageId: string, content: string) {
+  // Stable handlers passed into the memoized message list.
+  const handleReply = useCallback((m: Message) => {
+    setReplyingTo({ id: m.id, authorName: m.author?.displayName || m.author?.username || 'user', content: (m.content === '​' ? '(attachment)' : m.content).slice(0, 120) });
+  }, []);
+  const handleStartEdit = useCallback((m: Message) => setEditingId(m.id), []);
+  const handleSaveEdit = useCallback(async (messageId: string, content: string) => {
+    setEditingId(null);
     const trimmed = content.trim();
     if (!trimmed) return;
-    try {
-      await api.updateMessage(messageId, { content: trimmed });
-    } catch (e) {
-      console.error('edit failed', e);
+    try { await api.updateMessage(messageId, { content: trimmed }); } catch (e) { console.error('edit failed', e); }
+  }, []);
+  const handleCancelEdit = useCallback(() => setEditingId(null), []);
+  const handleOpenReactionPicker = useCallback((messageId: string, anchor: { x: number; y: number }) => {
+    setReactPickerAnchor(anchor);
+    setReactPickerFor(messageId);
+  }, []);
+
+  // Usernames eligible for @mention highlighting in the current conversation.
+  // Memoized (stable ref) so the memoized message list isn't invalidated by
+  // presence/typing/unread churn flowing through the store.
+  const mentionNames = useMemo(() => {
+    const names = new Set<string>();
+    const srv = s.activeServerId ? s.servers.find((x) => x.id === s.activeServerId) : null;
+    if (!homeView && srv) {
+      for (const m of (s.membersByServer[srv.id] || [])) names.add(m.user.username.toLowerCase());
+    } else {
+      const dm = homeView && s.activeChannelId ? s.dms.find((d) => d.id === s.activeChannelId) : null;
+      if (dm) {
+        for (const r of dm.recipients) names.add(r.username.toLowerCase());
+        if (s.user) names.add(s.user.username.toLowerCase());
+      }
     }
+    return names;
+  }, [homeView, s.activeServerId, s.activeChannelId, s.servers, s.membersByServer, s.dms, s.user]);
+
+  // Desktop: check for + apply updates before loading the app.
+  if (isTauri() && !updateChecked) {
+    return (
+      <>
+        {showChrome && <TitleBar />}
+        <UpdateGate onDone={finishUpdateCheck} />
+      </>
+    );
   }
 
-  if (!s.user) return <div style={{ padding: 20, color: 'var(--muted)' }}>Loading…</div>;
+  // Native shell not yet pointed at a server / signed in → first-run setup.
+  if (isTauri() && (!serverOrigin() || !getToken())) {
+    return (
+      <>
+        {showChrome && <TitleBar />}
+        <DesktopSetup onDone={() => window.location.reload()} />
+      </>
+    );
+  }
+
+  if (!s.user) {
+    return (
+      <>
+        {showChrome && <TitleBar />}
+        <LoadingScreen
+          error={connectError}
+          onRetry={() => window.location.reload()}
+          onReconfigure={isTauri() ? () => { setToken(null); window.location.reload(); } : undefined}
+        />
+      </>
+    );
+  }
 
   const channels = s.activeServerId ? s.channelsByServer[s.activeServerId] || [] : [];
   const messages = s.activeChannelId ? s.messagesByChannel[s.activeChannelId] || [] : [];
@@ -747,48 +1020,13 @@ export default function App() {
       ? (s.membersByServer[activeServer.id] || []).map((m) => m.user)
       : dmChannel ? [...dmChannel.recipients, s.user] : []),
   ];
-  const mentionNames = new Set(mentionCandidates.map((c) => c.username.toLowerCase()));
 
-  const renderContent = (text: string): React.ReactNode => {
-    const parts: React.ReactNode[] = [];
-    // Match a URL or an @mention; render URLs as links, valid mentions as highlights.
-    const re = /(https?:\/\/[^\s<]+)|@([\w.-]+)/g;
-    let last = 0; let key = 0; let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      if (m[1]) {
-        // URL — trim trailing punctuation back out of the link.
-        let url = m[1];
-        const trail = url.match(/[.,!?;:)\]}'"]+$/)?.[0] ?? '';
-        if (trail) url = url.slice(0, url.length - trail.length);
-        if (m.index > last) parts.push(text.slice(last, m.index));
-        parts.push(
-          <a key={key++} href={url} target="_blank" rel="noopener noreferrer"
-            style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
-            {url}
-          </a>,
-        );
-        if (trail) parts.push(trail);
-        last = m.index + m[0].length;
-      } else {
-        const uname = m[2].toLowerCase();
-        if (!(mentionNames.has(uname) || uname === 'everyone' || uname === 'here')) continue;
-        if (m.index > last) parts.push(text.slice(last, m.index));
-        const self = uname === (s.user?.username || '').toLowerCase() || uname === 'everyone' || uname === 'here';
-        parts.push(
-          <span key={key++} style={{ background: self ? 'var(--accent)' : 'var(--hover)', color: self ? 'var(--accent-text)' : 'var(--accent)', borderRadius: 4, padding: '0 3px', fontWeight: 600 }}>
-            @{m[2]}
-          </span>,
-        );
-        last = m.index + m[0].length;
-      }
-    }
-    if (last < text.length) parts.push(text.slice(last));
-    return parts.length ? parts : text;
-  };
-
-  // apply live presence over stored status
+  // Apply the live presence set over stored status. For other users, presence is
+  // authoritative — absence from the set means offline (the stored column is only their
+  // saved preference and can be stale). For self we keep our own status (covers Invisible,
+  // which is intentionally absent from the broadcast set).
   const withPresence = <T extends { id: string; status?: string }>(u: T): T =>
-    ({ ...u, status: s.presenceById[u.id] ?? u.status });
+    ({ ...u, status: u.id === s.user?.id ? (s.user?.status ?? 'OFFLINE') : (s.presenceById[u.id] ?? 'OFFLINE') });
 
   // resolve a display name for a userId (for typing indicators)
   const nameById: Record<string, string> = {};
@@ -922,7 +1160,9 @@ export default function App() {
   const railKeys = topLevelKeys(layout);
 
   return (
-    <div className={'app-shell' + (navOpen ? ' nav-open' : '')} onClick={() => navOpen && setNavOpen(false)}>
+    <>
+      {showChrome && <TitleBar />}
+      <div className={'app-shell' + (navOpen ? ' nav-open' : '')} onClick={() => navOpen && setNavOpen(false)}>
       <div className="sidebars" onClick={(e) => e.stopPropagation()}>
         {/* server rail */}
         <div style={{ width: 64, background: 'var(--panel-dark)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, paddingBottom: 12, overflowY: 'auto' }}>
@@ -1015,7 +1255,15 @@ export default function App() {
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="disconnect" size={18} alt="Disconnect" /></button>
             </div>
           )}
-          <UserPanel user={withPresence(s.user)} onOpenSettings={() => setSettingsOpen(true)} />
+          <UserPanel
+            user={withPresence(s.user)}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onSetStatus={(status) => {
+              const cur = useStore.getState().user;
+              if (cur) useStore.getState().set({ user: { ...cur, status } });
+              sendPresence(status, false); // broadcasts live + persists as the saved preference
+            }}
+          />
         </div>
       </div>
 
@@ -1030,6 +1278,11 @@ export default function App() {
             {dmChannel && voice.channelId !== dmChannel.id && (
               <button title="Start voice call" onClick={() => startCall(dmChannel.id)}
                 style={{ background: 'none', border: 'none', color: 'var(--success)', cursor: 'pointer', fontSize: 17 }}>📞</button>
+            )}
+            {!showFriends && s.activeChannelId && (
+              <button title="Search messages"
+                onClick={() => { const willOpen = openPanel !== 'search'; setOpenPanel(willOpen ? 'search' : null); if (willOpen) { setSearchQ(''); setSearchResults([]); } }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, opacity: openPanel === 'search' ? 1 : 0.7 }}>🔍</button>
             )}
             {!showFriends && s.activeChannelId && (
               <button title="Pinned messages"
@@ -1053,12 +1306,7 @@ export default function App() {
         </div>
 
         {pinsOpen && !showFriends && (
-          <div style={{ position: 'fixed', top: 52, right: 16, width: 340, maxHeight: 440, overflowY: 'auto', zIndex: 60,
-            background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}>
-            <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={16} /> Pinned Messages</span>
-              <button onClick={() => setOpenPanel(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
-            </div>
+          <HeaderPanel title={<><Icon name="pin" size={16} /> Pinned Messages</>} onClose={() => setOpenPanel(null)}>
             {pins.length === 0 ? (
               <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>No pinned messages yet.</div>
             ) : pins.map((p) => (
@@ -1079,11 +1327,43 @@ export default function App() {
                 </div>
               </div>
             ))}
-          </div>
+          </HeaderPanel>
+        )}
+
+        {openPanel === 'search' && !showFriends && (
+          <HeaderPanel title={<>🔍 Search</>} onClose={() => setOpenPanel(null)}>
+            <div style={{ padding: 12, borderBottom: '1px solid var(--border)', position: 'sticky', top: 45, background: 'var(--panel)' }}>
+              <input autoFocus value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search this channel…"
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: 14 }} />
+            </div>
+            {searchBusy ? (
+              <div style={{ padding: 20, color: 'var(--muted)', fontSize: 13 }}>Searching…</div>
+            ) : searchQ.trim().length < 2 ? (
+              <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>Type at least 2 characters to search.</div>
+            ) : searchResults.length === 0 ? (
+              <div style={{ padding: 20, color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 13 }}>No messages match “{searchQ.trim()}”.</div>
+            ) : searchResults.map((m) => (
+              <div key={m.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10 }}>
+                <Avatar user={m.author} size={32} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-strong)', fontSize: 13 }}>{m.author?.displayName || m.author?.username || 'user'}</span>
+                    <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text)', wordBreak: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                    {m.content && m.content !== '​' ? m.content : '(attachment)'}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <button onClick={() => jumpToMessage(m.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}>Jump</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </HeaderPanel>
         )}
 
         {showFriends ? (
-          <FriendsView me={s.user} onOpenDm={openDm} reloadKey={s.notifyTick} />
+          <FriendsView me={s.user} onOpenDm={openDm} reloadKey={s.notifyTick} presenceById={s.presenceById} />
         ) : activeChannel?.type === 'VOICE' && s.activeChannelId ? (
           <CallView
             channelName={activeChannel.name}
@@ -1103,6 +1383,7 @@ export default function App() {
             onOpenSoundboard={() => setSoundboardOpen(true)}
             screens={voice.channelId === activeChannel.id ? voice.screens : []}
             sharing={voice.channelId === activeChannel.id && voice.sharing}
+            audio={voice.audio}
             onShareScreen={() => voice.startScreenShare()}
             onStopShare={() => voice.stopScreenShare()}
             onStopScreen={(id) => voice.stopScreen(id)}
@@ -1136,105 +1417,29 @@ export default function App() {
                 </button>
               </div>
             )}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {messages.length === 0 && <div style={{ color: 'var(--muted-2)', fontStyle: 'italic' }}>No messages yet.</div>}
-              {messages.map((m) => {
-                const canDelete = m.authorId === s.user!.id || canDeleteAny;
-                return (
-                  <div key={m.id} id={'msg-' + m.id} className="msg-row" style={{ display: 'flex', gap: 12, position: 'relative', opacity: m.pending ? 0.55 : 1 }}>
-                    <Avatar user={m.author} size={40} />
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      {m.replyTo && (
-                        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 2, display: 'flex', gap: 4, alignItems: 'center' }}>
-                          <span style={{ opacity: 0.7 }}>↩</span>
-                          <span style={{ fontWeight: 600 }}>{m.replyTo.authorName}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>{m.replyTo.content}</span>
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                        <span style={{ fontWeight: 'bold', color: 'var(--text-strong)' }}>{m.author?.displayName || m.author?.username || 'user'}</span>
-                        <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
-                        {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>· sending…</span>}
-                        {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="error" size={12} /> failed to send</span>}
-                        {m.pinned && <span title="Pinned" style={{ fontSize: 11, color: 'var(--muted-2)' }}>· 📌 pinned</span>}
-                      </div>
-                      {editingId === m.id ? (
-                        <input autoFocus value={editText} onChange={(e) => setEditText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); saveEdit(m.id, editText); setEditingId(null); }
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          onBlur={() => setEditingId(null)}
-                          style={{ width: '100%', background: 'var(--input-bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4, padding: '6px 8px', outline: 'none', marginTop: 2 }} />
-                      ) : (
-                        m.content && m.content !== '​' && !m.poll && !isSingleEmbedUrl(m.content) && (
-                          <p style={{ margin: '2px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                            {renderContent(m.content)}
-                            {m.editedAt && <span style={{ fontSize: 10, color: 'var(--muted-2)', marginLeft: 6 }}>(edited)</span>}
-                          </p>
-                        )
-                      )}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-                        {(m.attachments || []).map((a) => (
-                          <Attachment key={a.id || a.shareAssetId} attachment={a} shareBaseUrl={s.shareBaseUrl} />
-                        ))}
-                      </div>
-                      {m.poll && <PollView poll={m.poll} meId={s.user!.id} onVote={handlePollVote} />}
-                      {m.content && m.content !== '​' && !m.poll && <MessageEmbeds content={m.content} />}
-                      {m.reactions.length > 0 && (
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
-                          {m.reactions.map((r) => {
-                            const mine = r.userIds.includes(s.user!.id);
-                            return (
-                              <button key={r.emoji} onClick={() => toggleReaction(m.id, r.emoji, mine)}
-                                style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '1px 8px', borderRadius: 12, fontSize: 13, cursor: 'pointer',
-                                  border: '1px solid ' + (mine ? 'var(--accent)' : 'var(--border)'), background: mine ? 'var(--hover)' : 'var(--panel)', color: 'var(--text)' }}>
-                                <span>{r.emoji}</span><span style={{ fontSize: 11, color: 'var(--muted)' }}>{r.count}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {editingId !== m.id && !m.pending && !m.failed && (
-                      <div className="msg-del" style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 4 }}>
-                        <button title="Add reaction"
-                          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setReactPickerAnchor({ x: r.right, y: r.top }); setReactPickerFor(m.id); }}
-                          style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                          😊
-                        </button>
-                        <button title="Reply"
-                          onClick={() => setReplyingTo({ id: m.id, authorName: m.author?.displayName || m.author?.username || 'user', content: (m.content === '​' ? '(attachment)' : m.content).slice(0, 120) })}
-                          style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                          ↩
-                        </button>
-                        {m.authorId === s.user!.id && (
-                          <button title="Edit message"
-                            onClick={() => { setEditingId(m.id); setEditText(m.content === '​' ? '' : m.content); }}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                            ✏️
-                          </button>
-                        )}
-                        {canPin && (
-                          <button title={m.pinned ? 'Unpin message' : 'Pin message'}
-                            onClick={() => handlePin(m, !m.pinned)}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', padding: '2px 5px', display: 'flex', alignItems: 'center', opacity: m.pinned ? 1 : 0.75 }}>
-                            <Icon name="pin" size={13} />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button title="Delete message"
-                            onClick={() => handleDeleteMessage(m.channelId, m.id)}
-                            style={{ background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--danger)', borderRadius: 4, cursor: 'pointer', padding: '2px 6px', fontSize: 12 }}>
-                            🗑
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <MessageList
+              messages={messages}
+              channelId={s.activeChannelId}
+              hasMore={!!(s.activeChannelId && hasMoreByChannel[s.activeChannelId])}
+              loadingOlder={loadingOlder}
+              onLoadOlder={loadOlder}
+              meId={s.user.id}
+              myUsername={s.user.username}
+              shareBaseUrl={s.shareBaseUrl}
+              mentionNames={mentionNames}
+              canDeleteAny={canDeleteAny}
+              canPin={canPin}
+              editingId={editingId}
+              onToggleReaction={toggleReaction}
+              onReply={handleReply}
+              onStartEdit={handleStartEdit}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              onPin={handlePin}
+              onDelete={handleDeleteMessage}
+              onPollVote={handlePollVote}
+              onOpenReactionPicker={handleOpenReactionPicker}
+            />
             {typingText && <div style={{ padding: '0 16px 2px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', height: 16 }}>{typingText}</div>}
             <Composer channelId={s.activeChannelId} shareBaseUrl={s.shareBaseUrl} wsRef={wsRef} title={headerTitle}
               me={s.user} replyingTo={replyingTo} onClearReply={() => setReplyingTo(null)} mentionCandidates={mentionCandidates} />
@@ -1258,6 +1463,7 @@ export default function App() {
           audio={voice.audio}
           onThemeChange={changeTheme}
           onSaved={(u) => useStore.getState().set({ user: u })}
+          onStatusBroadcast={(status) => sendPresence(status, false)}
           onClose={() => setSettingsOpen(false)}
         />
       )}
@@ -1281,11 +1487,25 @@ export default function App() {
         </div>
       )}
 
+      {wsDown && (
+        <div style={{ position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)', zIndex: 400,
+          background: 'var(--danger)', color: '#fff', fontSize: 12, fontWeight: 600, padding: '4px 16px', borderRadius: '0 0 8px 8px', boxShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
+          Reconnecting…
+        </div>
+      )}
+
       {toast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
           background: 'var(--panel-dark)', color: 'var(--text-strong)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '10px 18px', boxShadow: '0 6px 24px rgba(0,0,0,0.4)', fontSize: 14, maxWidth: '90vw' }}>
-          {toast}
+          borderRadius: 8, padding: '10px 18px', boxShadow: '0 6px 24px rgba(0,0,0,0.4)', fontSize: 14, maxWidth: '90vw',
+          display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>{toast.msg}</span>
+          {toast.action && (
+            <button onClick={() => { toast.action!.onClick(); setToast(null); }}
+              style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: 'var(--accent)', color: 'var(--accent-text)', flexShrink: 0 }}>
+              {toast.action.label}
+            </button>
+          )}
         </div>
       )}
 
@@ -1333,7 +1553,7 @@ export default function App() {
       )}
 
       {watchPickerOpen && s.activeChannelId && (
-        <WatchPartyPicker onPick={startWatchParty} onClose={() => setWatchPickerOpen(false)} />
+        <WatchPartyPicker onPick={startWatchParty} onPickYoutube={startWatchPartyYoutube} onClose={() => setWatchPickerOpen(false)} />
       )}
 
       {soundboardOpen && activeServer && (
@@ -1386,7 +1606,8 @@ export default function App() {
           }}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -1416,6 +1637,8 @@ function Composer({
 }) {
   const [text, setText] = useState('');
   const [pending, setPending] = useState<Att[]>([]);
+  const [dropActive, setDropActive] = useState(false);
+  const [dropUploading, setDropUploading] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState<{ x: number; y: number } | null>(null);
   const [gifAnchor, setGifAnchor] = useState<{ x: number; y: number } | null>(null);
   const [pollOpen, setPollOpen] = useState(false);
@@ -1490,8 +1713,53 @@ function Composer({
     doSend(content, attachments);
   }
 
+  // Drag-and-drop files anywhere in the window (while a channel is open) to upload + stage
+  // them. Gated on a Files drag so it never interferes with channel/server reorder drags.
+  useEffect(() => {
+    if (!shareBaseUrl) return;
+    let depth = 0;
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    const onEnter = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; setDropActive(true); };
+    const onOver = (e: DragEvent) => { if (!hasFiles(e)) return; e.preventDefault(); };
+    const onLeave = (e: DragEvent) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (depth === 0) setDropActive(false); };
+    const onDrop = async (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0; setDropActive(false);
+      const files = Array.from(e.dataTransfer!.files);
+      if (!files.length) return;
+      setDropUploading(true);
+      try {
+        const { attachments, rejected } = await uploadToShare(files);
+        if (rejected.length) alert('Rejected: ' + rejected.map((r) => `${r.name} (${r.reason})`).join(', '));
+        if (attachments.length) setPending((p) => [...p, ...attachments]);
+      } catch (err) {
+        alert('Upload failed: ' + (err as Error).message);
+      } finally {
+        setDropUploading(false);
+      }
+    };
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [shareBaseUrl]);
+
   return (
     <div style={{ padding: 16, position: 'relative' }}>
+      {(dropActive || dropUploading) && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ border: '2px dashed var(--accent)', borderRadius: 16, padding: '36px 56px', background: 'var(--panel)', color: 'var(--text-strong)', fontSize: 18, fontWeight: 600, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+            {dropUploading ? 'Uploading…' : `📎 Drop files to attach${title ? ' — ' + title : ''}`}
+          </div>
+        </div>
+      )}
       {replyingTo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 12, color: 'var(--muted)' }}>
           <span>Replying to <b style={{ color: 'var(--text)' }}>{replyingTo.authorName}</b></span>

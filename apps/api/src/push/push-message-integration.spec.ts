@@ -99,7 +99,16 @@ function buildMockPrisma(cfg: MockPrismaConfig = {}) {
       roles: [] as Array<{ id: string; name: string; permissions: bigint }>,
     }));
 
-  const serverMemberFindMany = jest.fn().mockResolvedValue(srvMemberFindManyResolved);
+  const serverMemberFindMany = jest.fn().mockImplementation((args: any) => {
+    const filter = args?.where?.OR;
+    if (filter && Array.isArray(filter)) {
+      const usernames = new Set(filter.map((f: any) => f?.user?.username?.equals?.toLowerCase()).filter(Boolean));
+      if (usernames.size > 0) {
+        return Promise.resolve(srvMemberFindManyResolved.filter((m: any) => usernames.has(m.user.username.toLowerCase())));
+      }
+    }
+    return Promise.resolve(srvMemberFindManyResolved);
+  });
 
   const channelRecipientFindUnique = jest.fn().mockResolvedValue(
     channelServerId === null ? { channelId: 'ch-1', userId: authorId } : null,
@@ -154,6 +163,9 @@ function buildMockPrisma(cfg: MockPrismaConfig = {}) {
     role: {
       findMany: roleFindMany,
     },
+    user: {
+      findUnique: jest.fn().mockResolvedValue({ id: authorId, username: 'author', displayName: 'Author Name' }),
+    },
     server: {
       findUnique: serverFindUnique,
     },
@@ -204,7 +216,8 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
     const auditLog = { write: jest.fn().mockResolvedValue(undefined) };
 
     // MessagesService no longer injects PushDispatchService — everything goes through redis
-    svc = new MessagesService(prisma as any, redis as any, auditLog as any, servers as any);
+    const presence = { isActive: jest.fn().mockReturnValue(false) };
+    svc = new MessagesService(prisma as any, redis as any, auditLog as any, servers as any, presence as any);
     (svc as any).logger = { error: jest.fn() }; // suppress real logger noise
     return { pushDispatch, servers };
   };

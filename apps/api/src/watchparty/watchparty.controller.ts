@@ -7,7 +7,11 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { WatchPartyService } from './watchparty.service';
 import type { User } from '@prisma/client';
 
-const StartDto = z.object({ itemId: z.string().min(1) });
+const StartDto = z.object({
+  itemId: z.string().min(1).optional(),
+  youtubeId: z.string().min(1).optional(),
+  audio: z.boolean().optional(),
+}).refine((d) => d.itemId || d.youtubeId, { message: 'itemId or youtubeId is required' });
 const StateDto = z.object({ positionMs: z.number().nonnegative(), paused: z.boolean() });
 
 @Controller('watchparty')
@@ -16,8 +20,14 @@ export class WatchPartyController {
   constructor(private readonly wp: WatchPartyService) {}
 
   @Get('library')
-  search(@Query('q') q: string, @CurrentUser() _user: User) {
-    return this.wp.search(q ?? '');
+  search(
+    @Query(new ZodValidationPipe(z.object({
+      q: z.string().max(200).default(''),
+      type: z.enum(['all', 'movie', 'show', 'music']).default('all'),
+    }))) query: { q: string; type: 'all' | 'movie' | 'show' | 'music' },
+    @CurrentUser() _user: User,
+  ) {
+    return this.wp.search(query.q, query.type);
   }
 
   @Get('image/:itemId')
@@ -39,9 +49,9 @@ export class WatchPartyController {
   start(
     @Param('channelId') channelId: string,
     @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(StartDto)) body: { itemId: string },
+    @Body(new ZodValidationPipe(StartDto)) body: { itemId?: string; youtubeId?: string; audio?: boolean },
   ) {
-    return this.wp.start(channelId, user.id, body.itemId);
+    return this.wp.start(channelId, user.id, body);
   }
 
   @Post(':channelId/state')

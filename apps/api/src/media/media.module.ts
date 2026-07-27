@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { ShareModule } from '../share/share.service';
+import { ShareModule } from '../share/share.module';
 import { MediaController } from './media.controller';
 
 @Module({

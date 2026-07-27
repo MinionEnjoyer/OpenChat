@@ -152,15 +152,7 @@ export class ServersService {
         },
       });
 
-      // Create 'general' TEXT channel in a default Category (or without category if schema allows)
-      // Note: Schema says Channel has categoryId? (optional). 
-      // To be safe and strictly follow "default 'general' TEXT channel", we create it.
-      // If Categories are mandatory for organization, we might need to create one first, 
-      // but the contract implies channelId is optional in ServerMember/Channel relations unless specified.
-      // Channel schema: categoryId->Category? (optional). So we can create without category or assume a default exists.
-      // Let's create it without a category for simplicity as per "default" requirement, 
-      // assuming the UI handles positioning or it goes to top-level.
-      
+      // Seed a default top-level #general text channel.
       await tx.channel.create({
         data: {
           serverId: server.id,
@@ -220,7 +212,7 @@ export class ServersService {
   async addSound(serverId: string, userId: string, data: { name: string; url: string; emoji?: string | null }) {
     await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
     const count = await this.prisma.serverSound.count({ where: { serverId } });
-    if (count >= 50) throw new ForbiddenException('This soundboard is full (50 sounds max).');
+    if (count >= 500) throw new ForbiddenException('This soundboard is full (500 sounds max).');
     return this.prisma.serverSound.create({
       data: { serverId, name: data.name.slice(0, 40), url: data.url, emoji: data.emoji ?? null },
       select: { id: true, name: true, emoji: true, url: true },

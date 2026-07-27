@@ -26,10 +26,13 @@ You need these services reachable (use your own instances — any equivalents wo
   into `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`, and the issuer into `OIDC_ISSUER`.
 - **OpenShare (file backend):** deploy [OpenShare](https://github.com/MinionEnjoyer/OpenShare)
   (its README has full steps), then in **OpenChat's** `.env` set `SHARE_BASE_URL` to OpenShare's
-  public URL. In **OpenShare's** `.env`, add your OpenChat origin (e.g. `https://<your-chat-domain>`)
-  to `ALLOWED_ORIGINS` so credentialed uploads are accepted. Point both apps at the *same* OIDC
-  provider so a logged-in user is authorized to both. Leave `SHARE_*` blank to run OpenChat without
-  uploads.
+  public URL and `SHARE_API_KEY` to a random secret (`openssl rand -hex 32`). Put the **same**
+  `SHARE_API_KEY` in **OpenShare's** `.env` — uploads route through OpenChat's API, which stores
+  to OpenShare on the user's behalf using this shared key (so it works for users who've never
+  opened OpenShare directly). Also add your OpenChat origin (e.g. `https://<your-chat-domain>`)
+  to OpenShare's `ALLOWED_ORIGINS`, since the browser fetches media/thumbnails/waveforms straight
+  from OpenShare. Point both apps at the *same* OIDC provider. Leave `SHARE_*` blank to run
+  OpenChat without uploads.
 - **Reverse proxy:** point `chat.<domain>` → the web container's host port (`WEB_PORT`, default
   `8810`), and `livekit.<domain>` → the LiveKit signaling port `7880` (WebSocket upgrade
   enabled). Forward LiveKit media to the host: **UDP 50000** and **TCP 7881**.

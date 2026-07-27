@@ -7,7 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { ServersModule } from './servers/servers.module';
 import { MessagesModule } from './messages/messages.module';
 import { RealtimeModule } from './realtime/realtime.module';
-import { ShareModule } from './share/share.service';
+import { PresenceModule } from './realtime/presence.module';
+import { ShareModule } from './share/share.module';
 import { InvitesModule } from './invites/invites.module';
 import { FriendsModule } from './friends/friends.module';
 import { DmsModule } from './dms/dms.module';
@@ -34,6 +35,7 @@ import { validateEnv } from './config/configuration';
     LoggerModule.forRoot(),
     PrismaModule,
     RedisModule,
+    PresenceModule,
     AuthModule,
     AuditLogModule,
     ServersModule,

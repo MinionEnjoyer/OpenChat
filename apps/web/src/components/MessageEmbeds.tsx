@@ -1,3 +1,6 @@
+import { isTauri } from './TitleBar';
+import { serverOrigin } from '../lib/serverConfig';
+
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 
 function youTubeId(url: string): string | null {
@@ -61,9 +64,14 @@ export function MessageEmbeds({ content }: { content: string }) {
   for (const url of urls) {
     const yt = youTubeId(url);
     if (yt) {
+      // Native webviews (tauri://…) are rejected by YouTube's player, so nest the
+      // player inside our own https shim page (valid referrer); web embeds directly.
+      const src = isTauri() && serverOrigin()
+        ? `${serverOrigin()}/yt.html?v=${yt}`
+        : `https://www.youtube-nocookie.com/embed/${yt}`;
       embeds.push(
         <div key={`yt-${yt}`} style={{ maxWidth: 480, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
-          <iframe src={`https://www.youtube-nocookie.com/embed/${yt}`} title="YouTube video"
+          <iframe src={src} title="YouTube video"
             style={{ width: '100%', height: '100%', border: 0 }}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
         </div>,

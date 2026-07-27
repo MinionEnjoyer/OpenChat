@@ -143,11 +143,14 @@ export interface WatchPartyState {
   id: string;
   channelId: string;
   hostId: string;
+  hostName: string;
+  source: 'jellyfin' | 'youtube';
   itemId: string;
+  youtubeId: string | null;
   itemName: string;
   positionMs: number;
   paused: boolean;
-  streamUrl: string;
+  streamUrl: string | null;
 }
 
 export interface LibraryItem {
@@ -170,4 +173,19 @@ export interface Notifications {
   friendRequests: { id: string; user: User }[];
   serverInvites: ServerInviteNotification[];
   count: number;
+}
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+}
+
+export interface CreatedApiToken {
+  id: string;
+  name: string;
+  createdAt: string;
+  token: string; // raw value, returned only once on creation
 }
