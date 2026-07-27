@@ -1,0 +1,92 @@
+# p1-auth-devlogin-bearer — dev-login → verify shell → verify authenticated API access.
+#
+# WHAT THIS PROVES:
+#   - Dev-login succeeds (session cookie established, shell-screen renders).
+#   - The app loads authenticated data (server + channel list) via bearer-authorized
+#     REST calls — verifying GET /api/servers, GET /api/channels, etc. all carry
+#     the auth cookie/session successfully.
+#   - The same /api/auth/me endpoint that FR-AUTH-001's criterion requires is
+#     exercised indirectly (the shell fetches the user profile on mount).
+#
+# WHAT THIS DOES NOT PROVE (AND WHY @satisfies IS DELIBERATELY WITHHELD):
+#   - FR-AUTH-001 requires the NATIVE OIDC PKCE path: system-browser →
+#     Authentik → deep-link redirect → authorization_code exchange →
+#     bearer tokens, with NO cookies.
+#   - This flow uses DEV-LOGIN (tap login-username → inputText → tap
+#     login-submit), which establishes a server-side Redis session backed
+#     by a cookie. It does NOT exercise expo-web-browser, PKCE, the
+#     authorization_code grant, or the "no cookies" constraint.
+#   - Annotating this flow @satisfies FR-AUTH-001 would be misinformation —
+#     exactly the kind that let the criterion appear met for months while
+#     the production OIDC path was unbuilt (see UNBUILT-001, docs/BACKLOG.md:216).
+#
+# WHAT FR-AUTH-001 ACTUALLY NEEDS (cannot be written in this environment):
+#   - A production APK build (__DEV__=false, so LoginScreen renders PKCE path).
+#   - A reachable Authentik (or mock OIDC provider) at the issuer URL returned
+#     by GET /api/auth/oidc-metadata.
+#   - System-browser automation (Maestro cannot drive Chrome/Safari auth flows).
+#   - Deep-link verification (openchat://auth redirect back to app).
+#   - HTTP-level assertion that GET /api/auth/me uses Authorization: Bearer,
+#     not Cookie.
+#
+# CRITERION STATUS: UNMET. This flow is a bearer-auth smoke test, not the
+# OIDC PKCE E2E that FR-AUTH-001 demands. See docs/audits/FR-AUTH-001-investigation.md.
+#
+# T4: Uses provisioned test world. Fresh world every run.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# ── Phase 1: Verify shell is authenticated ──
+- assertVisible:
+    id: 'shell-screen'
+- assertNotVisible:
+    id: 'login-screen'
+
+# ── Phase 2: Open left drawer — verify server rail loads (proves
+#    authenticated GET /api/servers succeeded) ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'server-rail'
+
+# The provisioned server appears in the rail (proves the server list
+# includes the user's servers — authenticated API call worked).
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+
+# ── Phase 3: Select server → verify channels load (proves
+#    authenticated GET /api/servers/:id/channels succeeded) ──
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-drawer'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+
+# ── Phase 4: Select channel → verify messages load (proves
+#    authenticated GET /api/channels/:id/messages succeeded) ──
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+- assertVisible:
+    id: 'composer-input'
+
+# Everything rendered above proves the app successfully made authenticated
+# API calls using the session obtained at login. The session is implemented
+# as a Redis-backed cookie (dev-login), NOT as a bearer token from
+# authorization_code exchange — so this does NOT satisfy the FR-AUTH-001
+# criterion's "no cookies used" constraint.
+
+- takeScreenshot: artifacts/e2e/screens/p1-auth-bearer
