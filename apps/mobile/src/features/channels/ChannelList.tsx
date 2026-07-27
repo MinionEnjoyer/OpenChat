@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
@@ -153,7 +154,7 @@ function ChannelRow({ channel, isSelected, onSelect, onEdit, onDelete }: Channel
   const [showActions, setShowActions] = useState(false);
   const participants = voiceQ.data ?? [];
 
-  const prefix = isVoice ? strings.channels.voicePrefix : strings.shell.channelHash;
+  const a11yPrefix = isVoice ? strings.channels.voicePrefixLabel : strings.shell.channelHash;
   const suffix = isVoice
     ? participants.length > 0
       ? ` ${participants.map((p) => p.displayName ?? p.username).join(', ')}`
@@ -165,10 +166,14 @@ function ChannelRow({ channel, isSelected, onSelect, onEdit, onDelete }: Channel
       style={[styles.channelRow, isSelected && styles.channelRowActive]}
       onPress={onSelect}
       onLongPress={() => setShowActions(!showActions)}
-      accessibilityLabel={`${prefix} ${channel.name}${suffix}`}
+      accessibilityLabel={`${a11yPrefix} ${channel.name}${suffix}`}
       testID={`channel-${channel.name}`}
     >
-      <Text style={styles.channelPrefix}>{prefix}</Text>
+      {isVoice ? (
+        <MaterialIcons name={strings.channels.voicePrefix as React.ComponentProps<typeof MaterialIcons>['name']} size={18} color={palette.textMuted} style={styles.channelPrefixIcon} />
+      ) : (
+        <Text style={styles.channelPrefix}>{strings.shell.channelHash}</Text>
+      )}
       <View style={styles.channelInfo}>
         <Text style={styles.channelName}>{channel.name}</Text>
         {isVoice && participants.length > 0 && (
@@ -230,6 +235,9 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     marginRight: spacing.sm,
     width: 20,
+  },
+  channelPrefixIcon: {
+    marginRight: spacing.sm,
   },
   channelInfo: {
     flex: 1,

@@ -757,7 +757,7 @@ export function ShellScreen(): React.JSX.Element {
                     {/* Server-action buttons pinned below channel list */}
                     <View style={styles.channelActions}>
                       <Pressable
-                        style={styles.actionButton}
+                        style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
                         onPress={handleCreateChannel}
                         accessibilityLabel={strings.channels.createTitle}
                         testID="create-channel-button"
@@ -765,7 +765,7 @@ export function ShellScreen(): React.JSX.Element {
                         <Text style={styles.actionButtonText}>{strings.channels.createAction}</Text>
                       </Pressable>
                       <Pressable
-                        style={styles.actionButton}
+                        style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
                         onPress={() => setReorderVisible(true)}
                         accessibilityLabel={strings.channels.reorderTitle}
                         testID="reorder-channels-button"
@@ -774,7 +774,7 @@ export function ShellScreen(): React.JSX.Element {
                       </Pressable>
                       {activeServer && hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
                         <Pressable
-                          style={styles.actionButton}
+                          style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
                           onPress={() => setInviteCreateVisible(true)}
                           accessibilityLabel={strings.invites.createTitle}
                           testID="invite-create-button"
@@ -784,7 +784,7 @@ export function ShellScreen(): React.JSX.Element {
                       )}
                       {activeServer && hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES) && (
                         <Pressable
-                          style={styles.actionButton}
+                          style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
                           onPress={() => setShowRolesEditor(true)}
                           accessibilityLabel={strings.roles.title}
                           testID="roles-editor-button"
@@ -1222,12 +1222,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   actionButton: {
-    padding: spacing.sm,
-    backgroundColor: palette.bgElevated,
-    borderRadius: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: palette.bg,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.bgElevated,
+  },
+  actionButtonPressed: {
+    opacity: 0.7,
   },
   actionButtonText: {
-    ...typography.body,
+    ...typography.caption,
     color: palette.textMuted,
     fontWeight: '600',
   },

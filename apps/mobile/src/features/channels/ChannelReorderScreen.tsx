@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { showToast } from '../../ui/Toast';
@@ -74,8 +75,6 @@ export function ChannelReorderScreen({ visible, serverId, channels, onClose }: P
     handleOpen();
   }
 
-  const prefix = (ch: Channel) => (ch.type === 'VOICE' ? strings.channels.voicePrefix : strings.shell.channelHash);
-
   return (
     <Modal
       visible={visible}
@@ -95,9 +94,12 @@ export function ChannelReorderScreen({ visible, serverId, channels, onClose }: P
             style={styles.list}
             renderItem={({ item, index }) => (
               <View style={styles.row} testID={`reorder-row-${item.name}`}>
-                <Text style={styles.channelLabel}>
-                  {prefix(item)} {item.name}
-                </Text>
+                {item.type === 'VOICE' ? (
+                  <MaterialIcons name={strings.channels.voicePrefix as React.ComponentProps<typeof MaterialIcons>['name']} size={18} color={palette.text} style={{ marginRight: spacing.xs }} />
+                ) : (
+                  <Text style={{ ...typography.body, color: palette.text, marginRight: spacing.xs }}>{strings.shell.channelHash}</Text>
+                )}
+                <Text style={styles.channelLabel}>{item.name}</Text>
                 <View style={styles.arrowButtons}>
                   <Pressable
                     onPress={() => moveUp(index)}
