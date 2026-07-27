@@ -754,7 +754,7 @@ export function ShellScreen(): React.JSX.Element {
                       onEditChannel={handleEditChannel}
                       onDeleteChannel={handleDeleteChannel}
                     />
-                    {/* Server-action buttons pinned below channel list */}
+                    {/* Channel-action buttons: create + reorder */}
                     <View style={styles.channelActions}>
                       <Pressable
                         style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
@@ -772,27 +772,32 @@ export function ShellScreen(): React.JSX.Element {
                       >
                         <Text style={styles.actionButtonText}>{strings.channels.reorderAction}</Text>
                       </Pressable>
-                      {activeServer && hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
-                        <Pressable
-                          style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                          onPress={() => setInviteCreateVisible(true)}
-                          accessibilityLabel={strings.invites.createTitle}
-                          testID="invite-create-button"
-                        >
-                          <Text style={styles.actionButtonText}>{strings.invites.createTitle}</Text>
-                        </Pressable>
-                      )}
-                      {activeServer && hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES) && (
-                        <Pressable
-                          style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                          onPress={() => setShowRolesEditor(true)}
-                          accessibilityLabel={strings.roles.title}
-                          testID="roles-editor-button"
-                        >
-                          <Text style={styles.actionButtonText}>{strings.roles.title}</Text>
-                        </Pressable>
-                      )}
                     </View>
+                    {/* Server-action buttons: invite + roles, full-width stacked */}
+                    {activeServer && (hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) || hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES)) && (
+                      <View style={styles.serverActions}>
+                        {hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
+                          <Pressable
+                            style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                            onPress={() => setInviteCreateVisible(true)}
+                            accessibilityLabel={strings.invites.createTitle}
+                            testID="invite-create-button"
+                          >
+                            <Text style={styles.actionButtonText}>{strings.invites.createTitle}</Text>
+                          </Pressable>
+                        )}
+                        {hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES) && (
+                          <Pressable
+                            style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                            onPress={() => setShowRolesEditor(true)}
+                            accessibilityLabel={strings.roles.title}
+                            testID="roles-editor-button"
+                          >
+                            <Text style={styles.actionButtonText}>{strings.roles.title}</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
                     </>
                   )}
                 </>
@@ -1220,6 +1225,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: palette.bgElevated,
     marginTop: spacing.sm,
+  },
+  serverActions: {
+    flexDirection: 'column',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   actionButton: {
     paddingVertical: spacing.sm,
