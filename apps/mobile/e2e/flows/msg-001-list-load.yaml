@@ -49,6 +49,6 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'composer-input'
 # The test-world seeds messages; verify at least one content-bearing row exists
-- assertVisible: 'Welcome to the test world'
+- assertVisible: 'Hello from test world!'
 
 - takeScreenshot: artifacts/e2e/screens/msg-001-list-load
