@@ -527,4 +527,25 @@ describe('initializePush — full lifecycle (FR-NOTIF-002)', () => {
     expect(mockApiRequest).toHaveBeenCalledTimes(1);
     expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
   });
+
+  // @satisfies FR-NOTIF-002 — No FCM config: getDevicePushTokenAsync fails
+  // but the app must not crash, and foreground handler + logout hook still install.
+  it('does not throw when getDevicePushTokenAsync fails (no FCM config)', async () => {
+    mockRequestPermissions.mockResolvedValueOnce({ granted: true });
+    // Simulate missing google-services.json — FCM token acquisition throws
+    mockGetDevicePushToken.mockRejectedValueOnce(new Error('FCM service not available'));
+    mockAddPushTokenListener.mockReturnValueOnce({ remove: jest.fn() });
+
+    await initializePush();
+
+    // Registration path was attempted but token acquisition failed
+    expect(mockGetDevicePushToken).toHaveBeenCalledTimes(1);
+    // POST /api/devices must NOT be called (no token to register)
+    expect(mockApiRequest).not.toHaveBeenCalled();
+
+    // Foreground handler and logout hook still installed (degrade gracefully)
+    expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
+    expect(mockAddPushTokenListener).toHaveBeenCalledTimes(1);
+    expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
+  });
 });
