@@ -741,42 +741,59 @@ export function ShellScreen(): React.JSX.Element {
                         >
                           <MaterialIcons name={strings.shell.notifIcon as MI} size={18} color={palette.textMuted} />
                         </Pressable>
-                        {/* FR-SRV-006 — Invite create button (gated on CREATE_INVITE) */}
-                        {hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
-                          <Pressable
-                            onPress={() => setInviteCreateVisible(true)}
-                            accessibilityLabel={strings.invites.createTitle}
-                            testID="invite-create-button"
-                            style={{ marginLeft: 8 }}
-                          >
-                            <Text style={styles.settingsGlyph}>{strings.invites.createGlyph}</Text>
-                          </Pressable>
-                        )}
-                        {/* FR-ROLE-001 — Roles editor (gated on MANAGE_ROLES) */}
-                        {hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES) && (
-                          <Pressable
-                            onPress={() => setShowRolesEditor(true)}
-                            accessibilityLabel={strings.roles.title}
-                            testID="roles-editor-button"
-                            style={{ marginLeft: 8 }}
-                          >
-                            <Text style={styles.settingsGlyph}>{strings.roles.glyph}</Text>
-                          </Pressable>
-                        )}
                       </>
                     )}
                   </View>
                   {serverId && (
+                    <>
                     <ChannelList
                       serverId={serverId}
                       channels={channels.data ?? []}
                       selectedChannelId={selectedChannelId}
                       onSelectChannel={(channelId) => selectChannel(channelId)}
-                      onCreateChannel={handleCreateChannel}
                       onEditChannel={handleEditChannel}
                       onDeleteChannel={handleDeleteChannel}
-                      onReorder={() => setReorderVisible(true)}
                     />
+                    {/* Server-action buttons pinned below channel list */}
+                    <View style={styles.channelActions}>
+                      <Pressable
+                        style={styles.actionButton}
+                        onPress={handleCreateChannel}
+                        accessibilityLabel={strings.channels.createTitle}
+                        testID="create-channel-button"
+                      >
+                        <Text style={styles.actionButtonText}>{strings.channels.createAction}</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.actionButton}
+                        onPress={() => setReorderVisible(true)}
+                        accessibilityLabel={strings.channels.reorderTitle}
+                        testID="reorder-channels-button"
+                      >
+                        <Text style={styles.actionButtonText}>{strings.channels.reorderAction}</Text>
+                      </Pressable>
+                      {activeServer && hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
+                        <Pressable
+                          style={styles.actionButton}
+                          onPress={() => setInviteCreateVisible(true)}
+                          accessibilityLabel={strings.invites.createTitle}
+                          testID="invite-create-button"
+                        >
+                          <Text style={styles.actionButtonText}>{strings.invites.createTitle}</Text>
+                        </Pressable>
+                      )}
+                      {activeServer && hasServerPermission(activeServer.myPermissions, Permission.MANAGE_ROLES) && (
+                        <Pressable
+                          style={styles.actionButton}
+                          onPress={() => setShowRolesEditor(true)}
+                          accessibilityLabel={strings.roles.title}
+                          testID="roles-editor-button"
+                        >
+                          <Text style={styles.actionButtonText}>{strings.roles.title}</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                    </>
                   )}
                 </>
               )}
@@ -1195,6 +1212,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   settingsGlyph: { fontSize: 18, color: palette.textMuted },
+
+  channelActions: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: palette.bgElevated,
+    marginTop: spacing.sm,
+  },
+  actionButton: {
+    padding: spacing.sm,
+    backgroundColor: palette.bgElevated,
+    borderRadius: 6,
+  },
+  actionButtonText: {
+    ...typography.body,
+    color: palette.textMuted,
+    fontWeight: '600',
+  },
   channelRow: {
     flexDirection: 'row',
     paddingVertical: spacing.xs,

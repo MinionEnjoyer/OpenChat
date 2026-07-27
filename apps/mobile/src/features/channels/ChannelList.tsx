@@ -20,10 +20,8 @@ interface Props {
   channels: Channel[];
   selectedChannelId: string | null;
   onSelectChannel: (channelId: string) => void;
-  onCreateChannel: () => void;
   onEditChannel: (channel: Channel) => void;
   onDeleteChannel: (channel: Channel) => void;
-  onReorder: () => void;
 }
 
 interface CategoryGroup {
@@ -37,10 +35,8 @@ export function ChannelList({
   channels,
   selectedChannelId,
   onSelectChannel,
-  onCreateChannel,
   onEditChannel,
   onDeleteChannel,
-  onReorder,
 }: Props): React.JSX.Element {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed(serverId));
 
@@ -128,25 +124,6 @@ export function ChannelList({
         );
       })}
 
-      {/* Action buttons for MANAGE_CHANNELS permission-holders */}
-      <View style={styles.actions}>
-        <Pressable
-          style={styles.actionButton}
-          onPress={onCreateChannel}
-          accessibilityLabel={strings.channels.createTitle}
-          testID="create-channel-button"
-        >
-          <Text style={styles.actionButtonText}>{strings.channels.createAction}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.actionButton}
-          onPress={onReorder}
-          accessibilityLabel={strings.channels.reorderTitle}
-          testID="reorder-channels-button"
-        >
-          <Text style={styles.actionButtonText}>{strings.channels.reorderAction}</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }

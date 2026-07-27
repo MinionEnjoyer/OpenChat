@@ -1,8 +1,9 @@
 /**
  * channelHeaderCollapsed.test.tsx
  *
- * Verifies that the channel-header controls (server-settings-button, notif-settings-button,
- * invite-create-button) do NOT render when the left drawer is collapsed.
+ * Verifies that the channel-header controls (server-settings-button, notif-settings-button)
+ * do NOT render when the left drawer is collapsed, and that server-action buttons
+ * (invite-create-button, roles-editor-button) are always in the tree in the drawer footer.
  *
  * Bug: with the drawer collapsed, these controls rendered on top of the hamburger menu
  * because they were inside the Animated.View that was only translated off-screen (not
@@ -154,13 +155,17 @@ describe('Channel header controls — collapsed drawer', () => {
       tree = renderer.create(renderShell(React, ShellScreen));
     });
 
-    // All three channel-header controls must be absent when drawer is collapsed.
-    // Before the fix, these would be present — the bug is that they rendered
-    // on top of the hamburger when the drawer was supposedly off-screen.
+    // Channel-header controls (server-settings, notif-settings) are gated on
+    // leftOpenJS and must be absent when the drawer is collapsed.
+    // Server-action buttons (invite-create, roles-editor, create-channel,
+    // reorder-channels) live in the drawer footer and are always in the tree
+    // (just translated off-screen) — they are not gated on leftOpenJS.
     expect(() => tree!.root.findByProps({ testID: 'server-settings-button' })).toThrow();
     expect(() => tree!.root.findByProps({ testID: 'notif-settings-button' })).toThrow();
-    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).toThrow();
-    expect(() => tree!.root.findByProps({ testID: 'roles-editor-button' })).toThrow();
+    // invite-create-button and roles-editor-button are now in the drawer footer,
+    // always rendered (visually off-screen when the drawer is closed).
+    expect(() => tree!.root.findByProps({ testID: 'invite-create-button' })).not.toThrow();
+    expect(() => tree!.root.findByProps({ testID: 'roles-editor-button' })).not.toThrow();
   });
 
   it('controls appear after hamburger press opens the drawer', () => {
