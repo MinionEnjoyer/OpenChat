@@ -9,24 +9,43 @@ import { showToast } from '../../../ui/Toast';
 import { useSession } from '../../../stores/session';
 
 /**
- * P1-04 — Login. The dev-login path is the deterministic E2E lane; the OIDC
- * system-browser flow (expo-auth-session against /auth/oidc-metadata) is the
- * nightly lane and arrives once an Authentik fixture exists (see LOG).
+ * P1-04 — Login.
+ *
+ * - dev / E2E builds: username field → POST /auth/dev-login (deterministic lane).
+ * - production builds: "Sign in" button → PKCE system-browser flow against the
+ *   configured OIDC provider (FR-AUTH-001).
+ *
+ * Path selection is compile-time via `__DEV__`: Expo inlines this at bundle time
+ * so a production APK never ships the dev-login UI.
  */
+const USE_DEV_LOGIN = __DEV__;
+
 export function LoginScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const devLogin = useSession((s) => s.devLogin);
+  const loginWithPkce = useSession((s) => s.loginWithPkce);
 
-  const submit = async (): Promise<void> => {
+  const submitDevLogin = async (): Promise<void> => {
     if (!username.trim() || busy) return;
     setBusy(true);
     try {
       await devLogin(username.trim());
     } catch {
-      // FR-APP-006: failed mutation → toast with retry, never silence.
-      showToast(strings.auth.loginFailed, () => void submit());
+      showToast(strings.auth.loginFailed, () => void submitDevLogin());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitPkce = async (): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await loginWithPkce();
+    } catch {
+      showToast(strings.auth.loginFailed, () => void submitPkce());
     } finally {
       setBusy(false);
     }
@@ -40,31 +59,46 @@ export function LoginScreen(): React.JSX.Element {
       testID="login-screen"
     >
       <Text style={styles.title} testID="login-title">
-        {strings.auth.title}
+        {USE_DEV_LOGIN ? strings.auth.title : 'OpenChat'}
       </Text>
-      <Text style={styles.subtitle}>{strings.auth.subtitle}</Text>
-      <TextInput
-        style={styles.input}
-        placeholder={strings.auth.usernamePlaceholder}
-        placeholderTextColor={palette.textMuted}
-        autoCapitalize="none"
-        autoCorrect={false}
-        value={username}
-        onChangeText={setUsername}
-        onSubmitEditing={() => void submit()}
-        accessibilityLabel={strings.auth.usernamePlaceholder}
-        testID="login-username"
-      />
+      {USE_DEV_LOGIN ? (
+        <>
+          <Text style={styles.subtitle}>{strings.auth.subtitle}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={strings.auth.usernamePlaceholder}
+            placeholderTextColor={palette.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={username}
+            onChangeText={setUsername}
+            onSubmitEditing={() => void submitDevLogin()}
+            accessibilityLabel={strings.auth.usernamePlaceholder}
+            testID="login-username"
+          />
+        </>
+      ) : (
+        <Text style={styles.subtitle}>
+          Sign in with your OpenChat account to continue.
+        </Text>
+      )}
       <Pressable
-        style={[styles.button, (!username.trim() || busy) && styles.buttonDisabled]}
-        onPress={() => void submit()}
-        accessibilityLabel={strings.auth.devLoginButton}
+        style={[
+          styles.button,
+          (USE_DEV_LOGIN && !username.trim()) || busy ? styles.buttonDisabled : null,
+        ]}
+        onPress={() => void (USE_DEV_LOGIN ? submitDevLogin() : submitPkce())}
+        accessibilityLabel={
+          USE_DEV_LOGIN ? strings.auth.devLoginButton : 'Sign in'
+        }
         testID="login-submit"
       >
         {busy ? (
           <ActivityIndicator color={palette.text} />
         ) : (
-          <Text style={styles.buttonText}>{strings.auth.devLoginButton}</Text>
+          <Text style={styles.buttonText}>
+            {USE_DEV_LOGIN ? strings.auth.devLoginButton : 'Sign in'}
+          </Text>
         )}
       </Pressable>
     </KeyboardAvoidingView>
