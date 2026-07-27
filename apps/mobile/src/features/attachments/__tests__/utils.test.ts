@@ -51,6 +51,27 @@ describe('formatSize', () => {
     // 1000 B → 1000 B (not 1.0 KB) — boundary
     expect(formatSize(1000)).toBe('1000 B');
   });
+
+  it('accepts string input (BigInt wire format from server)', () => {
+    expect(formatSize('31')).toBe('31 B');
+    expect(formatSize('1024')).toBe('1.0 KB');
+    expect(formatSize('1536')).toBe('1.5 KB');
+    expect(formatSize('1048576')).toBe('1.0 MB');
+    expect(formatSize('0')).toBe('0 B');
+  });
+
+  it('produces wrong output if string is passed to a number-only impl', () => {
+    // "31" < 1024 — lexicographic, "3" > "1" so "31" > "1024" in string compare
+    // A naive number-only formatSize would silently produce garbage here.
+    // Our impl normalises with Number() so it produces the right answer.
+    expect(formatSize('31')).toBe('31 B');
+  });
+
+  it('local file number path still works', () => {
+    expect(formatSize(500)).toBe('500 B');
+    expect(formatSize(1024)).toBe('1.0 KB');
+    expect(formatSize(1048576)).toBe('1.0 MB');
+  });
 });
 
 describe('isImage', () => {
