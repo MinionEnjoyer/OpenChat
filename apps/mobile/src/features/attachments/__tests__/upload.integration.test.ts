@@ -125,8 +125,8 @@ describe('POST /api/uploads (integration)', () => {
     expect(a.shareAssetId.length).toBeGreaterThan(0);
     expect(a.filename).toBe(filename);
     expect(a.mimeType).toBe('image/png');
-    expect(typeof a.size).toBe('number');
-    expect(a.size).toBeGreaterThan(0);
+    expect(typeof a.size).toBe('string'); // BigInt serialized as decimal string
+    expect(Number(a.size)).toBeGreaterThan(0);
     expect(a.url).toContain('/media/');
     expect(a).toHaveProperty('thumbnailUrl');
     expect(a).toHaveProperty('width');

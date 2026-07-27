@@ -8,7 +8,7 @@ export interface UploadResult {
   shareAssetId: string;
   filename: string;
   mimeType: string;
-  size: number;
+  size: string; // BigInt serialized as decimal string by server
   url: string;
   thumbnailUrl: string | null;
   width: number | null;
