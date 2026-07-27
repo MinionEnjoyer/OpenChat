@@ -76,9 +76,7 @@ export function AttachmentTray({
                 />
               ) : (
                 <View style={styles.fileIcon}>
-                  <Text style={styles.fileIconText}>
-                    {strings.attachments.fileIcon}
-                  </Text>
+                  <MaterialIcons name={strings.attachments.fileIcon as MI} size={28} color={palette.textMuted} />
                 </View>
               )}
 
@@ -120,14 +118,12 @@ export function AttachmentTray({
               accessibilityLabel={strings.attachments.remove}
               testID={`attach-remove-${index}`}
             >
-              <Text
-                style={[
-                  styles.removeBtnText,
-                  isUploading && styles.removeBtnTextDisabled,
-                ]}
-              >
-                {strings.attachments.closeIcon}
-              </Text>
+              <MaterialIcons
+                name={strings.attachments.closeIcon as MI}
+                size={12}
+                color={palette.textMuted}
+                style={isUploading ? styles.removeBtnTextDisabled : undefined}
+              />
             </Pressable>
 
             {/* File info */}
@@ -202,9 +198,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fileIconText: {
-    fontSize: 28,
-  },
   progressOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -272,11 +265,6 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bg,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  removeBtnText: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
   },
   removeBtnTextDisabled: {
     opacity: 0.4,
