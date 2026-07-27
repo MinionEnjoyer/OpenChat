@@ -1,0 +1,99 @@
+# p1-auth-006a-profile-edit — DEVICE A: login → edit display name → send message.
+# @satisfies FR-AUTH-006 (device-A half)
+#
+# FR-AUTH-006 acceptance criterion: "change display name → visible in a
+# message from a second client." This flow is the FIRST client — it edits
+# the display name and sends a message. The companion flow
+# p1-auth-006b-profile-verify.yaml is the SECOND client — it logs in as the
+# provisioned friend and verifies the new display name appears on that
+# message.
+#
+# CONTRACT with p1-auth-006b:
+#   - Display name is set to the hardcoded value "E2E-DisplayName" (must
+#     match the assertion in the verify flow).
+#   - Message text is "Profile test: new display name" (must match the
+#     assertion in the verify flow).
+#   - Both flows MUST use the same provisioned world (same env vars) so
+#     they share the server, channel, and friend membership.
+#
+# EXECUTION ORDER:
+#   - Sequential: run this flow FIRST on device A, then p1-auth-006b on
+#     device B. Device B will fetch the persisted messages from the server.
+#   - Parallel: run both flows simultaneously on two devices/emulators
+#     sharing the same provisioned world. Device B will receive the message
+#     via WebSocket within the timeout window.
+#
+# T4: Uses provisioned test world. Fresh world every run.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+#
+# UNVERIFIED — pending device run.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# ── Phase 1: Open right drawer (profile section is at the bottom) ──
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'right-drawer'
+- assertVisible:
+    id: 'members-drawer'
+
+# Scroll to the profile box at the bottom of the members drawer.
+# The profile box contains display-name input, save button, and logout.
+- scrollUntilVisible:
+    element:
+      id: 'profile-displayname'
+    direction: DOWN
+    timeout: 10000
+
+# ── Phase 2: Edit display name ──
+- tapOn:
+    id: 'profile-displayname'
+- inputText: 'E2E-DisplayName'
+- tapOn:
+    id: 'profile-save'
+
+# Verify the save took effect (the input should now show the new value).
+# Maestro's inputText appends by default, and the TextInput value state
+# is managed by React — after saveDisplayName() calls updateProfile(),
+# the store is updated and the component re-renders with the new value.
+- assertVisible: 'E2E-DisplayName'
+
+# ── Phase 3: Close right drawer, select the provisioned server + channel ──
+- tapOn:
+    point: '20%,50%'
+- assertNotVisible:
+    id: 'right-drawer'
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 4: Send a message (will carry the new display name) ──
+- assertVisible:
+    id: 'composer-input'
+- tapOn:
+    id: 'composer-input'
+- inputText: 'Profile test: new display name'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'Profile test: new display name'
+
+- takeScreenshot: artifacts/e2e/screens/p1-auth-006a-edit
