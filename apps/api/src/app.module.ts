@@ -19,6 +19,7 @@ import { AuditLogModule } from './audit-log/audit-log.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { MediaModule } from './media/media.module';
 import { PushModule } from './push/push.module';
+import { TestWorldModule } from './test-world/test-world.module';
 import { HealthController } from './health/health.controller';
 import { ConfigController } from './config/config.controller';
 import { validateEnv } from './config/configuration';
@@ -49,6 +50,7 @@ import { validateEnv } from './config/configuration';
     UploadsModule,
     MediaModule,
     PushModule,
+    TestWorldModule,
   ],
   controllers: [HealthController, ConfigController],
 })
