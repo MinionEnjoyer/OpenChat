@@ -4,7 +4,10 @@
  * Firebase Cloud Messaging HTTP v1 transport.
  *
  * REQUIRES: FCM_SERVICE_ACCOUNT env var (JSON service-account key).
- * Fails loudly at construction if it is absent — never silently no-ops.
+ * Degrades gracefully when absent (null-object selected in the module);
+ * throws only for malformed JSON (operator error). The sendPush guard
+ * is a safety net — under normal operation the module factory routes to
+ * NoopPushTransport before this transport is ever constructed.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -37,20 +40,24 @@ export class FcmPushTransport implements PushTransport {
   private accessToken: string | null = null;
   private tokenExpiry: number = 0;
 
+  private configured = false;
+
   constructor(private readonly configService: ConfigService) {
     const raw = this.configService.get<string>('FCM_SERVICE_ACCOUNT');
     if (!raw) {
-      throw new Error(
-        'FCM_SERVICE_ACCOUNT env var is not set. ' +
-          'Push notifications are disabled. Set the env var to a JSON service-account key ' +
-          'to enable FCM HTTP v1 delivery.',
-      );
+      // Absent credentials → null-object handles this; this instance is a
+      // safety fallback that will no-op at sendPush level.
+      this.serviceAccount = undefined!;
+      this.projectId = '';
+      return;
     }
     try {
       this.serviceAccount = JSON.parse(raw) as ServiceAccount;
       this.projectId = this.serviceAccount.project_id;
       if (!this.projectId) throw new Error('Missing project_id in service account');
+      this.configured = true;
     } catch (err) {
+      // Malformed JSON is always an operator error — fail loudly.
       throw new Error(
         `FCM_SERVICE_ACCOUNT is not valid JSON: ${(err as Error).message}`,
       );
@@ -58,6 +65,10 @@ export class FcmPushTransport implements PushTransport {
   }
 
   async sendPush(tokens: string[], payload: PushPayload): Promise<SendPushResult> {
+    if (!this.configured) {
+      this.logger.warn('FCM not configured — push send is a no-op.');
+      return { success: 0, invalidTokens: [] };
+    }
     if (tokens.length === 0) return { success: 0, invalidTokens: [] };
 
     const token = await this.getAccessToken();
