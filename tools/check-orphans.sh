@@ -103,6 +103,18 @@ for mod in $module_files; do
       continue
     fi
 
+    # ── Check if this is an event-bus subscriber (wired via pub/sub, not DI) ──
+    # Event-bus subscribers call .subscribe() on a Redis/pubsub client during
+    # OnModuleInit. They are never directly injected — the event bus reaches them.
+    if [ -n "$provider_file" ] && grep -qE '(OnModuleInit|subscribe\()' "$provider_file" 2>/dev/null; then
+      # Both patterns must be present to avoid false positives on
+      # unrelated .subscribe() calls (RxJS, etc.).
+      if grep -q 'OnModuleInit' "$provider_file" 2>/dev/null && \
+         grep -qE '\.subscribe\(' "$provider_file" 2>/dev/null; then
+        continue
+      fi
+    fi
+
     # ── Skip if no definition file found (might be a barrel re-export or external) ──
     if [ -z "$provider_file" ]; then
       continue

@@ -131,9 +131,10 @@ mobile:ScreenShareView
 mobile:VoicePill
 
 # ── INTENTIONALLY NOT ALLOWLISTED (known orphans) ──
-# api:PushDispatchService — declared in PushModule, exported, but
-#   never injected by any controller or other provider. Zero call
-#   sites outside its own spec. Other agents are wiring this now.
+# PushDispatchService is no longer listed here — it is an event-bus
+# subscriber (Redis chat:events pub/sub via OnModuleInit) and the
+# script now correctly skips such providers. Event-bus subscribers
+# are wired through the bus, not DI injection.
 #
 # mobile:push — imported only by index.ts (barrel) + __tests__.
 #   No direct external consumer. The barrel's initializePush is
