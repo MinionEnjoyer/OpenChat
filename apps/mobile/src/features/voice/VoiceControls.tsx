@@ -10,9 +10,12 @@
  */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useVoiceConnection } from './useVoiceConnection';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 export function VoiceControls(): React.JSX.Element | null {
   const {
@@ -42,7 +45,7 @@ export function VoiceControls(): React.JSX.Element | null {
         accessibilityRole="button"
         testID="voice-control-mute"
       >
-        <Text style={styles.icon}>{isMuted ? strings.voice.iconMuted : strings.voice.iconUnmuted}</Text>
+        <MaterialIcons name={isMuted ? strings.voice.iconMuted as MI : strings.voice.iconUnmuted as MI} size={20} color={palette.text} style={styles.iconMargin} />
         <Text style={styles.label}>
           {isMuted ? strings.voice.unmute : strings.voice.mute}
         </Text>
@@ -60,7 +63,7 @@ export function VoiceControls(): React.JSX.Element | null {
         accessibilityRole="button"
         testID="voice-control-deafen"
       >
-        <Text style={styles.icon}>{isDeafened ? strings.voice.iconUndeafened : strings.voice.iconMuted}</Text>
+        <MaterialIcons name={isDeafened ? strings.voice.iconUndeafened as MI : strings.voice.iconDeafened as MI} size={20} color={palette.text} style={styles.iconMargin} />
         <Text style={styles.label}>
           {isDeafened ? strings.voice.undeafen : strings.voice.deafen}
         </Text>
@@ -78,9 +81,7 @@ export function VoiceControls(): React.JSX.Element | null {
         accessibilityRole="button"
         testID="voice-control-speaker"
       >
-        <Text style={styles.icon}>
-          {isSpeakerOn ? strings.voice.iconSpeaker : strings.voice.iconEarpiece}
-        </Text>
+        <MaterialIcons name={isSpeakerOn ? strings.voice.iconSpeaker as MI : strings.voice.iconEarpiece as MI} size={20} color={palette.text} style={styles.iconMargin} />
         <Text style={styles.label}>
           {isSpeakerOn ? strings.voice.speaker : strings.voice.earpiece}
         </Text>
@@ -98,7 +99,7 @@ export function VoiceControls(): React.JSX.Element | null {
         accessibilityRole="button"
         testID="voice-control-disconnect"
       >
-        <Text style={styles.icon}>{strings.voice.iconDisconnect}</Text>
+        <MaterialIcons name={strings.voice.iconDisconnect as MI} size={20} color="#ff6b6b" style={styles.iconMargin} />
         <Text style={[styles.label, styles.labelDanger]}>
           {strings.voice.disconnect}
         </Text>
@@ -136,8 +137,7 @@ const styles = StyleSheet.create({
   btnPressed: {
     opacity: 0.7,
   },
-  icon: {
-    fontSize: 20,
+  iconMargin: {
     marginBottom: 2,
   },
   label: {

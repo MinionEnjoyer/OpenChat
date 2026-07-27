@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -56,6 +57,7 @@ import { VoicePill, IncomingCallOverlay, VoiceChannelView } from '../../voice';
 import { useVoiceConnection } from '../../voice/useVoiceConnection';
 import { Permission, hasServerPermission } from '../../../permissions';
 
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 const LEFT_DRAWER_WIDTH = 280;
 const RIGHT_DRAWER_WIDTH = 240;
 const EDGE_WIDTH = 30; // edge gesture hit-slop for swipe-from-edge
@@ -552,7 +554,7 @@ export function ShellScreen(): React.JSX.Element {
               accessibilityLabel={strings.messages.pinsPanelTitle}
               testID="pins-toggle"
             >
-              <Text style={styles.topBarAction}>{strings.messages.pinIcon}</Text>
+              <MaterialIcons name={strings.messages.pinIcon as MI} size={16} color={palette.accent} style={styles.topBarActionIcon} />
             </Pressable>
           )}
           {/* FR-VOX-005: call button in DM top bar */}
@@ -561,7 +563,7 @@ export function ShellScreen(): React.JSX.Element {
           )}
           <Pressable onPress={() => setInboxVisible(true)} accessibilityLabel={strings.inbox.title} testID="inbox-button">
             <View style={styles.inboxIconContainer}>
-              <Text style={styles.topBarAction}>{strings.inbox.icon}</Text>
+              <MaterialIcons name={strings.inbox.icon as MI} size={16} color={palette.accent} style={styles.topBarActionIcon} />
               {inboxCount > 0 && (
                 <View style={styles.inboxBadge} testID="inbox-badge">
                   <Text style={styles.inboxBadgeText}>{inboxCount > 99 ? '99+' : String(inboxCount)}</Text>
@@ -683,7 +685,7 @@ export function ShellScreen(): React.JSX.Element {
                   accessibilityLabel={strings.invites.joinTitle}
                   testID="rail-join-server"
                 >
-                  <Text style={styles.railItemText}>{strings.servers.joinButtonNav}</Text>
+                  <MaterialIcons name={strings.servers.joinButtonNav as MI} size={16} color={palette.text} />
                 </Pressable>
                 {/* FR-SOC-001 — Friends button */}
                 <Pressable
@@ -692,7 +694,7 @@ export function ShellScreen(): React.JSX.Element {
                   accessibilityLabel={strings.friends.title}
                   testID="rail-friends"
                 >
-                  <Text style={styles.railItemText}>{strings.friends.icon}</Text>
+                  <MaterialIcons name={strings.friends.icon as MI} size={16} color={palette.text} />
                 </Pressable>
               </View>
             </View>
@@ -727,7 +729,7 @@ export function ShellScreen(): React.JSX.Element {
                           accessibilityLabel={strings.servers.settingsButton}
                           testID="server-settings-button"
                         >
-                          <Text style={styles.settingsGlyph}>{strings.shell.settingsGear}</Text>
+                          <MaterialIcons name={strings.shell.settingsIcon as MI} size={18} color={palette.textMuted} />
                         </Pressable>
                         <Pressable
                           onPress={() => {
@@ -737,7 +739,7 @@ export function ShellScreen(): React.JSX.Element {
                           testID="notif-settings-button"
                           style={{ marginLeft: 8 }}
                         >
-                          <Text style={styles.settingsGlyph}>{strings.shell.notifBell}</Text>
+                          <MaterialIcons name={strings.shell.notifIcon as MI} size={18} color={palette.textMuted} />
                         </Pressable>
                         {/* FR-SRV-006 — Invite create button (gated on CREATE_INVITE) */}
                         {hasServerPermission(activeServer.myPermissions, Permission.CREATE_INVITE) && (
@@ -1051,9 +1053,12 @@ function CallButton({ channelId }: { channelId: string }): React.JSX.Element {
       testID="call-button"
       disabled={isConnected}
     >
-      <Text style={[styles.topBarAction, isConnected && { color: palette.textMuted }]}>
-        {strings.voice.callButtonLabel}
-      </Text>
+      <MaterialIcons
+        name={strings.voice.iconCall as MI}
+        size={20}
+        color={isConnected ? palette.textMuted : palette.accent}
+        style={styles.topBarActionIcon}
+      />
     </Pressable>
   );
 }
@@ -1089,6 +1094,9 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
   },
   topBarAction: { ...typography.body, color: palette.accent },
+  topBarActionIcon: {
+    marginHorizontal: spacing.xs,
+  },
   inboxIconContainer: {
     position: 'relative',
   },

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { MaterialIcons } from '@expo/vector-icons';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,6 +65,9 @@ import { usePaginatedMessages } from './usePaginatedMessages';
 import { canSendInChannel } from './announceReadOnly';
 import { insertDayDividers, computeAuthorGroups, type MessageOrDivider } from '../../domain/pagination';
 import { resolveReplyPreview } from '../../domain/reply';
+import type { ComponentProps } from 'react';
+
+type MI = ComponentProps<typeof MaterialIcons>['name'];
 
 function hasManageMessages(serverId: string | null): boolean {
   if (!serverId) return false;
@@ -796,7 +800,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
             accessibilityLabel={strings.attachments.pickerTitle}
             testID="composer-attach"
           >
-            <Text style={styles.attachBtnText}>{strings.attachments.attach}</Text>
+            <MaterialIcons name={strings.attachments.attach as MI} size={13} color={palette.textMuted} />
           </Pressable>
           <Pressable
             style={styles.pollBtn}
@@ -804,7 +808,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
             accessibilityLabel={strings.poll.createTitle}
             testID="composer-poll"
           >
-            <Text style={styles.pollBtnText}>{strings.poll.chartIcon}</Text>
+            <MaterialIcons name={strings.poll.chartIcon as MI} size={20} color={palette.textMuted} />
           </Pressable>
           <Pressable
             style={styles.send}
