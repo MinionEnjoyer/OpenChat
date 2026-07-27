@@ -1,7 +1,7 @@
 # OpenChat — Canonical Project Status
 
-**Canonical live-status document.** Last reconciled: **2026-07-26 22:57 PDT**
-by Codex, from repository state and the locally stored Claude transcript.
+**Canonical live-status document.** Last reconciled: **2026-07-27 00:27 PDT**
+by Codex from repository, session, log, worktree, commit, and gate evidence.
 
 This file exists so work can move between Codex, Claude, or a fresh operator
 without reconstructing the project from chat history. Update it whenever the
@@ -11,6 +11,128 @@ Do not create another competing current-status document.
 Ephemeral agent/session tracking lives in `docs/AGENT-FLEET.md`. It is the
 single fleet ledger for both native Codex agents and CodeWhale/DeepSeek
 wrappers; it does not replace this canonical project-status document.
+
+## 2026-07-27 handoff snapshot
+
+The owner is returning orchestration to Claude. Codex automation
+`openchat-continuous-execution-monitor` is **PAUSED**; it will not wake or poll.
+Running CodeWhale jobs were intentionally left alive and must be reconciled by
+session ID or log before re-dispatch.
+
+### Owner direction and economics
+
+- Use Codex/premium reasoning for architecture, precise work orders,
+  adjudication, merge decisions, and trusted merged gates.
+- DeepSeek through CodeWhale is effectively free and should be fanned out to
+  the maximum safe parallelism, commonly 20–30 independent worktrees.
+- Do not confuse a small queue with economic execution: if work is
+  dependency-ready, isolated, project-scoped, and non-contentious, dispatch it.
+- Preserve the standing DeepSeek authorization and exclusions below.
+- Do not run device tests until the scheduler is green.
+
+### OpenChat integration
+
+- Branch/worktree: `integration` at `04f876c`.
+- Dirty pre-existing mobile/trace/readiness artifacts remain; preserve them.
+- Canonical fleet updates from this Codex session:
+  - `52cf9d5` — scheduler fixes and observer review gate;
+  - `df01ca0` — active fleet reconciliation;
+  - `04f876c` — capacity integration and verifier remediation.
+- Product-capabilities corrections: `4a93965`.
+- Independent final capability audit: `5b7f2a7`, **37 PASS / 2 DRIFT**.
+  All previously disputed substantive claims passed. Remaining drift:
+  historical commit counts naturally advanced, and line 357 names
+  `T4-phase2-audit.md` instead of `T4-phase3-audit.md`.
+- Worktree inventory refresh: `86ab938`; final external verification was not
+  dispatched because global process/worktree metadata may include unrelated
+  repositories outside the DeepSeek authorization. Its prepared verifier
+  worktree/order remains unexecuted.
+- Build-ID extractor remediation `b4d689d` independently passed baseline 9/9
+  and adversarial 18/18; integration still requires care around dirty
+  `apps/mobile/app.json`.
+
+### Device scheduler
+
+Repository: `/Users/williambsexton/work/workflows/device-scheduler`
+
+Current `main`: `638356d`. It is **RED and not releasable**.
+
+Integrated during this session:
+
+- P0 atomic multi-device/security specification: `a652a98`.
+- Concurrent cold-start migration fix: `6ebfd5a`, merge `529b748`;
+  independent 200×20 contention gate passed.
+- Portable process identity: `fe37705`, merge `202f922`;
+  independent unrestricted focused gate passed 80/80.
+- Combined pre-bundle regression at `202f922`: 265 tests plus 18 subtests
+  passed, excluding the then-known broken capacity verifier.
+- Strict atomic-bundle schema: `2a7a7c5` plus remediation `2f427b5`, merge
+  `2fe5bd4`. The isolated 36-test migration gate passed, but the merge exposed
+  a real interaction with the concurrent migration runner:
+  `sql.split(";")` misparses semicolons in migration comments and produces
+  36/36 migration errors near `new`.
+- Batch-capacity implementation: `928de8d`, merge `638356d`.
+- Capacity verifier v2 was accidentally committed to `main` first as
+  `dfae4ae`; this was not discarded because the tests belong on main, and the
+  implementation was then merged. Combined gate reached 54/55. The only
+  failure was a verifier-invented `ValueError` expectation for invalid count.
+- Verifier remediation `06bf9aa` now asserts the frozen result-returning
+  contract and passed 22/22 against `928de8d`. It has not yet been integrated
+  into scheduler `main`.
+- The remediated verifier reports two additional old-test regressions in
+  `test_android.CapacityTest`: missing legacy measurement keys
+  `per_emu_estimate_mb` and `headroom_mb`. Adjudicate compatibility before
+  declaring capacity green.
+
+Active scheduler job:
+
+| Session | Worktree / branch | Scope |
+|---:|---|---|
+| `52594` | `device-scheduler-bundle-parser` / `fix/bundle-migration-parser` | Preserve lock/re-read concurrency and strict schema while replacing naive SQL splitting; running at handoff |
+
+Do not build bundle store/runner/CLI on scheduler `main` until the parser fix is
+gated and merged. Pure matching, process-boundary, transcript-safety, Android
+hygiene, and isolated verifier work can proceed in parallel.
+
+### CodeWhale Observer
+
+Repository: `/Users/williambsexton/work/codewhale-observer`
+
+- Original high-octane GPT design: `a350957`.
+- DeepSeek distributed review: `504696c`, merged at `653c9c6`.
+- DeepSeek GUI/security review: `908f232`, merged at `2aea540`.
+- Root adjudication accepted all 32 findings with documented changes:
+  `6144442`.
+- Exact implementation baseline authorized at `f83f870`; normative spec commit
+  is `61444420d77f21ad2d004e1b837c71a98b4a92a2`.
+- Premium implementation agents were stopped before edits after the owner
+  corrected the economics. Equivalent DeepSeek jobs are active:
+
+| Session | Worktree / branch | Scope |
+|---:|---|---|
+| `78728` | `codewhale-observer-phase0` / `build/phase0-calibration` | Calibration, fake CodeWhale, legacy goldens, prompt-transport canary |
+| `64030` | `codewhale-observer-phase1` / `build/phase1-domain` | Rust domain model, schemas, projections, property tests |
+| `15522` | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | Independent AC-01–04 and Phase 0 adversarial gates |
+
+Observer must not be adopted into live fanout workflows until implementer output
+is merged and the independent verifier passes the combined result.
+
+### Immediate resume order
+
+1. Poll sessions `52594`, `78728`, `64030`, and `15522`; inspect commits and
+   dirty state. Do not infer completion from exit code alone.
+2. Gate and merge the scheduler parser repair. Re-run strict migration/model,
+   concurrent cold-start, and the full device-free suite.
+3. Integrate capacity verifier remediation `06bf9aa`; adjudicate the two legacy
+   measurement-key regressions and run the combined capacity suite.
+4. Merge capability audit `5b7f2a7`; correct the Phase 3 audit path. Treat
+   moving commit counts as timestamped measurements, not a product defect.
+5. Gate observer Phase 0 and Phase 1 separately, then merge and run the
+   independent Phase 0 verifier against the combined state.
+6. Restore broad DeepSeek fan-out. Dependency-ready tracks include pure bundle
+   matching, G16 process boundary, G17 transcript-safe output, Android provider
+   hygiene, generic-driver removal regate, schema-hardening regate, readiness
+   and provenance verification, store stress, and Build-ID integration.
 
 ## Authority and truth
 

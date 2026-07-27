@@ -4,29 +4,28 @@
 CodeWhale/DeepSeek wrappers. This file survives context compaction and handoff.
 The canonical project state remains `docs/PROJECT-STATUS.md`.
 
-**Last reconciled:** 2026-07-27 00:24 PDT
+**Last reconciled:** 2026-07-27 00:27 PDT — Codex monitor paused for Claude handoff
 
 ## Live work
 
 | Control plane | ID | Scope | Worktree / branch | State | Last evidence |
 |---|---:|---|---|---|---|
 | CodeWhale | `52594` | Repair merged migration/parser incompatibility | `device-scheduler-bundle-parser` / `fix/bundle-migration-parser` | RUNNING | Combined gate fails 36/36 migration tests near `new`; scoped continuation dispatched |
-| CodeWhale | `9665` | Implement frozen batch-capacity API | `device-scheduler-batch-capacity` / `build/batch-capacity` | RUNNING | Awaiting output |
 | CodeWhale | `78728` | Observer Phase 0 calibration/goldens | `codewhale-observer-phase0` / `build/phase0-calibration` | RUNNING | DeepSeek implementation dispatched |
 | CodeWhale | `64030` | Observer Phase 1 domain/projections | `codewhale-observer-phase1` / `build/phase1-domain` | RUNNING | DeepSeek implementation dispatched |
 | CodeWhale | `15522` | Independent observer Phase 0 gates | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | RUNNING | DeepSeek verifier dispatched |
-| CodeWhale | log-tracked | Correct capacity verifier's invented exception contract | `device-scheduler-verify-capacity-v2` / `verify/capacity-contract-v2` | RUNNING | Combined gate found one verifier-only mismatch for zero count |
-| CodeWhale | log-tracked | Final product-capabilities verification | `openchat-verify-product-capabilities-final` / `verify/product-capabilities-final` | RUNNING | Scoped independent document gate active |
 
 ## Completed outputs awaiting integration decisions
 
 | Work | Commit | Gate / disposition |
 |---|---|---|
+| Capacity verifier contract remediation | `06bf9aa` | 22/22 pass against capacity implementation; not yet integrated |
+| Product-capabilities final audit | `5b7f2a7` | 37 PASS / 2 DRIFT; substantive disputed claims pass |
 | Observer review adjudication / authorization | `6144442`, `f83f870` | All 32 findings adjudicated; exact implementation baseline authorized |
 | Strict bundle schema remediation | `2f427b5`, merge `2fe5bd4` | Isolated 36 migration tests passed; merged gate RED due SQL parser interaction, remediation running |
 | Capacity verifier v2 | `dbb5b59` | 18 pass, 3 batch skips, 1 intentional contract failure before implementation |
-| Batch-capacity implementation | `928de8d`, merge `638356d` | 54/55 combined tests pass; sole failure is verifier's unsupported `ValueError` expectation, remediation running |
-| Product-capability final corrections | `4a93965` | Awaiting final independent document gate |
+| Batch-capacity implementation | `928de8d`, merge `638356d` | Initial combined gate 54/55; verifier remediation `06bf9aa` passes 22/22 and awaits integration |
+| Product-capability final corrections | `4a93965` | Final audit `5b7f2a7`: 37 PASS / 2 non-substantive drift |
 | Worktree inventory refresh | `86ab938` | Completed; awaiting final independent methodology gate |
 | Multi-device architecture review | no commit | Complete; supplied matching, barrier, migration, cleanup, and work-split corrections to spec author |
 | P0 multi-device/security specification | `a652a98` | Docs-only amendment complete; implementation and independent gates running |
@@ -34,7 +33,7 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 | Portable process identity | `fe37705`, merge `202f922` | 80/80 focused unrestricted tests; merged into scheduler main |
 | Scheduler merged regression gate | `202f922` | 265 tests + 18 subtests passed, excluding known capacity contract collection error |
 | Atomic-bundle verifier gates | `57d9864` | 72 tests authored; expected red against pre-schema implementation |
-| Observer specification and plan | `a350957` | 42 acceptance criteria; two mandatory DeepSeek reviews running |
+| Observer specification and plan | `a350957` | Reviewed, adjudicated, and superseded by authorized baseline `6144442` / `f83f870` |
 | Capacity contract diagnosis | `6248e51` | Confirms verifier/API mismatch plus real count/floor gaps; needs spec adjudication |
 | Cold-start contention diagnosis | `dd8b5c4` | Confirms concurrent migration race; remediation recommendation needs architecture review |
 | Process identity diagnosis | `cb2cbde` | Confirms locale-dependent `ps lstart`; needs portable implementation and independent gate |
@@ -59,14 +58,13 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 
 - Scheduler `main` is **RED**, not releasable: merge `2fe5bd4` exposes a
   transaction-runner SQL parsing incompatibility (`36` migration errors).
-- Capacity implementation is integrated, but its independent combined gate is
-  54/55 pending correction of one verifier-invented exception contract.
-- Latest unrestricted audit reports 243 tests with one genuine error:
-  `AdmissionResult` versus implemented `CapacityResult`.
+- Capacity implementation is integrated; corrected independent verifier passes
+  22/22 on `06bf9aa`, not yet integrated. Two legacy measurement-key tests
+  remain to adjudicate.
 - Sandboxed process-list failures are environment-induced until contradicted by
   an unrestricted reproduction.
-- The earlier contention `StoreError` is an intermittent race hypothesis; a
-  dedicated reproduction is running.
+- The earlier contention `StoreError` was confirmed and fixed at `529b748`;
+  pre-bundle merged regression passed 265 tests plus 18 subtests.
 - Multi-device atomic checkout and synchronized execution are now owner-declared
   **P0** and are being added to the approved scheduler contract.
 
