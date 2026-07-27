@@ -301,6 +301,36 @@ suite covers every route with a contract schema. Routes without schemas are trac
 - **Phase:** Phase 4 — needs avatar rendering, mutual-server computation,
   DM/friend/block action buttons, and an E2E flow.
 
+## UNBUILT-006: FR-SRV-009 mobile client handler unbuilt (granular guild-structure events)
+
+- **Evidence:** `apps/mobile/src/sync/queryClient.ts:27-89` — the `applyEvent`
+  switch handles `message.*`, `typing`, `ready`, `presence`, `notify`, `mention`,
+  `call.ring`, and `voice.occupancy`. All 10 granular guild-structure events
+  (`channel.created`, `channel.deleted`, `role.created`, `role.updated`,
+  `role.deleted`, `member.joined`, `member.left`, `member.kicked`,
+  `server.updated`, `server.deleted`) hit `default: break` (line 88) and are
+  silently dropped. The types exist in `events.d.ts:75-84` (auto-generated from
+  contracts), but no handler exists. The comment at `queryClient.ts:4-6` states:
+  "`notify` is the backend's coarse 'something changed' signal (E3) *until*
+  FR-SRV-009 adds granular events." The backend publishes and dispatches all 10
+  events correctly (verified: `servers.service.ts`, `events.gateway.ts`,
+  `p3-09-granular-events.spec.ts`), and the server test at
+  `p3-09-granular-events.spec.ts` carries `@satisfies FR-SRV-009` but only proves
+  WS frame emission — it does NOT prove the mobile UI updates from the event
+  without a refetch. Web client (`apps/web/src`) has the same gap.
+- **User-visible impact:** When a channel is created, other server members do not
+  see it appear in realtime. The mobile app falls back to the coarse `notify`
+  event → full `invalidateQueries()` refetch, which violates the criterion
+  "WITHOUT refetch-all." Channels, roles, member joins/leaves/kicks, and server
+  edits/deletes all lack live UI updates.
+- **Priority:** HIGH — Phase 3 (Servers) requirement. The backend is complete;
+  this is the sole blocker for FR-SRV-009.
+- **Phase:** Phase 3 — needs 10 case statements in `applyEvent()` that update
+  the React Query cache directly (no refetch), a mobile integration test proving
+  each event mutates the cache, a two-actor E2E test (Alice creates channel on
+  device A → Bob sees it on device B ≤2s), and a corrected `@satisfies`
+  annotation on `p3-09-granular-events.spec.ts`.
+
 ---
 
 ## UNBUILT-006: FR-ROLE-001 mobile member role assignment unbuilt
