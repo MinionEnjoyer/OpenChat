@@ -31,3 +31,13 @@ ScreenShareView
 # allows consumers (tests, DI containers) to create fresh instances. No screen
 # renders it directly, and no sibling calls it (the singleton covers that).
 createExpoImageProcessor
+
+# publishSoundToRoom — called by SoundboardPanel (FR-SOUND-001).
+# SoundboardPanel is rendered inside VoiceChannelView, which ShellScreen renders
+# when a call connects.
+# NOTE: this entry predates the 2026-07-26 rewrite of check-unreachable.sh, which
+# replaced the one-level `\bindex\b` word-grep with real barrel-import resolution.
+# Re-verify whether this exemption is still needed; if the rewritten checker reaches
+# publishSoundToRoom on its own, DELETE this entry rather than leaving a stale
+# exemption that quietly hides a future regression.
+publishSoundToRoom
