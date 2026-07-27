@@ -4,17 +4,20 @@
 
 appId: com.openchat.mobile
 ---
+# Dismiss any open right drawer (tap left-side scrim)
+- tapOn:
+    point: '15%,50%'
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 # notif-settings-button is in the channel-drawer header
 - assertVisible:
     id: 'notif-settings-button'
