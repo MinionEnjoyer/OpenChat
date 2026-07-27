@@ -1,8 +1,11 @@
 # _login — shared login subflow for E2E tests.
 #
 # Every flow that needs to sign in should include this instead of
-# copy-pasting the login boilerplate.  This is the single point to harden
-# login if clearState ever leaves stale tokens (expo-secure-store).
+# copy-pasting the login boilerplate.  clearState: true gives each flow a
+# guaranteed-clean app start; no flow inherits stale tokens or UI state
+# from a prior run.  If clearState alone leaves stale expo-secure-store
+# tokens on some Android versions, harden that here (e.g. an explicit
+# logout guard) rather than per-flow.
 #
 # Usage in a flow:
 #   - runFlow: _login.yaml
@@ -16,7 +19,7 @@
 appId: com.openchat.mobile
 ---
 - launchApp:
-    clearState: false
+    clearState: true
 - assertVisible:
     id: 'login-screen'
 - tapOn:

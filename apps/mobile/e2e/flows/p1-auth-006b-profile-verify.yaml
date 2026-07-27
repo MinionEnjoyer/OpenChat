@@ -39,7 +39,7 @@ appId: com.openchat.mobile
 #    not E2E_USERNAME. The friend was provisioned by test-world and is a
 #    member of the same server.)
 - launchApp:
-    clearState: false
+    clearState: true
 - assertVisible:
     id: 'login-screen'
 - tapOn:
