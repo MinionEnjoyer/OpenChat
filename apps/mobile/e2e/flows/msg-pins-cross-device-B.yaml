@@ -27,9 +27,9 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
 
