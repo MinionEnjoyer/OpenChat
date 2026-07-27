@@ -1,28 +1,47 @@
 #!/usr/bin/env bash
-# check-orphans.sh — find implementation modules that are wired to NOTHING.
+# check-orphans.sh — WHY THIS GATE EXISTS
 #
-# A component or service can be fully implemented, correct, and comprehensively
-# unit-tested while being completely unreferenced by any production code. Every
-# unit test passes because every unit is right; the INTEGRATION between the
-# module and the rest of the system has no owner and no test.
+# On 2026-07-26 the notification feature shipped with every component unit-tested
+# and green while being completely non-functional, because nothing connected them.
+# A module can have 100% test coverage and still contribute zero to the running
+# application — tests exercise the module in isolation, but only the import graph
+# from real entrypoints tells you whether it is actually wired into production.
 #
-# This repo shipped a push notification feature with green specs on every
-# component — push-dispatch.service.ts had zero call sites outside its own
-# spec, and push.ts was imported only by its feature barrel + its own test.
-# The integration did not exist. Nobody noticed until a human tested on a
-# physical device.
+# A naive "no importer outside its own feature directory" heuristic was tried first.
+# It produced 3/3 false positives: modules consumed only within their own feature
+# (e.g. a helper imported only by sibling files in the same directory) were
+# flagged as orphans. That heuristic is wrong — a module used only within its own
+# feature directory is NORMAL and CORRECT. The problem is modules NO ONE reaches.
 #
-# This gate covers BOTH sides:
-#   apps/api:   NestJS providers declared in a module but never injected by
-#               any controller or other provider.
-#   apps/mobile: modules under src/features/** whose only production importers
-#               are inside the same feature directory (barrel, sibling files).
-#               An external consumer using the feature barrel is not enough —
-#               the individual source file must have a direct external importer
-#               to be considered wired.
+# The working model:
+#   - Reachability from real production entrypoints (App.tsx, index.js, main.ts),
+#     not test files, not arbitrary directories.
+#   - Barrel resolution: importing a directory resolves to its index.ts re-exports.
+#   - Event-bus-subscriber awareness: providers wired via pub/sub (OnModuleInit +
+#     .subscribe()) are recognised as connected, not orphaned by absent DI references.
 #
-# Exits non-zero when a non-trivial implementation module has no production
-# reference outside its own directory + its own module declaration.
+# If someone is tempted to simplify this later — to drop barrel resolution, to
+# switch back to a directory-boundary heuristic, to remove event-bus awareness —
+# the comment above is why that won't work. The failures are recorded below.
+#
+# check-orphans.sh — find implementation modules unreachable from production entrypoints.
+#
+# An orphan is a module that NOTHING in the production import graph reaches — no
+# importer anywhere, inside or outside its directory, following barrel re-exports,
+# excluding test files. This is the opposite of "no importer outside the feature
+# directory": a module used only within its own feature is NORMAL and CORRECT.
+#
+# Coverage:
+#   apps/mobile: BFS from App.tsx + index.ts, following all relative imports
+#                (including import type), resolving barrels (index.ts re-exports).
+#                Any .ts/.tsx under the package with exports but unreachable
+#                is flagged.
+#   apps/api:    NestJS providers declared in a module but never injected by
+#                any controller or other provider (class-name grep).
+#                Event-bus subscribers (OnModuleInit + .subscribe()) are
+#                recognised as wired via pub/sub, not DI.
+#
+# Exits non-zero when orphans are found.
 #
 # Allowlist: tools/.orphans-allow — one filename per line; comments with #
 # Each entry MUST have a # REASON comment explaining WHY it is exempt.
@@ -31,18 +50,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ALLOW="$SCRIPT_DIR/.orphans-allow"
-FOUND_FILE=$(mktemp)
-trap "rm -f $FOUND_FILE" EXIT
-echo "0" > "$FOUND_FILE"
+FOUND=0
 
-# Increment found counter (avoids subshell issues)
-inc_found() {
-  local n
-  n=$(cat "$FOUND_FILE")
-  echo $((n + 1)) > "$FOUND_FILE"
-}
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
-# ── Helper: check if a file is a test file ──
 is_test() {
   local f="$1"
   [[ "$f" == *__tests__* ]] && return 0
@@ -51,173 +62,263 @@ is_test() {
   return 1
 }
 
-# ── Helper: check if a candidate is allowlisted ──
 is_allowed() {
   local candidate="$1"
   [ -f "$ALLOW" ] && grep -qxF "$candidate" "$ALLOW" 2>/dev/null && return 0
   return 1
 }
 
+# Normalize a relative path: collapse ../ and ./ components, strip leading ./,
+# then re-add ./ prefix.  Uses Python os.path.normpath (available on macOS + CI).
+normalize() {
+  python3 -c "import os,sys; print('./' + os.path.normpath(sys.argv[1]).lstrip('/'))" "$1"
+}
+
 ###############################################################################
-# PART 1: apps/api — NestJS providers that are never injected
+# check_mobile — reachability from production entrypoints (App.tsx, index.ts)
 ###############################################################################
-echo "── apps/api ──"
-
-cd "$REPO_ROOT/apps/api/src" || exit 1
-
-# Find all NestJS module files
-module_files=$(find . -name '*.module.ts' -type f 2>/dev/null)
-
-for mod in $module_files; do
-  mod_dir=$(dirname "$mod")
-  [ ! -f "$mod" ] && continue
-
-  # ── Parse providers array from the module (multi-line aware) ──
-  # Extract the providers: [...] block spanning multiple lines,
-  # then pull PascalCase class names from it.
-  providers_raw=$(awk '/providers:/{p=1} p{print} /\]/{if(p){print; exit}}' "$mod" 2>/dev/null \
-    | grep -oE '\b[A-Z][A-Za-z0-9]+\b' \
-    | sort -u)
-
-  if [ -z "$providers_raw" ]; then
-    continue
+check_mobile() {
+  local MOBILE_ROOT="$REPO_ROOT/apps/mobile"
+  if [ ! -d "$MOBILE_ROOT" ]; then
+    echo "SKIP — apps/mobile not found"
+    return 0
   fi
 
-  for provider in $providers_raw; do
-    # ── Skip allowlisted entries ──
-    is_allowed "api:$provider" && continue
+  cd "$MOBILE_ROOT" || return 1
 
-    # ── Skip framework-level tokens (never "orphaned" — they're DI tokens) ──
-    [[ "$provider" == PUSH_TRANSPORT ]] && continue
+  local ENTRYPOINTS=("./App.tsx" "./index.ts")
+  local GRAPH VISITED QUEUE QUEUE_NEXT
+  GRAPH=$(mktemp)
+  VISITED=$(mktemp)
+  QUEUE=$(mktemp)
+  QUEUE_NEXT=$(mktemp)
+  # shellcheck disable=SC2064
+  trap "rm -f $GRAPH $VISITED $QUEUE $QUEUE_NEXT" RETURN
 
-    # ── Skip NestJS @Module classes themselves ──
-    if echo "$provider" | grep -qE '^[A-Z][a-z]+Module$' 2>/dev/null; then
-      continue
-    fi
+  # ── Phase 1: Build import graph ──
+  # For every .ts/.tsx (excluding node_modules, __tests__, test/spec files),
+  # extract all relative import/export-from specs and resolve to actual files.
 
-    # ── Find the file that defines this provider class ──
-    provider_file=$(grep -rl "export class $provider" "$mod_dir" --include='*.ts' 2>/dev/null | head -1)
+  local srcfile dir spec spec_clean resolved ext
+  while IFS= read -r -d '' srcfile; do
+    is_test "$srcfile" && continue
 
-    # ── Check if this is a controller (framework-invoked, never orphaned) ──
-    if [ -n "$provider_file" ] && grep -q '@Controller' "$provider_file" 2>/dev/null; then
-      continue
-    fi
+    dir=$(dirname "$srcfile")
 
-    # ── Check if this is an event-bus subscriber (wired via pub/sub, not DI) ──
-    # Event-bus subscribers call .subscribe() on a Redis/pubsub client during
-    # OnModuleInit. They are never directly injected — the event bus reaches them.
-    if [ -n "$provider_file" ] && grep -qE '(OnModuleInit|subscribe\()' "$provider_file" 2>/dev/null; then
-      # Both patterns must be present to avoid false positives on
-      # unrelated .subscribe() calls (RxJS, etc.).
-      if grep -q 'OnModuleInit' "$provider_file" 2>/dev/null && \
-         grep -qE '\.subscribe\(' "$provider_file" 2>/dev/null; then
-        continue
-      fi
-    fi
+    # Extract `from '…'` / `from "…"` and keep only relative paths (./ or ../).
+    grep -oE "from ['\"][^'\"]*['\"]" "$srcfile" 2>/dev/null \
+      | sed -E "s/from ['\"]([^'\"]*)['\"]/\1/" \
+      | grep -E '^\.\.?/' \
+    | while IFS= read -r spec; do
+        spec_clean="${spec#./}"
+        resolved=""
 
-    # ── Skip if no definition file found (might be a barrel re-export or external) ──
-    if [ -z "$provider_file" ]; then
-      continue
-    fi
+        # Try file.ts, file.tsx
+        for ext in '.ts' '.tsx' '.d.ts'; do
+          if [ -f "${dir}/${spec_clean}${ext}" ]; then
+            resolved="${dir}/${spec_clean}${ext}"
+            break
+          fi
+        done
 
-    # ── Check production references OUTSIDE the class definition file ──
-    # A provider is "wired" if ANY non-test file OTHER THAN its own
-    # definition file and its module declaration references it.
-    # Controllers in the same directory count as valid consumers.
-    external_refs=""
-    # provider_file is e.g. "./push/push-dispatch.service.ts"
-    # mod is e.g. "./push/push.module.ts"
-    # Exclude both the class definition file and the module declaration file.
-    external_refs=$(grep -rl "\b$provider\b" . --include='*.ts' 2>/dev/null \
-      | grep -v "^${provider_file}$" \
-      | grep -v "^$mod$")
+        # Try directory/index.ts, index.tsx (barrel)
+        if [ -z "$resolved" ]; then
+          for ext in '.ts' '.tsx'; do
+            if [ -f "${dir}/${spec_clean}/index${ext}" ]; then
+              resolved="${dir}/${spec_clean}/index${ext}"
+              break
+            fi
+          done
+        fi
 
-    # Filter out test files from external refs
-    real_refs=""
-    if [ -n "$external_refs" ]; then
-      while IFS= read -r ref; do
-        is_test "$ref" && continue
-        real_refs="${real_refs:+$real_refs$'\n'}$ref"
-      done <<< "$external_refs"
-    fi
+        if [ -n "$resolved" ] && ! is_test "$resolved"; then
+          resolved=$(normalize "$resolved")
+          echo "${srcfile}|${resolved}"
+        fi
+      done >> "$GRAPH"
+  done < <(find . -type f \( -name '*.ts' -o -name '*.tsx' \) \
+    -not -path '*/node_modules/*' -not -path '*/__tests__/*' \
+    -not -path '*/__mocks__/*' -not -path './modules/*' -print0)
 
-    if [ -z "$real_refs" ]; then
-      echo "ORPHAN api:${mod_dir#./}/ → $provider — declared in module but never injected"
-      inc_found
+  # ── Phase 2: BFS from entrypoints ──
+
+  > "$VISITED"
+  > "$QUEUE"
+
+  local ep
+  for ep in "${ENTRYPOINTS[@]}"; do
+    if [ -f "$ep" ]; then
+      echo "$ep" >> "$QUEUE"
     fi
   done
-done
 
-###############################################################################
-# PART 2: apps/mobile — unreferenced feature modules
-###############################################################################
-echo "── apps/mobile ──"
+  local current target
+  while [ -s "$QUEUE" ]; do
+    > "$QUEUE_NEXT"
 
-cd "$REPO_ROOT/apps/mobile/src" || exit 1
+    while IFS= read -r current; do
+      [ -z "$current" ] && continue
+      grep -qxF "$current" "$VISITED" 2>/dev/null && continue
+      echo "$current" >> "$VISITED"
 
-for feat_dir in features/*/; do
-  [ ! -d "$feat_dir" ] && continue
-  feat=$(basename "$feat_dir")
+      # Follow all outgoing edges (including barrel re-exports).
+      grep -F "${current}|" "$GRAPH" 2>/dev/null | cut -d'|' -f2 \
+      | while IFS= read -r target; do
+          grep -qxF "$target" "$VISITED" 2>/dev/null && continue
+          grep -qxF "$target" "$QUEUE_NEXT" 2>/dev/null && continue
+          echo "$target"
+        done >> "$QUEUE_NEXT"
+    done < "$QUEUE"
 
-  # Collect all source files (not barrel, not test)
-  src_files=$(find "$feat_dir" -maxdepth 1 \( -name '*.ts' -o -name '*.tsx' \) \
-    ! -name 'index.ts' ! -name 'index.tsx' 2>/dev/null)
+    # Swap: QUEUE_NEXT becomes QUEUE for the next iteration.
+    cat "$QUEUE_NEXT" > "$QUEUE"
+  done
 
-  if [ -z "$src_files" ]; then
-    continue
-  fi
+  # ── Phase 3: Flag unreached exported modules ──
 
-  # Process each file (avoid pipe subshell for found counter)
-  while IFS= read -r f; do
-    [ -z "$f" ] && continue
-    is_test "$f" && continue
+  local has_export fname
+  while IFS= read -r -d '' srcfile; do
+    is_test "$srcfile" && continue
 
-    fname=$(basename "$f" | sed -E 's/\.[jt]sx?$//')
-    [ -z "$fname" ] && continue
+    # Barrels are infrastructure; a barrel with only re-exports that nobody
+    # imports is a dead export surface, but not an orphan in the same sense.
+    [[ "$srcfile" == */index.ts || "$srcfile" == */index.tsx ]] && continue
 
-    # ── Allowlist check ──
-    is_allowed "mobile:$fname" && continue
-
-    # ── Skip files with no exports (pure styles, config, side-effects only) ──
-    has_export=$(grep -cE '^export (function|class|const|let|async function|interface|type|enum)' "$f" 2>/dev/null || echo "0")
+    # A file with no exports cannot be orphaned — it has nothing to wire.
+    has_export=$(grep -cE '^export (function|class|const|let|async function|interface|type|enum)' "$srcfile" 2>/dev/null | tr -d '[:space:]')
+    [ -z "$has_export" ] && has_export=0
     if [ "${has_export:-0}" -eq 0 ]; then
       continue
     fi
 
-    # ── Check for direct importers OUTSIDE the feature directory ──
-    # Search for import paths containing the filename across the entire src tree
-    external_count=0
-    importers=$(grep -rlE "from ['\"].*/${fname}['\"]" . --include='*.ts' --include='*.tsx' 2>/dev/null || true)
+    # Allowlist
+    fname=$(basename "$srcfile" | sed -E 's/\.[jt]sx?$//')
+    is_allowed "mobile:$fname" && continue
 
-    if [ -n "$importers" ]; then
-      while IFS= read -r importer; do
-        [ -z "$importer" ] && continue
-        is_test "$importer" && continue
-        # Strip leading ./ for comparison; skip if inside same feature dir
-        imp_norm="${importer#./}"
-        [[ "$imp_norm" == "$feat_dir"* ]] && continue
-        external_count=$((external_count + 1))
-      done <<< "$importers"
+    if ! grep -qxF "$srcfile" "$VISITED" 2>/dev/null; then
+      echo "ORPHAN mobile:${srcfile#./} — unreachable from entrypoints"
+      FOUND=$((FOUND + 1))
+    fi
+  done < <(find . -type f \( -name '*.ts' -o -name '*.tsx' \) \
+    -not -path '*/node_modules/*' -not -path '*/__tests__/*' \
+    -not -path '*/__mocks__/*' -not -path './modules/*' -print0)
+}
+
+###############################################################################
+# check_api — NestJS providers that are never injected
+###############################################################################
+check_api() {
+  local API_ROOT="$REPO_ROOT/apps/api"
+  if [ ! -d "$API_ROOT" ]; then
+    echo "SKIP — apps/api not found"
+    return 0
+  fi
+
+  cd "$API_ROOT/src" || return 1
+
+  local module_files mod mod_dir providers_raw provider provider_file
+  local external_refs real_refs ref
+
+  # Find all NestJS module files
+  module_files=$(find . -name '*.module.ts' -type f 2>/dev/null)
+
+  for mod in $module_files; do
+    mod_dir=$(dirname "$mod")
+    [ ! -f "$mod" ] && continue
+
+    # ── Parse providers array from the module (multi-line aware) ──
+    # Extract the providers: [...] block spanning multiple lines,
+    # then pull PascalCase class names from it.
+    providers_raw=$(awk '/providers:/{p=1} p{print} /\]/{if(p){print; exit}}' "$mod" 2>/dev/null \
+      | grep -oE '\b[A-Z][A-Za-z0-9]+\b' \
+      | sort -u)
+
+    if [ -z "$providers_raw" ]; then
+      continue
     fi
 
-    if [ "$external_count" -gt 0 ]; then
-      continue  # wired
-    fi
+    for provider in $providers_raw; do
+      # ── Skip allowlisted entries ──
+      is_allowed "api:$provider" && continue
 
-    # ── No external direct importers → ORPHAN ──
-    echo "ORPHAN mobile:features/$feat/$fname — no direct importer outside features/$feat/"
-    inc_found
-  done <<< "$src_files"
-done
+      # ── Skip framework-level tokens (never "orphaned" — they're DI tokens) ──
+      [[ "$provider" == PUSH_TRANSPORT ]] && continue
+
+      # ── Skip NestJS @Module classes themselves ──
+      if echo "$provider" | grep -qE '^[A-Z][a-z]+Module$' 2>/dev/null; then
+        continue
+      fi
+
+      # ── Find the file that defines this provider class ──
+      provider_file=$(grep -rl "export class $provider" "$mod_dir" --include='*.ts' 2>/dev/null | head -1)
+
+      # ── Check if this is a controller (framework-invoked, never orphaned) ──
+      if [ -n "$provider_file" ] && grep -q '@Controller' "$provider_file" 2>/dev/null; then
+        continue
+      fi
+
+      # ── Check if this is an event-bus subscriber (wired via pub/sub, not DI) ──
+      # Event-bus subscribers call .subscribe() on a Redis/pubsub client during
+      # OnModuleInit. They are never directly injected — the event bus reaches them.
+      if [ -n "$provider_file" ] && grep -qE '(OnModuleInit|subscribe\()' "$provider_file" 2>/dev/null; then
+        # Both patterns must be present to avoid false positives on
+        # unrelated .subscribe() calls (RxJS, etc.).
+        if grep -q 'OnModuleInit' "$provider_file" 2>/dev/null && \
+           grep -qE '\.subscribe\(' "$provider_file" 2>/dev/null; then
+          continue
+        fi
+      fi
+
+      # ── Skip if no definition file found (might be a barrel re-export or external) ──
+      if [ -z "$provider_file" ]; then
+        continue
+      fi
+
+      # ── Check production references OUTSIDE the class definition file ──
+      # A provider is "wired" if ANY non-test file OTHER THAN its own
+      # definition file and its module declaration references it.
+      # Controllers in the same directory count as valid consumers.
+      external_refs=""
+      # provider_file is e.g. "./push/push-dispatch.service.ts"
+      # mod is e.g. "./push/push.module.ts"
+      # Exclude both the class definition file and the module declaration file.
+      external_refs=$(grep -rl "\b$provider\b" . --include='*.ts' 2>/dev/null \
+        | grep -v "^${provider_file}$" \
+        | grep -v "^$mod$")
+
+      # Filter out test files from external refs
+      real_refs=""
+      if [ -n "$external_refs" ]; then
+        while IFS= read -r ref; do
+          is_test "$ref" && continue
+          real_refs="${real_refs:+$real_refs$'\n'}$ref"
+        done <<< "$external_refs"
+      fi
+
+      if [ -z "$real_refs" ]; then
+        echo "ORPHAN api:${mod_dir#./}/ → $provider — declared in module but never injected"
+        FOUND=$((FOUND + 1))
+      fi
+    done
+  done
+}
+
+###############################################################################
+# Main
+###############################################################################
+echo "── apps/mobile ──"
+check_mobile
+
+echo "── apps/api ──"
+check_api
 
 ###############################################################################
 # Report
 ###############################################################################
-found=$(cat "$FOUND_FILE")
-if [ "$found" -eq 0 ]; then
+if [ "$FOUND" -eq 0 ]; then
   echo "OK — every module is wired to a production consumer"
 else
   echo ""
-  echo "$found orphaned module(s) found."
+  echo "$FOUND orphaned module(s) found."
 fi
-exit "$found"
+exit "$FOUND"

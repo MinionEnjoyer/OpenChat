@@ -1,5 +1,38 @@
 # OpenChat Mobile — Session Log
 
+## 2026-07-26 — Orphan-gate findings: two unwired features discovered
+
+The `tools/check-orphans.sh` gate was implemented to catch modules that are
+unit-tested but unreachable from any production entrypoint. When run against
+the current tree it surfaced two real orphans — features whose code exists,
+whose tests pass, but which have zero production consumers.
+
+These are **UNWIRED FEATURES**, not dead code to delete. The intended behaviour
+(markdown rendering in messages, unread badges on channels) is user-visible and
+currently absent.
+
+### Orphan 1: `src/domain/markdown.ts` — FR-MSG-007 Markdown AST parser
+- **What:** `parseMarkdown()` — a Markdown-to-AST parser accepting the CommonMark
+  block-level grammar (headings, paragraphs, code fences, blockquotes, lists,
+  thematic breaks).
+- **Evidence:** Unit-tested (`domain/__tests__/markdown.test.ts`) — tests pass.
+- **Impact:** Messages are rendered as plain text with no formatting. Bold,
+  italics, code blocks, lists, and headings typed by users are silently ignored.
+- **Status:** UNWIRED — zero production consumers. No component imports or calls
+  `parseMarkdown()`. The message renderer would need to call this and map the AST
+  to React Native `<Text>` components.
+
+### Orphan 2: `src/domain/unread.ts` — FR-MSG-010 unread/read-state math
+- **What:** `computeChannelUnread()` — pure functions for computing unread counts
+  and read-state transitions from message-list snapshots.
+- **Evidence:** Unit-tested (`domain/__tests__/unread.test.ts`) — tests pass.
+- **Impact:** No unread badges appear on channels. Users cannot see which
+  channels have new messages without opening them.
+- **Status:** UNWIRED — zero production consumers. The channel list and sidebar
+  stores would need to call `computeChannelUnread()` and render badge counts.
+
+---
+
 ## 2026-07-25 — P2-05 Reply with quoted preview and jump-to-original (FR-MSG-005)
 
 **Commit:** (see below)
