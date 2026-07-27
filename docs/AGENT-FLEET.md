@@ -10,14 +10,20 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 
 | Control plane | ID | Scope | Worktree / branch | State | Last evidence |
 |---|---:|---|---|---|---|
-| Codex native | `scheduler_core` | P0 atomic multi-device specification | `workflows/device-scheduler` / `main` | RUNNING | Documentation-only assignment acknowledged |
 | Codex native | `observer_design_lead` | CodeWhale wrapper/GUI specification | `codewhale-observer` / `main` | RUNNING | GPT-5.6-sol, ultra reasoning; specification-only review checkpoint |
+| CodeWhale | `63261` | Atomic-bundle schema/models/migration | `device-scheduler-bundle-schema` / `build/bundle-schema` | RUNNING | Wrapper yielded live session |
+| CodeWhale | `77331` | Concurrent cold-start migration fix | `device-scheduler-fix-migrations` / `fix/concurrent-migrations` | RUNNING | Wrapper yielded live session |
+| CodeWhale | `99645` | Portable process identity fix | `device-scheduler-fix-process-identity` / `fix/process-identity` | RUNNING | Wrapper yielded live session |
+| CodeWhale | `25236` | Independent G13-G17 bundle/security gates | `device-scheduler-verify-bundles` / `verify/bundle-gates` | RUNNING | Wrapper yielded live session |
+| CodeWhale | `31794` | Correct product-capabilities summary | `openchat-fix-product-capabilities` / `fix/product-capabilities` | RUNNING | Wrapper yielded live session |
+| CodeWhale | `72153` | Refresh worktree inventory and methodology | `openchat-refresh-worktree-inventory` / `fix/worktree-inventory-refresh` | RUNNING | Wrapper yielded live session |
 
 ## Completed outputs awaiting integration decisions
 
 | Work | Commit | Gate / disposition |
 |---|---|---|
 | Multi-device architecture review | no commit | Complete; supplied matching, barrier, migration, cleanup, and work-split corrections to spec author |
+| P0 multi-device/security specification | `a652a98` | Docs-only amendment complete; implementation and independent gates running |
 | Capacity contract diagnosis | `6248e51` | Confirms verifier/API mismatch plus real count/floor gaps; needs spec adjudication |
 | Cold-start contention diagnosis | `dd8b5c4` | Confirms concurrent migration race; remediation recommendation needs architecture review |
 | Process identity diagnosis | `cb2cbde` | Confirms locale-dependent `ps lstart`; needs portable implementation and independent gate |
