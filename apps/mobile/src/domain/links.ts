@@ -35,7 +35,7 @@ export interface ParsedInviteLink {
  *
  * Returns `{ inviteCode }` on success or `{ error }` on failure.
  *
- * @satisfies FR-SRV-006, FR-APP-005
+ * @satisfies FR-SRV-006
  */
 export function parseInviteLink(url: string): ParsedInviteLink {
   let parsed: URL;

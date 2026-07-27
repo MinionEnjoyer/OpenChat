@@ -28,7 +28,7 @@ describe('buildMessageLink (FR-MSG-015 copy link)', () => {
   });
 });
 
-// @satisfies FR-SRV-006, FR-APP-005
+// @satisfies FR-SRV-006
 describe('parseInviteLink (FR-SRV-006 deep-link parsing)', () => {
   // @satisfies FR-SRV-006
   it('parses openchat://invite/<code>', () => {
