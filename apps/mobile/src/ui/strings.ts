@@ -217,8 +217,6 @@ export const strings = {
     deleteAction: '\u2715',
     moveUpAction: '\u25B2',
     moveDownAction: '\u25BC',
-    /** MaterialIcons name — campaign */
-    typeAnnouncement: 'campaign',
     typeAnnouncementLabel: 'ANNOUNCEMENT',
   },
   roles: {
