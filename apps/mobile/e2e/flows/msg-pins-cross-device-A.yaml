@@ -1,0 +1,47 @@
+# msg-pins-cross-device-A — device A (test user): pin a message.
+# Companion to msg-pins-cross-device-B.yaml.
+#
+# FR-MSG-011 — Pins cross-device propagation (Part A: pinner).
+# @satisfies withheld: cross-device pin propagation requires two-device coordination.
+#
+# Requires: dev stack up + provisioned world, two emulators reaching 10.0.2.2.
+# Run B first so it's waiting at the channel, then run A to pin.
+# After A finishes, B's pins panel should show the pinned message.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as test user ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Send a message, then pin it ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-cross-pin'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'e2e-cross-pin'
+
+- longPressOn: 'e2e-cross-pin'
+- tapOn: 'Pin'
+
+- takeScreenshot: artifacts/e2e/screens/msg-pins-cross-device-A
