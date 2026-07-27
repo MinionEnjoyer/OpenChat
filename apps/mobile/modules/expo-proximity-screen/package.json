@@ -1,0 +1,12 @@
+{
+  "name": "expo-proximity-screen",
+  "version": "0.1.0",
+  "description": "Expo module wrapping Android PROXIMITY_SCREEN_OFF_WAKE_LOCK for voice-call screen blanking",
+  "main": "index.ts",
+  "types": "index.ts",
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*"
+  },
+  "keywords": ["expo", "react-native", "proximity", "screen", "android"]
+}
