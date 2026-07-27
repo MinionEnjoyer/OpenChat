@@ -33,6 +33,7 @@ import { PollCreate } from './PollCreate';
 import { voteAction, optimisticVote } from '../../domain/polls';
 import { ReactorListSheet } from './ReactorListSheet';
 import { MessageEmbeds } from './MessageEmbeds';
+import { MarkdownText } from './MarkdownText';
 import { GifPicker } from './GifPicker';
 import type { GifResult } from './GifPicker';
 import { AttachmentGrid, AttachmentTray, useAttachments, AttachPicker, useUploadAttachments } from '../attachments';
@@ -644,7 +645,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
                 </View>
               )}
               {!isSingleEmbedUrl(msg.content, shareHost) && (
-                <Text style={styles.content}>{renderSegmentedContent(msg.content)}</Text>
+                <MarkdownText content={msg.content} memberUsernameSet={memberUsernameSet} currentUsername={user?.username} />
               )}
               <MessageEmbeds cards={classifyEmbeds(msg.content, shareHost)} />
               <AttachmentGrid attachments={msg.attachments} />
