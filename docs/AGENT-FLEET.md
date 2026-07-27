@@ -11,18 +11,19 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 | Control plane | ID | Scope | Worktree / branch | State | Last evidence |
 |---|---:|---|---|---|---|
 | Codex native | `scheduler_core` | P0 atomic multi-device specification | `workflows/device-scheduler` / `main` | RUNNING | Documentation-only assignment acknowledged |
-| Codex native | `scheduler_providers` | Multi-device architecture and adversarial decomposition | read-only | RUNNING | Assignment acknowledged |
-| CodeWhale | `80048` | Diagnose capacity API mismatch | `device-scheduler-audit-capacity` / `audit/capacity-contract` | RUNNING | Wrapper yielded live session |
-| CodeWhale | `65578` | Diagnose contention error normalization | `device-scheduler-audit-no-device` / `audit/no-device-error` | RUNNING | Wrapper yielded live session |
-| CodeWhale | `71072` | Diagnose macOS process identity | `device-scheduler-audit-process-identity` / `audit/process-identity` | RUNNING | Wrapper yielded live session |
-| CodeWhale | `40363` | Verify product-capabilities document | `openchat-verify-product-capabilities` / `verify/product-capabilities` | RUNNING | Wrapper yielded live session |
-| CodeWhale | `27049` | Verify historical worktree inventory | `openchat-verify-worktree-inventory` / `verify/worktree-inventory` | RUNNING | Wrapper yielded live session |
-| CodeWhale | `20515` | Fix verified APK build-ID false positive | `openchat-fix-build-id-extractor` / `fix/build-id-extractor` | RUNNING | Wrapper yielded live session |
+| Codex native | `observer_design_lead` | CodeWhale wrapper/GUI specification | `codewhale-observer` / `main` | RUNNING | GPT-5.6-sol, ultra reasoning; specification-only review checkpoint |
 
 ## Completed outputs awaiting integration decisions
 
 | Work | Commit | Gate / disposition |
 |---|---|---|
+| Multi-device architecture review | no commit | Complete; supplied matching, barrier, migration, cleanup, and work-split corrections to spec author |
+| Capacity contract diagnosis | `6248e51` | Confirms verifier/API mismatch plus real count/floor gaps; needs spec adjudication |
+| Cold-start contention diagnosis | `dd8b5c4` | Confirms concurrent migration race; remediation recommendation needs architecture review |
+| Process identity diagnosis | `cb2cbde` | Confirms locale-dependent `ps lstart`; needs portable implementation and independent gate |
+| Product-capabilities verification | `b4a1e69` | Mostly accurate; 15 discrepancies and material feature understatements require correction |
+| Worktree-inventory verification | `e421095` | Partial pass; stale count and ACTIVE-process methodology require refresh |
+| Build-ID extractor remediation | `b4d689d` | Independent rerun: baseline 9/9 and adversarial 18/18 pass |
 | Build-ID implementation | `9b96793` | PARTIAL; verifier found key-as-value false positive |
 | Build-ID independent verification | `0ca281f` | 25/26 assertions; remediation running |
 | Product-capabilities document | `85bebc0` | Independent verification running |
