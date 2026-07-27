@@ -99,10 +99,8 @@ describe('Voice join on channel tap (FR-VOX-001 seam)', () => {
           channels={channels}
           selectedChannelId={null}
           onSelectChannel={onSelectChannel}
-          onCreateChannel={jest.fn()}
           onEditChannel={jest.fn()}
           onDeleteChannel={jest.fn()}
-          onReorder={jest.fn()}
         />,
       );
     });
@@ -134,10 +132,8 @@ describe('Voice join on channel tap (FR-VOX-001 seam)', () => {
           channels={channels}
           selectedChannelId={null}
           onSelectChannel={onSelectChannel}
-          onCreateChannel={jest.fn()}
           onEditChannel={jest.fn()}
           onDeleteChannel={jest.fn()}
-          onReorder={jest.fn()}
         />,
       );
     });
