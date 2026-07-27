@@ -246,9 +246,10 @@ describe('Channel footer — server-action buttons', () => {
 
     const root = tree!.root;
     const inviteBtn = root.findByProps({ testID: 'invite-create-button' });
-    const btnStyle = inviteBtn.props.style;
-    // actionButton has borderRadius: 6, not 24 (railItem).
-    expect(btnStyle.borderRadius).toBe(6);
+    const btnStyleFn = inviteBtn.props.style;
+    const btnStyle = btnStyleFn({ pressed: false })[0];
+    // actionButton has borderRadius: 8, not 24 (railItem).
+    expect(btnStyle.borderRadius).toBe(8);
   });
 
   // ── Test 6: header relief — drawerTitle still has flexShrink:1 ──
