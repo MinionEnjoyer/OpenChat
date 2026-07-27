@@ -27,6 +27,9 @@ trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
 OUT="/tmp/e2e-verdicts-$DEV-$RUN_ID.txt"; : > "$OUT"
 APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
 BUNDLE="apps/mobile/android/app/build/generated/assets/react/release/index.android.bundle"
+# E2E APK build command (must include EXPO_PUBLIC_ENABLE_DEV_LOGIN=true so the
+# release APK renders the dev-login UI — see LoginScreen.tsx / P1-04):
+#   EXPO_PUBLIC_ENABLE_DEV_LOGIN=true EXPO_PUBLIC_API_HOST=10.0.2.2 npm run apk:release
 EXPECTED_API_HOST="${EXPECTED_API_HOST:-}"
 
 # ══════════════════════════════════════════════════════════════════════

@@ -15,10 +15,14 @@ import { useSession } from '../../../stores/session';
  * - production builds: "Sign in" button → PKCE system-browser flow against the
  *   configured OIDC provider (FR-AUTH-001).
  *
- * Path selection is compile-time via `__DEV__`: Expo inlines this at bundle time
- * so a production APK never ships the dev-login UI.
+ * Path selection is compile-time:
+ *   `__DEV__` (true in dev bundles, false in release) plus
+ *   `EXPO_PUBLIC_ENABLE_DEV_LOGIN` — an opt-in env var for E2E release builds.
+ *   Both are inlined by Expo/Metro at bundle time; a production build that never
+ *   sets the env var cannot render the dev-login UI.
  */
-const USE_DEV_LOGIN = __DEV__;
+const USE_DEV_LOGIN =
+  __DEV__ || process.env.EXPO_PUBLIC_ENABLE_DEV_LOGIN === 'true';
 
 export function LoginScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
