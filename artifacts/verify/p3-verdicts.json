@@ -1,0 +1,13 @@
+{
+  "device": "emulator-5556",
+  "world": "e2e_xuj982",
+  "server": "E2E p3-shard",
+  "flows": {
+    "p3-01-create-server": {
+      "verdict": "PASSED",
+      "rc": 0,
+      "satisfies": "FR-SRV-002",
+      "notes": "Creates server 'E2E Alpha', verifies in rail. Genuinely demonstrates criterion."
+    }
+  }
+}
