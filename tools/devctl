@@ -678,6 +678,18 @@ cmd_verify() {
     echo "  ✓ unreachable pass"
   fi
 
+  # 8. Orphan modules — every module must be reachable from production entrypoints.
+  # This project shipped notification modules that were fully unit-tested and green
+  # but completely non-functional because nothing wired them into the import graph.
+  if [ "$only_layer" = "" ] || [ "$only_layer" = "orphans" ]; then
+    echo "[devctl] orphan check — modules reachable from entrypoints…"
+    bash "$ROOT/tools/check-orphans.sh" || {
+      echo "  ✗ orphan modules found"
+      exit 1
+    }
+    echo "  ✓ orphans pass"
+  fi
+
   echo "  ✓ verify pass"
 }
 
@@ -696,7 +708,7 @@ Commands:
   stack seed    Run seed fixtures (tools/seed/seed.mjs)
   doctor        Assert all required artifacts exist; exits nonzero with JSON list of missing paths
   capabilities  Validate capabilities.json evidence references resolve (--json for machine output)
-  verify        Run full verification suite (doctor + health + codegen + contract + char + trace + nfr + unreachable); --json
+  verify        Run full verification suite (doctor + health + codegen + contract + char + trace + nfr + unreachable + orphans); --json
   selftest      Prove gates catch failures by injecting faults (mutates — not for verify)
   trace         Check or report FR/NFR ↔ test traceability matrix (check|report [--phase N])
   nfr           Run the NFR budget harness; fails on breach, script error, or an
