@@ -45,6 +45,7 @@ import { queryClient } from '../../sync/queryClient';
 import { keys } from '../../sync/keys';
 import { useTyping } from '../../stores/typing';
 import { useBlockedStore, useRevealedStore } from '../blocked-messages';
+import { useMarkRead } from '../channels/useUnread';
 
 import { formatTyping } from '../../domain/typing';
 import { buildMessageLink } from '../../domain/links';
@@ -281,6 +282,20 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
   }, [channelId]);
 
   const { messages: rawMessages, fetchOlder, fetchAround } = usePaginatedMessages(channelId, 50);
+
+  // ── Mark read on channel view (FR-MSG-010) ──────────────────────────
+  const markRead = useMarkRead();
+  const lastMarkedChannelRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!rawMessages || rawMessages.length === 0) return;
+    if (lastMarkedChannelRef.current === channelId) return;
+    // Messages are newest-first; the newest loaded is rawMessages[0].
+    const newest = rawMessages[0];
+    if (!newest) return;
+    lastMarkedChannelRef.current = channelId;
+    markRead.mutate({ channelId, lastReadMessageId: newest.id });
+  }, [channelId, rawMessages, markRead]);
 
   // ── Enhanced list: day dividers + author grouping (FR-MSG-001) ──────
   const enhancedMessages = useMemo((): MessageOrDivider[] | undefined => {

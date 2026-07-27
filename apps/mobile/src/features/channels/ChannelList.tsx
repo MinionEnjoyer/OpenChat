@@ -5,7 +5,7 @@
  * polled via GET /voice/:channelId/participants on a 15s interval.
  * Collapse state survives remounts via device storage.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { api } from '../../stores/session';
 import { keys } from '../../sync/keys';
 import type { Channel, Category, VoiceParticipant } from '../../api/schema';
 import { loadCollapsed, toggleCollapsed, NO_CATEGORY } from './categories';
+import { useChannelUnread } from './useUnread';
 
 interface Props {
   serverId: string;
@@ -91,6 +92,10 @@ export function ChannelList({
     [serverId],
   );
 
+  // ── Unread ──
+  const channelIds = useMemo(() => channels.map((ch) => ch.id), [channels]);
+  const unreadMap = useChannelUnread(channelIds);
+
   return (
     <View style={styles.root} testID="channel-list">
       {/* Category groups */}
@@ -113,6 +118,7 @@ export function ChannelList({
                   <ChannelRow
                     key={ch.id}
                     channel={ch}
+                    unread={unreadMap.get(ch.id) ?? null}
                     isSelected={ch.id === selectedChannelId}
                     onSelect={() => onSelectChannel(ch.id)}
                     onEdit={() => onEditChannel(ch)}
@@ -134,12 +140,13 @@ export function ChannelList({
 interface ChannelRowProps {
   channel: Channel;
   isSelected: boolean;
+  unread: { unread: number; mentionCount: number } | null;
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function ChannelRow({ channel, isSelected, onSelect, onEdit, onDelete }: ChannelRowProps): React.JSX.Element {
+function ChannelRow({ channel, isSelected, unread, onSelect, onEdit, onDelete }: ChannelRowProps): React.JSX.Element {
   const isVoice = channel.type === 'VOICE';
 
   // Poll voice participants every 15s for voice channels only
@@ -174,8 +181,15 @@ function ChannelRow({ channel, isSelected, onSelect, onEdit, onDelete }: Channel
       ) : (
         <Text style={styles.channelPrefix}>{strings.shell.channelHash}</Text>
       )}
+      {unread && unread.mentionCount > 0 && (
+        <View style={styles.mentionBadge} testID={`unread-badge-${channel.id}`}>
+          <Text style={styles.mentionBadgeText}>{unread.mentionCount}</Text>
+        </View>
+      )}
       <View style={styles.channelInfo}>
-        <Text style={styles.channelName}>{channel.name}</Text>
+        <Text style={[styles.channelName, unread && unread.unread > 0 && unread.mentionCount === 0 && styles.channelNameUnread]}>
+          {channel.name}
+        </Text>
         {isVoice && participants.length > 0 && (
           <Text style={styles.voiceParticipants}>
             {participants.map((p) => p.displayName ?? p.username).join(', ')}
@@ -246,10 +260,30 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: palette.text,
   },
+  channelNameUnread: {
+    color: palette.text,
+    fontWeight: '800',
+  },
   voiceParticipants: {
     ...typography.caption,
     color: palette.textMuted,
     marginTop: 2,
+  },
+  mentionBadge: {
+    backgroundColor: palette.danger,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    marginRight: spacing.sm,
+  },
+  mentionBadgeText: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 11,
   },
   channelActions: {
     flexDirection: 'row',
