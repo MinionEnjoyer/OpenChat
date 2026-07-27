@@ -65,7 +65,8 @@ export const strings = {
     pinsEmpty: 'No pinned messages',
     /** MaterialIcons name — push-pin */
     pinIcon: 'push-pin',
-    closeIcon: '\u2715',
+    /** MaterialIcons name — close */
+    closeIcon: 'close',
     announcementReadOnly: 'You do not have permission to send in this announcement channel',
     reply: 'Reply',
     replyingTo: 'Replying to',
@@ -121,7 +122,8 @@ export const strings = {
     createTitle: 'Create Poll',
     /** MaterialIcons name — poll */
     chartIcon: 'poll',
-    closeIcon: '\u2715',
+    /** MaterialIcons name — close */
+    closeIcon: 'close',
     percentSign: '%',
     totalLabel: 'total',
     questionPlaceholder: 'Ask a question…',
@@ -243,9 +245,11 @@ export const strings = {
     imageGrid: 'Image attachments',
     imageLabel: 'Image',
     closeGallery: 'Close gallery',
-    closeIcon: '\u2715',
+    /** MaterialIcons name — close */
+    closeIcon: 'close',
     share: 'Share',
-    shareIcon: '\u2B06',
+    /** MaterialIcons name — share */
+    shareIcon: 'share',
     galleryCounterSeparator: '\u00A0/\u00A0',
     pickerTitle: 'Add attachment',
     photoLibrary: 'Photo Library',
@@ -259,7 +263,8 @@ export const strings = {
     filesIcon: 'folder',
     cancel: 'Cancel',
     remove: 'Remove',
-    doneIcon: '\u2713',
+    /** MaterialIcons name — check */
+    doneIcon: 'check',
     /** MaterialIcons name — insert-drive-file */
     fileIcon: 'insert-drive-file',
     originalToggle: 'Original',

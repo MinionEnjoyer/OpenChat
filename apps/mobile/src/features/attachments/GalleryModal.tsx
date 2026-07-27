@@ -15,7 +15,10 @@ import {
 import { spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { AuthImage } from './AuthImage';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { Attachment } from '../../api/schema';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 interface Props {
   images: Attachment[];
@@ -93,7 +96,7 @@ export function GalleryModal({
             style={styles.topButton}
             testID="gallery-close"
           >
-            <Text style={styles.topButtonText}>{strings.attachments.closeIcon}</Text>
+            <MaterialIcons name={strings.attachments.closeIcon as MI} size={18} color="#fff" />
           </Pressable>
           <Text style={styles.counter} testID="gallery-counter">
             {currentIndex + 1} {strings.attachments.galleryCounterSeparator} {images.length}
@@ -105,7 +108,7 @@ export function GalleryModal({
             style={styles.topButton}
             testID="gallery-share"
           >
-            <Text style={styles.topButtonText}>{strings.attachments.shareIcon}</Text>
+            <MaterialIcons name={strings.attachments.shareIcon as MI} size={18} color="#fff" />
           </Pressable>
         </View>
 

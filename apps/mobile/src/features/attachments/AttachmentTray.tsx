@@ -15,7 +15,10 @@ import {
 } from 'react-native';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { AttachmentItem } from './types';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 export interface AttachmentTrayProps {
   attachments: AttachmentItem[];
@@ -91,14 +94,14 @@ export function AttachmentTray({
               {/* Error badge */}
               {item.status === 'error' && (
                 <View style={styles.errorBadge}>
-                  <Text style={styles.errorBadgeText}>{strings.attachments.closeIcon}</Text>
+                  <MaterialIcons name={strings.attachments.closeIcon as MI} size={12} color={palette.text} />
                 </View>
               )}
 
               {/* Done check */}
               {item.status === 'done' && (
                 <View style={styles.doneBadge}>
-                  <Text style={styles.doneBadgeText}>{strings.attachments.doneIcon}</Text>
+                  <MaterialIcons name={strings.attachments.doneIcon as MI} size={10} color={palette.text} />
                 </View>
               )}
               {/* Per-image original badge (FR-MED-030) */}

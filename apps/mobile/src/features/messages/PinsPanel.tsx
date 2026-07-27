@@ -1,12 +1,15 @@
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { MaterialIcons } from '@expo/vector-icons';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { api } from '../../stores/session';
 import { keys } from '../../sync/keys';
 import { useBlockedStore, useRevealedStore } from '../blocked-messages';
 import type { Message } from '../../api/schema';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 /**
  * Pins panel (FR-MSG-011): lists pinned messages for the current channel.
@@ -45,7 +48,7 @@ export function PinsPanel({ channelId, visible, onClose }: {
           <View style={styles.header}>
             <Text style={styles.title}>{strings.messages.pinsPanelTitle}</Text>
             <Pressable onPress={onClose} accessibilityLabel={strings.common.cancel}>
-              <Text style={styles.close}>{strings.messages.closeIcon}</Text>
+              <MaterialIcons name={strings.messages.closeIcon as MI} size={18} color={palette.textMuted} />
             </Pressable>
           </View>
 

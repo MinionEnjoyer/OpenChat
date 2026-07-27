@@ -30,6 +30,10 @@ import type {
   FriendRequestItem,
   Server,
 } from '../../../api/schema';
+import { MaterialIcons } from '@expo/vector-icons';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
+
 
 interface Props {
   visible: boolean;
@@ -206,7 +210,7 @@ export function InboxScreen({ visible, onClose }: Props): React.JSX.Element {
         <View style={styles.header}>
           <Text style={styles.title}>{strings.inbox.title}</Text>
           <Pressable onPress={onClose} testID="inbox-close">
-            <Text style={styles.closeBtn}>{strings.messages.closeIcon}</Text>
+            <MaterialIcons name={strings.messages.closeIcon as MI} size={22} color={palette.textMuted} />
           </Pressable>
         </View>
 

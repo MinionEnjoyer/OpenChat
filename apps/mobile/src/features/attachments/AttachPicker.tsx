@@ -5,7 +5,10 @@
  */
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, spacing, typography } from '../../ui/tokens';
+import { MaterialIcons } from '@expo/vector-icons';
 import { strings } from '../../ui/strings';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 export interface AttachPickerProps {
   visible: boolean;
@@ -39,7 +42,7 @@ export function AttachPicker({
             accessibilityLabel={strings.attachments.photoLibrary}
             testID="attach-library"
           >
-            <Text style={styles.optionIcon}>{strings.attachments.photoLibraryIcon}</Text>
+            <MaterialIcons name={strings.attachments.photoLibraryIcon as MI} size={24} color={palette.textMuted} />
             <Text style={styles.optionText}>{strings.attachments.photoLibrary}</Text>
           </Pressable>
 
@@ -49,7 +52,7 @@ export function AttachPicker({
             accessibilityLabel={strings.attachments.camera}
             testID="attach-camera"
           >
-            <Text style={styles.optionIcon}>{strings.attachments.cameraIcon}</Text>
+            <MaterialIcons name={strings.attachments.cameraIcon as MI} size={24} color={palette.textMuted} />
             <Text style={styles.optionText}>{strings.attachments.camera}</Text>
           </Pressable>
 
@@ -59,7 +62,7 @@ export function AttachPicker({
             accessibilityLabel={strings.attachments.files}
             testID="attach-files"
           >
-            <Text style={styles.optionIcon}>{strings.attachments.filesIcon}</Text>
+            <MaterialIcons name={strings.attachments.filesIcon as MI} size={24} color={palette.textMuted} />
             <Text style={styles.optionText}>{strings.attachments.files}</Text>
           </Pressable>
 

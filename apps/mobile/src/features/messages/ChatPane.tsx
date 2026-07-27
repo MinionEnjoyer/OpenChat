@@ -639,7 +639,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
                     <Text style={styles.edited}>{strings.messages.edited}</Text>
                   )}
                   {msg.pinned && (
-                    <Text style={styles.pinned} testID={`pinned-${msg.id}`}>{strings.messages.pinIcon}</Text>
+                    <MaterialIcons name={strings.messages.pinIcon as MI} size={12} color={palette.accent} style={styles.pinned} testID={`pinned-${msg.id}`} />
                   )}
                 </View>
               )}
@@ -740,7 +740,7 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
                 accessibilityLabel={strings.messages.replyCancel}
                 testID="reply-cancel"
               >
-                <Text style={styles.replyChipCancel}>{strings.messages.closeIcon}</Text>
+                <MaterialIcons name={strings.messages.closeIcon as MI} size={14} color={palette.textMuted} />
               </Pressable>
             </View>
           )}

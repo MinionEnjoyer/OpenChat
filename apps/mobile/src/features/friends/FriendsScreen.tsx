@@ -31,7 +31,10 @@ import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { showToast } from '../../ui/Toast';
 import { api } from '../../stores/session';
+import { MaterialIcons } from '@expo/vector-icons';
 import type { User } from '../../api/schema';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 type Tab = 'online' | 'all' | 'pending' | 'blocked';
 
@@ -362,7 +365,7 @@ export function FriendsScreen({ visible, onClose }: { visible: boolean; onClose:
               <Text style={styles.headerAction}>{strings.servers.createButtonNav}</Text>
             </Pressable>
             <Pressable onPress={onClose} testID="friends-close-button">
-              <Text style={styles.headerAction}>{strings.messages.closeIcon}</Text>
+              <MaterialIcons name={strings.messages.closeIcon as MI} size={22} color={palette.accent} />
             </Pressable>
           </View>
         </View>
