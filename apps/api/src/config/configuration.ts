@@ -15,6 +15,9 @@ const envSchema = z.object({
   OIDC_CLIENT_ID: z.string().min(1),
   OIDC_CLIENT_SECRET: z.string().min(1),
   OIDC_REDIRECT_URI: z.string().url(),
+  // Native PKCE redirect URI for mobile apps (FR-AUTH-001). Defaults to the
+  // registered deep-link scheme. Not required — the server falls back.
+  NATIVE_REDIRECT_URI: z.string().optional().default('openchat://auth'),
   OIDC_POST_LOGOUT_REDIRECT_URI: z.string().url(),
   // Share is optional — without it the platform runs as text + voice (no file/image
   // uploads or custom avatars). The frontend hides upload UI when it's unset.

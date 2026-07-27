@@ -2,6 +2,32 @@ import { configureSession, useSession } from '../session';
 import { createMemoryVault } from '../../lib/tokenVault';
 import { resolveConfig } from '../../lib/config';
 
+// Mock PKCE module so loginWithPkce can be tested without native modules
+const mockFetchedMetadata = {
+  issuer: 'https://auth.example.com',
+  clientId: 'abc123',
+  nativeRedirectUri: 'openchat://auth',
+  scopes: ['openid', 'profile', 'email'],
+};
+jest.mock('../../lib/pkce', () => ({
+  fetchOidcMetadata: jest.fn().mockResolvedValue({
+    issuer: 'https://auth.example.com',
+    clientId: 'abc123',
+    nativeRedirectUri: 'openchat://auth',
+    scopes: ['openid', 'profile', 'email'],
+  }),
+  generatePkcePair: jest.fn().mockResolvedValue({
+    codeVerifier: 'test-verifier',
+    codeChallenge: 'test-challenge',
+  }),
+  authorizeViaBrowser: jest.fn().mockResolvedValue({
+    accessToken: 'pkce-at',
+    refreshToken: 'pkce-rt',
+    expiresIn: 3600,
+    user: { id: 'u2', username: 'bob', displayName: 'Bob' },
+  }),
+}));
+
 /**
  * FR-AUTH-003's unit half: the vault→session restore path (the on-device kill/
  * relaunch proof is the p1-session-restore Maestro flow).
@@ -70,5 +96,38 @@ describe('session restore', () => {
     expect(revoked).toEqual({ refreshToken: 'rt' });
     expect(useSession.getState().status).toBe('signedOut');
     expect(await vault.load()).toBeNull();
+  });
+
+  // @satisfies FR-AUTH-001: PKCE login stores tokens in vault and sets signedIn
+  it('loginWithPkce stores tokens in the vault and transitions to signedIn', async () => {
+    const vault = createMemoryVault();
+    configureSession({ vault, config: cfg });
+
+    await useSession.getState().loginWithPkce();
+    expect(useSession.getState().status).toBe('signedIn');
+    expect(useSession.getState().user?.username).toBe('bob');
+    expect(useSession.getState().tokens).toEqual({ accessToken: 'pkce-at', refreshToken: 'pkce-rt' });
+
+    // tokens are persisted in the vault for session restore
+    const stored = await vault.load();
+    expect(stored).toEqual({ accessToken: 'pkce-at', refreshToken: 'pkce-rt' });
+  });
+
+  // @satisfies DEV-LOGIN STILL WORKS — backward-compat guard for E2E suite
+  it('devLogin still works and does not trigger PKCE', async () => {
+    const vault = createMemoryVault();
+    configureSession({ vault, config: cfg });
+    mockFetchScript((url) =>
+      url.endsWith('/auth/dev-login')
+        ? { status: 201, body: { id: 'u1', username: 'alice', accessToken: 'dev-at', refreshToken: 'dev-rt' } }
+        : { status: 404 },
+    );
+
+    await useSession.getState().devLogin('alice');
+    expect(useSession.getState().status).toBe('signedIn');
+    expect(useSession.getState().user?.username).toBe('alice');
+
+    const stored = await vault.load();
+    expect(stored).toEqual({ accessToken: 'dev-at', refreshToken: 'dev-rt' });
   });
 });

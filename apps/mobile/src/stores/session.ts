@@ -10,6 +10,7 @@ import { ApiClient, type TokenPair } from '../api/client';
 import { createSecureVault, type TokenVault } from '../lib/tokenVault';
 import { resolveConfig, type AppConfig } from '../lib/config';
 import { logger } from '../lib/logger';
+import { fetchOidcMetadata, generatePkcePair, authorizeViaBrowser } from '../lib/pkce';
 import type { User } from '../api/schema';
 
 export type SessionStatus = 'restoring' | 'signedOut' | 'signedIn';
@@ -20,6 +21,7 @@ interface SessionState {
   tokens: TokenPair | null;
   restore(): Promise<void>;
   devLogin(username: string): Promise<void>;
+  loginWithPkce(): Promise<void>;
   logout(): Promise<void>;
   updateProfile(patch: { username?: string; displayName?: string; status?: string }): Promise<void>;
 }
@@ -93,6 +95,19 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ status: 'signedIn', user: user as unknown as User, tokens });
   },
 
+  async loginWithPkce() {
+    const baseUrl = config.apiBaseUrl;
+    const metadata = await fetchOidcMetadata(baseUrl);
+    const { codeVerifier, codeChallenge } = await generatePkcePair();
+    const result = await authorizeViaBrowser(baseUrl, metadata, codeVerifier, codeChallenge);
+
+    const tokens = {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    };
+    await vault.save(tokens);
+    set({ status: 'signedIn', user: result.user, tokens });
+  },
   async logout() {
     const { tokens } = get();
     if (_logoutHook) await _logoutHook();
