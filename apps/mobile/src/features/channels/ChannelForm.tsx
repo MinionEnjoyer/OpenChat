@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
@@ -29,6 +30,8 @@ interface Props {
     topic?: string | null;
   }) => void;
 }
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): React.JSX.Element {
   const insets = useSafeAreaInsets();
@@ -99,9 +102,12 @@ export function ChannelForm({ visible, channel, onClose, onSubmit }: Props): Rea
               onPress={() => setType('VOICE')}
               testID="channel-form-type-voice"
             >
-              <Text style={[styles.typeText, type === 'VOICE' && styles.typeTextActive]}>
-                {strings.channels.typeVoice}
-              </Text>
+              <View style={styles.typeButtonInner}>
+                <MaterialIcons name={strings.channels.typeVoiceIcon as MI} size={16} color={type === 'VOICE' ? palette.text : palette.textMuted} />
+                <Text style={[styles.typeText, type === 'VOICE' && styles.typeTextActive]}>
+                  {strings.channels.typeVoiceLabel}
+                </Text>
+              </View>
             </Pressable>
           </View>
 
@@ -182,6 +188,12 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bgElevated,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   typeButtonActive: {
     backgroundColor: palette.accent,
