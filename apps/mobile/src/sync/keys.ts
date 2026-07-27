@@ -13,4 +13,6 @@ export const keys = {
   channelPermissions: (serverId: string, channelId: string) => ['channelPermissions', serverId, channelId] as const,
   notificationSettings: ['notificationSettings'] as const,
   notifications: ['notifications'] as const,
+  readStates: ['readStates'] as const,
+  channelUnread: (serverId: string) => ['channelUnread', serverId] as const,
 };
