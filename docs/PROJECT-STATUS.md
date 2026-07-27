@@ -8,6 +8,10 @@ without reconstructing the project from chat history. Update it whenever the
 active objective, integration HEAD, blocker set, or verification state changes.
 Do not create another competing current-status document.
 
+Ephemeral agent/session tracking lives in `docs/AGENT-FLEET.md`. It is the
+single fleet ledger for both native Codex agents and CodeWhale/DeepSeek
+wrappers; it does not replace this canonical project-status document.
+
 ## Authority and truth
 
 When sources disagree, use this order:
@@ -31,6 +35,7 @@ Evidence labels used here:
 Before changing or dispatching anything:
 
 1. Read this file and `docs/PRIORITIES.md`.
+   Then read `docs/AGENT-FLEET.md` before dispatching or continuing agents.
 2. Read the operating contract and verification rules:
    - `~/work/workflows/codewhale-fanout/ARCHITECT.md`
    - `~/work/workflows/codewhale-fanout/VERIFICATION.md`
