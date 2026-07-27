@@ -16,7 +16,10 @@ import {
 } from 'react-native';
 import { useScreenShare } from './useScreenShare';
 import { palette, spacing, typography } from '../../ui/tokens';
+import { MaterialIcons } from '@expo/vector-icons';
 import { strings } from '../../ui/strings';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 /**
  * Renders a single screen share stream with LIVE badge and toggle.
@@ -44,7 +47,7 @@ function ScreenShareTile({
     <View style={styles.tile} testID={`screenshare-tile-${id}`}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.screenIcon}>{strings.screenshare.screenIcon}</Text>
+          <MaterialIcons name={strings.screenshare.screenIcon as MI} size={14} color={palette.text} />
           <Text style={styles.participantName} numberOfLines={1}>
             {participantName}
           </Text>

@@ -2,9 +2,12 @@
 // Renders embed cards below message content when URLs are detected.
 // Mirrors apps/web/src/components/MessageEmbeds.tsx render logic.
 import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import type { EmbedCard } from '../../domain/embeds';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 interface Props {
   cards: EmbedCard[];
@@ -109,7 +112,7 @@ function LinkEmbed({ card }: { card: Extract<EmbedCard, { type: 'link' }> }): Re
       accessibilityLabel={`${strings.embeds.openLink}: ${card.url}`}
     >
       <View style={styles.linkIconWrap}>
-        <Text style={styles.linkIcon}>{strings.embeds.linkIcon}</Text>
+        <MaterialIcons name={strings.embeds.linkIcon as MI} size={20} color={palette.textMuted} />
       </View>
       <View style={styles.linkTextWrap}>
         <Text style={styles.linkLabel} numberOfLines={1}>

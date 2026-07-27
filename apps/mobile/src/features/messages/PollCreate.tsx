@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
@@ -16,6 +17,8 @@ import { showToast } from '../../ui/Toast';
 import { validatePollOptions } from '../../domain/polls';
 import { api } from '../../stores/session';
 import type { Message } from '../../api/schema';
+
+type MI = React.ComponentProps<typeof MaterialIcons>['name'];
 
 interface Props {
   visible: boolean;
@@ -135,7 +138,7 @@ export function PollCreate({ visible, channelId, onClose, onCreated }: Props): R
                   disabled={sending}
                   accessibilityLabel={strings.poll.removeOption}
                 >
-                  <Text style={styles.removeBtnText}>{strings.poll.closeIcon}</Text>
+                  <MaterialIcons name={strings.poll.closeIcon as MI} size={16} color={palette.danger} />
                 </Pressable>
               )}
             </View>
