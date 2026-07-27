@@ -48,6 +48,8 @@ appId: com.openchat.mobile
 - assertVisible: 'e2e-delete-test'
 
 # ── Phase 4: Long-press message → tap Delete ──
+# Tap first to prime the Pressable (see msg-003-edit for rationale).
+- tapOn: 'e2e-delete-test'
 - longPressOn: 'e2e-delete-test'
 - assertVisible:
     id: 'message-action-sheet'

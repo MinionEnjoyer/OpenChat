@@ -48,6 +48,11 @@ appId: com.openchat.mobile
 - assertVisible: 'e2e-edit-before'
 
 # ── Phase 4: Long-press message → tap Edit ──
+# Tap first to prime the Pressable (RN gesture system requires a prior touch
+# before long-press is recognized; Maestro longPressOn alone does not trigger
+# onLongPress when the native view lacks long-clickable).
+# Use text selector to target the specific sent message.
+- tapOn: 'e2e-edit-before'
 - longPressOn: 'e2e-edit-before'
 # The custom MessageActionSheet appears with testID-based actions
 - assertVisible:
