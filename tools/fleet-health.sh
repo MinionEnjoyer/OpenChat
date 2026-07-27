@@ -38,6 +38,28 @@ for p in $(pgrep -f "codewhale exec" 2>/dev/null); do
 done
 [ "$AGENTS" -eq 0 ] && echo "  (no codewhale agents running)"
 
+# ── Collisions: two agents in ONE worktree ──
+# On 2026-07-26 a capture agent was dispatched into a worktree that already had a
+# migration agent. They fought over the working tree and the same emulator; the
+# second broke a test belonging to the first, and the first stalled 40 minutes
+# with a zero-byte log. Never run two agents in one worktree.
+# NOTE: one `codewhale exec` spawns ~3 processes, so counting raw PIDs per
+# directory always fires. Count distinct process GROUPS instead — one agent = one PGID.
+COLL=0
+for cwd in $(for p in $(pgrep -f "codewhale exec" 2>/dev/null); do
+      lsof -p "$p" 2>/dev/null | awk '/cwd/{print $NF}' | head -1
+    done | sort -u); do
+  ngroups=$(for p in $(pgrep -f "codewhale exec" 2>/dev/null); do
+      c=$(lsof -p "$p" 2>/dev/null | awk '/cwd/{print $NF}' | head -1)
+      [ "$c" = "$cwd" ] && ps -o pgid= -p "$p" 2>/dev/null | tr -d ' '
+    done | sort -u | wc -l | tr -d ' ')
+  if [ "${ngroups:-0}" -gt 1 ]; then
+    echo "  COLLISION $(basename "$cwd") — $ngroups agents in one worktree"
+    COLL=$((COLL+1)); RC=1
+  fi
+done
+[ "$COLL" -eq 0 ] && echo "  (no worktree collisions)"
+
 # ── Orphans: wrappers/watchdogs whose agent is gone ──
 ORPH=0
 for p in $(pgrep -f "sleep [0-9]+ && kill|screen-readiness|e2e-run-only|gradlew" 2>/dev/null); do
