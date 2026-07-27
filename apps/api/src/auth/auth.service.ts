@@ -241,6 +241,48 @@ export class AuthService implements OnModuleInit {
     return safe;
   }
 
+  // ---- desktop PKCE (RFC 7636) ----
+
+  private static readonly DESKTOP_PKCE_PREFIX = 'desktop_pkce:';
+  private static readonly DESKTOP_CODE_TTL_SECONDS = 60;
+
+  /**
+   * P1-01 opt-in: mint a single-use PKCE code for the desktop handoff.
+   * Only called when the client opts-in with code_challenge + code_challenge_method=S256.
+   */
+  async generateDesktopPkceCode(userId: string, codeChallenge: string): Promise<string> {
+    const code = randomBytes(24).toString('hex');
+    await this.redis.setEx(
+      `${AuthService.DESKTOP_PKCE_PREFIX}${code}`,
+      JSON.stringify({ userId, codeChallenge }),
+      AuthService.DESKTOP_CODE_TTL_SECONDS,
+    );
+    return code;
+  }
+
+  /**
+   * P1-01: exchange a desktop PKCE code for the authenticated user.
+   * Verifies the codeVerifier against the stored S256 challenge.
+   * Single-use: the code is consumed atomically on successful exchange.
+   */
+  async exchangeDesktopPkceCode(code: string, codeVerifier: string): Promise<{ id: string } | null> {
+    const key = `${AuthService.DESKTOP_PKCE_PREFIX}${code}`;
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+
+    const { userId, codeChallenge } = JSON.parse(raw) as { userId: string; codeChallenge: string };
+
+    // S256: SHA256(codeVerifier) → base64url (no padding)
+    const expected = createHash('sha256').update(codeVerifier).digest('base64url');
+    if (expected !== codeChallenge) {
+      await this.redis.del(key);
+      return null;
+    }
+
+    await this.redis.del(key);
+    return this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  }
+
   async mintWsTicket(userId: string): Promise<{ ticket: string; expiresAt: string }> {
     const ticket = randomBytes(32).toString('hex');
     await this.redis.setEx(`ws_ticket:${ticket}`, userId, WS_TICKET_TTL_SECONDS);

@@ -39,6 +39,18 @@ export class AuthController {
       if (!body.code || !body.codeVerifier || !body.redirectUri) {
         throw new BadRequestException('code, codeVerifier and redirectUri are required');
       }
+      // P1-01 opt-in: try desktop PKCE code first (RFC 7636).
+      // Desktop PKCE codes are server-minted (not from the IdP) and stored in Redis.
+      // If the code isn't a desktop PKCE code, fall through to the OIDC exchange.
+      const desktopUser = await this.authService.exchangeDesktopPkceCode(
+        body.code,
+        body.codeVerifier,
+      );
+      if (desktopUser) {
+        const tokens = await this.tokenService.issueFamily(desktopUser.id);
+        const user = await this.authService.getCurrentUser(desktopUser.id);
+        return { ...tokens, user };
+      }
       const user = await this.authService.exchangeNativeCode(
         body.code,
         body.codeVerifier,
@@ -112,14 +124,46 @@ export class AuthController {
     }
   }
 
-  // Desktop sign-in handoff: after SSO, mint an app token and bounce it to the
-  // desktop client via the openchat:// deep link. Unauthenticated → go log in first.
+  // Desktop sign-in handoff: after SSO, deliver a credential to the desktop client
+  // via the openchat:// deep link. Unauthenticated → go log in first.
+  //
+  // DEFAULT (no query params): mint a bearer token and deep-link it (backward compat).
+  //
+  // OPT-IN PKCE (RFC 7636): when the client sends ?code_challenge=<S256>&code_challenge_method=S256,
+  // mint a single-use authorization code instead of a token. The code is useless
+  // without the code_verifier only the legitimate client holds.
   @Get('desktop')
-  async desktopLogin(@Req() req: Request, @Res() res: Response) {
+  async desktopLogin(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('code_challenge') codeChallenge?: string,
+    @Query('code_challenge_method') codeChallengeMethod?: string,
+  ) {
     const session = req.session as typeof req.session & { userId?: string };
     if (!session?.userId) {
-      return res.redirect('/api/auth/login?returnTo=/api/auth/desktop');
+      const qs = codeChallenge
+        ? `?code_challenge=${encodeURIComponent(codeChallenge)}&code_challenge_method=${encodeURIComponent(codeChallengeMethod ?? '')}`
+        : '';
+      return res.redirect(`/api/auth/login?returnTo=/api/auth/desktop${qs}`);
     }
+
+    // Opt-in PKCE: the client explicitly requests a code instead of a token.
+    if (codeChallenge && codeChallengeMethod === 'S256') {
+      const code = await this.authService.generateDesktopPkceCode(session.userId, codeChallenge);
+      const deepLink = `openchat://auth?code=${encodeURIComponent(code)}`;
+      res.type('html').send(
+        `<!doctype html><meta charset="utf-8"><title>OpenChat</title>` +
+        `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+        `<body style="font-family:system-ui;background:#2f3136;color:#dcddde;display:flex;min-height:100vh;margin:0;align-items:center;justify-content:center;text-align:center">` +
+        `<div><h2 style="color:#fff">Signing you in…</h2>` +
+        `<p>OpenChat should open automatically. If it doesn't, <a style="color:#5865F2" href="${deepLink}">click here</a>.</p>` +
+        `<p style="color:#8e9297;font-size:13px">You can close this tab.</p></div>` +
+        `<script>location.href=${JSON.stringify(deepLink)}</script></body>`,
+      );
+      return;
+    }
+
+    // Default: mint a bearer token (backward-compatible, byte-identical to today).
     const { token } = await this.authService.createToken(session.userId, 'Desktop app');
     const deepLink = `openchat://auth?token=${encodeURIComponent(token)}`;
     res.type('html').send(
