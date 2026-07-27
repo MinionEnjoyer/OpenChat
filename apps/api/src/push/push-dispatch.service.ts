@@ -100,7 +100,11 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
       const allowed = await this.shouldPush(userId, event.channelId, 'ALL');
       if (!allowed) return;
     }
-    // NOTIFY: no settings check — always push
+    // NOTIFY: respect settings when channel is known (regular message, not system notify)
+    if (type === 'NOTIFY' && event.channelId) {
+      const allowed = await this.shouldPush(userId, event.channelId, 'ALL');
+      if (!allowed) return;
+    }
 
     // ── Load device tokens ──────────────────────────────────────
     const tokens = await this.loadDeviceTokens(userId);
@@ -249,9 +253,15 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
 
       case 'NOTIFY':
         return {
-          title: 'New notification',
-          body: 'You have a new notification',
-          data: { type: 'notify' },
+          title: event.authorName
+            ? `${event.authorName} — ${event.channelName ?? 'message'}`
+            : (event.channelName ?? 'New notification'),
+          body: event.preview ?? 'You have a new notification',
+          data: {
+            type: 'notify',
+            channelId: event.channelId ?? '',
+            messageId: event.messageId ?? '',
+          },
           android: { channelId: 'notifications', priority: 'default' },
           apns: {
             headers: { 'apns-push-type': 'alert' },
