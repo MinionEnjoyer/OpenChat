@@ -1,15 +1,176 @@
 {
-  "generated": "2026-07-25T07:44:32.632Z",
+  "generated": "2026-07-27T04:22:10.153Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
-    "satisfied": 11,
-    "missing": 1,
-    "errors": 1
+    "satisfied": 69,
+    "missing": 17,
+    "errors": 24,
+    "evidence_violations": 19,
+    "manual": 0
   },
   "errors": [
-    "Phase 1: 1 requirement(s) lack @satisfies annotation: FR-AUTH-001"
+    "@satisfies FR-SRV-010 in infra path \"tools/codegen/gen.mjs\" (line 264) — this file does not exercise product code. Use @infra for infrastructure tests.",
+    "@satisfies FR-VOX-001 in infra path \"tools/probe/lk-fake-publisher.mjs\" (line 14) — this file does not exercise product code. Use @infra for infrastructure tests.",
+    "@satisfies FR-VOX-001 in infra path \"tools/probe/lk-probe.mjs\" (line 39) — this file does not exercise product code. Use @infra for infrastructure tests.",
+    "@satisfies FR-VOX-001 in infra path \"tools/probe/make-tone.mjs\" (line 13) — this file does not exercise product code. Use @infra for infrastructure tests.",
+    "17 requirement(s) lack @satisfies annotation: FR-APP-004, FR-APP-005, FR-MSG-014, FR-SOC-003, FR-SOC-006, FR-VOX-060, NFR-01, NFR-02, NFR-03, NFR-04, NFR-05, NFR-06, NFR-08, NFR-09, NFR-10, NFR-11, NFR-12",
+    "EVIDENCE: FR-APP-003 requires integration evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/connection.test.ts:8",
+    "EVIDENCE: FR-AUTH-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:101",
+    "EVIDENCE: FR-AUTH-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/profile.test.ts:19",
+    "EVIDENCE: FR-AUTH-010 requires integration evidence (found unit) — claimed by apps/mobile/src/api/__tests__/client.test.ts:42",
+    "EVIDENCE: FR-MSG-001 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/pagination.test.ts:7",
+    "EVIDENCE: FR-MSG-003 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:60",
+    "EVIDENCE: FR-MSG-004 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:103",
+    "EVIDENCE: FR-MSG-005 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/reply.test.ts:4",
+    "EVIDENCE: FR-MSG-009 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/typing.test.ts:1",
+    "EVIDENCE: FR-MSG-010 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/unread.test.ts:1",
+    "EVIDENCE: FR-MSG-011 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:184",
+    "EVIDENCE: FR-MSG-012 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/polls.test.ts:1",
+    "EVIDENCE: FR-MSG-015 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/links.test.ts:1",
+    "EVIDENCE: FR-NOTIF-002 requires e2e evidence (found unit) — claimed by apps/mobile/src/__tests__/App.pushWiring.test.tsx:8",
+    "EVIDENCE: FR-ROLE-007 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p7-07-role-mentions.spec.ts:4",
+    "EVIDENCE: FR-SOC-005 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p4-05-notifications.spec.ts:11",
+    "EVIDENCE: FR-SRV-006 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p3-04-invites.spec.ts:7",
+    "EVIDENCE: FR-SRV-008 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p3-05-kick-leave.spec.ts:4",
+    "EVIDENCE: FR-VOX-004 requires integration evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts:8"
   ],
+  "evidence_violations": [
+    {
+      "id": "FR-APP-003",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/connection.test.ts",
+      "line": 8
+    },
+    {
+      "id": "FR-AUTH-001",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/session.test.ts",
+      "line": 101
+    },
+    {
+      "id": "FR-AUTH-006",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
+      "line": 19
+    },
+    {
+      "id": "FR-AUTH-010",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/api/__tests__/client.test.ts",
+      "line": 42
+    },
+    {
+      "id": "FR-MSG-001",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
+      "line": 7
+    },
+    {
+      "id": "FR-MSG-003",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+      "line": 60
+    },
+    {
+      "id": "FR-MSG-004",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+      "line": 103
+    },
+    {
+      "id": "FR-MSG-005",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/reply.test.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-MSG-009",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/typing.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-010",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/unread.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-011",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+      "line": 184
+    },
+    {
+      "id": "FR-MSG-012",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/polls.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-015",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-NOTIF-002",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
+      "line": 8
+    },
+    {
+      "id": "FR-ROLE-007",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-SOC-005",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p4-05-notifications.spec.ts",
+      "line": 11
+    },
+    {
+      "id": "FR-SRV-006",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p3-04-invites.spec.ts",
+      "line": 7
+    },
+    {
+      "id": "FR-SRV-008",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-VOX-004",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+      "line": 8
+    }
+  ],
+  "manual": [],
   "rows": [
     {
       "id": "FR-APP-001",
@@ -24,8 +185,49 @@
     },
     {
       "id": "FR-APP-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p2-02-coldstart-channel.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 15
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 23
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 30
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 44
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 55
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 69
+        },
+        {
+          "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+          "line": 83
+        },
+        {
+          "file": "apps/mobile/src/features/shell/coldstart.ts",
+          "line": 61
+        }
+      ],
       "missing": false
     },
     {
@@ -43,13 +245,13 @@
       "id": "FR-APP-004",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "FR-APP-005",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "FR-APP-006",
@@ -64,9 +266,14 @@
     },
     {
       "id": "FR-AUTH-001",
-      "satisfied": false,
-      "locations": [],
-      "missing": true
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/stores/__tests__/session.test.ts",
+          "line": 101
+        }
+      ],
+      "missing": false
     },
     {
       "id": "FR-AUTH-002",
@@ -89,7 +296,7 @@
         },
         {
           "file": "apps/mobile/src/stores/__tests__/session.test.ts",
-          "line": 24
+          "line": 50
         }
       ],
       "missing": false
@@ -104,7 +311,7 @@
         },
         {
           "file": "apps/mobile/src/stores/__tests__/session.test.ts",
-          "line": 57
+          "line": 83
         }
       ],
       "missing": false
@@ -137,8 +344,57 @@
     },
     {
       "id": "FR-AUTH-007",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/features/presence/StatusPicker.tsx",
+          "line": 36
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.integration.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.integration.test.ts",
+          "line": 71
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.integration.test.ts",
+          "line": 84
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.integration.test.ts",
+          "line": 95
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 17
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 28
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 36
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 44
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 50
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/status.test.ts",
+          "line": 58
+        }
+      ],
       "missing": false
     },
     {
@@ -154,50 +410,378 @@
     },
     {
       "id": "FR-MED-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/share/share.service.ts",
+          "line": 149
+        },
+        {
+          "file": "apps/api/src/share/share.service.ts",
+          "line": 198
+        },
+        {
+          "file": "apps/api/src/share/share.service.ts",
+          "line": 290
+        },
+        {
+          "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
+          "line": 86
+        },
+        {
+          "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
+          "line": 105
+        },
+        {
+          "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
+          "line": 116
+        },
+        {
+          "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
+          "line": 126
+        },
+        {
+          "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
+          "line": 158
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MED-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/share/share.service.ts",
+          "line": 223
+        },
+        {
+          "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
+          "line": 90
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MED-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
+          "line": 5
+        },
+        {
+          "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
+          "line": 128
+        },
+        {
+          "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
+          "line": 151
+        },
+        {
+          "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
+          "line": 178
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MED-010",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p5-02-attach-picker.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/AttachPicker.tsx",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/AttachmentTray.tsx",
+          "line": 5
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/__tests__/upload.integration.test.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/__tests__/utils.test.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/attachmentUtils.ts",
+          "line": 5
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/types.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/uploadService.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/useAttachments.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/uploadAttachmentsReachability.test.tsx",
+          "line": 8
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MED-011",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p5-03-inline-gallery.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 31
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 39
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 45
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 51
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 57
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 64
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 74
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 88
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 97
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 106
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 113
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 125
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 139
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 158
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 175
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 194
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 217
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 225
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 231
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 237
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 247
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 254
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 260
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 266
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 271
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+          "line": 276
+        },
+        {
+          "file": "apps/mobile/src/domain/attachments.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/AttachmentGrid.tsx",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/AttachmentGrid.tsx",
+          "line": 30
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/AuthImage.tsx",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/AuthImage.tsx",
+          "line": 31
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/GalleryModal.tsx",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/GalleryModal.tsx",
+          "line": 37
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MED-020",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
+          "line": 79
+        },
+        {
+          "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
+          "line": 108
+        },
+        {
+          "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
+          "line": 134
+        },
+        {
+          "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
+          "line": 161
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p5-01-avatar-upload.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/avatars/AvatarPicker.tsx",
+          "line": 12
+        },
+        {
+          "file": "apps/mobile/src/features/avatars/__tests__/useAvatarUpload.test.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/features/avatars/useAvatarUpload.ts",
+          "line": 53
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MED-030",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p5-02-attach-picker.yaml",
+          "line": 3
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/imageCompression.ts",
+          "line": 77
+        },
+        {
+          "file": "apps/mobile/src/features/attachments/useUploadAttachments.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 269
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 279
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 281
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
+          "line": 54
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
+          "line": 150
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
+          "line": 204
+        }
+      ],
       "missing": false
     },
     {
@@ -205,353 +789,2320 @@
       "satisfied": true,
       "locations": [
         {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 14
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 26
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 38
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 50
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 62
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/authors.test.ts",
+          "line": 74
+        },
+        {
           "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
-          "line": 13
+          "line": 14
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 257
         }
       ],
       "missing": false
     },
     {
       "id": "FR-MSG-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 60
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 138
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 103
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 139
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-005",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/reply.test.ts",
+          "line": 4
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-006",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/msg-rich-reactions.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
+          "line": 23
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
+          "line": 85
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
+          "line": 106
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
+          "line": 139
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-007",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/msg-rich-markdown-mentions.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/e2e/flows/msg-rich-pins-polls.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/markdown.test.ts",
+          "line": 1
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-008",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/mentions.test.ts",
+          "line": 1
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-009",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/typing.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/stores/__tests__/typing.test.ts",
+          "line": 1
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-010",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/unread.test.ts",
+          "line": 1
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-011",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 184
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 210
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+          "line": 235
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-012",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/polls.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 43
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 74
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 85
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 96
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 137
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/pollWiring.test.tsx",
+          "line": 163
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-013",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 12
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 18
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 24
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 29
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 34
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 39
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 44
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 55
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 64
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 72
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 80
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 86
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 93
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 101
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 107
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 115
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 123
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 131
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 138
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 146
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 154
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 164
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 174
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 180
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 189
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 195
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 201
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 208
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 213
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 218
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 223
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 228
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/embeds.test.ts",
+          "line": 233
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-014",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "FR-MSG-015",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 5
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 11
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 22
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-016",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 11
+        },
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 107
+        },
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 125
+        },
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 142
+        },
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 159
+        },
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 168
+        },
+        {
+          "file": "apps/api/test/integration/p2-16-around.spec.ts",
+          "line": 186
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-MSG-020",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p7-05-message-search.spec.ts",
+          "line": 11
+        },
+        {
+          "file": "apps/api/test/integration/p7-05-message-search.spec.ts",
+          "line": 137
+        },
+        {
+          "file": "apps/api/test/integration/p7-05-message-search.spec.ts",
+          "line": 149
+        },
+        {
+          "file": "apps/api/test/integration/p7-05-message-search.spec.ts",
+          "line": 163
+        },
+        {
+          "file": "apps/api/test/integration/p7-05-message-search.spec.ts",
+          "line": 179
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-NOTIF-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/notifications/device-tokens.controller.ts",
+          "line": 14
+        },
+        {
+          "file": "apps/api/src/notifications/device-tokens.service.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/src/notifications/device-tokens.service.ts",
+          "line": 16
+        },
+        {
+          "file": "apps/api/src/push/fcm-push.transport.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/mock-push.transport.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/noop-push.transport.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/push-dispatch.service.spec.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/push-dispatch.service.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/push-message-integration.spec.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/push-transport.interface.ts",
+          "line": 2
+        },
+        {
+          "file": "apps/api/src/push/push.module.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/api/test/integration/device-tokens.spec.ts",
+          "line": 8
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-NOTIF-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
+          "line": 94
+        },
+        {
+          "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
+          "line": 107
+        },
+        {
+          "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
+          "line": 118
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 73
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 80
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 87
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 98
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 111
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 119
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 128
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 145
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 158
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 194
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 208
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 214
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 308
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 318
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 327
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 336
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 342
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 348
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 359
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 372
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 385
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 415
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 438
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 456
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 485
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 505
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 516
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 531
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/push.ts",
+          "line": 11
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/push.ts",
+          "line": 310
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-NOTIF-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/notifications/notifications.controller.ts",
+          "line": 9
+        },
+        {
+          "file": "apps/api/src/notifications/notifications.service.ts",
+          "line": 15
+        },
+        {
+          "file": "apps/api/src/push/push-dispatch.service.spec.ts",
+          "line": 3
+        },
+        {
+          "file": "apps/api/src/push/push-dispatch.service.ts",
+          "line": 3
+        },
+        {
+          "file": "apps/api/src/push/push-message-integration.spec.ts",
+          "line": 3
+        },
+        {
+          "file": "apps/api/src/push/push.module.ts",
+          "line": 9
+        },
+        {
+          "file": "apps/api/test/integration/notif-settings.spec.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p8-01-notif-per-channel-levels.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/notif-settings/NotificationSettingsScreen.tsx",
+          "line": 55
+        },
+        {
+          "file": "apps/mobile/src/features/notif-settings/__tests__/notifSettings.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/notif-settings/notifSettings.ts",
+          "line": 3
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-NOTIF-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p8-02-notif-foreground-toast.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 12
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 67
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 73
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 86
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 94
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 100
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 107
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 114
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 120
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 127
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 133
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 150
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 157
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 164
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 171
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 189
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 198
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/foregroundHandler.test.ts",
+          "line": 209
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 235
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 244
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 272
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 289
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/foregroundHandler.ts",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/push.ts",
+          "line": 230
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 45
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 65
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 102
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 114
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 131
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 346
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/s5-roles.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 13
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 38
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 48
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 64
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 82
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 100
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 112
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 140
+        },
+        {
+          "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
+          "line": 165
+        },
+        {
+          "file": "apps/mobile/src/features/shell/screens/RolesEditorScreen.tsx",
+          "line": 5
+        },
+        {
+          "file": "apps/mobile/src/features/shell/screens/RolesEditorScreen.tsx",
+          "line": 93
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/property/role002-proptest.spec.ts",
+          "line": 13
+        },
+        {
+          "file": "apps/mobile/src/__tests__/permissions.test.ts",
+          "line": 114
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/permissions/permissions.golden.spec.ts",
+          "line": 13
+        },
+        {
+          "file": "apps/api/src/permissions/permissions.golden.spec.ts",
+          "line": 352
+        },
+        {
+          "file": "apps/api/test/integration/p7-03-overwrites.spec.ts",
+          "line": 4
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 74
+        },
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 84
+        },
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 103
+        },
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 122
+        },
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 156
+        },
+        {
+          "file": "apps/api/test/integration/p7-02-ban.spec.ts",
+          "line": 189
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-005",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 50
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 73
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 98
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 118
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 142
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 162
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 184
+        },
+        {
+          "file": "apps/api/test/integration/p7-timeout.spec.ts",
+          "line": 207
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-006",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 97
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 107
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 121
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 144
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 165
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 186
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 213
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 227
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 248
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 271
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 293
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 322
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 336
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 362
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 416
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 425
+        },
+        {
+          "file": "apps/api/test/integration/audit-log.spec.ts",
+          "line": 433
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-ROLE-007",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/messages/messages.service.ts",
+          "line": 361
+        },
+        {
+          "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+          "line": 80
+        },
+        {
+          "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+          "line": 109
+        },
+        {
+          "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+          "line": 132
+        },
+        {
+          "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+          "line": 171
+        },
+        {
+          "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+          "line": 186
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SOC-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p4-01-friends-list.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p4-02-add-friend.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/friends/__tests__/friends-api.test.ts",
+          "line": 23
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SOC-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p4-03-dm-message.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/dms/__tests__/dms.integration.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/dms/__tests__/formatActivity.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/dms/hooks.ts",
+          "line": 11
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SOC-003",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "FR-SOC-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p4-03-presence.spec.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p4-04-presence-profile.yaml",
+          "line": 3
+        },
+        {
+          "file": "apps/mobile/src/features/presence/PresenceDot.tsx",
+          "line": 5
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/PresenceDot.test.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/features/presence/__tests__/presence.integration.test.ts",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/stores/__tests__/presence.test.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/stores/presence.ts",
+          "line": 6
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SOC-005",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p4-05-notifications.spec.ts",
+          "line": 11
+        },
+        {
+          "file": "apps/api/test/integration/p4-05-notifications.spec.ts",
+          "line": 29
+        },
+        {
+          "file": "apps/api/test/integration/p4-05-notifications.spec.ts",
+          "line": 44
+        },
+        {
+          "file": "apps/api/test/integration/p4-05-notifications.spec.ts",
+          "line": 143
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 54
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 61
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 68
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 83
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 90
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 101
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 108
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 116
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 124
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 131
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 141
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 149
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/__tests__/inboxHelpers.test.ts",
+          "line": 155
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/inboxHelpers.ts",
+          "line": 6
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/screens/InboxScreen.tsx",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/inbox/screens/InboxScreen.tsx",
+          "line": 51
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SOC-006",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "FR-SOC-007",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/soc-007-blocked.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/soc-007-blocked.spec.ts",
+          "line": 35
+        },
+        {
+          "file": "apps/api/test/integration/soc-007-blocked.spec.ts",
+          "line": 41
+        },
+        {
+          "file": "apps/api/test/integration/soc-007-blocked.spec.ts",
+          "line": 49
+        },
+        {
+          "file": "apps/api/test/integration/soc-007-blocked.spec.ts",
+          "line": 74
+        },
+        {
+          "file": "apps/api/test/integration/soc-007-blocked.spec.ts",
+          "line": 91
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p4-05-block-collapse.yaml",
+          "line": 3
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useBlockedStore.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useBlockedStore.test.ts",
+          "line": 16
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useBlockedStore.test.ts",
+          "line": 23
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useBlockedStore.test.ts",
+          "line": 45
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useBlockedStore.test.ts",
+          "line": 59
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 12
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 17
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 24
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 31
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 40
+        },
+        {
+          "file": "apps/mobile/src/features/blocked-messages/__tests__/useRevealedStore.test.ts",
+          "line": 48
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p3-01-serverlayout.spec.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/api/test/integration/p3-01-serverlayout.spec.ts",
+          "line": 28
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p3-01-create-server.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/servers/screens/CreateServerScreen.tsx",
+          "line": 30
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p3-02-rename-server.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/__tests__/permissions.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/__tests__/permissions.test.ts",
+          "line": 42
+        },
+        {
+          "file": "apps/mobile/src/__tests__/permissions.test.ts",
+          "line": 63
+        },
+        {
+          "file": "apps/mobile/src/features/servers/screens/ServerSettingsScreen.tsx",
+          "line": 43
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p3-03-channel-crud.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 24
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 31
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 40
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 47
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 55
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+          "line": 69
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-005",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/servers/servers.controller.ts",
+          "line": 160
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p3-04-reorder-channels.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/reorder.test.ts",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/reorder.test.ts",
+          "line": 53
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/reorder.test.ts",
+          "line": 66
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/reorder.test.ts",
+          "line": 86
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/reorder.test.ts",
+          "line": 97
+        },
+        {
+          "file": "apps/mobile/src/features/channels/hooks.ts",
+          "line": 38
+        },
+        {
+          "file": "apps/mobile/src/features/channels/hooks.ts",
+          "line": 66
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-006",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p3-04-invites.spec.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/api/test/integration/p3-04-invites.spec.ts",
+          "line": 19
+        },
+        {
+          "file": "apps/api/test/integration/p3-04-invites.spec.ts",
+          "line": 73
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 31
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 33
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 40
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 47
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 54
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 61
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 68
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 75
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 82
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+          "line": 89
+        },
+        {
+          "file": "apps/mobile/src/domain/links.ts",
+          "line": 38
+        },
+        {
+          "file": "apps/mobile/src/domain/links.ts",
+          "line": 73
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-007",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p3-05-members-kick-leave.yaml",
+          "line": 3
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 6
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 59
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 72
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 83
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 96
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 113
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 131
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 149
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 165
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 178
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 189
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 210
+        },
+        {
+          "file": "apps/mobile/src/domain/members.ts",
+          "line": 6
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-008",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+          "line": 66
+        },
+        {
+          "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+          "line": 93
+        },
+        {
+          "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+          "line": 104
+        },
+        {
+          "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+          "line": 114
+        },
+        {
+          "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+          "line": 150
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 237
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 242
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 248
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 253
+        },
+        {
+          "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+          "line": 258
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-009",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 92
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 106
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 121
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 135
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 154
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 170
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 179
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 203
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 228
+        },
+        {
+          "file": "apps/api/test/integration/p3-09-granular-events.spec.ts",
+          "line": 247
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p7-01-channel-create-appear.yaml",
+          "line": 2
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-SRV-010",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/servers/servers.controller.ts",
+          "line": 318
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 49
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 62
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 75
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 94
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 113
+        },
+        {
+          "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
+          "line": 121
+        },
+        {
+          "file": "apps/mobile/src/api/schema.ts",
+          "line": 207
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 1
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 11
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 21
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 27
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 34
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 44
+        },
+        {
+          "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
+          "line": 53
+        },
+        {
+          "file": "apps/mobile/src/features/messages/announceReadOnly.ts",
+          "line": 15
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-001",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p6-01-voice-channel-join-leave.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceJoinOnTap.test.tsx",
+          "line": 10
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceJoinOnTap.test.tsx",
+          "line": 83
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceJoinOnTap.test.tsx",
+          "line": 118
+        },
+        {
+          "file": "apps/mobile/src/features/shell/screens/ShellScreen.tsx",
+          "line": 475
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoicePill.tsx",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceService.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 37
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voicePill.test.tsx",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceService.test.ts",
+          "line": 13
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceStore.test.ts",
+          "line": 5
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 26
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-002",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p6-01-voice-channel-join-tiles.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceChannelView.tsx",
+          "line": 10
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 53
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceTile.tsx",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceTileGrid.tsx",
+          "line": 10
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceChannelView.test.tsx",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceChannelView.test.tsx",
+          "line": 95
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceParticipantStore.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceTile.test.tsx",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceTileGrid.test.tsx",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceParticipants.ts",
+          "line": 28
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 488
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 490
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 492
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-003",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p6-02-voice-pill-controls.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceControls.tsx",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 84
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 86
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 88
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 123
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 125
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 127
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 131
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 133
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceControls.test.tsx",
+          "line": 9
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 37
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 39
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 41
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 45
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 47
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 49
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 419
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 421
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 423
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 425
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 427
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 429
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 431
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 433
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 435
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 437
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 439
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 441
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-004",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/api/src/voice/voice.service.ts",
+          "line": 48
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+          "line": 26
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+          "line": 39
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+          "line": 52
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+          "line": 68
+        },
+        {
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+          "line": 97
+        },
+        {
+          "file": "apps/mobile/src/sync/queryClient.ts",
+          "line": 84
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-005",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p6-03-dm-call-outgoing.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p6-04-incoming-call-overlay.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/voice/CallStore.ts",
+          "line": 16
+        },
+        {
+          "file": "apps/mobile/src/features/voice/IncomingCallOverlay.tsx",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/callStore.test.ts",
+          "line": 4
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
+          "line": 82
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 460
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 462
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 464
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 466
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 468
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 470
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-006",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p6-02-voice-camera-publish.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VideoTile.tsx",
+          "line": 11
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 90
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 92
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 137
+        },
+        {
+          "file": "apps/mobile/src/features/voice/VoiceStore.ts",
+          "line": 139
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/videoTile.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/voiceStore.test.ts",
+          "line": 6
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useVoiceConnection.ts",
+          "line": 27
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 474
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 476
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 478
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 480
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 482
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 484
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 486
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-007",
-      "satisfied": false,
-      "locations": [],
+      "satisfied": true,
+      "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p6-03-voice-screenshare-view.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/src/features/voice/ScreenShareView.tsx",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/ScreenShareView.test.tsx",
+          "line": 13
+        },
+        {
+          "file": "apps/mobile/src/features/voice/__tests__/useScreenShare.test.ts",
+          "line": 8
+        },
+        {
+          "file": "apps/mobile/src/features/voice/useScreenShare.ts",
+          "line": 10
+        }
+      ],
       "missing": false
     },
     {
       "id": "FR-VOX-060",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-01",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-02",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-03",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-04",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-05",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-06",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-07",
@@ -572,31 +3123,31 @@
       "id": "NFR-08",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-09",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-10",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-11",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     },
     {
       "id": "NFR-12",
       "satisfied": false,
       "locations": [],
-      "missing": false
+      "missing": true
     }
   ],
   "characterizes": {
