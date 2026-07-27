@@ -1,8 +1,8 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { palette, spacing, typography } from '../../ui/tokens';
 import { strings } from '../../ui/strings';
 import { PresenceDot, presenceLabel } from '../presence';
-import type { Member } from '../../api/schema';
+import type { Member, Role } from '../../api/schema';
 
 interface Props {
   visible: boolean;
@@ -12,11 +12,18 @@ interface Props {
   isSelf: boolean;
   onKick?: () => void;
   onLeave?: () => void;
+  /** All server roles for toggling (FR-ROLE-001). */
+  roles: Role[];
+  /** Whether current user can manage roles (MANAGE_ROLES permission). */
+  canManageRoles: boolean;
+  /** Called when a role toggle changes: (roleId, assign). */
+  onToggleRole?: (roleId: string, assign: boolean) => void;
 }
 
 /**
  * Profile sheet for a server member (FR-SRV-007).
- * Tapped from the member list; shows user info and actions (kick, leave stub).
+ * Tapped from the member list; shows user info, role toggles (FR-ROLE-001),
+ * and actions (kick, leave).
  */
 export function MemberProfileSheet({
   visible,
@@ -26,12 +33,16 @@ export function MemberProfileSheet({
   isSelf,
   onKick,
   onLeave,
+  roles,
+  canManageRoles,
+  onToggleRole,
 }: Props): React.JSX.Element {
   if (!member) return <></>;
 
   const displayName = member.user?.displayName ?? member.user?.username ?? member.userId;
   const username = member.user?.username ?? '';
   const status = member.user?.status ?? 'OFFLINE';
+  const memberRoleIds = new Set(member.roleIds);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -64,6 +75,31 @@ export function MemberProfileSheet({
             <Text style={styles.badge}>{strings.members.ownerBadge}</Text>
           )}
         </View>
+
+        {/* Role toggles (FR-ROLE-001) — gated on MANAGE_ROLES permission and not self */}
+        {canManageRoles && !isSelf && roles.length > 0 && (
+          <View style={styles.rolesSection}>
+            <Text style={styles.rolesSectionTitle}>{strings.members.roleLabel}</Text>
+            <ScrollView style={styles.rolesScroll} testID="member-role-toggles">
+              {roles.map((role) => {
+                const hasRole = memberRoleIds.has(role.id);
+                return (
+                  <View key={role.id} style={styles.roleRow}>
+                    <View style={[styles.roleColor, { backgroundColor: colorToHex(role.color) }]} />
+                    <Text style={styles.roleName} numberOfLines={1}>{role.name}</Text>
+                    <Switch
+                      value={hasRole}
+                      onValueChange={(on) => onToggleRole?.(role.id, on)}
+                      testID={`role-toggle-${role.name}`}
+                      trackColor={{ false: palette.bg, true: palette.accent }}
+                    />
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {!isSelf && canKick && onKick && (
           <Pressable
             style={styles.kickButton}
@@ -89,6 +125,10 @@ export function MemberProfileSheet({
   );
 }
 
+function colorToHex(c: number): string {
+  return `#${(c & 0xffffff).toString(16).padStart(6, '0')}`;
+}
+
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -103,6 +143,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingBottom: spacing.xl,
+    maxHeight: '80%',
   },
   header: {
     flexDirection: 'row',
@@ -128,6 +169,39 @@ const styles = StyleSheet.create({
     color: palette.accent,
     fontWeight: '700',
     marginTop: spacing.sm,
+  },
+  rolesSection: {
+    borderTopWidth: 1,
+    borderTopColor: palette.bg,
+    paddingTop: spacing.sm,
+  },
+  rolesSectionTitle: {
+    ...typography.caption,
+    color: palette.textMuted,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  rolesScroll: {
+    maxHeight: 200,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  roleColor: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: spacing.sm,
+  },
+  roleName: {
+    ...typography.body,
+    color: palette.text,
+    flex: 1,
   },
   kickButton: {
     margin: spacing.md,
