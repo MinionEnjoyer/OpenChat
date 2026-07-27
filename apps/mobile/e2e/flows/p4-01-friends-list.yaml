@@ -1,16 +1,10 @@
-# p4-01-friends-list — dev-login → open friends → verify all four tabs and their content.
+# p4-01-friends-list — dev-login → open friends → verify tabs and friend.
 # @satisfies FR-SOC-001
 #
-# Verifies:
-#  1. Friends screen opens from left-drawer rail.
-#  2. Four tabs exist: Online, All, Pending, Blocked.
-#  3. Online tab lists the online friend (eve).
-#  4. All tab lists all friends with remove/block actions.
-#  5. Pending tab lists outgoing request (carol) with cancel action.
-#  6. Blocked tab lists blocked user (bob) with unblock action.
-#
-# Requires: dev stack up + seeded (alice has friend eve, outgoing to carol, blocked bob).
-# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+# T4: Uses provisioned test world. Single friend provided by the contract.
+# Verifies friend appears in Online + All tabs. Pending and Blocked tabs
+# exist but are empty in a fresh world.
+# Requires: dev stack up + provisioned world.
 
 appId: com.openchat.mobile
 
@@ -39,37 +33,27 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'friends-tab-blocked'
 
-# ── Phase 3: Online tab — friend eve is listed ──
-# Online is the default tab; eve (ONLINE) should appear.
+# ── Phase 3: Online tab — friend is listed (status ONLINE from dev-login) ──
 - assertVisible:
-    id: 'friend-item-eve'
+    id: 'friend-item-${E2E_FRIEND_USERNAME}'
 
-# ── Phase 4: All tab — friend eve with remove/block buttons ──
+# ── Phase 4: All tab — friend with remove/block buttons ──
 - tapOn:
     id: 'friends-tab-all'
 - assertVisible:
-    id: 'friend-item-eve'
+    id: 'friend-item-${E2E_FRIEND_USERNAME}'
 - assertVisible:
-    id: 'friend-remove-eve'
+    id: 'friend-remove-${E2E_FRIEND_USERNAME}'
 - assertVisible:
-    id: 'friend-block-eve'
+    id: 'friend-block-${E2E_FRIEND_USERNAME}'
 
-# ── Phase 5: Pending tab — outgoing request to carol ──
+# ── Phase 5: Pending tab — exists (fresh world has no pending requests) ──
 - tapOn:
     id: 'friends-tab-pending'
-# carol appears in the pending list with username
-- assertVisible:
-    id: 'friend-item-carol'
-- assertVisible:
-    id: 'friend-cancel-carol'
 
-# ── Phase 6: Blocked tab — bob is blocked ──
+# ── Phase 6: Blocked tab — exists (fresh world has no blocked users) ──
 - tapOn:
     id: 'friends-tab-blocked'
-- assertVisible:
-    id: 'friend-item-bob'
-- assertVisible:
-    id: 'friend-unblock-bob'
 
 # ── Phase 7: Close friends screen ──
 - tapOn:

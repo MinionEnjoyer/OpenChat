@@ -1,53 +1,28 @@
-# p6-04-incoming-call-overlay — alice receives incoming DM call from bob → overlay shows → accept → pill.
+# p6-04-incoming-call-overlay — test user receives incoming DM call from friend → overlay shows → accept → pill.
 # @satisfies FR-VOX-005
 #
-# Requires: dev stack up + seeded (alice↔bob DM), emulator reaching 10.0.2.2.
-# This flow does its own dev-login so it runs independently.
+# T4: Uses provisioned test world. Friend joins the DM voice channel via API
+# using the friend's token from E2E_FRIEND_TOKEN, triggering call.ring to
+# the test user's WebSocket.
 #
-# PREREQUISITE: This flow uses runScript to trigger the incoming call via HTTP.
-# Bob joins the alice↔bob DM voice channel, which causes the server to publish
-# a `call.ring` WebSocket event to alice's connected gateway session.
-# If runScript fetch is not available in your Maestro version, trigger the ring
-# externally before running this flow:
-#   curl -s -X POST http://localhost:3030/api/auth/dev-login \
-#     -H 'Content-Type: application/json' -d '{"username":"bob"}' | jq -r .accessToken
-#   # Use that token to join the DM voice channel (fetch /dms first for the channelId)
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
 
 appId: com.openchat.mobile
 
 ---
-# ── Phase 1: Login as alice ──
+# ── Phase 1: Login as test user ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Trigger incoming call by having bob join the DM ──
-# This runScript logs in as bob via the API, fetches the DM channel with alice,
-# and POSTs to /voice/:channelId/join. The server then publishes call.ring to
-# alice's WebSocket, which populates the CallStore and renders the overlay.
+# ── Phase 2: Trigger incoming call by having friend join the DM ──
+# Uses E2E_FRIEND_TOKEN and E2E_DM_CHANNEL_ID from the provisioned world.
 - runScript:
     content: |
       const API = 'http://10.0.2.2:3030/api';
       async function main() {
-        // 1. Login as bob
-        const bobLogin = await fetch(API + '/auth/dev-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: 'bob' })
-        });
-        const bob = await bobLogin.json();
-        const token = bob.accessToken;
-
-        // 2. Fetch DMs to find the channel with alice
-        const dmsResp = await fetch(API + '/dms', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        const dms = await dmsResp.json();
-        const dm = dms.find(function(d) {
-          return d.type === 'DM';
-        });
-        if (!dm) throw new Error('No DM channel found for bob→alice');
-
-        // 3. Join the voice channel as bob — triggers call.ring to alice
-        const joinResp = await fetch(API + '/voice/' + dm.id + '/join', {
+        const token = '${E2E_FRIEND_TOKEN}';
+        const dmChannelId = '${E2E_DM_CHANNEL_ID}';
+        // Join the voice channel as friend — triggers call.ring to test user
+        const joinResp = await fetch(API + '/voice/' + dmChannelId + '/join', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + token }
         });

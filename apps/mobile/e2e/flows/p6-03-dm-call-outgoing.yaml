@@ -1,11 +1,8 @@
-# p6-03-dm-call-outgoing — login → open DM with bob → tap call button → VoicePill appears → disconnect.
+# p6-03-dm-call-outgoing — login → open DM with friend → tap call button → VoicePill appears → disconnect.
 # @satisfies FR-VOX-005
 #
-# Requires: dev stack up + seeded (alice↔bob DM), emulator reaching 10.0.2.2.
-# This flow does its own dev-login so it runs independently.
-#
-# NOTE: DM channels are in the dm-section of the channel drawer, reached by
-# tapping the rail-dm entry in the server rail first.
+# T4: Uses provisioned test world. DM channel exists between test user and friend.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
 
 appId: com.openchat.mobile
 
@@ -13,29 +10,21 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Open left drawer and navigate to DM with bob ──
+# ── Phase 2: Open left drawer and navigate to DM with friend ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
-
-# Tap DM entry in the server rail to switch the channel drawer to DM mode
 - tapOn:
     id: 'rail-dm'
-
-# DM section is now visible in the channel drawer
 - assertVisible:
     id: 'dm-section'
-
-# Scroll to find bob in the DM list
 - scrollUntilVisible:
     element:
-      text: 'bob'
+      text: ${E2E_FRIEND_USERNAME}
     direction: DOWN
     timeout: 20000
-- tapOn: 'bob'
-
-# Left drawer closes, DM opens with call button in top bar
+- tapOn: ${E2E_FRIEND_USERNAME}
 - assertNotVisible:
     id: 'left-drawer'
 
@@ -46,8 +35,6 @@ appId: com.openchat.mobile
     id: 'call-button'
 
 # ── Phase 4: Assert VoicePill appears ──
-# DM calls do NOT auto-show the voice view (voice view is server-channel-only).
-# The pill appears directly.
 - extendedWaitUntil:
     visible:
       id: 'voice-pill'
@@ -56,7 +43,6 @@ appId: com.openchat.mobile
 # ── Phase 5: Disconnect ──
 - tapOn:
     id: 'voice-pill-disconnect'
-
 - extendedWaitUntil:
     notVisible:
       id: 'voice-pill'

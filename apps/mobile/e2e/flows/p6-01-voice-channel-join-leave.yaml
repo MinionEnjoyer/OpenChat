@@ -1,12 +1,8 @@
 # p6-01-voice-channel-join-leave — login → join voice channel → voice view appears → show chat → pill appears → disconnect → pill gone.
 # @satisfies FR-VOX-001
 #
-# Requires: dev stack up + seeded (Fixture Guild, voice channels), emulator reaching 10.0.2.2.
-# This flow does its own dev-login so it runs independently.
-#
-# Tapping a voice channel auto-joins and shows VoiceChannelView (full voice UI).
-# The VoicePill only appears when NOT looking at the voice view — i.e., after
-# tapping "Show Chat" to navigate to a text channel while staying in the call.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
 
 appId: com.openchat.mobile
 
@@ -14,36 +10,35 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Join voice channel from left drawer ──
+# ── Phase 2: Join provisioned voice channel ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 
-# Select Fixture Guild in the server rail
+# Select provisioned server
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 
-# Tap the voice channel (#voice-general) to join
+# Tap the voice channel to join
 - scrollUntilVisible:
     element:
-      id: 'channel-#voice-general'
+      id: 'channel-${E2E_CHANNEL_VOICE}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 
 # Left drawer closes
 - assertNotVisible:
     id: 'left-drawer'
 
 # ── Phase 3: Assert VoiceChannelView appeared ──
-# Tapping a voice channel auto-joins and shows the full voice view.
 - extendedWaitUntil:
     visible:
       id: 'voice-channel-view'
@@ -54,7 +49,6 @@ appId: com.openchat.mobile
     id: 'voice-controls'
 
 # ── Phase 4: Navigate away → VoicePill appears ──
-# Tap "Show Chat" to return to the text channel without leaving the voice call.
 - tapOn:
     id: 'voice-show-chat'
 

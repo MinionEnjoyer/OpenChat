@@ -2,37 +2,31 @@
 # dots, status picker, and member profile sheet.
 # @satisfies FR-SOC-004, FR-SOC-006
 #
-# Verifies:
-#  1. Right drawer opens showing own status with presence dot and status label.
-#  2. Status picker button opens a modal with Online/Away/DND/Invisible options.
-#  3. Member list shows presence dots per member.
-#  4. Tapping a member opens the profile sheet with user details.
-#  5. Profile sheet can be dismissed.
-#
-# Requires: dev stack up + seeded (Fixture Guild, alice is a member).
-# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
+# T4: Uses provisioned test world. Fresh world every run.
+# displayName assertion: dev-login users have displayName === username.
+# Requires: dev stack up + provisioned world.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# ── Phase 1: Select Fixture Guild → #general (so members load) ──
+# ── Phase 1: Select provisioned server → general channel ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
 
@@ -43,13 +37,10 @@ appId: com.openchat.mobile
     id: 'right-drawer'
 
 # ── Phase 3: Verify own presence and profile elements ──
-# Status indicator with presence dot
 - assertVisible:
     id: 'status-indicator'
-# Presence status picker button
 - assertVisible:
     id: 'presence-picker'
-# Profile display name input
 - assertVisible:
     id: 'profile-displayname'
 
@@ -64,24 +55,23 @@ appId: com.openchat.mobile
     id: 'presence-option-dnd'
 - assertVisible:
     id: 'presence-option-invisible'
-# Dismiss by tapping backdrop
 - tapOn:
     id: 'presence-backdrop'
 
 # ── Phase 5: Verify member list and presence dots ──
 - assertVisible:
     id: 'members-drawer'
-# alice should appear as a member (with a presence dot)
+# Test user should appear as a member (with a presence dot)
 - assertVisible:
-    id: 'member-alice'
+    id: 'member-${E2E_USERNAME}'
 
-# ── Phase 6: Tap alice → verify profile sheet ──
+# ── Phase 6: Tap test user → verify profile sheet ──
 - tapOn:
-    id: 'member-alice'
+    id: 'member-${E2E_USERNAME}'
 - assertVisible:
     id: 'member-profile-sheet'
-# Profile sheet shows the member's display name
-- assertVisible: 'Alice Updated'
+# Profile sheet shows the member's display name (=== username for dev-login users)
+- assertVisible: ${E2E_USERNAME}
 # Dismiss profile sheet
 - tapOn:
     id: 'member-profile-close'

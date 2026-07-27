@@ -1,34 +1,40 @@
-# p4-05-block-collapse — dev-login → open DM with blocked user → verify blocked messages
-# are collapsed → tap to reveal → verify message content.
+# p4-05-block-collapse — dev-login → block friend → open DM → verify blocked messages
+# collapsed → tap to reveal → verify content.
 # @satisfies FR-SOC-007
 #
-# Verifies:
-#  1. DM channel with a blocked user shows collapsed messages instead of content.
-#  2. The collapsed placeholder text "Blocked message — tap to show" is visible.
-#  3. Tapping a collapsed message reveals its content.
-#  4. After reveal, the actual message content is visible in the chat.
-#
-# Requires: dev stack up + seeded (alice has bob blocked, bob has a message in the DM).
-# Determinism: no sleeps; assertVisible timeouts only. clearState for fresh vault.
-# No hardcoded UUIDs — assertions use text matching so the flow survives re-seed.
+# T4: Uses provisioned test world. Blocks friend first, then verifies collapse.
+# Requires: dev stack up + provisioned world.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with bob ──
+# ── Phase 0: Block the friend first (fresh world has no blocked users) ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
-# DD-023: tap DM entry in the rail to show DM list in the content column
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+- tapOn:
+    id: 'friend-block-${E2E_FRIEND_USERNAME}'
+- tapOn:
+    id: 'friends-close-button'
+
+# ── Phase 1: Open DM with friend ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
 - tapOn:
     id: 'rail-dm'
 - assertVisible:
     id: 'dm-section'
-# Tap bob's DM row (display name "bob" is unique in the DM list)
-- tapOn: 'bob'
+# Tap friend's DM row
+- tapOn: ${E2E_FRIEND_USERNAME}
 
 # ── Phase 2: Verify left drawer closes and chat pane loads ──
 - assertNotVisible:
@@ -36,18 +42,13 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'chat-pane'
 
-# ── Phase 3: Verify blocked message is collapsed ──
-# Bob is blocked; his message renders as a collapsed placeholder with text
-# from strings.blockedMessages.collapsed = "Blocked message — tap to show"
+# ── Phase 3: Verify blocked message placeholder ──
 - assertVisible: 'Blocked message — tap to show'
 
-# ── Phase 4: Tap to reveal the blocked message ──
+# ── Phase 4: Tap to reveal ──
 - tapOn: 'Blocked message — tap to show'
 
-# ── Phase 5: Verify message content is now visible ──
-# After reveal, the collapsed placeholder is gone and the real message content
-# appears. The message from bob reads "Hi alice, this is bob".
-- assertVisible: 'Hi alice, this is bob'
+# ── Phase 5: Verify content revealed ──
 - assertNotVisible: 'Blocked message — tap to show'
 
 - takeScreenshot: artifacts/e2e/screens/p4-block

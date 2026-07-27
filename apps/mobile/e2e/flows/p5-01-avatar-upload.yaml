@@ -1,33 +1,30 @@
 # p5-01-avatar-upload — login → open right drawer → verify avatar picker reachable.
 # @satisfies FR-MED-020
 #
-# Proves the avatar picker UI is wired and reachable from the shell's right drawer.
-# Does NOT complete an OS file-picker interaction (cannot be automated by Maestro),
-# but verifies the placeholder, label, and pick button are present and tappable.
-#
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# Open left drawer and select Fixture Guild → #general to enter a server context
+# Open left drawer and select provisioned server → general channel
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
 

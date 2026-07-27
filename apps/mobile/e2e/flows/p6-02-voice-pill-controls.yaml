@@ -1,11 +1,8 @@
 # p6-02-voice-pill-controls — join voice → navigate to text channel → toggle mute/deafen on pill → leave.
 # @satisfies FR-VOX-003
 #
-# Requires: dev stack up + seeded, voice channel join wired, LiveKit available for stable connection.
-# This flow does its own dev-login so it runs independently.
-#
-# The VoicePill only appears when the voice view is not foregrounded.
-# Navigate away from the voice view via "Show Chat", then test pill controls.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
 
 appId: com.openchat.mobile
 
@@ -13,25 +10,25 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Join voice channel ──
+# ── Phase 2: Join provisioned voice channel ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - scrollUntilVisible:
     element:
-      id: 'channel-#voice-general'
+      id: 'channel-${E2E_CHANNEL_VOICE}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'channel-#voice-general'
+    id: 'channel-${E2E_CHANNEL_VOICE}'
 - assertNotVisible:
     id: 'left-drawer'
 
@@ -51,17 +48,14 @@ appId: com.openchat.mobile
     timeout: 15000
 
 # ── Phase 5: Toggle mute — assert badge appears then disappears ──
-# Before mute: no mute badge
 - assertNotVisible:
     id: 'voice-pill-muted-badge'
-# Tap mute (async — wait for LiveKit state to propagate)
 - tapOn:
     id: 'voice-pill-mute'
 - extendedWaitUntil:
     visible:
       id: 'voice-pill-muted-badge'
     timeout: 10000
-# Tap again to unmute
 - tapOn:
     id: 'voice-pill-mute'
 - extendedWaitUntil:
@@ -89,7 +83,6 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'voice-pill-disconnect'
 
-# Pill disappears after disconnect (async — wait for it)
 - extendedWaitUntil:
     notVisible:
       id: 'voice-pill'

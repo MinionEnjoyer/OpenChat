@@ -1,6 +1,6 @@
 # _login — shared login subflow for E2E tests.
 #
-# Every flow that needs to sign in as alice should include this instead of
+# Every flow that needs to sign in should include this instead of
 # copy-pasting the login boilerplate.  This is the single point to harden
 # login if clearState ever leaves stale tokens (expo-secure-store).
 #
@@ -8,7 +8,10 @@
 #   - runFlow: _login.yaml
 #   # ... flow continues after shell-screen is visible
 #
-# After this subflow completes, the app is on shell-screen signed in as alice.
+# Requires the following Maestro env vars (set via --env or exported):
+#   E2E_USERNAME — the test user's login name (provisioned by test-world)
+#
+# After this subflow completes, the app is on shell-screen signed in.
 
 appId: com.openchat.mobile
 ---
@@ -18,7 +21,7 @@ appId: com.openchat.mobile
     id: 'login-screen'
 - tapOn:
     id: 'login-username'
-- inputText: 'alice'
+- inputText: ${E2E_USERNAME}
 - tapOn:
     id: 'login-submit'
 - assertVisible:

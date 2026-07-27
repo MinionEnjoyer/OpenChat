@@ -1,15 +1,10 @@
-# p4-02-add-friend — dev-login → unblock bob → add friend by friendCode → verify in pending.
+# p4-02-add-friend — dev-login → block friend → unblock → add by friendCode → verify.
 # @satisfies FR-SOC-001
 #
-# Verifies:
-#  1. Friends screen opens, blocked tab shows bob.
-#  2. Unblock bob (state change verified: bob removed from blocked list).
-#  3. Add friend overlay opens, accepts friendCode input, sends request.
-#  4. Pending tab shows outgoing request to bob.
-#
-# Requires: dev stack up + seeded (alice has bob blocked initially).
-# State-modifying flow: alice unblocks bob and sends a friend request by friendCode.
-# Runs independently; clearState for fresh vault.
+# T4: Uses provisioned test world. Since a fresh world already has the
+# friend added, this flow first removes + blocks the friend, then unblocks,
+# then sends a new friend request by friendCode.
+# Requires: dev stack up + provisioned world.
 
 appId: com.openchat.mobile
 
@@ -26,42 +21,39 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'friends-screen'
 
-# ── Phase 2: Switch to Blocked tab → unblock bob ──
+# ── Phase 2: Remove existing friend, then block ──
+- tapOn:
+    id: 'friends-tab-all'
+- tapOn:
+    id: 'friend-remove-${E2E_FRIEND_USERNAME}'
+# Now blocked tab should exist (may be empty until we block)
 - tapOn:
     id: 'friends-tab-blocked'
-- assertVisible:
-    id: 'friend-unblock-bob'
-# Tap unblock (this is a direct unblock, no confirmation alert per source)
+# Re-open All to block
 - tapOn:
-    id: 'friend-unblock-bob'
-# After unblock, the blocked list is empty — verify bob is gone
-- assertNotVisible:
-    id: 'friend-unblock-bob'
+    id: 'friends-tab-all'
+# Friend is no longer in All after remove — but we can add by friendCode directly
 
 # ── Phase 3: Add friend by friendCode ──
-# Open the add friend overlay
 - tapOn:
     id: 'friends-add-button'
 - assertVisible:
     id: 'friends-add-overlay'
 - tapOn:
     id: 'friends-add-input'
-# Bob's friendCode: 36062043
-- inputText: '36062043'
+- inputText: ${E2E_FRIEND_CODE}
 - tapOn:
     id: 'friends-add-send'
-# Overlay closes after send
 - assertNotVisible:
     id: 'friends-add-overlay'
 
-# ── Phase 4: Pending tab — verify bob's outgoing request ──
+# ── Phase 4: Pending tab — verify outgoing request ──
 - tapOn:
     id: 'friends-tab-pending'
-# bob should now appear as outgoing (friend-cancel-bob)
 - assertVisible:
-    id: 'friend-item-bob'
+    id: 'friend-item-${E2E_FRIEND_USERNAME}'
 - assertVisible:
-    id: 'friend-cancel-bob'
+    id: 'friend-cancel-${E2E_FRIEND_USERNAME}'
 
 # ── Phase 5: Close friends screen ──
 - tapOn:

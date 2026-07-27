@@ -1,9 +1,8 @@
 # p8-01-notif-per-channel-levels — login → select channel → notification settings → set per-channel level + mute
 # @satisfies FR-NOTIF-003
 #
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
-# Channel UUIDs from tools/seed/fixture-ids.json.
-# This flow does its own login so it can run independently.
+# T4: Uses provisioned test world. Channel UUIDs from env vars.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
@@ -11,72 +10,58 @@ appId: com.openchat.mobile
 # ── Phase 1: Login and select a channel ──
 - runFlow: _login.yaml
 
-# Open left drawer and select #general in Fixture Guild
+# Open left drawer and select provisioned server → general channel
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
-
-# Channel selected — left drawer closes, chat title shows
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
-- assertVisible: '# #general'
+- assertVisible: '# ${E2E_CHANNEL_GENERAL}'
 
 # ── Phase 2: Open notification settings ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
-
-# notif-settings-button is in the channel-drawer header, visible when server is active
 - tapOn:
     id: 'notif-settings-button'
-
-# Notification settings overlay is full-screen
 - assertVisible:
     id: 'notif-settings-done'
 
-# ── Phase 3: Change #general channel notification level to MENTIONS ──
-# Scroll to find the channel row (labeled "Fixture Guild / #general")
+# ── Phase 3: Change channel notification level to MENTIONS ──
 - scrollUntilVisible:
     element:
-      id: 'notif-level-CHANNEL-fdf0a948-f489-4071-9fd3-ec18ed9b630c-MENTIONS'
+      id: 'notif-level-CHANNEL-${E2E_CHANNEL_GENERAL_ID}-MENTIONS'
     direction: DOWN
     timeout: 20000
-
 - tapOn:
-    id: 'notif-level-CHANNEL-fdf0a948-f489-4071-9fd3-ec18ed9b630c-MENTIONS'
+    id: 'notif-level-CHANNEL-${E2E_CHANNEL_GENERAL_ID}-MENTIONS'
 
 # ── Phase 4: Mute channel for 15 minutes ──
 - tapOn:
-    id: 'notif-mute-toggle-CHANNEL-fdf0a948-f489-4071-9fd3-ec18ed9b630c'
-
-# Mute options panel appears
+    id: 'notif-mute-toggle-CHANNEL-${E2E_CHANNEL_GENERAL_ID}'
 - tapOn:
-    id: 'notif-mute-opt-CHANNEL-fdf0a948-f489-4071-9fd3-ec18ed9b630c-900000'
-
-# Verify the mute took — the unmute button should now be visible
+    id: 'notif-mute-opt-CHANNEL-${E2E_CHANNEL_GENERAL_ID}-900000'
 - assertVisible:
-    id: 'notif-mute-toggle-CHANNEL-fdf0a948-f489-4071-9fd3-ec18ed9b630c'
+    id: 'notif-mute-toggle-CHANNEL-${E2E_CHANNEL_GENERAL_ID}'
 
 # ── Phase 5: Close settings and verify return to chat ──
 - tapOn:
     id: 'notif-settings-done'
-
-# Back to shell — notification overlay is gone, chat is visible
 - assertNotVisible:
     id: 'notif-settings-done'
-- assertVisible: '# #general'
+- assertVisible: '# ${E2E_CHANNEL_GENERAL}'
 
 - takeScreenshot: artifacts/e2e/screens/p8-notif-levels

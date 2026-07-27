@@ -1,16 +1,13 @@
 # msg-rich-markdown-mentions — @mention autocomplete + send markdown-formatted message.
 # @satisfies FR-MSG-007, FR-MSG-008
 #
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
-# FR-MSG-007: message with markdown syntax is sent, delivered, and content preserved.
-# FR-MSG-008: @mention autocomplete appears, candidate selected, mention sent + highlighted.
-# NOTE: FR-MSG-007 visual formatting (bold/italic) is not rendered on mobile yet;
-# the acceptance criterion is snapshot unit tests. This flow proves compose → send → display.
+# T4: Uses provisioned test world. Friend is mentionable as server member.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
 ---
-# ── Phase 1: Login and navigate to #general ──
+# ── Phase 1: Login and navigate to provisioned server → general ──
 - runFlow: _login.yaml
 
 - tapOn:
@@ -19,15 +16,15 @@ appId: com.openchat.mobile
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - assertNotVisible:
     id: 'left-drawer'
 
@@ -35,18 +32,16 @@ appId: com.openchat.mobile
 - tapOn:
     id: 'composer-input'
 
-# Type "@b" to trigger mention autocomplete (bob is a member)
-- inputText: '@b'
+# Type "@" followed by friend username to trigger mention autocomplete
+- inputText: '@${E2E_FRIEND_USERNAME}'
 
-# Assert mention picker appears with bob as a candidate
+# Assert mention picker appears
 - assertVisible:
     id: 'mention-picker'
-- assertVisible:
-    id: 'mention-bob'
 
-# Tap bob to insert the mention
+# Tap the friend mention to insert
 - tapOn:
-    id: 'mention-bob'
+    id: 'mention-${E2E_FRIEND_USERNAME}'
 
 # Complete the message with markdown syntax
 - inputText: ' **bold** *italic* ~~strike~~'
@@ -56,8 +51,7 @@ appId: com.openchat.mobile
     id: 'composer-send'
 
 # ── Phase 3: Verify the message appears ──
-# The mention should render with @bob highlighted; the markdown text is preserved
-- assertVisible: '@bob'
+- assertVisible: '@${E2E_FRIEND_USERNAME}'
 
 # ── Phase 4: Verify the mention picker dismissed after sending ──
 - assertNotVisible:

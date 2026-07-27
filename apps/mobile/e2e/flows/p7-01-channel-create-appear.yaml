@@ -1,14 +1,8 @@
 # p7-01-channel-create-appear — create channel → verify it appears in the list.
 # @satisfies FR-SRV-009
 #
-# FR-SRV-009 acceptance criterion: "create channel on A → appears on B ≤2s
-# WITHOUT refetch-all".  A single-device Maestro flow can verify the "appears
-# on A" leg: the channel form submits → query invalidation → channel list
-# updates.  The cross-user ("on B") realtime propagation requires a second
-# device and is NOT covered here.
-#
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
-# Determinism: no sleeps; assertVisible timeouts only. clearState on launch.
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
@@ -16,21 +10,21 @@ appId: com.openchat.mobile
 # ── Phase 1: Login ──
 - runFlow: _login.yaml
 
-# ── Phase 2: Open left drawer, select Fixture Guild ──
+# ── Phase 2: Open left drawer, select provisioned server ──
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 - assertVisible:
     id: 'channel-drawer'
-- assertVisible: 'Fixture Guild'
+- assertVisible: ${E2E_SERVER_NAME}
 
 # ── Phase 3: Create a new channel ──
 - tapOn:
@@ -54,8 +48,6 @@ appId: com.openchat.mobile
     id: 'channel-form-submit'
 
 # ── Phase 4: Verify the new channel appears in the list ──
-# The channel drawer is still open. The new channel should be visible.
-# testID is channel-${channel.name} as returned by the API.
 - assertVisible:
     id: 'channel-e2e-test-channel'
 

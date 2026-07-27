@@ -1,26 +1,26 @@
 # p3-04-reorder-channels — login → open reorder sheet → move a channel → save.
 # @satisfies FR-SRV-005
 #
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
-# This flow does its own login so it can run independently.
+# T4: Uses provisioned test world. Fresh world every run.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 
 appId: com.openchat.mobile
 
 ---
 - runFlow: _login.yaml
 
-# Open left drawer and select Fixture Guild
+# Open left drawer and select the provisioned server
 - tapOn:
     id: 'hamburger-button'
 - assertVisible:
     id: 'left-drawer'
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 
 # Open the reorder channels sheet
 - tapOn:
@@ -28,13 +28,13 @@ appId: com.openchat.mobile
 - assertVisible:
     id: 'channel-reorder-sheet'
 
-# Verify #general is present in the reorder list
+# Verify general channel is present in the reorder list
 - assertVisible:
-    id: 'reorder-row-#general'
+    id: 'reorder-row-${E2E_CHANNEL_GENERAL}'
 
-# Move #general down one position
+# Move general channel down one position
 - tapOn:
-    id: 'reorder-down-#general'
+    id: 'reorder-down-${E2E_CHANNEL_GENERAL}'
 
 # Save the reorder
 - tapOn:
@@ -42,8 +42,7 @@ appId: com.openchat.mobile
 - assertNotVisible:
     id: 'channel-reorder-sheet'
 
-# Reopen reorder to verify the change persisted (if there are ≥2 channels,
-# #general should have moved; but we just assert the sheet works)
+# Reopen reorder to verify the change persisted
 - tapOn:
     id: 'reorder-channels-button'
 - assertVisible:

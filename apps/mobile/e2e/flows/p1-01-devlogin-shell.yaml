@@ -2,14 +2,10 @@
 # @satisfies FR-APP-001
 #
 # P3-T1: Rewritten to assert drawer behavior (was: 4-column row, too weak).
-# Now asserts:
-#  1. At launch, drawers are NOT visible; chat pane is full-width.
-#  2. Tapping hamburger opens left drawer (channel list becomes visible).
-#  3. Selecting a channel closes the drawer and shows that channel's messages.
-#  4. Tapping Members opens right drawer (members become visible).
-#  5. Scrim tap closes open drawers.
+# T4: Uses provisioned test world (env vars from test-world.mjs) — no hardcoded
+#     server names, channel names, or usernames. Fresh world every run.
 #
-# Requires: dev stack up + seeded (Fixture Guild), emulator reaching 10.0.2.2.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
 # Determinism: no sleeps; assertVisible timeouts only. clearState gives a fresh
 # vault, so this flow always starts at the login screen.
 
@@ -43,30 +39,30 @@ appId: com.openchat.mobile
     id: 'left-drawer'
 - assertVisible:
     id: 'server-rail'
-# Scroll until the seeded guild's rail item appears
+# Scroll until the provisioned server's rail item appears
 - scrollUntilVisible:
     element:
-      id: 'rail-server-Fixture Guild'
+      id: 'rail-server-${E2E_SERVER_NAME}'
     direction: DOWN
     timeout: 20000
-# Tap the rail item to select Fixture Guild (loads its channels)
+# Tap the rail item to select the server (loads its channels)
 - tapOn:
-    id: 'rail-server-Fixture Guild'
+    id: 'rail-server-${E2E_SERVER_NAME}'
 # The channel drawer title should show the server name
 - assertVisible:
     id: 'channel-drawer'
-- assertVisible: 'Fixture Guild'
+- assertVisible: ${E2E_SERVER_NAME}
 
 # 3. Selecting a channel closes the drawer and shows the channel.
 - assertVisible:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 - tapOn:
-    id: 'channel-#general'
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
 # After selecting a channel, left drawer closes automatically.
 - assertNotVisible:
     id: 'left-drawer'
 # The chat title now shows the selected channel
-- assertVisible: '# #general'
+- assertVisible: '# ${E2E_CHANNEL_GENERAL}'
 
 # 4. Open right drawer via Members button.
 - tapOn:
@@ -75,9 +71,9 @@ appId: com.openchat.mobile
     id: 'right-drawer'
 - assertVisible:
     id: 'members-drawer'
-# Alice should appear as a member
+# Test user should appear as a member
 - assertVisible:
-    id: 'member-alice'
+    id: 'member-${E2E_USERNAME}'
 
 # 5. Tap left side of scrim to close the right drawer.
 #    The right drawer occupies [450,132][1080,2400] at zIndex 20 (above the

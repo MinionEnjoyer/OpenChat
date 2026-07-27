@@ -6,9 +6,11 @@
 # initial cleanup via Maestro clearState, then logs in, kills, relaunches,
 # and asserts the session was restored.
 #
+# T4: Uses provisioned test world env var for username.
 # Self-contained: does NOT depend on p1-01 or any prior flow.
 
 appId: com.openchat.mobile
+# e2e:no-clear
 
 ---
 # Clean start — clear any prior session state via Maestro
@@ -18,14 +20,13 @@ appId: com.openchat.mobile
     id: 'login-screen'
 - tapOn:
     id: 'login-username'
-- inputText: 'alice'
+- inputText: ${E2E_USERNAME}
 - tapOn:
     id: 'login-submit'
 - assertVisible:
     id: 'shell-screen'
 
 # Kill the app and relaunch without clearing state.
-# Session tokens in expo-secure-store should survive killApp.
 - killApp
 - launchApp
 # After relaunch, the app should restore the session and show shell-screen,
