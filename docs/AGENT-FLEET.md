@@ -15,6 +15,8 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 | CodeWhale | `78728` | Observer Phase 0 calibration/goldens | `codewhale-observer-phase0` / `build/phase0-calibration` | RUNNING | DeepSeek implementation dispatched |
 | CodeWhale | `64030` | Observer Phase 1 domain/projections | `codewhale-observer-phase1` / `build/phase1-domain` | RUNNING | DeepSeek implementation dispatched |
 | CodeWhale | `15522` | Independent observer Phase 0 gates | `codewhale-observer-verify-phase0` / `verify/phase0-contract` | RUNNING | DeepSeek verifier dispatched |
+| CodeWhale | log-tracked | Correct capacity verifier's invented exception contract | `device-scheduler-verify-capacity-v2` / `verify/capacity-contract-v2` | RUNNING | Combined gate found one verifier-only mismatch for zero count |
+| CodeWhale | log-tracked | Final product-capabilities verification | `openchat-verify-product-capabilities-final` / `verify/product-capabilities-final` | RUNNING | Scoped independent document gate active |
 
 ## Completed outputs awaiting integration decisions
 
@@ -23,6 +25,7 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 | Observer review adjudication / authorization | `6144442`, `f83f870` | All 32 findings adjudicated; exact implementation baseline authorized |
 | Strict bundle schema remediation | `2f427b5`, merge `2fe5bd4` | Isolated 36 migration tests passed; merged gate RED due SQL parser interaction, remediation running |
 | Capacity verifier v2 | `dbb5b59` | 18 pass, 3 batch skips, 1 intentional contract failure before implementation |
+| Batch-capacity implementation | `928de8d`, merge `638356d` | 54/55 combined tests pass; sole failure is verifier's unsupported `ValueError` expectation, remediation running |
 | Product-capability final corrections | `4a93965` | Awaiting final independent document gate |
 | Worktree inventory refresh | `86ab938` | Completed; awaiting final independent methodology gate |
 | Multi-device architecture review | no commit | Complete; supplied matching, barrier, migration, cleanup, and work-split corrections to spec author |
@@ -56,6 +59,8 @@ The canonical project state remains `docs/PROJECT-STATUS.md`.
 
 - Scheduler `main` is **RED**, not releasable: merge `2fe5bd4` exposes a
   transaction-runner SQL parsing incompatibility (`36` migration errors).
+- Capacity implementation is integrated, but its independent combined gate is
+  54/55 pending correction of one verifier-invented exception contract.
 - Latest unrestricted audit reports 243 tests with one genuine error:
   `AdmissionResult` versus implemented `CapacityResult`.
 - Sandboxed process-list failures are environment-induced until contradicted by
