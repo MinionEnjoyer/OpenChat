@@ -24,6 +24,133 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
+// ── Evidence-type hierarchy ────────────────────────────────────────────
+// Stronger evidence may satisfy a weaker criterion (E2E closes a Unit:
+// requirement), never the reverse.  Numeric levels encode this ordering.
+const EVIDENCE_LEVEL = { e2e: 3, integration: 2, unit: 1 };
+
+/**
+ * Classify an acceptance-criterion string into an evidence kind.
+ * Returns one of 'e2e' | 'integration' | 'unit' | 'manual' | 'ci' | 'lint',
+ * or null when no explicit type can be determined.
+ *
+ * Handles two forms:
+ *   1. Explicit prefix — "E2E: …", "Integration: …", "Unit: …", "Manual: …",
+ *      "Maestro …", "CI gate", "Lint rule"
+ *   2. Multi-type / keyword — "Unit: …; E2E …" → returns the *highest* level
+ *      mentioned (E2E > Integration > Unit).
+ */
+function classifyAcceptanceType(text) {
+  const t = text.toLowerCase().trim();
+  if (!t) return null;
+
+  // ── explicit prefix at start of text ──
+  if (/^e2e\b/.test(t)) return 'e2e';
+  if (/^maestro\b/.test(t)) return 'e2e';
+  if (/^integration\b/.test(t)) return 'integration';
+  if (/^unit\b/.test(t)) return 'unit';
+  if (/^manual\b/.test(t)) return 'manual';
+  if (/^ci gate/i.test(t)) return 'ci';
+  if (/^lint rule/i.test(t)) return 'lint';
+
+  // ── multi-type / keyword fallback — pick the highest level mentioned ──
+  let highest = null;
+  let highestLevel = 0;
+
+  const bump = (kind, regex) => {
+    if (regex.test(t) && (EVIDENCE_LEVEL[kind] || 0) > highestLevel) {
+      highest = kind;
+      highestLevel = EVIDENCE_LEVEL[kind] || 0;
+    }
+  };
+
+  bump('e2e', /\be2e\b/);
+  bump('e2e', /\bmaestro\b/);
+  bump('integration', /\bintegration\b/);
+  bump('integration', /\bcontract test/);
+  bump('unit', /\bunit\b/);
+  bump('unit', /\bproperty test/);
+  bump('unit', /\bsnapshot/);
+  bump('unit', /\bgolden-table/);
+
+  if (highest) return highest;
+
+  if (/\bmanual\b/.test(t)) return 'manual';
+  if (/\bci gate\b/i.test(t)) return 'ci';
+  if (/\blint rule\b/i.test(t)) return 'lint';
+
+  return null;
+}
+
+/**
+ * Classify a file path by the kind of test it contains.
+ *   apps/mobile/e2e/** / *.yaml                → e2e (Maestro flows)
+ *   apps/api/test/integration/** / *.spec.ts   → integration
+ *   *.integration.test.ts / *.integration.spec.ts → integration
+ *   *.test.ts / *.spec.ts                      → unit
+ *   anything else                              → null (not a test file)
+ */
+function classifyFileEvidenceType(relPath) {
+  if (relPath.startsWith('apps/mobile/e2e/')) return 'e2e';
+  if (relPath.startsWith('apps/api/test/integration/')) return 'integration';
+  if (/\.integration\.(test|spec)\.[jt]sx?$/.test(relPath)) return 'integration';
+  if (/\.(test|spec)\.[jt]sx?$/.test(relPath)) return 'unit';
+  return null;
+}
+
+/**
+ * Split a markdown table row by '|', respecting backtick-quoted spans
+ * (backtick-quoted '|' is not a column separator).
+ */
+function splitTableRow(line) {
+  const cells = [];
+  let current = '';
+  let inBacktick = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '`') inBacktick = !inBacktick;
+    if (ch === '|' && !inBacktick) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+/**
+ * Parse the acceptance-criterion TYPE for every FR from the canonical table.
+ * Returns Map<FR-ID, { kind, level }>.  Entries with kind='manual' have level 0.
+ */
+function parseAcceptanceTypes() {
+  const text = readFileSync(REQ_PATH, 'utf8');
+  const frTypes = new Map();
+
+  for (const line of text.split('\n')) {
+    // Only process FR table rows (skip header/separator/NFR rows)
+    if (!/^\|\s*FR-[A-Z]+-\d{3}\b/.test(line)) continue;
+
+    const cells = splitTableRow(line);
+    // cells: ['', FR-ID, Requirement, Acceptance, Pri, Ph, '']
+    if (cells.length < 5) continue;
+
+    const id = cells[1];
+    const acceptance = cells[3]; // 0-indexed: [1]=ID, [2]=Requirement, [3]=Acceptance
+    const kind = classifyAcceptanceType(acceptance);
+
+    if (kind === 'manual') {
+      frTypes.set(id, { kind, level: 0 }); // manual is tracked but never fails
+    } else if (kind && EVIDENCE_LEVEL[kind]) {
+      frTypes.set(id, { kind, level: EVIDENCE_LEVEL[kind] });
+    }
+    // null kind → not stored (no enforcement possible)
+  }
+
+  return frTypes;
+}
+
 // ── Infra-path exclusion rules ─────────────────────────────────────────
 // Files under these paths do NOT exercise OpenChat/OpenShare product code.
 // An @satisfies annotation in any of these paths is an error (trace gate
@@ -246,6 +373,7 @@ function scanAnnotations() {
 function gate(phaseFilter) {
   const { frIds, nfrIds, frPhases, nfrPhases } = parseRequirements();
   const { satisfies, characterizes, infraErrors } = scanAnnotations();
+  const frTypes = parseAcceptanceTypes();
 
   // Assert parsed counts match committed expected-count.json
   const countErrors = assertExpectedCount(frIds, nfrIds);
@@ -291,13 +419,73 @@ function gate(phaseFilter) {
     }
   }
 
-  return { errors, missing, satisfies, characterizes, frIds, nfrIds, frPhases, nfrPhases, inScope };
+  // ── Evidence-type checking ──────────────────────────────────────────
+  const evidenceViolations = []; // { id, required, found, file, line }
+  const manualList = [];         // { id, sites }
+
+  for (const [id, sites] of satisfies) {
+    // Only check FRs that have a typed acceptance criterion
+    const typeInfo = frTypes.get(id);
+    if (!typeInfo) continue; // NFR or unspecified criterion → skip
+
+    // Manual criteria are tracked but never fail
+    if (typeInfo.kind === 'manual') {
+      manualList.push({ id, sites });
+      continue;
+    }
+
+    // CI/lint gates can't be satisfied by test annotations → skip enforcement
+    if (typeInfo.kind === 'ci' || typeInfo.kind === 'lint') continue;
+
+    const requiredLevel = typeInfo.level;
+
+    // Classify each site and find the strongest evidence type
+    let bestLevel = 0;
+    let bestSite = null;
+    for (const s of sites) {
+      const evidenceType = classifyFileEvidenceType(s.file);
+      const level = EVIDENCE_LEVEL[evidenceType] || 0;
+      if (level > bestLevel) {
+        bestLevel = level;
+        bestSite = { ...s, evidenceType };
+      }
+    }
+
+    if (bestLevel < requiredLevel) {
+      evidenceViolations.push({
+        id,
+        required: typeInfo.kind,
+        found: bestSite?.evidenceType || null,
+        file: bestSite?.file || sites[0].file,
+        line: bestSite?.line || sites[0].line,
+      });
+    }
+  }
+
+  // Sort violations by FR id for stable output
+  evidenceViolations.sort((a, b) => a.id.localeCompare(b.id));
+
+  // Report evidence-type violations as errors
+  for (const v of evidenceViolations) {
+    const foundLabel = v.found ? ` (found ${v.found})` : ' (not in a test file)';
+    errors.push(
+      `EVIDENCE: ${v.id} requires ${v.required} evidence${foundLabel} — ` +
+      `claimed by ${v.file}:${v.line}`
+    );
+  }
+
+  if (manualList.length > 0) {
+    const ids = manualList.map(m => m.id).sort().join(', ');
+    console.error(`MANUAL: ${manualList.length} requirement(s) require manual validation (not gate-enforced): ${ids}`);
+  }
+
+  return { errors, missing, satisfies, characterizes, frIds, nfrIds, frPhases, nfrPhases, inScope, evidenceViolations, manualList };
 }
 
 // ── Matrix emission ──────────────────────────────────────────────────
 
 function emitMatrix(gateResult) {
-  const { satisfies, characterizes, frIds, nfrIds, missing, errors } = gateResult;
+  const { satisfies, characterizes, frIds, nfrIds, missing, errors, evidenceViolations, manualList } = gateResult;
   const allIds = [...frIds, ...nfrIds].sort();
 
   const rows = allIds.map(id => ({
@@ -315,8 +503,12 @@ function emitMatrix(gateResult) {
       satisfied: rows.filter(r => r.satisfied).length,
       missing: rows.filter(r => r.missing).length,
       errors: errors.length,
+      evidence_violations: evidenceViolations ? evidenceViolations.length : 0,
+      manual: manualList ? manualList.length : 0,
     },
     errors,
+    evidence_violations: evidenceViolations || [],
+    manual: (manualList || []).map(m => ({ id: m.id, sites: m.sites.map(s => `${s.file}:${s.line}`) })),
     rows,
     characterizes: Object.fromEntries([...characterizes.entries()].map(([k, v]) => [k, v])),
   };
