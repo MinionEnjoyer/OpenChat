@@ -138,9 +138,10 @@ for i in "${!ALL[@]}"; do
     continue
   fi
   wait "$mpid"
+  ec=$?
   VERDICT_COUNT=$((VERDICT_COUNT + 1))
   GOT_VERDICT["$base"]=1
-  if [ $? -eq 0 ]; then
+  if [ "$ec" -eq 0 ]; then
     PASS=$((PASS+1)); echo "PASS $base"
   else
     FAIL=$((FAIL+1)); FAILED+=("$base"); echo "FAIL $base"

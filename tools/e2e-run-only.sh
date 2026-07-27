@@ -136,8 +136,9 @@ while read -r f <&3; do
     continue
   fi
   wait "$mpid"
+  ec=$?
   VERDICT_COUNT=$((VERDICT_COUNT + 1))
-  if [ $? -eq 0 ]; then
+  if [ "$ec" -eq 0 ]; then
     echo "PASS $base" | tee -a "$OUT"
   else
     # capture what was actually on screen — makes the later repair pass trivial
@@ -150,9 +151,9 @@ while read -r f <&3; do
   fi
 done 3< "$LIST"
 
-PASS_COUNT=$(grep -c '^PASS ' "$OUT" 2>/dev/null || echo 0)
-FAIL_COUNT=$(grep -c '^FAIL ' "$OUT" 2>/dev/null || echo 0)
-TIMEOUT_COUNT=$(grep -c '^TIMEOUT ' "$OUT" 2>/dev/null || echo 0)
+PASS_COUNT=$(grep '^PASS ' "$OUT" 2>/dev/null | wc -l | tr -d ' ')
+FAIL_COUNT=$(grep '^FAIL ' "$OUT" 2>/dev/null | wc -l | tr -d ' ')
+TIMEOUT_COUNT=$(grep '^TIMEOUT ' "$OUT" 2>/dev/null | wc -l | tr -d ' ')
 echo "--- $DEV done: $PASS_COUNT passed, $FAIL_COUNT failed, $TIMEOUT_COUNT timed out ---" | tee -a "$OUT"
 
 # ══════════════════════════════════════════════════════════════════════
@@ -168,4 +169,9 @@ if [ "$VERDICT_COUNT" -ne "$FLOW_COUNT" ]; then
     fi
   done < "$LIST"
   exit 2
+fi
+
+# TIMEOUT and FAIL are both non-zero exits — neither counts as "pass".
+if [ "$FAIL_COUNT" -gt 0 ] || [ "$TIMEOUT_COUNT" -gt 0 ]; then
+  exit 1
 fi
