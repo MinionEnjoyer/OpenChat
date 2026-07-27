@@ -16,7 +16,7 @@
 appId: com.openchat.mobile
 ---
 - launchApp:
-    clearState: false
+    clearState: true
 - assertVisible:
     id: 'login-screen'
 - tapOn:
