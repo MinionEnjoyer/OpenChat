@@ -10,7 +10,7 @@
  * The script is the provenance for the binary fixture — commit this, not an
  * opaque blob.
  *
- * @satisfies FR-VOX-001 acceptance criterion: known injected signal for audio probe.
+ * @infra FR-VOX-001 acceptance criterion: known injected signal for audio probe.
  */
 
 import { writeFileSync } from 'node:fs';

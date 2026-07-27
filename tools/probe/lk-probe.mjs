@@ -36,7 +36,7 @@
  * Credentials derived from apps/api/.env (LIVEKIT_API_KEY / LIVEKIT_API_SECRET).
  * Do NOT hardcode.
  *
- * @satisfies FR-VOX-001 acceptance criterion: assert via LiveKit stats API.
+ * @infra FR-VOX-001 acceptance criterion: assert via LiveKit stats API.
  */
 
 import { parseArgs } from 'node:util';
