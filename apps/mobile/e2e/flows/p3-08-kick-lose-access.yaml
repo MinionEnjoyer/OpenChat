@@ -1,0 +1,109 @@
+# p3-08-kick-lose-access — owner kicks member → member loses access.
+# @satisfies FR-SRV-008
+#
+# Two-actor destructive flow on one device. Alice (server owner) kicks Bob
+# (friend member), then clears state and logs in as Bob to verify the server
+# is gone from his rail. Proves BOTH perspectives: the kicker sees the
+# member disappear; the kicked user loses server access.
+#
+# This flow replaces the non-destructive p3-05-members-kick-leave.yaml for
+# the FR-SRV-008 criterion — the old flow only verified button presence.
+# This one executes the kick AND verifies the post-condition.
+#
+# Idempotent: each run provisions a fresh world where Bob IS a member.
+#   The kick is destructive within the world but the world itself is fresh
+#   every run. Rerunnable without cleanup.
+#
+# Designed for: one device, two sessions (clearState between).
+#
+# Requires: dev stack up + provisioned world + emulator reaching 10.0.2.2.
+#   Env vars from test-world.mjs: E2E_USERNAME, E2E_SERVER_NAME,
+#   E2E_FRIEND_USERNAME.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Alice (owner) logs in ──
+- runFlow: _login.yaml
+
+# Navigate to the test server
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+# Open the right drawer (members list)
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'right-drawer'
+- assertVisible:
+    id: 'members-drawer'
+
+# Verify both test user and friend appear in the member list before kick
+- assertVisible:
+    id: 'member-${E2E_USERNAME}'
+- assertVisible:
+    id: 'member-${E2E_FRIEND_USERNAME}'
+
+# ── Phase 2: Tap friend → profile sheet → kick ──
+- tapOn:
+    id: 'member-${E2E_FRIEND_USERNAME}'
+- assertVisible:
+    id: 'member-profile-sheet'
+- assertVisible:
+    id: 'member-profile-kick'
+- tapOn:
+    id: 'member-profile-kick'
+
+# ── Phase 3: Confirm the kick in the native Alert dialog ──
+# Alert.alert('', 'Kick this member?', [Cancel, Kick])
+# Tap the destructive "Kick" button by its text label
+- tapOn: "Kick"
+
+# ── Phase 4: Verify Bob disappears from member list ──
+# The profile sheet closes after kick (onClose called before onKick in MemberProfileSheet)
+- assertNotVisible:
+    id: 'member-profile-sheet'
+# After members.refetch(), Bob should be gone
+- assertNotVisible:
+    id: 'member-${E2E_FRIEND_USERNAME}'
+# Alice is still a member
+- assertVisible:
+    id: 'member-${E2E_USERNAME}'
+
+# Close the right drawer
+- tapOn:
+    point: '20%,50%'
+- assertNotVisible:
+    id: 'right-drawer'
+
+# ── Phase 5: Bob logs in — server must NOT be in rail ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${E2E_FRIEND_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Open the left drawer — Bob's rail should NOT show the server
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertNotVisible:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+- takeScreenshot: artifacts/e2e/screens/p3-kick-lose-access
