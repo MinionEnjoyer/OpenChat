@@ -90,8 +90,28 @@ for feat in src/features/*/; do
           break
         fi
         # Or is the sibling directly referenced outside the feature?
-        if [ "$(grep -rl "\b$sibname\b" src App.tsx index.ts 2>/dev/null \
-              | grep -v "^$feat/" | grep -v __tests__ | wc -l | tr -d ' ')" -gt 0 ]; then
+        sib_reachable_outside=0
+        sib_base=$(basename "$sib")
+        if [[ "$sib_base" == index.ts || "$sib_base" == index.tsx ]]; then
+          # Barrel: check if the feature directory is actually imported from outside.
+          # An import like "from '../../servers'" or "from './src/features/servers'"
+          # resolves to the barrel.  Match the feature name as the LAST path component.
+          feat_name=$(basename "$feat")
+          # Use grep -rE (no -l/-n) to get "file:line" output so we can
+          # filter out commented-out imports (e.g. // import ... from '../../foo').
+          if grep -rE "from ['\"](.*/)?${feat_name}(/index)?['\"]" src App.tsx index.ts 2>/dev/null \
+                | grep -vE '^[^:]+:\s*//' \
+                | grep -v "^$feat/" | grep -v __tests__ | grep -v '\.test\.' | grep -q .; then
+            sib_reachable_outside=1
+          fi
+        else
+          # Non-barrel: word-boundary match on the file's basename (component name).
+          if [ "$(grep -rl "\b$sibname\b" src App.tsx index.ts 2>/dev/null \
+                | grep -v "^$feat/" | grep -v __tests__ | grep -v '\.test\.' | wc -l | tr -d ' ')" -gt 0 ]; then
+            sib_reachable_outside=1
+          fi
+        fi
+        if [ "$sib_reachable_outside" -eq 1 ]; then
           echo "$sibname" >> "$reachable"
           echo "$comp" >> "$reachable"
           changed=1
