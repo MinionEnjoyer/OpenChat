@@ -115,7 +115,7 @@ paths:
           description: Not found in production (route gated by DEV_AUTH)
       x-evidence: auth.spec.ts#dev-login, integration/bearer-auth.spec.ts, E1
 
-  /auth/token:
+  /auth/oauth/token:
     post:
       operationId: issueToken
       summary: Bearer token issuance for native clients (x-added-by P1-01)
@@ -1980,7 +1980,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Access token from POST /auth/token or dev-login (x-added-by P1)
+      description: Access token from POST /auth/oauth/token or dev-login (x-added-by P1)
 
   schemas:
     DevLoginResponse:

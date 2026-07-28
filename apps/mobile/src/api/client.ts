@@ -113,7 +113,7 @@ export class ApiClient {
         const tokens = this.deps.getTokens();
         if (!tokens) return false;
         const r = await this.rawRequest<{ accessToken: string; refreshToken: string }>(
-          '/auth/token',
+          '/auth/oauth/token',
           { method: 'POST', body: { grantType: 'refresh_token', refreshToken: tokens.refreshToken } },
         );
         if (r.status !== 201 || !r.body?.accessToken) return false;

@@ -24,7 +24,7 @@ export class AuthController {
    * Grants: authorization_code (native PKCE code posted by the app; server
    * finishes the exchange) and refresh_token (rotation; reuse kills the family).
    */
-  @Post('token')
+  @Post('oauth/token')
   async token(
     @Body()
     body: {

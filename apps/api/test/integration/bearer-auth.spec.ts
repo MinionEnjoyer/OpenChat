@@ -40,7 +40,7 @@ describe('P1-01 — token issuance and rotation', () => {
   it('expiresIn is 3600 and the grant validates its inputs', async () => {
     const { expiresIn } = await devLoginBearer('p1-auth-001b');
     expect(expiresIn).toBe(3600);
-    const bad = await apiFetch('/auth/token', { method: 'POST', body: { grantType: 'password' } });
+    const bad = await apiFetch('/auth/oauth/token', { method: 'POST', body: { grantType: 'password' } });
     expect(bad.status).toBe(400);
   });
 
@@ -48,7 +48,7 @@ describe('P1-01 — token issuance and rotation', () => {
   it('rotates refresh tokens; reusing a spent token 401s and kills the family', async () => {
     const { refreshToken: rt1 } = await devLoginBearer('p1-auth-002');
 
-    const r1 = await apiFetch('/auth/token', {
+    const r1 = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: { grantType: 'refresh_token', refreshToken: rt1 },
     });
@@ -58,14 +58,14 @@ describe('P1-01 — token issuance and rotation', () => {
     expect(r1.body.user.username).toBe('p1-auth-002');
 
     // Reuse of the SPENT token → rejected…
-    const reuse = await apiFetch('/auth/token', {
+    const reuse = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: { grantType: 'refresh_token', refreshToken: rt1 },
     });
     expect(reuse.status).toBe(401);
 
     // …and the whole family dies with it: the legitimately-rotated sibling is dead too.
-    const sibling = await apiFetch('/auth/token', {
+    const sibling = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: { grantType: 'refresh_token', refreshToken: rt2 },
     });
@@ -79,7 +79,7 @@ describe('P1-01 — token issuance and rotation', () => {
     const out = await apiFetch('/auth/logout', { method: 'POST', body: { refreshToken } });
     expect([200, 201]).toContain(out.status);
 
-    const after = await apiFetch('/auth/token', {
+    const after = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: { grantType: 'refresh_token', refreshToken },
     });

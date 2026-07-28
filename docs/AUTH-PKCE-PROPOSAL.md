@@ -18,10 +18,10 @@ The server now supports an opt-in PKCE flow on `GET /auth/desktop`. When the des
 openchat://auth?code=<single-use, 60s TTL>
 ```
 
-The code is useless without the corresponding `code_verifier` — a secret only the legitimate desktop client holds. The client exchanges the code at the existing `POST /auth/token` endpoint:
+The code is useless without the corresponding `code_verifier` — a secret only the legitimate desktop client holds. The client exchanges the code at the existing `POST /auth/oauth/token` endpoint:
 
 ```
-POST /auth/token
+POST /auth/oauth/token
 { "grantType": "authorization_code", "code": "<code>", "codeVerifier": "<verifier>", "redirectUri": "openchat://auth" }
 ```
 
@@ -34,7 +34,7 @@ If a malicious app intercepts the code, it cannot exchange it without the verifi
 | **Query params** | *(none)* | `?code_challenge=<S256>&code_challenge_method=S256` |
 | **Deep link** | `openchat://auth?token=oc_...` | `openchat://auth?code=<hex>` |
 | **Credential in URL** | Bearer token (live) | Authorization code (useless without verifier) |
-| **Exchange** | Not needed | `POST /auth/token` with verifier |
+| **Exchange** | Not needed | `POST /auth/oauth/token` with verifier |
 | **Reuse** | N/A (token is long-lived) | Code is single-use, consumed on first exchange |
 | **TTL** | 30d (refresh token) | 60s (code) |
 | **Client change** | None | Generate PKCE pair, parse `?code=`, POST exchange |
@@ -106,7 +106,7 @@ fn handle_auth_url(app: &AppHandle, url: &str) {
 }
 ```
 
-The web layer would then call `POST /auth/token` with the code + verifier and receive `{ accessToken, refreshToken, expiresIn, user }` — identical to the existing mobile PKCE flow.
+The web layer would then call `POST /auth/oauth/token` with the code + verifier and receive `{ accessToken, refreshToken, expiresIn, user }` — identical to the existing mobile PKCE flow.
 
 ### Dependencies to add (Cargo.toml)
 
@@ -122,7 +122,7 @@ rand = "0.8"
 2. Generate a PKCE pair before navigating the user to `GET /auth/desktop?code_challenge=...&code_challenge_method=S256`.
 3. Store the `code_verifier` in memory or secure storage.
 4. In `handle_auth_url`, detect `?code=` in addition to `?token=`.
-5. Exchange the code + verifier at `POST /auth/token` from the web layer.
+5. Exchange the code + verifier at `POST /auth/oauth/token` from the web layer.
 6. Once deployed widely, consider deprecating the token path (but not before all clients have migrated).
 
 ## Adoption

@@ -33,7 +33,7 @@ exist in the file and merged cleanly.
 ### 2. `apps/api/src/auth/auth.controller.ts`
 
 **Conflict A — lines 2–7 (imports):**
-- **Ours:** adds `BadRequestException` (needed by our `POST /auth/token` endpoint)
+- **Ours:** adds `BadRequestException` (needed by our `POST /auth/oauth/token` endpoint)
 - **Upstream:** adds `Delete, Param, Query` (needed by upstream's `DELETE /auth/tokens/:id`)
 
 **Resolution:** UNION — keep all. Add both sides' imports.
@@ -135,9 +135,9 @@ service API, media proxy, and cookie fallback. Verify:
 | Aspect | Upstream (ab68da3 + 94408dc) | Ours (P1-01/P1-02/P1-03) |
 |--------|------------------------------|---------------------------|
 | **Model** | `ApiToken` (Prisma) — long-lived, stored hash | `TokenService` (Redis + JWT) — short-lived access + refresh rotation |
-| **Creation** | Manual via web UI: `POST /auth/tokens` | PKCE exchange: `POST /auth/token` with `grantType=authorization_code` |
+| **Creation** | Manual via web UI: `POST /auth/tokens` | PKCE exchange: `POST /auth/oauth/token` with `grantType=authorization_code` |
 | **Guard** | `SessionGuard` (enhanced, `apps/api/src/auth/session.guard.ts:11-33`) — checks `Authorization: Bearer oc_*` header, looks up hash in DB | `AuthGuard` (`apps/api/src/auth/auth.guard.ts:13-49`) — verifies JWT, falls back to session cookie |
-| **Refresh** | None — user creates a new token when expired | `POST /auth/token` with `grantType=refresh_token` — rotation with family revocation on theft |
+| **Refresh** | None — user creates a new token when expired | `POST /auth/oauth/token` with `grantType=refresh_token` — rotation with family revocation on theft |
 | **Target** | Desktop (paste-once, long-lived) | Mobile (PKCE native flow, auto-refresh) |
 
 ### Key difference in guards
@@ -148,7 +148,7 @@ Our `AuthGuard` (`apps/api/src/auth/auth.guard.ts`) is a separate guard that che
 bearer tokens first, then falls through to session.
 
 **In the merged `auth.controller.ts`:**
-- `POST /auth/token` (ours) is **public** (no guard) — the PKCE endpoint
+- `POST /auth/oauth/token` (ours) is **public** (no guard) — the PKCE endpoint
 - `GET/POST/DELETE /auth/tokens` (upstream) use `@UseGuards(SessionGuard)` — session-gated,
   and SessionGuard now also accepts ApiToken bearer tokens
 - `GET /auth/me`, `PATCH /auth/me`, etc. use `@UseGuards(AuthGuard)` (ours) — accepts
@@ -164,12 +164,12 @@ The two systems serve **different clients** and do **not conflict**:
    - OR: browser SSO via `/auth/desktop` → deep-link token handoff
 
 2. **Mobile** uses our PKCE path:
-   - App opens browser for OIDC → receives auth code → posts to `/auth/token`
+   - App opens browser for OIDC → receives auth code → posts to `/auth/oauth/token`
    - Receives `{ accessToken, refreshToken }` → uses `AuthGuard` for subsequent calls
-   - Auto-refreshes via `/auth/token` with `grantType=refresh_token`
+   - Auto-refreshes via `/auth/oauth/token` with `grantType=refresh_token`
 
 **No mobile client changes required.** The two systems share no endpoints and use
-different guard decorators. They coexist at different URL paths (`/auth/token` vs
+different guard decorators. They coexist at different URL paths (`/auth/oauth/token` vs
 `/auth/tokens`).
 
 ### ⚠️ Critical finding: forcing UNION as "adopt upstream's design" is NOT recommended
@@ -180,11 +180,11 @@ This would require:
 - **Mobile client changes:**
   - Replace PKCE auth flow with manual token input screen
   - Remove refresh-token rotation logic
-  - Remove `POST /auth/token` usage; switch to `Authorization: Bearer oc_<raw>` headers
+  - Remove `POST /auth/oauth/token` usage; switch to `Authorization: Bearer oc_<raw>` headers
   - Remove JWT expiry tracking; handle static token expiry by prompting user to re-paste
   - Estimated: significant UX regression for mobile users
 - **Server changes:**
-  - Remove `TokenService`, `AuthGuard`, `POST /auth/token` endpoint
+  - Remove `TokenService`, `AuthGuard`, `POST /auth/oauth/token` endpoint
   - This would also break our existing mobile test harness (`apps/mobile/e2e/` may depend
     on PKCE flow for test user auth)
 
@@ -227,7 +227,7 @@ Resolve in this order for cascading simplicity:
 4. **`auth/auth.controller.ts`** — Resolve last since it depends on both `TokenService`
    (our injectable) and upstream's `createToken`/`revokeToken`/`listTokens` endpoints.
    Verify both guard types (`AuthGuard` on our endpoints, `SessionGuard` on upstream's)
-   and that `POST /auth/token` remains unguarded.
+   and that `POST /auth/oauth/token` remains unguarded.
 
 After all four resolved:
 - Run `npx prisma generate`

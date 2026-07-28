@@ -5,7 +5,7 @@
 
 ## Answer: CONDITIONAL YES
 
-The backend code at `POST /auth/token` (grant `authorization_code`) is fully implemented and operates server-side with no cookie/session dependency. The mobile app's OIDC system-browser PKCE flow is **spec'd but not yet implemented in the shipped mobile code** (see Unknowns §5). Once that client code exists, auth will work **provided** the production Authentik is configured with the items below.
+The backend code at `POST /auth/oauth/token` (grant `authorization_code`) is fully implemented and operates server-side with no cookie/session dependency. The mobile app's OIDC system-browser PKCE flow is **spec'd but not yet implemented in the shipped mobile code** (see Unknowns §5). Once that client code exists, auth will work **provided** the production Authentik is configured with the items below.
 
 ---
 
@@ -30,7 +30,7 @@ The mobile app opens the system browser to the Authentik authorization endpoint:
 After user approves, Authentik redirects to `openchat://auth?code=ABC...`. The mobile app catches the deep link and extracts the `code`.
 
 ### Stage C — Token exchange (mobile → server, server → Authentik)
-`POST /auth/token` body: `{grantType:"authorization_code", code, codeVerifier, redirectUri}`.
+`POST /auth/oauth/token` body: `{grantType:"authorization_code", code, codeVerifier, redirectUri}`.
 - Controller: `AuthController.token()` (auth.controller.ts:38-49)
 - Service: `AuthService.exchangeNativeCode()` (auth.service.ts:133-147)
 
@@ -59,7 +59,7 @@ this.client = new issuer.Client({
 | `OIDC_REDIRECT_URI` | **yes** | URL (Zod) | `https://chat.creeger.com/api/auth/callback` | Web callback; registered in Authentik for the browser flow |
 | `OIDC_POST_LOGOUT_REDIRECT_URI` | **yes** | URL (Zod) | `https://chat.creeger.com` | Post-logout landing; used by web session logout |
 | `NATIVE_REDIRECT_URI` | **no** (defaults) | **NO** (⚠️ missing from Zod schema) | `openchat://auth` | Custom URI scheme the mobile deep-link catches |
-| `JWT_SECRET` | **yes** | non-empty string | (generate with `openssl rand -hex 32`) | Signs the bearer access JWT returned by `/auth/token` |
+| `JWT_SECRET` | **yes** | non-empty string | (generate with `openssl rand -hex 32`) | Signs the bearer access JWT returned by `/auth/oauth/token` |
 
 **⚠️ Gap:** `NATIVE_REDIRECT_URI` is read at runtime via `this.config.get<string>('NATIVE_REDIRECT_URI') ?? 'openchat://auth'` (auth.service.ts:134), but it is **not in the Zod validation schema** in `configuration.ts`. If it's ever set to a wrong value, the error surfaces only at runtime (HTTP 400 on token exchange) rather than at boot. This should be added to the schema as `z.string().optional().default('openchat://auth')`.
 
@@ -96,7 +96,7 @@ The **single** Authentik OAuth2/OpenID Provider + Application (already configure
   ```
   Without this, a misconfigured `NATIVE_REDIRECT_URI` fails silently at runtime instead of at boot.
 - **Add `NATIVE_REDIRECT_URI` to `.env.example`** as a commented optional field, so deployers know it exists.
-- **Mobile OIDC flow is not yet implemented** — the current `LoginScreen.tsx` only has dev-login (see LoginScreen.tsx:13: "the OIDC system-browser flow … is the nightly lane and arrives once an Authentik fixture exists"). The mobile app needs the PKCE client code (expo-auth-session, code challenge generation, deep-link handling, then `POST /auth/token`).
+- **Mobile OIDC flow is not yet implemented** — the current `LoginScreen.tsx` only has dev-login (see LoginScreen.tsx:13: "the OIDC system-browser flow … is the nightly lane and arrives once an Authentik fixture exists"). The mobile app needs the PKCE client code (expo-auth-session, code challenge generation, deep-link handling, then `POST /auth/oauth/token`).
 
 ### No changes needed to the server token exchange
 `exchangeNativeCode()` is complete. It has no session/cookie dependency, validates the redirect URI, performs the code exchange server-side with the client secret, and returns JWT access + opaque refresh tokens. This path is production-ready.

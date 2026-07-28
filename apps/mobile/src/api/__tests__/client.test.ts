@@ -43,7 +43,7 @@ describe('api client refresh interceptor', () => {
   it('a 401 triggers one refresh and one replay; concurrent 401s share the refresh', async () => {
     let refreshCalls = 0;
     const fetchImpl = mockFetch((url, init) => {
-      if (url.endsWith('/auth/token')) {
+      if (url.endsWith('/auth/oauth/token')) {
         refreshCalls += 1;
         return { status: 201, body: { accessToken: 'fresh', refreshToken: 'rt-2' } };
       }
@@ -80,7 +80,7 @@ describe('api client refresh interceptor', () => {
     expect(hardLogout).toHaveBeenCalledTimes(1);
     // 1 original + 1 refresh attempt — no storm.
     expect(perPath['http://api.test/api/servers']).toBe(1);
-    expect(perPath['http://api.test/api/auth/token']).toBe(1);
+    expect(perPath['http://api.test/api/auth/oauth/token']).toBe(1);
   });
 
   it('errors carry status, requestId and retriability (FR-APP-006 input)', async () => {

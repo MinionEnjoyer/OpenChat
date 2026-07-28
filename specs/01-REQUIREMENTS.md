@@ -35,7 +35,7 @@ Acceptance criterion (the test oracle — deterministic where possible) · Prior
 ### AUTH — Identity & session
 | ID | Requirement | Acceptance criterion | Pri | Ph |
 |----|-------------|----------------------|-----|----|
-| FR-AUTH-001 | [BE] Native OIDC login: system-browser PKCE against Authentik, code exchanged at new `POST /api/auth/token` for bearer access+refresh tokens | E2E: fresh install → login → `GET /api/auth/me` 200 with bearer; no cookies used | P0 | 1 |
+| FR-AUTH-001 | [BE] Native OIDC login: system-browser PKCE against Authentik, code exchanged at new `POST /api/auth/oauth/token` for bearer access+refresh tokens | E2E: fresh install → login → `GET /api/auth/me` 200 with bearer; no cookies used | P0 | 1 |
 | FR-AUTH-002 | [BE] Token refresh with rotation; revoked/reused refresh token is rejected | Integration: refresh twice with same token → second returns 401; sessions killed on logout | P0 | 1 |
 | FR-AUTH-003 | Secure token storage (Keychain/Keystore); survives app restart | E2E: kill app → relaunch → still authenticated without login UI | P0 | 1 |
 | FR-AUTH-004 | Logout ends local session, revokes refresh token, returns to login | Integration: old refresh token 401 after logout | P0 | 1 |

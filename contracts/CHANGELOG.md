@@ -11,9 +11,11 @@ All three corrections are server-observed; server behavior beats aspirational co
 ## 2026-07-21 — P0-06 confirmations (pre-P0-07)
 - [CHANGE] `POST server-invitations/:id/accept` — corrected from `/notifications/server-invitations/:id/accept` in 03-CONTRACTS.md §2. The NotificationsController uses `@Controller()` with no prefix, so the route is `/api/server-invitations/:id/accept`, not under `/notifications/`. Evidence: `apps/api/src/notifications/notifications.controller.ts:21`, capability `invites.spec.ts#notif-accept`.
 - [CHANGE] `POST server-invitations/:id/decline` — same correction. Evidence: `apps/api/src/notifications/notifications.controller.ts:26`, capability `invites.spec.ts#notif-decline`.
-## P1-01/02/03 (2026-07-24)
-- `POST /auth/token` added — authorization_code + refresh_token grants, rotation
+## P1-01/02/03 (2026-07-24, amended 2026-07-27)
+- `POST /auth/oauth/token` added — authorization_code + refresh_token grants, rotation
   with family revocation on reuse (x-added-by P1-01).
+  **(2026-07-27: renamed from `/auth/token` to `/auth/oauth/token` to disambiguate
+  from the existing `/auth/tokens` plural route.)**
 - `GET /auth/oidc-metadata` added — public native-client metadata, no secrets
   (x-added-by P1-03, per DR-002 option D).
 - `bearerAuth` security scheme added; every guarded route now accepts bearer OR
