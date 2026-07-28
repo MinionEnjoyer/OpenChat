@@ -36,16 +36,29 @@ provision_world() {
     return 1
   fi
 
-  # Source the env vars into this shell
-  set -a
-  # shellcheck disable=SC1090
-  source "$env_file"
-  set +a
-
-  # Build maestro --env args array
+  # Do NOT `source` this file. test-world.mjs emits real values, and a server
+  # name legitimately contains spaces ("e2e srv <label>"). Sourcing
+  #   E2E_SERVER_NAME=e2e srv foo
+  # assigns "e2e" and then tries to RUN `srv foo`, which prints
+  # "command not found" and leaves E2E_SERVER_NAME holding only the first word.
+  # Flows then look for `rail-server-e2e` and never find it.
+  #
+  # Observed 2026-07-27: every cross-device pair failed with an empty server
+  # name. The same corruption silently affected single-device flows whenever a
+  # value contained whitespace.
+  #
+  # Assign explicitly instead, taking everything after the first '=' verbatim.
   MAESTRO_ENV_ARGS=()
-  while IFS='=' read -r key value; do
-    [ -z "$key" ] && continue
+  while IFS= read -r line; do
+    case "$line" in
+      ''|'#'*) continue ;;
+      [A-Za-z_]*=*) ;;
+      *) continue ;;   # ignore anything that is not a KEY=VALUE line
+    esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    printf -v "$key" '%s' "$value"
+    export "${key?}"
     MAESTRO_ENV_ARGS+=("--env" "${key}=${value}")
   done < "$env_file"
 

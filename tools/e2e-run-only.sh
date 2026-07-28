@@ -48,16 +48,27 @@ fi
 echo "[preflight] all flow paths exist" | tee -a "$OUT"
 
 # ══════════════════════════════════════════════════════════════════════
-# PREFLIGHT 1 — stale APK (APK must be newer than HEAD commit)
+# PREFLIGHT 1 — stale APK
 # ══════════════════════════════════════════════════════════════════════
-COMMIT_TS=$(git log -1 --format=%ct HEAD 2>/dev/null || echo 0)
+# Compare against the last commit that touches code the APK is BUILT FROM, not
+# HEAD. Comparing to HEAD meant committing a runner tweak or a doc marked every
+# APK on every device stale, forcing a full rebuild-and-reinstall cycle that
+# changed no shipped byte. That fired mid-session and aborted all 7 devices at
+# once. Anything outside these paths cannot alter the bundle.
+APK_SRC_PATHS=(apps/mobile packages)
+COMMIT_TS=$(git log -1 --format=%ct HEAD -- "${APK_SRC_PATHS[@]}" 2>/dev/null || echo 0)
 if [ -f "$APK" ] && [ "$COMMIT_TS" -gt 0 ]; then
   APK_TS=$(stat -f %m "$APK" 2>/dev/null || stat -c %Y "$APK" 2>/dev/null || echo 0)
   if [ "$APK_TS" -le "$COMMIT_TS" ]; then
-    echo "ABORT $DEV: APK is stale — APK mtime ($APK_TS) <= HEAD commit time ($COMMIT_TS). Rebuild." | tee -a "$OUT"
+    echo "ABORT $DEV: APK is stale — APK mtime ($APK_TS) <= last app-source commit ($COMMIT_TS). Rebuild." | tee -a "$OUT"
     exit 2
   fi
-  echo "[preflight] APK mtime ($APK_TS) > HEAD commit time ($COMMIT_TS)" | tee -a "$OUT"
+  echo "[preflight] APK mtime ($APK_TS) > last app-source commit ($COMMIT_TS)" | tee -a "$OUT"
+fi
+# Uncommitted app-source edits also invalidate the APK — they are not in any
+# commit timestamp, so the check above cannot see them.
+if ! git diff --quiet -- "${APK_SRC_PATHS[@]}" 2>/dev/null; then
+  echo "[preflight] WARNING: uncommitted changes under ${APK_SRC_PATHS[*]} — APK may not contain them" | tee -a "$OUT"
 fi
 
 # ══════════════════════════════════════════════════════════════════════
