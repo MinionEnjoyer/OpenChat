@@ -565,3 +565,62 @@ Three ways out, in the owner's gift:
 No option is defensible for me to pick: each changes what the product promises.
 Blocking note for the PR — an upstream reviewer will ask what these endpoints
 are for, and right now the repo has no answer.
+
+## IOS-BLOCK-001 — Expo SDK 57 needs a newer Xcode than is installed (BLOCKED, human action)
+
+Found 2026-07-28 on the first iOS build ever attempted in this project.
+
+`expo prebuild --platform ios` succeeded cleanly — `ios/` generated, all pods
+resolved, 81KB Podfile.lock, no config conflicts. The predicted pile of
+accumulated Expo plugin breakage did not materialise.
+
+The build then failed on a toolchain version gate:
+
+```
+xcodebuild: error: Could not resolve package dependencies:
+  package 'apple' is using Swift tools version 6.2.0 but the installed version is 6.1.0
+```
+
+Two Expo packages declare `swift-tools-version: 6.2`:
+
+- `node_modules/expo-modules-jsi/apple/Package.swift`
+- `node_modules/@expo/expo-modules-macros-plugin/apple/Package.swift`
+
+Installed: Xcode 16.3, which ships Swift 6.1. Swift 6.2 ships with Xcode 26.x.
+
+**Required human action:** upgrade Xcode. Nothing else unblocks iOS.
+
+**Deliberately not attempted:** editing the two `Package.swift` files down to 6.1.
+They live in `node_modules`, which is a shared symlink across every agent
+worktree — editing it would corrupt the whole fleet, and any install would
+revert it. It would also be a guess about whether the 6.2 declaration is a
+formality or reflects real language-feature use.
+
+### What this says about DR-003
+
+DR-003 recorded the prerequisite as *"Xcode installation (Will action — one-time,
+~12 GB download)"*. Installation was necessary but not sufficient: the **version**
+is the actual constraint, and nothing in the decision or the host capability
+report checks it. `devctl doctor` reports whether an iOS Simulator runtime
+exists, which was true here while the build was still impossible.
+
+Suggested follow-up: have the host capability check compare the installed Swift
+tools version against the maximum `swift-tools-version` declared by any package
+under `node_modules`, and report `ios_simulator: "unavailable (swift 6.1 < 6.2)"`
+rather than a bare `available`. That converts a build-time failure into a
+host-check failure, which is where it belongs.
+
+## Resolved: markdown.ts / unread.ts are wired (was "zero consumers")
+
+Verified 2026-07-28 by tracing the full chain to a rendering screen, not just
+one level of import:
+
+- `domain/markdown.ts` → `MarkdownText.tsx` → `ChatPane.tsx:663` (rendered)
+- `domain/unread.ts` → `useUnread.ts` → `ChatPane.tsx:48` and `ChannelList.tsx:18`
+
+`tools/check-unreachable.sh` agrees: *"OK — every exported feature component is
+referenced by a screen"*, exit 0. The owner independently confirmed markdown
+rendering on a physical device on 2026-07-27.
+
+The stale `wire-markdown` branch (230 commits behind `integration`) is superseded
+and should be retired rather than merged.
