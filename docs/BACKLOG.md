@@ -483,3 +483,35 @@ validation model now live in the methodology repo, not here — they outlive
 this app:
 
     ~/workspace/workflows/codewhale-fanout/BACKLOG.md
+
+## OWNER-VERIFIED-2026-07-27 — findings from manual testing on a physical Pixel
+
+Found by the owner by hand on `95RY1AFN7` (Pixel 3 XL, Android 12) against APK
+`ac0bbe14`, built with `EXPO_PUBLIC_API_HOST=192.168.0.106` so the device talks
+to the dev API over the LAN with no USB tether. All three are things the
+automated sweep could not have produced.
+
+### OV-001 — "Sign out" is outside the safe area (P1, real defect)
+On the physical device the sign-out control is obscured by the system bottom
+navigation bar. Emulator runs never surfaced this: the flows assert on testIDs,
+which resolve whether or not the element is reachable by a human thumb. Needs a
+safe-area inset on the settings/profile surface, then re-verification by eye —
+an assertVisible cannot confirm the fix.
+
+Relates to the sibling insets issue already filed for sheets/keyboard.
+
+### OV-002 — Voice works on hardware, cannot connect on emulators (methodology)
+Voice connects and renders end-to-end on the Pixel. On every emulator it TIMES
+OUT connecting — no real mic/camera, so WebRTC never establishes.
+
+Consequence: the 43-flow sweep's 7 "voice defects" were 6 emulator artifacts and
+one genuine bug (`voice-pill` persists after tapping disconnect, reproduced on
+the Pixel). `tools/e2e-run-only.sh` now SKIPs voice flows on emulators rather
+than recording false failures. SKIP is not PASS — voice still owes real evidence
+on physical devices, and FR-VOICE requirements cannot be signed off until those
+run on hardware.
+
+### OV-003 — Markdown renders on device (positive confirmation)
+Markdown rendering confirmed working by eye. Supports closing E-01, which the
+owner resolved in favour of shipping mobile markdown ("web devs can implement
+markdown themselves").

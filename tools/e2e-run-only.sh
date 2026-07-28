@@ -139,6 +139,23 @@ while read -r f <&3; do
   adb -s "$DEV" reverse tcp:3030 tcp:3030 >/dev/null 2>&1 \
     || { echo "ABORT $DEV: could not establish reverse tunnel to :3030" | tee -a "$OUT"; exit 3; }
 
+  # ── Voice flows cannot produce a verdict on an emulator. ──
+  # Verified by hand on 2026-07-27: voice connects and renders fully on a
+  # physical Pixel (room view, controls, pill, disconnect all reached), and
+  # TIMES OUT connecting on every emulator — no real mic/camera, so the WebRTC
+  # session never establishes.
+  #
+  # Running them on an emulator therefore yields FAIL for a working feature. A
+  # 43-flow sweep reported 7 voice defects; 6 were this, and the 7th (voice-pill
+  # persisting after disconnect) was only visible on the physical device. SKIP is
+  # deliberately not PASS: these still owe real evidence, on real hardware.
+  case "$DEV:$base" in
+    emulator-*:p6-*|emulator-*:*voice*|emulator-*:*-call-*)
+      echo "SKIP $base :: voice/WebRTC needs a physical device (emulator cannot connect)" | tee -a "$OUT"
+      VERDICT_COUNT=$((VERDICT_COUNT + 1))
+      continue ;;
+  esac
+
   echo "[$(date +%H:%M:%S)] RUNNING $base on $DEV" | tee -a "$OUT"
   # ── Hard clear: pm clear wipes expo-secure-store tokens that Maestro's
   #     clearState may leave behind. Repeat before every flow for isolation.
