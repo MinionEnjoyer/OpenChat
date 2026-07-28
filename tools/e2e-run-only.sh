@@ -223,20 +223,37 @@ while read -r f <&3; do
   fi
 done 3< "$LIST"
 
-PASS_COUNT=$(grep '^PASS ' "$OUT" 2>/dev/null | wc -l | tr -d ' ')
-FAIL_COUNT=$(grep '^FAIL ' "$OUT" 2>/dev/null | wc -l | tr -d ' ')
-TIMEOUT_COUNT=$(grep '^TIMEOUT ' "$OUT" 2>/dev/null | wc -l | tr -d ' ')
-echo "--- $DEV done: $PASS_COUNT passed, $FAIL_COUNT failed, $TIMEOUT_COUNT timed out ---" | tee -a "$OUT"
+SKIP_COUNT=$(grep -c '^SKIP ' "$OUT" 2>/dev/null || echo 0)
+PASS_COUNT=$(grep -c '^PASS ' "$OUT" 2>/dev/null || echo 0)
+FAIL_COUNT=$(grep -c '^FAIL ' "$OUT" 2>/dev/null || echo 0)
+TIMEOUT_COUNT=$(grep -c '^TIMEOUT ' "$OUT" 2>/dev/null || echo 0)
+echo "--- $DEV done: $PASS_COUNT passed, $FAIL_COUNT failed, $TIMEOUT_COUNT timed out, $SKIP_COUNT skipped ---" | tee -a "$OUT"
 
 # ══════════════════════════════════════════════════════════════════════
-# VERDICT-COUNT ASSERTION — every dispatched flow must produce a verdict
+# VERDICT RECONCILIATION — every flow must produce exactly one verdict line
 # ══════════════════════════════════════════════════════════════════════
+# Two independent checks:
+# 1. File-based: count verdict lines in the output file (catches I/O failures —
+#    tee dying mid-run, disk full, pipe broken — where VERDICT_COUNT was
+#    incremented in memory but the line never landed on disk).
+# 2. In-memory: compare VERDICT_COUNT vs FLOW_COUNT (catches code-path bugs —
+#    a branch that runs without incrementing the counter).
+# The file is what humans and downstream tools read; it is the denominator.
+FILE_VERDICT_COUNT=$(grep -cE '^(PASS|FAIL|TIMEOUT|SKIP) ' "$OUT" 2>/dev/null || echo 0)
+RECONCILE_FAIL=0
+if [ "$FILE_VERDICT_COUNT" -ne "$FLOW_COUNT" ]; then
+  echo "FATAL: file verdict lines ($FILE_VERDICT_COUNT) != flow count ($FLOW_COUNT)" | tee -a "$OUT"
+  RECONCILE_FAIL=1
+fi
 if [ "$VERDICT_COUNT" -ne "$FLOW_COUNT" ]; then
-  echo "FATAL: verdict_count=$VERDICT_COUNT != flow_count=$FLOW_COUNT" | tee -a "$OUT"
+  echo "FATAL: in-memory verdict_count=$VERDICT_COUNT != flow_count=$FLOW_COUNT" | tee -a "$OUT"
+  RECONCILE_FAIL=1
+fi
+if [ "$RECONCILE_FAIL" -ne 0 ]; then
   while IFS= read -r f; do
     [ -z "$f" ] && continue
     b=$(basename "$f" .yaml)
-    if ! grep -qE "^(PASS|FAIL|TIMEOUT) $b" "$OUT"; then
+    if ! grep -qE "^(PASS|FAIL|TIMEOUT|SKIP) $b" "$OUT"; then
       echo "  MISSING VERDICT: $b" | tee -a "$OUT"
     fi
   done < "$LIST"
