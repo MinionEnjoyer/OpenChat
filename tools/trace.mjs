@@ -90,7 +90,40 @@ function classifyAcceptanceType(text) {
  *   *.test.ts / *.spec.ts                      → unit
  *   anything else                              → null (not a test file)
  */
+/**
+ * A Maestro flow counts as e2e evidence only if it has actually been executed
+ * and passed. Receipts live at artifacts/e2e/receipts/<flow>.json and follow the
+ * shape of artifacts/e2e/last-run.json: {flow, device, result, timestamp, ...}.
+ *
+ * Without this, evidence level was decided purely by file path, so a requirement
+ * demanding e2e proof could be satisfied by CREATING A YAML FILE THAT HAS NEVER
+ * RUN. Three agents independently discovered that route on 2026-07-28 and each
+ * closed its assigned violation by writing an unexecuted flow — all three
+ * honestly reported the flow as unexecuted, and the gate would have gone green
+ * anyway. A gate that a file creation can satisfy is not measuring evidence, it
+ * is measuring filenames.
+ */
+function hasPassingReceipt(relPath) {
+  const flow = basename(relPath).replace(/\.ya?ml$/, '');
+  const receipt = join(ROOT, 'artifacts', 'e2e', 'receipts', `${flow}.json`);
+  try {
+    const data = JSON.parse(readFileSync(receipt, 'utf8'));
+    if (String(data.result || '').toLowerCase() !== 'pass') return false;
+    // The receipt must name the flow it claims to prove, so a passing receipt
+    // cannot be copied to cover a different flow.
+    return data.flow === flow;
+  } catch {
+    return false;
+  }
+}
+
 function classifyFileEvidenceType(relPath) {
+  if (relPath.startsWith('apps/mobile/e2e/flows/')) {
+    // Unexecuted flows are not evidence of anything. Returning null rather than a
+    // weaker level is deliberate: a flow that never ran does not demonstrate unit
+    // or integration behaviour either.
+    return hasPassingReceipt(relPath) ? 'e2e' : null;
+  }
   if (relPath.startsWith('apps/mobile/e2e/')) return 'e2e';
   if (relPath.startsWith('apps/api/test/integration/')) return 'integration';
   if (/\.integration\.(test|spec)\.[jt]sx?$/.test(relPath)) return 'integration';
@@ -467,7 +500,15 @@ function gate(phaseFilter) {
 
   // Report evidence-type violations as errors
   for (const v of evidenceViolations) {
-    const foundLabel = v.found ? ` (found ${v.found})` : ' (not in a test file)';
+    // An unexecuted Maestro flow classifies as null, which previously printed the
+    // same "not in a test file" as a genuine non-test. They need different fixes:
+    // one wants a test written, the other wants the flow actually run.
+    const claimedByFlow = (v.file || '').includes('apps/mobile/e2e/flows/');
+    const foundLabel = v.found
+      ? ` (found ${v.found})`
+      : claimedByFlow
+        ? ' (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run)'
+        : ' (not in a test file)';
     errors.push(
       `EVIDENCE: ${v.id} requires ${v.required} evidence${foundLabel} — ` +
       `claimed by ${v.file}:${v.line}`
