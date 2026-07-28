@@ -59,6 +59,8 @@ import {
   parseNotificationRoute,
   initializePush,
   _resetMocksForTest,
+  _setPlatformForTest,
+  _resetInitializedForTest,
 } from '../push';
 import type { NotificationRoute } from '../push';
 
@@ -547,5 +549,126 @@ describe('initializePush — full lifecycle (FR-NOTIF-002)', () => {
     expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
     expect(mockAddPushTokenListener).toHaveBeenCalledTimes(1);
     expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── iOS: permission request is NOT short-circuited ──
+
+describe('iOS — requestPushPermissions (FR-NOTIF-002)', () => {
+  // @satisfies FR-NOTIF-002
+  it('requests permissions on iOS (previously returned false without asking)', async () => {
+    _setPlatformForTest('ios');
+    mockRequestPermissions.mockResolvedValueOnce({ granted: true });
+    const result = await requestPushPermissions();
+    expect(result).toBe(true);
+    expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns false when iOS user denies permission', async () => {
+    _setPlatformForTest('ios');
+    mockRequestPermissions.mockResolvedValueOnce({ granted: false });
+    const result = await requestPushPermissions();
+    expect(result).toBe(false);
+  });
+});
+
+// ── iOS: token registration ──
+
+describe('iOS — registerPushToken (FR-NOTIF-002)', () => {
+  it('acquires token and POSTs with platform "ios"', async () => {
+    _setPlatformForTest('ios');
+    mockGetDevicePushToken.mockResolvedValueOnce({ type: 'ios', data: 'apns-token-xyz' });
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    const token = await registerPushToken();
+    expect(token).toBe('apns-token-xyz');
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'apns-token-xyz', platform: 'ios' },
+    });
+  });
+
+  it('returns null when token acquisition fails on iOS', async () => {
+    _setPlatformForTest('ios');
+    mockGetDevicePushToken.mockRejectedValueOnce(new Error('APNs error'));
+    const token = await registerPushToken();
+    expect(token).toBeNull();
+    expect(mockApiRequest).not.toHaveBeenCalled();
+  });
+});
+
+// ── iOS: sign-out deregisters ──
+
+describe('iOS — unregisterPushToken (FR-NOTIF-002)', () => {
+  it('DELETEs the stored token on iOS', async () => {
+    _setPlatformForTest('ios');
+    mockGetDevicePushToken.mockResolvedValueOnce({ type: 'ios', data: 'apns-delete-me' });
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+    await registerPushToken();
+
+    mockApiRequest.mockResolvedValueOnce({ status: 204 });
+    await unregisterPushToken();
+
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices/apns-delete-me', { method: 'DELETE' });
+  });
+
+  it('is a no-op on iOS when no token stored', async () => {
+    _setPlatformForTest('ios');
+    await unregisterPushToken();
+    expect(mockApiRequest).not.toHaveBeenCalled();
+  });
+});
+
+// ── iOS: full initializePush lifecycle ──
+
+describe('iOS — initializePush (FR-NOTIF-002)', () => {
+  it('runs full lifecycle on iOS: permissions → register → rotation → suppression → logout hook', async () => {
+    _setPlatformForTest('ios');
+    _resetInitializedForTest();
+    mockRequestPermissions.mockResolvedValueOnce({ granted: true });
+    mockGetDevicePushToken.mockResolvedValueOnce({ type: 'ios', data: 'apns-init' });
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+    mockAddPushTokenListener.mockReturnValueOnce({ remove: jest.fn() });
+
+    await initializePush();
+
+    expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'apns-init', platform: 'ios' },
+    });
+    expect(mockAddPushTokenListener).toHaveBeenCalledTimes(1);
+    expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
+    expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips registration when iOS permission denied', async () => {
+    _setPlatformForTest('ios');
+    _resetInitializedForTest();
+    mockRequestPermissions.mockResolvedValueOnce({ granted: false });
+
+    await initializePush();
+
+    expect(mockGetDevicePushToken).not.toHaveBeenCalled();
+    expect(mockApiRequest).not.toHaveBeenCalled();
+    expect(mockSetLogoutHook).not.toHaveBeenCalled();
+  });
+});
+
+// ── Android: behaviour unchanged ──
+
+describe('Android — platform unchanged (FR-NOTIF-002)', () => {
+  // Verifies the platform-agnostic refactor did not break Android behaviour.
+  it('still registers with platform "android"', async () => {
+    // _resetMocksForTest in beforeEach sets platform to 'android'
+    mockGetDevicePushToken.mockResolvedValueOnce({ type: 'android', data: 'fcm-token' });
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    const token = await registerPushToken();
+    expect(token).toBe('fcm-token');
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'fcm-token', platform: 'android' },
+    });
   });
 });

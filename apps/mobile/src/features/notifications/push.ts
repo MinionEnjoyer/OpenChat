@@ -6,7 +6,11 @@
  * Sign-out: DELETE /api/devices/:token (correctness — not best-effort cleanup).
  * Deep-link tap-through: parse notification data → navigate to channel/DM/server.
  *
- * Android only per docs/PRIORITIES.md §5. iOS is a no-op pending owner decision.
+ * Cross-platform: runs on both Android and iOS. On iOS, expo-notifications
+ * returns an APNs token; the server dispatches via FCM HTTP v1 and cannot
+ * deliver to APNs tokens. iOS registration is structurally wired but
+ * non-deliverable until the server gains an APNs dispatch path.
+ * See IOS_TOKEN_IS_APNS_NOT_FCM below.
  *
  * @satisfies FR-NOTIF-002
  */
@@ -123,12 +127,10 @@ let _clearLastResponse: typeof Notifications.clearLastNotificationResponse =
 
 /**
  * Request notification permissions from the OS.
- * Android only — iOS is a no-op until the owner decides (docs/PRIORITIES.md §5).
  *
  * @returns true if permissions were granted
  */
 export async function requestPushPermissions(): Promise<boolean> {
-  if (!isAndroid()) return false;
   try {
     const { granted } = await _requestPermissions();
     return granted;
@@ -137,13 +139,33 @@ export async function requestPushPermissions(): Promise<boolean> {
   }
 }
 
+// ── iOS delivery gap ──
+//
+// IOS_TOKEN_IS_APNS_NOT_FCM
+//
+// expo-notifications' getDevicePushTokenAsync() on iOS returns an Apple Push
+// Notification service (APNs) token. The server sends pushes via FCM HTTP v1,
+// which requires Firebase Cloud Messaging registration tokens.
+//
+// An APNs token posted to POST /api/devices registers cleanly in the database
+// (the DeviceToken model stores the platform column, and the controller accepts
+// body.platform). However, the FCM dispatch worker will never deliver to it
+// because FCM does not know how to route to APNs tokens.
+//
+// Until the server gains an APNs dispatch path — or the client bridges through
+// a service that converts APNs → FCM — iOS push registration is structurally
+// wired but non-deliverable. This constant marks the boundary.
+const IOS_TOKEN_IS_APNS_NOT_FCM = true;
+
 // ── Token lifecycle ──
 
-/** Obtain the native device push token (FCM on Android). */
+/** Obtain the native device push token (FCM on Android, APNs on iOS). */
 async function getDeviceToken(): Promise<string | null> {
-  if (!isAndroid()) return null;
   try {
     const token = await _getDevicePushToken();
+    // IOS_TOKEN_IS_APNS_NOT_FCM: on iOS this is an APNs token, not FCM.
+    // It will register with the server but won't receive pushes from the
+    // FCM-based dispatch pipeline. See the constant above.
     return token.data;
   } catch {
     return null;
@@ -183,7 +205,6 @@ async function deleteTokenOnServer(): Promise<void> {
  * @returns the registered token, or null if any step failed
  */
 export async function registerPushToken(): Promise<string | null> {
-  if (!isAndroid()) return null;
   const token = await getDeviceToken();
   if (!token) return null;
   return registerTokenOnServer(token);
@@ -194,7 +215,6 @@ export async function registerPushToken(): Promise<string | null> {
  * Unregisters the old token and registers the new one.
  */
 async function handleTokenRotation(newToken: DevicePushToken): Promise<void> {
-  if (!isAndroid()) return;
   await deleteTokenOnServer();
   if (newToken.data) {
     await registerTokenOnServer(newToken.data);
@@ -215,7 +235,6 @@ export async function unregisterPushToken(): Promise<void> {
  * Must be called once when the user signs in; cleanup on sign-out.
  */
 export function subscribeToTokenRotation(): () => void {
-  if (!isAndroid()) return () => {};
   const subscription = _addedTokenListener(handleTokenRotation);
   return () => subscription.remove();
 }
@@ -357,8 +376,6 @@ export function _resetInitializedForTest(): void {
 export async function initializePush(): Promise<void> {
   if (_initialized) return;
   _initialized = true;
-
-  if (!isAndroid()) return;
 
   const granted = await requestPushPermissions();
   if (!granted) return;
