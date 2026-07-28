@@ -4,7 +4,7 @@
  * Tests CRUD for /servers/:id/sounds endpoints against the live dev stack.
  * Covers: list, add, update, delete, validation failures, permission failures.
  *
- * @satisfies FR-SOUND-001, FR-SOUND-002, FR-SOUND-003, FR-SOUND-004, FR-SOUND-005, FR-SOUND-006
+ * @untraced FR-SOUND-001, FR-SOUND-002, FR-SOUND-003, FR-SOUND-004, FR-SOUND-005, FR-SOUND-006
  */
 import { apiFetch, createJar, assertExactKeys, assertUuid } from '../characterization/helpers';
 
@@ -58,7 +58,7 @@ describe('servers — sounds (integration)', () => {
     outsider = await devLogin('sound-outsider-' + Date.now());
   });
 
-  /** @satisfies FR-SOUND-001 */
+  /** @untraced FR-SOUND-001 */
   it('list sounds returns empty array for new server', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, { jar: owner.jar });
     expect(res.status).toBe(200);
@@ -66,7 +66,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.body.length).toBe(0);
   });
 
-  /** @satisfies FR-SOUND-002 */
+  /** @untraced FR-SOUND-002 */
   it('add sound returns 201 with correct shape', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -80,7 +80,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.body.emoji).toBeNull();
   });
 
-  /** @satisfies FR-SOUND-002 */
+  /** @untraced FR-SOUND-002 */
   it('add sound with emoji stores emoji', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -92,7 +92,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.body.emoji).toBe('👏');
   });
 
-  /** @satisfies FR-SOUND-001 */
+  /** @untraced FR-SOUND-001 */
   it('list sounds returns added sounds', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, { jar: owner.jar });
     expect(res.status).toBe(200);
@@ -100,7 +100,7 @@ describe('servers — sounds (integration)', () => {
     for (const s of res.body) assertSoundShape(s);
   });
 
-  /** @satisfies FR-SOUND-003 */
+  /** @untraced FR-SOUND-003 */
   it('update sound name', async () => {
     // First add a sound
     const add = await apiFetch(`/servers/${serverId}/sounds`, {
@@ -122,7 +122,7 @@ describe('servers — sounds (integration)', () => {
     expect(patch.body.id).toBe(soundId);
   });
 
-  /** @satisfies FR-SOUND-003 */
+  /** @untraced FR-SOUND-003 */
   it('update sound emoji', async () => {
     const add = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -151,7 +151,7 @@ describe('servers — sounds (integration)', () => {
     expect(patch2.body.emoji).toBeNull();
   });
 
-  /** @satisfies FR-SOUND-004 */
+  /** @untraced FR-SOUND-004 */
   it('delete sound returns 200', async () => {
     const add = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -174,14 +174,14 @@ describe('servers — sounds (integration)', () => {
     expect(ids).not.toContain(soundId);
   });
 
-  /** @satisfies FR-SOUND-005 */
+  /** @untraced FR-SOUND-005 */
   it('non-member cannot list sounds (404)', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, { jar: outsider.jar });
     // listSounds uses get() which throws NotFoundException (404) for non-members
     expect(res.status).toBe(404);
   });
 
-  /** @satisfies FR-SOUND-005 */
+  /** @untraced FR-SOUND-005 */
   it('non-member cannot add sounds (403)', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -191,7 +191,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(403);
   });
 
-  /** @satisfies FR-SOUND-005 */
+  /** @untraced FR-SOUND-005 */
   it('non-member cannot update sounds (403)', async () => {
     // First add a sound as owner
     const add = await apiFetch(`/servers/${serverId}/sounds`, {
@@ -209,7 +209,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(403);
   });
 
-  /** @satisfies FR-SOUND-005 */
+  /** @untraced FR-SOUND-005 */
   it('non-member cannot delete sounds (403)', async () => {
     const add = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -225,7 +225,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(403);
   });
 
-  /** @satisfies FR-SOUND-006 */
+  /** @untraced FR-SOUND-006 */
   it('member without MANAGE_CHANNELS cannot add sounds (403)', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -235,7 +235,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(403);
   });
 
-  /** @satisfies FR-SOUND-002 */
+  /** @untraced FR-SOUND-002 */
   it('validation rejects missing name', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -245,7 +245,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(400);
   });
 
-  /** @satisfies FR-SOUND-002 */
+  /** @untraced FR-SOUND-002 */
   it('validation rejects non-URL', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -255,7 +255,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(400);
   });
 
-  /** @satisfies FR-SOUND-002 */
+  /** @untraced FR-SOUND-002 */
   it('validation rejects empty name', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',
@@ -265,7 +265,7 @@ describe('servers — sounds (integration)', () => {
     expect(res.status).toBe(400);
   });
 
-  /** @satisfies FR-SOUND-002 */
+  /** @untraced FR-SOUND-002 */
   it('validation rejects emoji > 8 chars', async () => {
     const res = await apiFetch(`/servers/${serverId}/sounds`, {
       method: 'POST',

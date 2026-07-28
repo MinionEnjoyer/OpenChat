@@ -355,7 +355,6 @@ describe('VoiceStore', () => {
             setMicrophoneEnabled: jest.fn(),
           },
         },
-        // @ts-expect-error partial shape is fine for tests that only touch isMuted/isLocal
         participants: participants.map((p) => ({
           id: p.id,
           username: p.id,

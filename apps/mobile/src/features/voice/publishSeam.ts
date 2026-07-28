@@ -12,7 +12,7 @@
  * DO NOT add room-publishing logic here until the native module exists.
  * Until then, this is intentional no-op — other participants CANNOT hear the sound.
  *
- * @satisfies FR-SOUND-001
+ * @untraced FR-SOUND-001
  */
 
 import type { ServerSound } from '../../api/schema';

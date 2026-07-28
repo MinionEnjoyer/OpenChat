@@ -8,7 +8,7 @@
  * Other participants CANNOT hear the sound yet. A device rebuild is required
  * before device verification (expo prebuild + assembleRelease).
  *
- * @satisfies FR-SOUND-001
+ * @untraced FR-SOUND-001
  */
 import React, { useEffect, useRef, useState } from 'react';
 import {

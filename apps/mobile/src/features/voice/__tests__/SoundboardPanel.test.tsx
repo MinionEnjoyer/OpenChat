@@ -4,7 +4,7 @@
  * Validates: renders from API response, tap triggers local playback,
  * tap calls the publish seam, empty state, fetch-error state, testID contract.
  *
- * @satisfies FR-SOUND-001
+ * @untraced FR-SOUND-001
  */
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';

@@ -515,3 +515,53 @@ run on hardware.
 Markdown rendering confirmed working by eye. Supports closing E-01, which the
 owner resolved in favour of shipping mobile markdown ("web devs can implement
 markdown themselves").
+
+## SOUND-SCOPE — soundboard shipped against requirements that do not exist
+
+Found 2026-07-27 while clearing the trace gate ahead of the upstream PR.
+
+Six requirement ids — `FR-SOUND-001` … `FR-SOUND-006` — were referenced by 27
+`@satisfies` annotations across five files. **No such requirements exist.** The
+spec has only these prefixes: APP, AUTH, MED, MSG, NOTIF, ROLE, SOC, SRV, VOX.
+The ids were invented alongside the code and never written down as requirements,
+so the trace gate rejected every one of them.
+
+The annotations are now `@untraced` rather than `@satisfies`. The tests are
+untouched and still run — they are useful coverage of a real API surface. They
+simply no longer claim to satisfy a requirement nobody wrote. Deleting them would
+have destroyed working coverage; inventing the requirements to match the code
+would have been writing the spec to fit whatever shipped, which is the exact
+inversion the phase audits exist to prevent.
+
+### The scope question, which is the owner's to settle
+
+`specs/01-REQUIREMENTS.md:15` lists as OUT of scope:
+
+> soundboard on mobile beyond playback (P2 playback only)
+
+Against that line:
+
+- **API sound CRUD** (`apps/api/test/integration/sounds.spec.ts`) — server-side
+  list/add/update/delete. Plausibly in scope regardless, since web and desktop
+  clients need these endpoints and the exclusion is worded about *mobile*.
+- **Mobile playback** (`SoundboardPanel` listing and playing locally) — this is
+  "playback", so in scope at P2.
+- **Mobile room-publish** (`publishSoundToRoom`, `publishSeam.ts`) — publishing a
+  sound into the LiveKit room is *beyond playback*, and reads as outside the
+  declared scope. `BACKLOG` item "Decide soundboard room-publish mechanism" is
+  still open, so this was built while the decision was pending.
+
+Three ways out, in the owner's gift:
+
+1. **Formalise it.** Add FR-SOUND-001..006 to `01-REQUIREMENTS.md` with real
+   acceptance criteria and amend the exclusion line. Correct if soundboard is
+   genuinely wanted; it widens Phase 6 scope and adds signoff obligations.
+2. **Keep API, drop mobile publish.** Retain the endpoints for client parity,
+   revert `publishSoundToRoom`, leave mobile at playback as the spec says.
+3. **Leave as-is, untraced.** Ships working code with no requirement behind it
+   and no signoff claim. Cheapest now, but it is unowned surface area, and it is
+   how FR-AUTH-001 came to ship unbuilt.
+
+No option is defensible for me to pick: each changes what the product promises.
+Blocking note for the PR — an upstream reviewer will ask what these endpoints
+are for, and right now the repo has no answer.
