@@ -194,6 +194,30 @@ while read -r f <&3; do
   VERDICT_COUNT=$((VERDICT_COUNT + 1))
   if [ "$ec" -eq 0 ]; then
     echo "PASS $base" | tee -a "$OUT"
+    # ── Execution receipt ──
+    # tools/trace.mjs grants e2e-level evidence to a flow ONLY when a passing
+    # receipt exists here naming that flow. Before that, evidence level was
+    # decided by file path alone, so a requirement demanding end-to-end proof
+    # could be satisfied by creating a YAML that had never run — three agents
+    # independently found and took that route on 2026-07-28.
+    #
+    # The receipt therefore has to be written by the thing that actually ran the
+    # flow, which is here. It records the build the verdict was produced against,
+    # so a receipt cannot silently outlive the binary it describes.
+    mkdir -p artifacts/e2e/receipts
+    apk_sha=$(shasum -a 256 "$APK" 2>/dev/null | cut -d' ' -f1)
+    cat > "artifacts/e2e/receipts/$base.json" <<EOF_RECEIPT
+{
+  "flow": "$base",
+  "result": "pass",
+  "device": "$DEV",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "apk_sha256": "${apk_sha:-unknown}",
+  "commit": "$(git rev-parse --short HEAD 2>/dev/null || echo unknown)",
+  "runner": "e2e-run-only.sh",
+  "run_id": "$RUN_ID"
+}
+EOF_RECEIPT
   else
     # capture what was actually on screen — makes the later repair pass trivial
     #
