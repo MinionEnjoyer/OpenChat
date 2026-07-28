@@ -1,19 +1,324 @@
 {
-  "generated": "2026-07-27T07:48:54.079Z",
+  "generated": "2026-07-28T08:47:13.642Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
     "missing": 17,
-    "errors": 5
+    "errors": 39,
+    "evidence_violations": 38,
+    "manual": 0
   },
   "errors": [
-    "@satisfies FR-SRV-010 in infra path \"tools/codegen/gen.mjs\" (line 264) — this file does not exercise product code. Use @infra for infrastructure tests.",
-    "@satisfies FR-VOX-001 in infra path \"tools/probe/lk-fake-publisher.mjs\" (line 14) — this file does not exercise product code. Use @infra for infrastructure tests.",
-    "@satisfies FR-VOX-001 in infra path \"tools/probe/lk-probe.mjs\" (line 39) — this file does not exercise product code. Use @infra for infrastructure tests.",
-    "@satisfies FR-VOX-001 in infra path \"tools/probe/make-tone.mjs\" (line 13) — this file does not exercise product code. Use @infra for infrastructure tests.",
-    "17 requirement(s) lack @satisfies annotation: FR-APP-004, FR-APP-005, FR-MSG-014, FR-SOC-003, FR-SOC-006, FR-VOX-060, NFR-01, NFR-02, NFR-03, NFR-04, NFR-05, NFR-06, NFR-08, NFR-09, NFR-10, NFR-11, NFR-12"
+    "17 requirement(s) lack @satisfies annotation: FR-APP-004, FR-APP-005, FR-MSG-014, FR-SOC-003, FR-SOC-006, FR-VOX-060, NFR-01, NFR-02, NFR-03, NFR-04, NFR-05, NFR-06, NFR-08, NFR-09, NFR-10, NFR-11, NFR-12",
+    "EVIDENCE: FR-APP-001 requires e2e evidence (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run) — claimed by apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml:2",
+    "EVIDENCE: FR-APP-002 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/shell/__tests__/coldstart.test.ts:1",
+    "EVIDENCE: FR-APP-003 requires integration evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/connection.test.ts:8",
+    "EVIDENCE: FR-AUTH-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:101",
+    "EVIDENCE: FR-AUTH-003 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:50",
+    "EVIDENCE: FR-AUTH-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/profile.test.ts:19",
+    "EVIDENCE: FR-AUTH-010 requires integration evidence (found unit) — claimed by apps/mobile/src/api/__tests__/client.test.ts:42",
+    "EVIDENCE: FR-MED-010 requires e2e evidence (found integration) — claimed by apps/mobile/src/features/attachments/__tests__/upload.integration.test.ts:8",
+    "EVIDENCE: FR-MED-011 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/attachments.test.ts:1",
+    "EVIDENCE: FR-MED-020 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p5-05-avatar-server-icon.spec.ts:4",
+    "EVIDENCE: FR-MED-030 requires unit evidence (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run) — claimed by apps/mobile/e2e/flows/p5-02-attach-picker.yaml:3",
+    "EVIDENCE: FR-MSG-001 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/pagination.test.ts:7",
+    "EVIDENCE: FR-MSG-003 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:60",
+    "EVIDENCE: FR-MSG-004 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:103",
+    "EVIDENCE: FR-MSG-005 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/reply.test.ts:4",
+    "EVIDENCE: FR-MSG-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/reactions.test.ts:1",
+    "EVIDENCE: FR-MSG-009 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/typing.test.ts:1",
+    "EVIDENCE: FR-MSG-010 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/unread.test.ts:1",
+    "EVIDENCE: FR-MSG-011 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:184",
+    "EVIDENCE: FR-MSG-012 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/polls.test.ts:1",
+    "EVIDENCE: FR-MSG-015 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/links.test.ts:1",
+    "EVIDENCE: FR-NOTIF-002 requires e2e evidence (found unit) — claimed by apps/mobile/src/__tests__/App.pushWiring.test.tsx:8",
+    "EVIDENCE: FR-ROLE-007 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p7-07-role-mentions.spec.ts:4",
+    "EVIDENCE: FR-SOC-001 requires integration evidence (found unit) — claimed by apps/mobile/src/features/friends/__tests__/friends-api.test.ts:23",
+    "EVIDENCE: FR-SOC-002 requires e2e evidence (found integration) — claimed by apps/mobile/src/features/dms/__tests__/dms.integration.test.ts:1",
+    "EVIDENCE: FR-SOC-005 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p4-05-notifications.spec.ts:11",
+    "EVIDENCE: FR-SRV-002 requires e2e evidence (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run) — claimed by apps/mobile/e2e/flows/p3-01-create-server.yaml:2",
+    "EVIDENCE: FR-SRV-004 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/categories.test.ts:7",
+    "EVIDENCE: FR-SRV-005 requires integration evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/reorder.test.ts:9",
+    "EVIDENCE: FR-SRV-006 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p3-04-invites.spec.ts:7",
+    "EVIDENCE: FR-SRV-007 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/members.test.ts:6",
+    "EVIDENCE: FR-SRV-008 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p3-05-kick-leave.spec.ts:4",
+    "EVIDENCE: FR-VOX-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/voiceJoinOnTap.test.tsx:10",
+    "EVIDENCE: FR-VOX-002 requires integration evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/voiceChannelView.test.tsx:9",
+    "EVIDENCE: FR-VOX-004 requires integration evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts:8",
+    "EVIDENCE: FR-VOX-005 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/callStore.test.ts:4",
+    "EVIDENCE: FR-VOX-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/videoTile.test.ts:7",
+    "EVIDENCE: FR-VOX-007 requires integration evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/ScreenShareView.test.tsx:13"
   ],
+  "evidence_violations": [
+    {
+      "id": "FR-APP-001",
+      "required": "e2e",
+      "found": null,
+      "file": "apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml",
+      "line": 2
+    },
+    {
+      "id": "FR-APP-002",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-APP-003",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/connection.test.ts",
+      "line": 8
+    },
+    {
+      "id": "FR-AUTH-001",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/session.test.ts",
+      "line": 101
+    },
+    {
+      "id": "FR-AUTH-003",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/session.test.ts",
+      "line": 50
+    },
+    {
+      "id": "FR-AUTH-006",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
+      "line": 19
+    },
+    {
+      "id": "FR-AUTH-010",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/api/__tests__/client.test.ts",
+      "line": 42
+    },
+    {
+      "id": "FR-MED-010",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/mobile/src/features/attachments/__tests__/upload.integration.test.ts",
+      "line": 8
+    },
+    {
+      "id": "FR-MED-011",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/attachments.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MED-020",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-MED-030",
+      "required": "unit",
+      "found": null,
+      "file": "apps/mobile/e2e/flows/p5-02-attach-picker.yaml",
+      "line": 3
+    },
+    {
+      "id": "FR-MSG-001",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
+      "line": 7
+    },
+    {
+      "id": "FR-MSG-003",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+      "line": 60
+    },
+    {
+      "id": "FR-MSG-004",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+      "line": 103
+    },
+    {
+      "id": "FR-MSG-005",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/reply.test.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-MSG-006",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-009",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/typing.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-010",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/unread.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-011",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/sync/__tests__/messages.test.ts",
+      "line": 184
+    },
+    {
+      "id": "FR-MSG-012",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/polls.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-MSG-015",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/links.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-NOTIF-002",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
+      "line": 8
+    },
+    {
+      "id": "FR-ROLE-007",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-SOC-001",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/features/friends/__tests__/friends-api.test.ts",
+      "line": 23
+    },
+    {
+      "id": "FR-SOC-002",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/mobile/src/features/dms/__tests__/dms.integration.test.ts",
+      "line": 1
+    },
+    {
+      "id": "FR-SOC-005",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p4-05-notifications.spec.ts",
+      "line": 11
+    },
+    {
+      "id": "FR-SRV-002",
+      "required": "e2e",
+      "found": null,
+      "file": "apps/mobile/e2e/flows/p3-01-create-server.yaml",
+      "line": 2
+    },
+    {
+      "id": "FR-SRV-004",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/features/channels/__tests__/categories.test.ts",
+      "line": 7
+    },
+    {
+      "id": "FR-SRV-005",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/features/channels/__tests__/reorder.test.ts",
+      "line": 9
+    },
+    {
+      "id": "FR-SRV-006",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p3-04-invites.spec.ts",
+      "line": 7
+    },
+    {
+      "id": "FR-SRV-007",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/domain/__tests__/members.test.ts",
+      "line": 6
+    },
+    {
+      "id": "FR-SRV-008",
+      "required": "e2e",
+      "found": "integration",
+      "file": "apps/api/test/integration/p3-05-kick-leave.spec.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-VOX-001",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/features/channels/__tests__/voiceJoinOnTap.test.tsx",
+      "line": 10
+    },
+    {
+      "id": "FR-VOX-002",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/features/voice/__tests__/voiceChannelView.test.tsx",
+      "line": 9
+    },
+    {
+      "id": "FR-VOX-004",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
+      "line": 8
+    },
+    {
+      "id": "FR-VOX-005",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/features/voice/__tests__/callStore.test.ts",
+      "line": 4
+    },
+    {
+      "id": "FR-VOX-006",
+      "required": "e2e",
+      "found": "unit",
+      "file": "apps/mobile/src/features/voice/__tests__/videoTile.test.ts",
+      "line": 7
+    },
+    {
+      "id": "FR-VOX-007",
+      "required": "integration",
+      "found": "unit",
+      "file": "apps/mobile/src/features/voice/__tests__/ScreenShareView.test.tsx",
+      "line": 13
+    }
+  ],
+  "manual": [],
   "rows": [
     {
       "id": "FR-APP-001",
@@ -101,6 +406,10 @@
       "satisfied": true,
       "locations": [
         {
+          "file": "apps/mobile/e2e/flows/app-error-toast.yaml",
+          "line": 2
+        },
+        {
           "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
           "line": 30
         }
@@ -111,6 +420,10 @@
       "id": "FR-AUTH-001",
       "satisfied": true,
       "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p1-auth-devlogin-bearer.yaml",
+          "line": 19
+        },
         {
           "file": "apps/mobile/src/stores/__tests__/session.test.ts",
           "line": 101
@@ -178,6 +491,14 @@
       "id": "FR-AUTH-006",
       "satisfied": true,
       "locations": [
+        {
+          "file": "apps/mobile/e2e/flows/p1-auth-006a-profile-edit.yaml",
+          "line": 2
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p1-auth-006b-profile-verify.yaml",
+          "line": 3
+        },
         {
           "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
           "line": 19
@@ -1022,6 +1343,10 @@
       "satisfied": true,
       "locations": [
         {
+          "file": "apps/mobile/e2e/flows/msg-copy-text.yaml",
+          "line": 2
+        },
+        {
           "file": "apps/mobile/src/domain/__tests__/links.test.ts",
           "line": 1
         },
@@ -1167,15 +1492,15 @@
         },
         {
           "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
-          "line": 94
+          "line": 96
         },
         {
           "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
-          "line": 107
+          "line": 109
         },
         {
           "file": "apps/mobile/src/__tests__/App.pushWiring.test.tsx",
-          "line": 118
+          "line": 120
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
@@ -1465,27 +1790,27 @@
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
-          "line": 45
+          "line": 68
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
-          "line": 65
+          "line": 88
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
-          "line": 102
+          "line": 125
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
-          "line": 114
+          "line": 137
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
-          "line": 131
+          "line": 155
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 346
+          "line": 348
         }
       ],
       "missing": false
@@ -1497,6 +1822,10 @@
         {
           "file": "apps/api/test/integration/s5-roles.spec.ts",
           "line": 4
+        },
+        {
+          "file": "apps/mobile/e2e/flows/p3-06-role-assign-toggle.yaml",
+          "line": 3
         },
         {
           "file": "apps/mobile/src/api/__tests__/permissions.test.ts",
@@ -1535,12 +1864,24 @@
           "line": 165
         },
         {
+          "file": "apps/mobile/src/features/shell/__tests__/memberRoleTogglesStructure.test.ts",
+          "line": 9
+        },
+        {
           "file": "apps/mobile/src/features/shell/screens/RolesEditorScreen.tsx",
           "line": 5
         },
         {
           "file": "apps/mobile/src/features/shell/screens/RolesEditorScreen.tsx",
           "line": 93
+        },
+        {
+          "file": "apps/mobile/src/features/shell/screens/RolesEditorScreen.tsx",
+          "line": 121
+        },
+        {
+          "file": "apps/mobile/src/features/shell/screens/RolesEditorScreen.tsx",
+          "line": 131
         }
       ],
       "missing": false
@@ -2186,6 +2527,10 @@
           "line": 73
         },
         {
+          "file": "apps/mobile/e2e/flows/p3-06-invite-accept.yaml",
+          "line": 2
+        },
+        {
           "file": "apps/mobile/src/domain/__tests__/links.test.ts",
           "line": 31
         },
@@ -2328,6 +2673,10 @@
           "line": 150
         },
         {
+          "file": "apps/mobile/e2e/flows/p3-08-kick-lose-access.yaml",
+          "line": 2
+        },
+        {
           "file": "apps/mobile/src/domain/__tests__/members.test.ts",
           "line": 7
         },
@@ -2405,6 +2754,14 @@
         {
           "file": "apps/mobile/e2e/flows/p7-01-channel-create-appear.yaml",
           "line": 2
+        },
+        {
+          "file": "apps/mobile/src/sync/__tests__/queryClient.guildEvents.test.ts",
+          "line": 7
+        },
+        {
+          "file": "apps/mobile/src/sync/queryClient.ts",
+          "line": 8
         }
       ],
       "missing": false
@@ -2444,10 +2801,6 @@
         {
           "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
           "line": 121
-        },
-        {
-          "file": "apps/mobile/src/api/schema.ts",
-          "line": 207
         },
         {
           "file": "apps/mobile/src/features/messages/__tests__/announceReadOnly.test.ts",
@@ -2506,7 +2859,7 @@
         },
         {
           "file": "apps/mobile/src/features/shell/screens/ShellScreen.tsx",
-          "line": 475
+          "line": 484
         },
         {
           "file": "apps/mobile/src/features/voice/VoicePill.tsx",
@@ -2589,15 +2942,15 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 488
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 490
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 492
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 494
         }
       ],
       "missing": false
@@ -2676,10 +3029,6 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 419
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 421
         },
         {
@@ -2721,6 +3070,10 @@
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 441
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 443
         }
       ],
       "missing": false
@@ -2759,7 +3112,7 @@
         },
         {
           "file": "apps/mobile/src/sync/queryClient.ts",
-          "line": 84
+          "line": 98
         }
       ],
       "missing": false
@@ -2790,11 +3143,7 @@
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
-          "line": 82
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
-          "line": 460
+          "line": 105
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
@@ -2815,6 +3164,10 @@
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 470
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 472
         }
       ],
       "missing": false
@@ -2861,10 +3214,6 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 474
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 476
         },
         {
@@ -2886,6 +3235,10 @@
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 486
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 488
         }
       ],
       "missing": false
