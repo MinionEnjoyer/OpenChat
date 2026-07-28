@@ -41,3 +41,4 @@ tools/seed/fixture-ids.local.json
 
 # Firebase client config — deployment-specific, each deployer supplies their own
 apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist

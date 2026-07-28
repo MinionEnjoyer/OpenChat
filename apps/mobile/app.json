@@ -9,7 +9,13 @@
     "scheme": "openchat",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.openchat.mobile"
+      "bundleIdentifier": "com.openchat.mobile",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "package": "com.openchat.mobile",
