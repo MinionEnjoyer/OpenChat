@@ -1,11 +1,32 @@
-import { ANDROID_EMULATOR_HOST, ConfigError, DEFAULT_DEV_CONFIG, resolveConfig } from '../config';
+import { Platform } from 'react-native';
+
+import {
+  ANDROID_EMULATOR_HOST,
+  ConfigError,
+  DEFAULT_DEV_CONFIG,
+  IOS_SIMULATOR_HOST,
+  resolveConfig,
+} from '../config';
 
 describe('config', () => {
-  it('falls back to the emulator-reachable dev defaults', () => {
+  it('falls back to a host the CURRENT platform can actually reach', () => {
     const cfg = resolveConfig();
     expect(cfg).toEqual(DEFAULT_DEV_CONFIG);
-    // 10.0.2.2 is the host loopback as seen from an Android emulator (P0-15).
-    expect(cfg.apiBaseUrl).toContain(ANDROID_EMULATOR_HOST);
+    // The default is platform-dependent and must be, because the two aliases are
+    // not interchangeable: 10.0.2.2 is invented by the Android emulator's NAT and
+    // does not resolve on iOS, where the simulator shares the host network and
+    // reaches it at plain localhost.
+    //
+    // This test previously asserted 10.0.2.2 unconditionally, which passed only
+    // because Android was the only platform. The first iOS build then dialled
+    // 10.0.2.2, hung on a spinner, and reported "auth failed" — a defect this
+    // assertion should have caught and could not, because it encoded the
+    // assumption it was meant to check.
+    const expected = Platform.OS === 'ios' ? IOS_SIMULATOR_HOST : ANDROID_EMULATOR_HOST;
+    expect(cfg.apiBaseUrl).toContain(expected);
+    expect(cfg.apiBaseUrl).not.toContain(
+      Platform.OS === 'ios' ? ANDROID_EMULATOR_HOST : IOS_SIMULATOR_HOST,
+    );
   });
 
   it('keeps the /api global prefix in the default base URL', () => {
