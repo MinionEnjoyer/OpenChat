@@ -5,10 +5,16 @@ use tauri::{
 };
 use tauri_plugin_updater::UpdaterExt;
 
-// Pull ?token=… out of an openchat://auth?token=… deep link and hand it to the
-// web layer, which stores it and reloads into the signed-in app.
+// Hand an openchat://auth deep link to the web layer. Preferred: ?code=… (PKCE
+// authorization code, exchanged for a token family) → "auth-code". Legacy: ?token=…
+// (raw token from older servers) → "auth-token".
 fn handle_auth_url(app: &AppHandle, url: &str) {
-    if let Some((_, rest)) = url.split_once("token=") {
+    if let Some((_, rest)) = url.split_once("code=") {
+        let code = rest.split('&').next().unwrap_or("");
+        if !code.is_empty() {
+            let _ = app.emit("auth-code", code.to_string());
+        }
+    } else if let Some((_, rest)) = url.split_once("token=") {
         let token = rest.split('&').next().unwrap_or("");
         if !token.is_empty() {
             let _ = app.emit("auth-token", token.to_string());
