@@ -335,7 +335,14 @@ export interface UploadedAttachment {
   shareAssetId: string;
   filename: string;
   mimeType: string;
-  size: number;
+  // BigInt serialized as decimal string by server — NOT a number.
+  // contracts/x-attachment-shape.yaml declares: {type: string, pattern: "^\\d+$"}.
+  // The API sends "31", not 31. Typing this as number made formatSize() render
+  // the wrong value. That was found and fixed once already, but the fix was
+  // applied to the GENERATED schema.ts instead of here, so every regeneration
+  // silently reverted it. The drift went unnoticed because the pre-push gate
+  // was a no-op; the first run of a working gate surfaced it immediately.
+  size: string;
   url: string;
   thumbnailUrl: string | null;
   width: number | null;
