@@ -33,6 +33,10 @@ const envSchema = z.object({
   LIVEKIT_API_URL: z.string().url().optional(),
   // GIF search via Giphy. Optional — the GIF picker degrades gracefully if unset.
   GIPHY_API_KEY: z.string().optional(),
+  // Push notifications via Firebase Cloud Messaging. Optional — when absent push is
+  // silently disabled via NoopPushTransport. VALIDATED HERE so a typo or missing key
+  // fails at boot rather than degrading to no-push at runtime.
+  FCM_SERVICE_ACCOUNT: z.string().optional(),
   JWT_SECRET: z.string().min(1),
 });
 

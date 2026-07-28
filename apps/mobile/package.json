@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --platform android --clean",
     "apk:release": "cd android && ./gradlew assembleRelease",
+    "apk:prod": "EXPO_PUBLIC_DISABLE_CLEARTEXT=1 npx expo prebuild --platform android --clean && cd android && ./gradlew assembleRelease",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "jest"
