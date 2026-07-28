@@ -13,6 +13,7 @@ import { applyCreated, applyUpdated, applyDeleted } from './messages';
 import { keys } from './keys';
 import { useTyping } from '../stores/typing';
 import { handleForegroundNotification } from '../features/notifications';
+import { notifyIncoming } from '../features/notifications/localNotify';
 import { useCallStore } from '../features/voice/CallStore';
 import { usePresence } from '../stores/presence';
 import { useSession } from '../stores/session';
@@ -41,6 +42,8 @@ export function applyEvent(frame: S2CFrame): void {
       // Relay wraps as {message}; the sender echo adds the nonce alongside.
       const msg = frame.d.message.nonce ? frame.d.message : { ...frame.d.message, nonce: frame.d.nonce ?? null };
       applyCreated(msg);
+      // WO-NOTIF-LOCAL: route to local notification
+      notifyIncoming(frame);
       break;
     }
     case 'message.updated':
@@ -75,8 +78,8 @@ export function applyEvent(frame: S2CFrame): void {
       handleForegroundNotification({ kind: 'notify' });
       break;
     case 'mention': {
-      const md = frame.d as { channelName: string; authorName: string; preview: string };
-      handleForegroundNotification({ kind: 'mention', channelName: md.channelName, authorName: md.authorName, preview: md.preview });
+      // WO-NOTIF-LOCAL: route to local notification (foreground→toast, background→OS notif)
+      notifyIncoming(frame);
       break;
     }
     case 'call.ring': {

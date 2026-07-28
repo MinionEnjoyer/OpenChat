@@ -30,10 +30,12 @@ jest.mock('react-native-gesture-handler', () => {
 // ── Mock push module (the thing we're testing the wiring of) ──
 
 const mockInitializePush = jest.fn().mockResolvedValue(undefined);
+const mockInitLocalNotifications = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('../features/notifications', () => ({
   __esModule: true,
   initializePush: (...args: unknown[]) => mockInitializePush(...args),
+  initLocalNotifications: (...args: unknown[]) => mockInitLocalNotifications(...args),
 }));
 
 // ── Mock session store — controls the auth state ──

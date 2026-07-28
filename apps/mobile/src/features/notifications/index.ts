@@ -18,3 +18,17 @@ export {
   _setStoredTokenForTest,
 } from './push';
 export type { NotificationRoute, NavigationHandler } from './push';
+
+// Local notifications (WO-NOTIF-LOCAL)
+export {
+  notifyIncoming,
+  initLocalNotifications,
+  _setScheduleForTest,
+  _resetScheduleForTest,
+  _setRequestPermsForTest,
+  _resetRequestPermsForTest,
+  _resetPermRequestedForTest,
+  _fsSet,
+  _fsReset,
+} from './localNotify';
+export type { NotifyEvent } from './localNotify';

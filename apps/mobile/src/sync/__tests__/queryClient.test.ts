@@ -8,11 +8,16 @@
  * @satisfies FR-NOTIF-004, FR-VOX-005
  */
 
-import { applyEvent } from '../queryClient';
+import { applyEvent, queryClient } from '../queryClient';
 import {
-  _setAppStateForTest,
-  _resetAppStateForTest,
+  _setAppStateForTest as _setFgState,
+  _resetAppStateForTest as _resetFgState,
 } from '../../features/notifications/foregroundHandler';
+import {
+  _setAppStateForTest as _setLocalState,
+  _resetAppStateForTest as _resetLocalState,
+} from '../../features/notifications/localNotify';
+import { useSession } from '../../stores/session';
 import { useCallStore } from '../../features/voice/CallStore';
 import type {
   MentionFrame,
@@ -31,12 +36,28 @@ jest.mock('../../ui/Toast', () => ({
 
 beforeEach(() => {
   toastCalls.length = 0;
-  _setAppStateForTest('active');
+  _setFgState('active');
+  _setLocalState('active');
   useCallStore.setState({ incomingCall: null });
+  queryClient.clear();
+  useSession.setState({
+    status: 'signedIn',
+    user: {
+      id: 'user-me',
+      username: 'me',
+      displayName: 'Me',
+      avatarUrl: null,
+      status: 'online',
+      friendCode: null,
+    },
+    tokens: null as any,
+  });
 });
 
 afterAll(() => {
-  _resetAppStateForTest();
+  _resetFgState();
+  _resetLocalState();
+  useSession.setState({ status: 'signedOut', user: null, tokens: null });
 });
 
 // ── Integration tests ──
@@ -113,7 +134,8 @@ describe('applyEvent — notification routing (FR-NOTIF-004)', () => {
 
   // @satisfies FR-NOTIF-004
   it('suppresses toast when app is in background', () => {
-    _setAppStateForTest('background');
+    _setFgState('background');
+    _setLocalState('background');
     const frame: MentionFrame = {
       op: 'mention',
       d: {
@@ -132,7 +154,8 @@ describe('applyEvent — notification routing (FR-NOTIF-004)', () => {
   // A naive implementer might always call showToast regardless of app state.
   // This test proves the foreground check gates the toast end-to-end.
   it('background mention MUST NOT show toast (naive would always toast)', () => {
-    _setAppStateForTest('background');
+    _setFgState('background');
+    _setLocalState('background');
     const frame: MentionFrame = {
       op: 'mention',
       d: {
