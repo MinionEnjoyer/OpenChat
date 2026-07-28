@@ -196,8 +196,26 @@ while read -r f <&3; do
     echo "PASS $base" | tee -a "$OUT"
   else
     # capture what was actually on screen — makes the later repair pass trivial
+    #
+    # The PNG matters as much as the XML. A hierarchy dump says an element
+    # exists; only a picture says whether a human could see it. Two verdicts
+    # on 2026-07-27 turned on exactly that difference: voice-pill "still
+    # visible" after disconnect was a 5px sliver mid-dismissal animation, and
+    # a rail item Maestro "could not find" was plainly on screen. Both were
+    # called defects from XML alone, and both were wrong.
+    #
+    # Maestro writes its own screenshots under ~/.maestro/tests/<timestamp>/,
+    # but that path is not correlated with the flow name, so it is useless
+    # during triage. Capturing here keeps the artifact next to its verdict.
     adb -s "$DEV" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 </dev/null
     adb -s "$DEV" pull /sdcard/ui.xml "/tmp/e2e-$base-$DEV-ui.xml" >/dev/null 2>&1 </dev/null
+    adb -s "$DEV" exec-out screencap -p > "/tmp/e2e-$base-$DEV-fail.png" 2>/dev/null </dev/null
+    if [ -s "/tmp/e2e-$base-$DEV-fail.png" ]; then
+      echo "         screenshot: /tmp/e2e-$base-$DEV-fail.png" | tee -a "$OUT"
+    else
+      rm -f "/tmp/e2e-$base-$DEV-fail.png"
+      echo "         WARNING: screenshot capture failed on $DEV" | tee -a "$OUT"
+    fi
     grep -oE 'resource-id="[^"]*"' "/tmp/e2e-$base-$DEV-ui.xml" 2>/dev/null \
       | sed 's/resource-id="//;s/"$//' | sort -u > "/tmp/e2e-$base-$DEV-ids.txt"
     reason=$(grep -oE "Assertion is false[^\"]{0,60}|Element not found[^\"]{0,60}" "/tmp/e2e-$base-$DEV.log" | head -1)
