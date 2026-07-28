@@ -370,11 +370,20 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       room.localParticipant.setMicrophoneEnabled(!newMuted);
     }
     set({ isMuted: newMuted });
+
+    // Keep the local participant's badge in sync without waiting for a
+    // LiveKit event round-trip.  On the first unmute after join-muted the
+    // mic track is created/published — emitting LocalTrackPublished, not
+    // TrackUnmuted — so the event-based path never fires.
+    const localId = room?.localParticipant?.identity;
+    if (localId) get().setMuted(String(localId), newMuted);
   },
 
   toggleDeafen() {
     const { room, isDeafened } = get();
     const newDeafened = !isDeafened;
+
+    const localId = room?.localParticipant?.identity;
 
     if (newDeafened) {
       // Deafening: mute mic + disable all remote audio.
@@ -394,6 +403,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         }
       }
       set({ isDeafened: true, isMuted: true });
+      if (localId) get().setMuted(String(localId), true);
     } else {
       // Undeafening: re-enable mic. The user explicitly chose to undeafen,
       // which means they want to participate (hear and be heard).
@@ -401,6 +411,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         room.localParticipant.setMicrophoneEnabled(true);
       }
       set({ isDeafened: false, isMuted: false });
+      if (localId) get().setMuted(String(localId), false);
     }
   },
 

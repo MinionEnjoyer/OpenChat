@@ -333,6 +333,148 @@ describe('VoiceStore', () => {
       expect(useVoiceStore.getState().isDeafened).toBe(false);
       expect(useVoiceStore.getState().isMuted).toBe(false);
     });
+
+    // ── WO-VOX-MUTE-BADGE: local participant badge consistency ──
+
+    /** Helper: seed the store with a local participant and a room. */
+    function seedLocalParticipant(overrides: {
+      identity?: string;
+      isMuted?: boolean;
+      participants?: Array<{ id: string; isMuted: boolean; isLocal: boolean }>;
+    } = {}) {
+      const identity = overrides.identity ?? 'local-1';
+      const participants = overrides.participants ?? [
+        { id: identity, isMuted: overrides.isMuted ?? true, isLocal: true },
+      ];
+      useVoiceStore.setState({
+        isMuted: overrides.isMuted ?? true,
+        isDeafened: false,
+        room: {
+          localParticipant: {
+            identity,
+            setMicrophoneEnabled: jest.fn(),
+          },
+        },
+        // @ts-expect-error partial shape is fine for tests that only touch isMuted/isLocal
+        participants: participants.map((p) => ({
+          id: p.id,
+          username: p.id,
+          displayName: null,
+          avatarUrl: null,
+          isSpeaking: false,
+          audioLevel: 0,
+          isMuted: p.isMuted,
+          isLocal: p.isLocal,
+        })),
+      });
+    }
+
+    it('first unmute updates BOTH state.isMuted and the local participant badge', () => {
+      seedLocalParticipant({ isMuted: true });
+
+      // The critical case: first toggle from muted (join-muted, no mic track).
+      useVoiceStore.getState().toggleMute();
+
+      const state = useVoiceStore.getState();
+      expect(state.isMuted).toBe(false);
+      // The local participant's isMuted must also be false — the badge
+      // renders from this field, and a test of only the second toggle
+      // would not catch the LocalTrackPublished gap.
+      const local = state.participants.find((p) => p.isLocal);
+      expect(local).toBeDefined();
+      expect(local!.isMuted).toBe(false);
+    });
+
+    it('second mute toggle keeps both sources in sync', () => {
+      seedLocalParticipant({ isMuted: true });
+
+      // First toggle: muted → unmuted
+      useVoiceStore.getState().toggleMute();
+      // Second toggle: unmuted → muted
+      useVoiceStore.getState().toggleMute();
+
+      const state = useVoiceStore.getState();
+      expect(state.isMuted).toBe(true);
+      const local = state.participants.find((p) => p.isLocal);
+      expect(local!.isMuted).toBe(true);
+    });
+
+    it('deafen sets the local participant badge to muted', () => {
+      seedLocalParticipant({ isMuted: false });
+
+      useVoiceStore.getState().toggleDeafen();
+
+      const state = useVoiceStore.getState();
+      expect(state.isDeafened).toBe(true);
+      expect(state.isMuted).toBe(true);
+      const local = state.participants.find((p) => p.isLocal);
+      expect(local!.isMuted).toBe(true);
+    });
+
+    it('undeafen clears the local participant mute badge', () => {
+      seedLocalParticipant({ isMuted: true });
+
+      // Put store in deafened state first.
+      useVoiceStore.setState({ isDeafened: true, isMuted: true });
+      // Update participant too.
+      useVoiceStore.getState().setMuted('local-1', true);
+
+      useVoiceStore.getState().toggleDeafen();
+
+      const state = useVoiceStore.getState();
+      expect(state.isDeafened).toBe(false);
+      expect(state.isMuted).toBe(false);
+      const local = state.participants.find((p) => p.isLocal);
+      expect(local!.isMuted).toBe(false);
+    });
+
+    it('remote participant badge is unaffected by local toggleMute', () => {
+      seedLocalParticipant({
+        identity: 'local-1',
+        isMuted: true,
+        participants: [
+          { id: 'local-1', isMuted: true, isLocal: true },
+          { id: 'remote-2', isMuted: true, isLocal: false },
+        ],
+      });
+
+      useVoiceStore.getState().toggleMute();
+
+      const state = useVoiceStore.getState();
+      // Local unmuted.
+      expect(state.participants.find((p) => p.id === 'local-1')!.isMuted).toBe(false);
+      // Remote still muted (driven by LiveKit events, not local toggle).
+      expect(state.participants.find((p) => p.id === 'remote-2')!.isMuted).toBe(true);
+    });
+
+    it('toggleMute is a no-op on the badge when localId is missing (no room)', () => {
+      // Room with no localParticipant, or localParticipant with no identity.
+      useVoiceStore.setState({
+        isMuted: true,
+        isDeafened: false,
+        room: { localParticipant: { setMicrophoneEnabled: jest.fn(), identity: undefined } },
+        participants: [
+          {
+            id: 'local-1',
+            username: 'local-1',
+            displayName: null,
+            avatarUrl: null,
+            isSpeaking: false,
+            audioLevel: 0,
+            isMuted: true,
+            isLocal: true,
+          },
+        ],
+      });
+
+      useVoiceStore.getState().toggleMute();
+
+      // state.isMuted flips normally.
+      expect(useVoiceStore.getState().isMuted).toBe(false);
+      // Badge stays stale because there's no identity to target.
+      const local = useVoiceStore.getState().participants.find((p) => p.isLocal);
+      expect(local!.isMuted).toBe(true);
+    });
   });
 
   // ── Video state (FR-VOX-006) ──
