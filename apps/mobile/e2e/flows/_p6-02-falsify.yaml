@@ -1,0 +1,80 @@
+# p6-02-falsify — temporary copy for permission grant falsification
+# T4: Uses provisioned test world.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# Wait for voice view to appear
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# Navigate to text channel → pill appears
+- tapOn:
+    id: 'voice-show-chat'
+
+# Wait for pill
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# Wait for connection to fully establish (controls row only renders when connected)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-controls'
+    timeout: 30000
+
+# Toggle camera on
+- assertVisible:
+    id: 'voice-pill-camera'
+- tapOn:
+    id: 'voice-pill-camera'
+
+# After toggle, flip-camera button appears
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-flip-camera'
+    timeout: 15000
+
+# Flip camera
+- tapOn:
+    id: 'voice-pill-flip-camera'
+
+# Toggle camera off
+- tapOn:
+    id: 'voice-pill-camera'
+
+# Flip-camera button disappears when camera is off
+- assertNotVisible:
+    id: 'voice-pill-flip-camera'
+
+# Disconnect
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000

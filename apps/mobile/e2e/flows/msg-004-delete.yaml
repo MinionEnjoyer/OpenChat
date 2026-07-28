@@ -1,0 +1,71 @@
+# msg-004-delete — send → long-press → Delete → confirm → verify "Message removed".
+# @satisfies FR-MSG-004
+#
+# Demonstrates single-device delete flow:
+#   - Long-press on own message opens action sheet.
+#   - "Delete" action triggers confirmation alert.
+#   - Confirming deletes the message.
+#   - Soft-deleted message renders as "Message removed".
+#
+# ACCEPTANCE-CRITERION NOTE:
+#   FR-MSG-004 AC is "E2E + permission unit tests". Permission unit tests
+#   exist in apps/mobile/src/sync/__tests__/messages.test.ts. This flow
+#   covers the E2E half for own-message deletion.
+#
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Send a message to delete ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-delete-test'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'e2e-delete-test'
+
+# ── Phase 4: Long-press message → tap Delete ──
+# Tap first to prime the Pressable (see msg-003-edit for rationale).
+- tapOn: 'e2e-delete-test'
+- longPressOn: 'e2e-delete-test'
+- assertVisible:
+    id: 'message-action-sheet'
+- tapOn:
+    id: 'msg-action-delete'
+
+# ── Phase 5: Native alert appears; confirm deletion ──
+# Alert title: strings.messages.deleteConfirm = "Delete this message?"
+- assertVisible: 'Delete this message?'
+# Tap the destructive "Delete" button
+- tapOn: 'Delete'
+
+# ── Phase 6: Verify message replaced with "Message removed" ──
+# The original text should be gone
+- assertNotVisible: 'e2e-delete-test'
+# The deleted placeholder shows
+- assertVisible: 'Message removed'
+
+- takeScreenshot: artifacts/e2e/screens/msg-004-delete

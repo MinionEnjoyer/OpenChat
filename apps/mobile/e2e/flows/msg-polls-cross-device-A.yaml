@@ -1,0 +1,59 @@
+# msg-polls-cross-device-A — device A (test user): create poll, vote on first option.
+# Companion to msg-polls-cross-device-B.yaml.
+#
+# FR-MSG-012 — Polls vote convergence (Part A: creator + first voter).
+# @satisfies withheld: vote count convergence requires two-device coordination.
+#
+# Requires: dev stack up + provisioned world, two emulators reaching 10.0.2.2.
+# Start B first so it's waiting at the channel, then run A.
+# After both vote, B verifies counts reflect both votes.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as test user ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Create a poll ──
+- tapOn:
+    id: 'composer-poll'
+- assertVisible: 'Create Poll'
+- tapOn:
+    id: 'poll-create-question'
+- inputText: 'Best language?'
+- tapOn:
+    id: 'poll-create-option-0'
+- inputText: 'TypeScript'
+- tapOn:
+    id: 'poll-create-option-1'
+- inputText: 'Rust'
+- tapOn:
+    id: 'poll-create-submit'
+
+# ── Phase 4: Vote for TypeScript ──
+- assertVisible: 'Best language?'
+- tapOn: 'TypeScript'
+
+# ── Phase 5: Verify my vote registered (100% as sole voter so far) ──
+- assertVisible: '100%'
+
+- takeScreenshot: artifacts/e2e/screens/msg-polls-cross-device-A

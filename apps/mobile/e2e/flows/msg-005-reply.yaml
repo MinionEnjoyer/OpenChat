@@ -1,0 +1,105 @@
+# msg-005-reply — FINDING: Reply trigger not wired in mobile action sheet.
+#
+# @satisfies deliberately WITHHELD — see finding below.
+#
+# FR-MSG-005 acceptance criterion: "E2E: reply across a page boundary jumps
+# correctly." This requires a user-visible reply trigger that sets the
+# replyTarget state, after which the existing reply infrastructure (reply
+# chip, reply preview, reply-preview tap-to-jump) can be exercised.
+#
+# FINDING: The reply trigger is NOT wired in the mobile UI.
+#
+# Evidence:
+#   - ChatPane.tsx action sheet (lines 499-517) constructs actions:
+#     edit, react, pin, delete, copy-text, copy-link. No 'reply' action.
+#   - strings.messages.reply = 'Reply' exists (strings.ts:71) but is never
+#     used as a MessageAction id in any source file.
+#   - setReplyTarget(msg) is never called from any user-interaction path.
+#     The only calls are setReplyTarget(null) in two places:
+#       * After send (line 318) — clears the target
+#       * In reply-cancel Pressable (line 755) — clears the target
+#   - The reply infrastructure IS present and working:
+#       * replyTarget state + reply chip with cancel button (testID: reply-cancel)
+#       * replyToId passed in POST /channels/:id/messages
+#       * Reply preview rendered in message bubbles (testID: reply-preview-{id})
+#       * Tap on reply preview scrolls to / fetchAround the original message
+#
+# BLOCKER: Without a reply trigger in the action sheet, no Maestro flow can
+# initiate a reply. The flow below is a TEMPLATE — it will work once a
+# msg-action-reply action is added to the action sheet.
+#
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Send a message to reply to ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-reply-target'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'e2e-reply-target'
+
+# ═══════════════════════════════════════════════════════════════════════
+# BLOCKED: The following phases require a msg-action-reply entry in the
+# message action sheet. They are template-only and will FAIL on device
+# until the reply trigger is wired.
+# ═══════════════════════════════════════════════════════════════════════
+
+# # ── Phase 4: Long-press message → tap Reply ──
+# - longPressOn: 'e2e-reply-target'
+# - assertVisible:
+#     id: 'message-action-sheet'
+# - tapOn:
+#     id: 'msg-action-reply'
+#
+# # ── Phase 5: Verify reply chip appears in composer ──
+# # The reply chip shows "Replying to {author}"
+# - assertVisible: 'Replying to'
+# # Cancel reply button exists
+# - assertVisible:
+#     id: 'reply-cancel'
+#
+# # ── Phase 6: Type reply and send ──
+# - tapOn:
+#     id: 'composer-input'
+# - inputText: 'e2e-reply-response'
+# - tapOn:
+#     id: 'composer-send'
+#
+# # ── Phase 7: Verify reply appears with preview ──
+# - assertVisible: 'e2e-reply-response'
+# # Reply preview should reference the original message
+# # (testID: reply-preview-{messageId} — dynamic, use text search)
+# - assertVisible: 'e2e-reply-target'
+#
+# # ── Phase 8: Tap reply preview → verify navigation to original ──
+# # (scroll/jump to original message — the key AC requirement)
+# # - tapOn:
+# #     id: 'reply-preview-${REPLY_MSG_ID}'
+# # - assertVisible: 'e2e-reply-target'  # original should be visible post-scroll
+
+- takeScreenshot: artifacts/e2e/screens/msg-005-reply

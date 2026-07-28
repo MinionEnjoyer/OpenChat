@@ -1,0 +1,45 @@
+# msg-unread — verify channel list and unread badge infrastructure renders.
+#
+# FR-MSG-010 — Unread/read state infrastructure test.
+# @satisfies withheld: ReadState round-trip (friend sends → unread badge →
+# view → POST read) requires a second session. This flow establishes that
+# the channel list, badge testID convention, and channel navigation work.
+#
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Open drawer, verify channel list renders ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+# ── Phase 3: Verify channels appear with their testIDs ──
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+
+# ── Phase 4: Navigate to general channel, verify chat pane loads ──
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+- assertVisible:
+    id: 'composer-input'
+
+- takeScreenshot: artifacts/e2e/screens/msg-unread

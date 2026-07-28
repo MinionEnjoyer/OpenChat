@@ -1,0 +1,15 @@
+# screen-readiness: FriendsScreen
+# Opens friends from the left drawer rail.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+- assertVisible:
+    id: 'friends-tabs'

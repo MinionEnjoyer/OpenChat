@@ -1,0 +1,35 @@
+# screen-readiness: InviteCreateOverlay
+# Opens the invite create overlay from the channel drawer header.
+# Uses provisioned test world (env vars from test-world.mjs) — no hardcoded
+# server names or usernames. Fresh world every run.
+
+appId: com.openchat.mobile
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'invite-create-button'
+- tapOn:
+    id: 'invite-create-button'
+- assertVisible:
+    id: 'invite-create-overlay'

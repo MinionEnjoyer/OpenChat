@@ -1,0 +1,11 @@
+# screen-readiness: Left Drawer (rail+channels)
+# Opens the left drawer from shell and verifies the rail and drawer are visible.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'server-rail'

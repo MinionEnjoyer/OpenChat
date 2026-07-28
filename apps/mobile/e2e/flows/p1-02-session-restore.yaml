@@ -1,0 +1,38 @@
+# p1-02-session-restore — login → kill → relaunch → verify session persists.
+# @satisfies FR-AUTH-003
+#
+# e2e:no-clear — this flow tests session persistence. pm clear would wipe
+# expo-secure-store and make the test impossible. The flow handles its own
+# initial cleanup via Maestro clearState, then logs in, kills, relaunches,
+# and asserts the session was restored.
+#
+# T4: Uses provisioned test world env var for username.
+# Self-contained: does NOT depend on p1-01 or any prior flow.
+
+appId: com.openchat.mobile
+# e2e:no-clear
+
+---
+# Clean start — clear any prior session state via Maestro
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# Kill the app and relaunch without clearing state.
+- killApp
+- launchApp
+# After relaunch, the app should restore the session and show shell-screen,
+# NOT the login screen.
+- assertVisible:
+    id: 'shell-screen'
+- assertNotVisible:
+    id: 'login-screen'
+- takeScreenshot: artifacts/e2e/screens/p1-restore

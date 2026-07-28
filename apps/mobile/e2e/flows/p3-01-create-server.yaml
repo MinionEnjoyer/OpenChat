@@ -1,0 +1,43 @@
+# p3-01-create-server — login → create server → verify it appears in the rail.
+# @satisfies FR-SRV-002
+#
+# T4: Uses provisioned test world for login. Creates a new server.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# Open left drawer to see the server rail
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# Tap the Create Server button in the rail
+- tapOn:
+    id: 'rail-create-server'
+- assertVisible:
+    id: 'create-server-screen'
+
+# Type the server name and submit
+- tapOn:
+    id: 'create-server-name'
+- inputText: 'E2E Alpha'
+- tapOn:
+    id: 'create-server-submit'
+
+# After creation, we should be back at the shell with the new server selected.
+# Open the left drawer to verify the new server appears in the rail.
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'rail-server-E2E Alpha'
+
+# The channel drawer title should show the new server name
+- assertVisible: 'E2E Alpha'
+
+- takeScreenshot: artifacts/e2e/screens/p3-create-server

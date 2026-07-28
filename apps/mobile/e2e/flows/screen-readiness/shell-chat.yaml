@@ -1,0 +1,14 @@
+# screen-readiness: ShellScreen (chat)
+# Asserts the shell chat screen is visible. No navigation needed — just
+# verify we're on the right screen with chat pane and composer.
+
+appId: com.openchat.mobile
+---
+- assertVisible:
+    id: 'shell-screen'
+- assertVisible:
+    id: 'chat-pane'
+- assertVisible:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'members-toggle'

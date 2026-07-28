@@ -1,0 +1,128 @@
+# p3-06-invite-accept — Alice creates invite → fresh invitee accepts via code entry.
+# @satisfies FR-SRV-006
+#
+# Two-actor flow on one device. Uses runScript for server-side provisioning
+# of an invitee user and invite code, then exercises the JoinServerOverlay
+# code-entry → preview → accept path. Verifies the server appears in the
+# invitee's rail.
+#
+# Idempotent: each run provisions a fresh world + fresh invitee.
+# Designed for: one device, two sessions (clearState between).
+#
+# NOTE: Uses runScript output variables (output.INVITE_CODE,
+# output.INVITEE_USERNAME) — requires Maestro 2.x. If the installed
+# Maestro version does not support runScript output, extend
+# tools/test-world.mjs to export E2E_INVITE_CODE and E2E_INVITEE_USERNAME
+# for a third non-member user, then replace runScript with those env vars.
+#
+# Requires: dev stack up + provisioned world + emulator reaching 10.0.2.2.
+#   Maestro 2.x (for runScript output variables).
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 0: Server-side: create invitee user + invite ──
+- runScript:
+    content: |
+      const API = 'http://10.0.2.2:3030/api';
+      async function main() {
+        // Create a fresh invitee user via dev-login
+        const suffix = Date.now().toString(36);
+        const inviteeUser = 'inv-' + suffix;
+        const loginResp = await fetch(API + '/auth/dev-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: inviteeUser })
+        });
+        if (loginResp.status >= 400) throw new Error('invitee dev-login failed: ' + loginResp.status);
+        const invitee = await loginResp.json();
+
+        // Re-authenticate as Alice (server owner) to create invite
+        const aliceResp = await fetch(API + '/auth/dev-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: '${E2E_USERNAME}' })
+        });
+        if (aliceResp.status >= 400) throw new Error('alice re-auth failed: ' + aliceResp.status);
+        const alice = await aliceResp.json();
+
+        // Create the invite on Alice's server
+        const inviteResp = await fetch(API + '/servers/${E2E_SERVER_ID}/invites', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + alice.accessToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        });
+        if (inviteResp.status >= 400) throw new Error('invite create failed: ' + inviteResp.status);
+        const invite = await inviteResp.json();
+        if (!invite.code) throw new Error('No invite code returned');
+
+        // Export for Maestro flow (requires Maestro 2.x output support)
+        output.INVITE_CODE = invite.code;
+        output.INVITEE_USERNAME = inviteeUser;
+      }
+      main().catch(function(e) { throw e; });
+
+# ── Phase 1: Invitee logs in ──
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${INVITEE_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 2: Open JoinServerOverlay from left rail ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'rail-join-server'
+- tapOn:
+    id: 'rail-join-server'
+- assertVisible:
+    id: 'join-server-overlay'
+
+# ── Phase 3: Enter invite code, tap lookup ──
+- tapOn:
+    id: 'invite-code-input'
+- inputText: ${INVITE_CODE}
+- tapOn:
+    id: 'join-lookup'
+
+# ── Phase 4: Preview renders inside the same overlay ──
+- extendedWaitUntil:
+    visible:
+      id: 'join-accept'
+    timeout: 10000
+# Verify preview shows server name and inviter
+- assertVisible: ${E2E_SERVER_NAME}
+- assertVisible: ${E2E_USERNAME}
+
+# ── Phase 5: Accept the invite ──
+- tapOn:
+    id: 'join-accept'
+
+# Overlay dismissed after accept
+- assertNotVisible:
+    id: 'join-server-overlay'
+
+# ── Phase 6: Verify server appears in invitee's rail ──
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+- takeScreenshot: artifacts/e2e/screens/p3-invite-accept

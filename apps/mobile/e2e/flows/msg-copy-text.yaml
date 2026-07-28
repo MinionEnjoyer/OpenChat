@@ -1,0 +1,58 @@
+# msg-copy-text — send a message, long-press, verify Copy text action, tap it.
+# @satisfies FR-MSG-015
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+#
+# Proves: long-press action sheet presents Copy text; tapping it succeeds
+# (no crash = clipboard set via expo-clipboard). Maestro cannot assert
+# clipboard content directly; the UX path is the E2E-verifiable part.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login and navigate to provisioned server → general ──
+- runFlow: _login.yaml
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 2: Send a test message ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-copy-test'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'e2e-copy-test'
+
+# ── Phase 3: Long-press to reveal action sheet ──
+- longPressOn: 'e2e-copy-test'
+- assertVisible:
+    id: 'message-action-sheet'
+
+# ── Phase 4: Verify Copy text action is present, then tap it ──
+- assertVisible:
+    id: 'msg-action-copy-text'
+- tapOn:
+    id: 'msg-action-copy-text'
+
+# ── Phase 5: Action sheet should dismiss after action ──
+- assertNotVisible:
+    id: 'message-action-sheet'
+
+- takeScreenshot: artifacts/e2e/screens/msg-copy-text

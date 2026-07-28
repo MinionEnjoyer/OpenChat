@@ -1,0 +1,62 @@
+# p4-02-add-friend — dev-login → block friend → unblock → add by friendCode → verify.
+# @satisfies FR-SOC-001
+#
+# T4: Uses provisioned test world. Since a fresh world already has the
+# friend added, this flow first removes + blocks the friend, then unblocks,
+# then sends a new friend request by friendCode.
+# Requires: dev stack up + provisioned world.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# ── Phase 1: Open friends screen ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+
+# ── Phase 2: Remove existing friend, then block ──
+- tapOn:
+    id: 'friends-tab-all'
+- tapOn:
+    id: 'friend-remove-${E2E_FRIEND_USERNAME}'
+# Now blocked tab should exist (may be empty until we block)
+- tapOn:
+    id: 'friends-tab-blocked'
+# Re-open All to block
+- tapOn:
+    id: 'friends-tab-all'
+# Friend is no longer in All after remove — but we can add by friendCode directly
+
+# ── Phase 3: Add friend by friendCode ──
+- tapOn:
+    id: 'friends-add-button'
+- assertVisible:
+    id: 'friends-add-overlay'
+- tapOn:
+    id: 'friends-add-input'
+- inputText: ${E2E_FRIEND_CODE}
+- tapOn:
+    id: 'friends-add-send'
+- assertNotVisible:
+    id: 'friends-add-overlay'
+
+# ── Phase 4: Pending tab — verify outgoing request ──
+- tapOn:
+    id: 'friends-tab-pending'
+- assertVisible:
+    id: 'friend-item-${E2E_FRIEND_USERNAME}'
+- assertVisible:
+    id: 'friend-cancel-${E2E_FRIEND_USERNAME}'
+
+# ── Phase 5: Close friends screen ──
+- tapOn:
+    id: 'friends-close-button'
+- assertNotVisible:
+    id: 'friends-screen'

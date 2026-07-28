@@ -1,0 +1,54 @@
+# p4-05-block-collapse — dev-login → block friend → open DM → verify blocked messages
+# collapsed → tap to reveal → verify content.
+# @satisfies FR-SOC-007
+#
+# T4: Uses provisioned test world. Blocks friend first, then verifies collapse.
+# Requires: dev stack up + provisioned world.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# ── Phase 0: Block the friend first (fresh world has no blocked users) ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+- tapOn:
+    id: 'friend-block-${E2E_FRIEND_USERNAME}'
+- tapOn:
+    id: 'friends-close-button'
+
+# ── Phase 1: Open DM with friend ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-dm'
+- assertVisible:
+    id: 'dm-section'
+# Tap friend's DM row
+- tapOn: ${E2E_FRIEND_USERNAME}
+
+# ── Phase 2: Verify left drawer closes and chat pane loads ──
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+
+# ── Phase 3: Verify blocked message placeholder ──
+- assertVisible: 'Blocked message — tap to show'
+
+# ── Phase 4: Tap to reveal ──
+- tapOn: 'Blocked message — tap to show'
+
+# ── Phase 5: Verify content revealed ──
+- assertNotVisible: 'Blocked message — tap to show'
+
+- takeScreenshot: artifacts/e2e/screens/p4-block

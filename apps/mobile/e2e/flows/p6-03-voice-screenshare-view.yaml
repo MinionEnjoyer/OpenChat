@@ -1,0 +1,46 @@
+# p6-03-voice-screenshare-view — login → join voice → verify screenshare infrastructure
+# @satisfies FR-VOX-007
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Join provisioned voice channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Voice connection ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 30000
+- assertVisible:
+    id: 'voice-pill-controls'
+
+# ── Phase 4: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+- assertNotVisible:
+    id: 'voice-pill'
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-screenshare

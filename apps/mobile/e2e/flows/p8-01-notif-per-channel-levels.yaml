@@ -1,0 +1,67 @@
+# p8-01-notif-per-channel-levels — login → select channel → notification settings → set per-channel level + mute
+# @satisfies FR-NOTIF-003
+#
+# T4: Uses provisioned test world. Channel UUIDs from env vars.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login and select a channel ──
+- runFlow: _login.yaml
+
+# Open left drawer and select provisioned server → general channel
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible: '# ${E2E_CHANNEL_GENERAL}'
+
+# ── Phase 2: Open notification settings ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'notif-settings-button'
+- assertVisible:
+    id: 'notif-settings-done'
+
+# ── Phase 3: Change channel notification level to MENTIONS ──
+- scrollUntilVisible:
+    element:
+      id: 'notif-level-CHANNEL-${E2E_CHANNEL_GENERAL_ID}-MENTIONS'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'notif-level-CHANNEL-${E2E_CHANNEL_GENERAL_ID}-MENTIONS'
+
+# ── Phase 4: Mute channel for 15 minutes ──
+- tapOn:
+    id: 'notif-mute-toggle-CHANNEL-${E2E_CHANNEL_GENERAL_ID}'
+- tapOn:
+    id: 'notif-mute-opt-CHANNEL-${E2E_CHANNEL_GENERAL_ID}-900000'
+- assertVisible:
+    id: 'notif-mute-toggle-CHANNEL-${E2E_CHANNEL_GENERAL_ID}'
+
+# ── Phase 5: Close settings and verify return to chat ──
+- tapOn:
+    id: 'notif-settings-done'
+- assertNotVisible:
+    id: 'notif-settings-done'
+- assertVisible: '# ${E2E_CHANNEL_GENERAL}'
+
+- takeScreenshot: artifacts/e2e/screens/p8-notif-levels

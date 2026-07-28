@@ -1,0 +1,45 @@
+# screen-readiness: MemberProfileSheet
+# Opens a member's profile from the right drawer member list.
+# Uses provisioned test world (env vars from test-world.mjs) — no hardcoded
+# server names or usernames. Fresh world every run.
+
+appId: com.openchat.mobile
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${E2E_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'members-drawer'
+- assertVisible:
+    id: 'member-${E2E_USERNAME}'
+- tapOn:
+    id: 'member-${E2E_USERNAME}'
+- assertVisible:
+    id: 'member-profile-sheet'

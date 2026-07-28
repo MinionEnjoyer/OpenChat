@@ -1,0 +1,105 @@
+# p6-01-voice-channel-join-tiles — login → join voice channel → voice view + tile grid + controls + occupancy
+# @satisfies FR-VOX-002, FR-VOX-004
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server, join voice channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+
+# Left drawer closes
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Verify full voice view appears ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# Voice controls bar (mute/deafen/speaker/disconnect) is visible in voice view
+- assertVisible:
+    id: 'voice-controls'
+
+# Disconnect button present in voice view controls
+- assertVisible:
+    id: 'voice-control-disconnect'
+
+# ── Phase 4: Verify participant tile grid (FR-VOX-002) ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-tile-grid'
+    timeout: 30000
+
+# Mute using voice view controls
+- tapOn:
+    id: 'voice-control-mute'
+
+# Verify mute badge appears on own tile
+- assertVisible:
+    id: 'voice-tile-muted'
+
+# Unmute
+- tapOn:
+    id: 'voice-control-mute'
+
+# ── Phase 5: Verify channel occupancy in channel list (FR-VOX-004) ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# The voice channel row should show the test user as connected participant
+- extendedWaitUntil:
+    visible: ${E2E_USERNAME}
+    timeout: 20000
+
+# ── Phase 6: Navigate away → pill, then leave ──
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+
+# VoiceChannelView is visible (still connected)
+- assertVisible:
+    id: 'voice-channel-view'
+
+# Tap "Show Chat" to navigate to text channel → pill appears
+- tapOn:
+    id: 'voice-show-chat'
+
+# Pill is visible (voice view dismissed, still in call)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# Disconnect from pill
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+# Pill disappears after disconnect
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-tiles

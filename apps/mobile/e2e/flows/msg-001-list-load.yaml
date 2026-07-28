@@ -1,0 +1,54 @@
+# msg-001-list-load — login → select channel → verify seeded messages visible.
+#
+# FR-MSG-001 acceptance criterion requires: "Integration vs seeded 1000-msg
+# channel: exact page joins, no dupes/gaps (assert by id sequence)".
+# This is an INTEGRATION-level criterion, not E2E.
+#
+# The test-world endpoint seeds 3 messages — insufficient for pagination
+# boundary verification.  This flow demonstrates the message list loads
+# correctly (a necessary precondition for any pagination test), but does
+# NOT satisfy the full acceptance criterion.
+#
+# @satisfies deliberately WITHHELD:
+#   - AC requires 1000-msg seed → integration test, not maestro E2E.
+#   - Day dividers + author grouping cannot be verified with 3 same-author
+#     messages created at the same instant.
+#   - When a seeded 1000-msg channel endpoint exists, a real pagination
+#     E2E can replace this pre-check.
+#
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Verify the chat pane renders and seeded messages are visible ──
+- assertVisible:
+    id: 'chat-pane'
+- assertVisible:
+    id: 'composer-input'
+# The test-world seeds messages; verify at least one content-bearing row exists
+- assertVisible: 'Hello from test world!'
+
+- takeScreenshot: artifacts/e2e/screens/msg-001-list-load
