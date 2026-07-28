@@ -45,6 +45,13 @@ export class VoiceService {
     });
     await this.prisma.voiceSession.create({ data: { channelId, userId } });
 
+    // @satisfies FR-VOX-004 — notify all peers of occupancy change
+    this.redis.publish('chat:events', {
+      type: 'VOICE_OCCUPANCY_CHANGED',
+      channelId,
+      serverId: channel.serverId ?? null,
+    }).catch(() => {});
+
     // DM call: ring the other participant(s) who aren't already connected.
     if (!channel.serverId) {
       const recips = await this.prisma.channelRecipient.findMany({
@@ -89,6 +96,20 @@ export class VoiceService {
       where: { channelId, userId, leftAt: null },
       data: { leftAt: new Date() },
     });
+
+    // Notify peers of occupancy change (FR-VOX-004).
+    const ch = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { serverId: true },
+    });
+    if (ch) {
+      this.redis.publish('chat:events', {
+        type: 'VOICE_OCCUPANCY_CHANGED',
+        channelId,
+        serverId: ch.serverId ?? null,
+      }).catch(() => {});
+    }
+
     return { success: true };
   }
 

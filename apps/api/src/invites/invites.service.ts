@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { User } from '@prisma/client';
+import { RedisService } from '../redis/redis.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class InvitesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+    private readonly auditLog: AuditLogService,
+  ) {}
 
   async createInvite(
     serverId: string,
@@ -98,6 +103,14 @@ export class InvitesService {
       throw new BadRequestException('Invite usage limit reached');
     }
 
+    // P7: reject banned users
+    const ban = await this.prisma.ban.findUnique({
+      where: { serverId_userId: { serverId: invite.serverId, userId } },
+    });
+    if (ban) {
+      throw new ForbiddenException('You are banned from this server');
+    }
+
     const existingMember = await this.prisma.serverMember.findUnique({
       where: {
         serverId_userId: {
@@ -135,6 +148,34 @@ export class InvitesService {
         where: { id: invite.serverId },
       });
     });
+
+    await this.auditLog.write({
+      serverId: invite.serverId,
+      actorId: userId,
+      action: 'MEMBER_JOIN',
+      targetType: 'member',
+      targetId: userId,
+    });
+
+    const memberRecord = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId: invite.serverId, userId } },
+      include: { user: true, roles: true },
+    });
+    const member = {
+      userId,
+      nickname: memberRecord?.nickname ?? null,
+      joinedAt: memberRecord!.joinedAt.toISOString(),
+      isOwner: server.ownerId === userId,
+      roleIds: memberRecord!.roles.map((r: any) => r.id),
+      user: {
+        id: memberRecord!.user.id,
+        username: memberRecord!.user.username,
+        displayName: memberRecord!.user.displayName,
+        avatarUrl: memberRecord!.user.avatarUrl,
+        status: memberRecord!.user.status,
+      },
+    };
+    this.redis.publish('chat:events', { type: 'MEMBER_JOINED', serverId: invite.serverId, userId, member }).catch(() => {});
 
     return {
       id: server.id,

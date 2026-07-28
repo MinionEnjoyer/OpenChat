@@ -1,7 +1,6 @@
-import { Controller, Get, Injectable, Query, UseGuards, BadRequestException } from '@nestjs/common';
-import { Module } from '@nestjs/common';
+import { Controller, Get, Injectable, Module, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { AuthModule } from '../auth/auth.module';
 
 export interface Gif {
@@ -40,7 +39,7 @@ export class GifsService {
 }
 
 @Controller('gifs')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class GifsController {
   constructor(private readonly gifs: GifsService) {}
 

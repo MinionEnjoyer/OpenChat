@@ -1,0 +1,26 @@
+# x-attachment-shape.yaml — canonical attachment wire shape per E9 observation
+# Generated: 2026-07-21 from docs/capabilities/experiment-outputs/E9.json (E9.txt line 28)
+# This is the authoritative contract for attachment objects in API responses.
+# Any deviation from this shape is a wire-level regression.
+
+attachment:
+  shape:
+    - id:             { type: string, format: uuid }
+    - messageId:      { type: string, format: uuid }
+    - shareAssetId:   { type: string }
+    - filename:       { type: string }
+    - mimeType:       { type: string }
+    - size:           { type: string, pattern: "^\\d+$", note: "BigInt serialized as decimal string" }
+    - url:            { type: string }
+    - thumbnailUrl:   { type: string | null }
+    - width:          { type: number | null }
+    - height:         { type: number | null }
+    - durationMs:     { type: number | null }
+
+  exhaustive: true  # No additional keys permitted; assertExactKeys enforces this at test time
+
+  source_observation:
+    file: docs/capabilities/experiment-outputs/E9.txt
+    line: 28
+    verbatim: |
+      {"id":"872aa799-1a7b-4d04-a3e6-a334e19290ad","messageId":"8e6e37d9-4cca-4f00-86f4-cbae48cdb34e","shareAssetId":"test123","filename":"test.png","mimeType":"image/png","size":"1024","url":"https://placehold.co/600x400","thumbnailUrl":"https://placehold.co/150x150","width":600,"height":400,"durationMs":null}

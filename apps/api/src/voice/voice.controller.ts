@@ -1,11 +1,11 @@
 import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { VoiceService } from './voice.service';
 import type { User } from '@prisma/client';
 
 @Controller('voice')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class VoiceController {
   constructor(private readonly voice: VoiceService) {}
 

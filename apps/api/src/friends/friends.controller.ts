@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { FriendsService } from './friends.service';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '@prisma/client';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -16,7 +16,7 @@ const SendFriendRequestSchema = z
   });
 
 @Controller('friends')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class FriendsController {
   constructor(private readonly friendsService: FriendsService) {}
 
@@ -28,6 +28,11 @@ export class FriendsController {
   @Get('requests')
   listPending(@CurrentUser() user: User) {
     return this.friendsService.listPending(user.id);
+  }
+
+  @Get('blocked')
+  listBlocked(@CurrentUser() user: User) {
+    return this.friendsService.listBlocked(user.id);
   }
 
   @Post('requests')
@@ -63,11 +68,20 @@ export class FriendsController {
     return this.friendsService.remove(user.id, userId);
   }
 
+
   @Post('block/:userId')
   block(
     @CurrentUser() user: User,
     @Param('userId') userId: string,
   ) {
     return this.friendsService.block(user.id, userId);
+  }
+
+  @Post('unblock/:userId')
+  unblock(
+    @CurrentUser() user: User,
+    @Param('userId') userId: string,
+  ) {
+    return this.friendsService.unblock(user.id, userId);
   }
 }

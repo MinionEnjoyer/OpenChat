@@ -1,0 +1,14 @@
+# Dev-mode API with hot reload (nest start --watch).
+# Used by docker-compose.dev.yml — NOT for production.
+FROM node:20-slim AS dev
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY prisma ./prisma
+RUN npx prisma generate
+COPY tsconfig.json nest-cli.json ./
+COPY src ./src
+EXPOSE 3001
+EXPOSE 9229
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:dev"]

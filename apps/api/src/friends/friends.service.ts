@@ -53,7 +53,7 @@ export class FriendsService {
 
     if (reverseRequest) {
       // Accept the reverse request automatically
-      const updated = await this.prisma.friendship.update({
+      await this.prisma.friendship.update({
         where: { id: reverseRequest.id },
         data: { status: 'ACCEPTED' },
       });
@@ -75,7 +75,7 @@ export class FriendsService {
       throw new BadRequestException('Friend request already sent or accepted');
     }
 
-    const friendship = await this.prisma.friendship.upsert({
+    await this.prisma.friendship.upsert({
       where: {
         requesterId_addresseeId: {
           requesterId: userId,
@@ -190,6 +190,14 @@ export class FriendsService {
     });
   }
 
+  async listBlocked(userId: string): Promise<Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status'>[]> {
+    const blocked = await this.prisma.friendship.findMany({
+      where: { requesterId: userId, status: 'BLOCKED' },
+      include: { addressee: true },
+    });
+    return blocked.map((f) => this.toUserDTO(f.addressee));
+  }
+
   async block(userId: string, otherUserId: string): Promise<void> {
     await this.prisma.friendship.upsert({
       where: {
@@ -206,6 +214,25 @@ export class FriendsService {
       update: {
         status: 'BLOCKED',
       },
+    });
+  }
+
+
+  async unblock(userId: string, otherUserId: string): Promise<void> {
+    const friendship = await this.prisma.friendship.findFirst({
+      where: {
+        requesterId: userId,
+        addresseeId: otherUserId,
+        status: 'BLOCKED',
+      },
+    });
+
+    if (!friendship) {
+      throw new NotFoundException('Block not found');
+    }
+
+    await this.prisma.friendship.delete({
+      where: { id: friendship.id },
     });
   }
 }

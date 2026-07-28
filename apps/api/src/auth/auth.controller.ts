@@ -1,9 +1,12 @@
 import {
   Controller, Get, Post, Patch, Put, Delete, Param, Query, Body, Req, Res, UseGuards, NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { TokenService } from './token.service';
+import { AuthGuard } from './auth.guard';
 import { SessionGuard } from './session.guard';
 import { CurrentUser } from './current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -11,7 +14,66 @@ import type { User } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tokenService: TokenService,
+  ) {}
+
+  /**
+   * P1-01 — Bearer token issuance (FR-AUTH-001/002).
+   * Grants: authorization_code (native PKCE code posted by the app; server
+   * finishes the exchange) and refresh_token (rotation; reuse kills the family).
+   */
+  @Post('oauth/token')
+  async token(
+    @Body()
+    body: {
+      grantType?: string;
+      code?: string;
+      codeVerifier?: string;
+      redirectUri?: string;
+      refreshToken?: string;
+    },
+  ) {
+    if (body?.grantType === 'authorization_code') {
+      if (!body.code || !body.codeVerifier || !body.redirectUri) {
+        throw new BadRequestException('code, codeVerifier and redirectUri are required');
+      }
+      // P1-01 opt-in: try desktop PKCE code first (RFC 7636).
+      // Desktop PKCE codes are server-minted (not from the IdP) and stored in Redis.
+      // If the code isn't a desktop PKCE code, fall through to the OIDC exchange.
+      const desktopUser = await this.authService.exchangeDesktopPkceCode(
+        body.code,
+        body.codeVerifier,
+      );
+      if (desktopUser) {
+        const tokens = await this.tokenService.issueFamily(desktopUser.id);
+        const user = await this.authService.getCurrentUser(desktopUser.id);
+        return { ...tokens, user };
+      }
+      const user = await this.authService.exchangeNativeCode(
+        body.code,
+        body.codeVerifier,
+        body.redirectUri,
+      );
+      const tokens = await this.tokenService.issueFamily(user.id);
+      const { authSub: _authSub, ...safe } = user;
+      return { ...tokens, user: safe };
+    }
+    if (body?.grantType === 'refresh_token') {
+      if (!body.refreshToken) throw new BadRequestException('refreshToken is required');
+      const { userId, ...tokens } = await this.tokenService.refresh(body.refreshToken);
+      const user = await this.authService.getCurrentUser(userId);
+      return { ...tokens, user };
+    }
+    throw new BadRequestException('grantType must be authorization_code or refresh_token');
+  }
+
+  /** P1-03 — public OIDC metadata for native clients (DR-002 option D). No auth, no secrets. */
+  @Get('oidc-metadata')
+  oidcMetadata() {
+    return this.authService.oidcMetadata();
+  }
 
   @Get('login')
   async login(@Req() req: Request, @Res() res: Response, @Query('returnTo') returnTo?: string) {
@@ -45,7 +107,7 @@ export class AuthController {
         req.session.save((err) => (err ? reject(err) : resolve())),
       );
       res.redirect(dest);
-    } catch (err) {
+    } catch (_err) {
       // A stale/overlapping login (e.g. OIDC state mismatch from multiple open flows) should
       // restart the login cleanly rather than 500 — Authentik's SSO session makes it instant.
       session.loginRetries = (session.loginRetries ?? 0) + 1;
@@ -62,14 +124,46 @@ export class AuthController {
     }
   }
 
-  // Desktop sign-in handoff: after SSO, mint an app token and bounce it to the
-  // desktop client via the openchat:// deep link. Unauthenticated → go log in first.
+  // Desktop sign-in handoff: after SSO, deliver a credential to the desktop client
+  // via the openchat:// deep link. Unauthenticated → go log in first.
+  //
+  // DEFAULT (no query params): mint a bearer token and deep-link it (backward compat).
+  //
+  // OPT-IN PKCE (RFC 7636): when the client sends ?code_challenge=<S256>&code_challenge_method=S256,
+  // mint a single-use authorization code instead of a token. The code is useless
+  // without the code_verifier only the legitimate client holds.
   @Get('desktop')
-  async desktopLogin(@Req() req: Request, @Res() res: Response) {
+  async desktopLogin(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('code_challenge') codeChallenge?: string,
+    @Query('code_challenge_method') codeChallengeMethod?: string,
+  ) {
     const session = req.session as typeof req.session & { userId?: string };
     if (!session?.userId) {
-      return res.redirect('/api/auth/login?returnTo=/api/auth/desktop');
+      const qs = codeChallenge
+        ? `?code_challenge=${encodeURIComponent(codeChallenge)}&code_challenge_method=${encodeURIComponent(codeChallengeMethod ?? '')}`
+        : '';
+      return res.redirect(`/api/auth/login?returnTo=/api/auth/desktop${qs}`);
     }
+
+    // Opt-in PKCE: the client explicitly requests a code instead of a token.
+    if (codeChallenge && codeChallengeMethod === 'S256') {
+      const code = await this.authService.generateDesktopPkceCode(session.userId, codeChallenge);
+      const deepLink = `openchat://auth?code=${encodeURIComponent(code)}`;
+      res.type('html').send(
+        `<!doctype html><meta charset="utf-8"><title>OpenChat</title>` +
+        `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+        `<body style="font-family:system-ui;background:#2f3136;color:#dcddde;display:flex;min-height:100vh;margin:0;align-items:center;justify-content:center;text-align:center">` +
+        `<div><h2 style="color:#fff">Signing you in…</h2>` +
+        `<p>OpenChat should open automatically. If it doesn't, <a style="color:#5865F2" href="${deepLink}">click here</a>.</p>` +
+        `<p style="color:#8e9297;font-size:13px">You can close this tab.</p></div>` +
+        `<script>location.href=${JSON.stringify(deepLink)}</script></body>`,
+      );
+      return;
+    }
+
+    // Default: mint a bearer token (backward-compatible, byte-identical to today).
     const { token } = await this.authService.createToken(session.userId, 'Desktop app');
     const deepLink = `openchat://auth?token=${encodeURIComponent(token)}`;
     res.type('html').send(
@@ -84,8 +178,18 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(@Req() req: Request, @Res() res: Response) {
+  async logout(@Req() req: Request, @Res() res: Response, @Body() body?: { refreshToken?: string }) {
+    // P1-02: a bearer client sends its refreshToken; revoke the whole family
+    // (FR-AUTH-004) — then fall through to the session teardown, which is a
+    // no-op for cookie-less requests and keeps the web path byte-identical.
+    if (body?.refreshToken) {
+      await this.tokenService.revokeFamilyOf(body.refreshToken);
+    }
     const session = req.session as typeof req.session & { idToken?: string };
+    if (!session?.idToken && body?.refreshToken) {
+      req.session?.destroy(() => res.json({}));
+      return;
+    }
     let endSessionUrl = '/';
     try {
       endSessionUrl = await this.authService.endSessionUrl(session.idToken ?? '');
@@ -103,18 +207,20 @@ export class AuthController {
     }
     const user = await this.authService.devLogin(username || 'dev');
     (req.session as typeof req.session & { userId?: string }).userId = user.id;
-    return user;
+    // P1-02: also hand out bearer tokens — the mobile test path (still 404 in prod).
+    const tokens = await this.tokenService.issueFamily(user.id);
+    return { ...user, ...tokens };
   }
 
   @Get('me')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   me(@CurrentUser() user: Omit<User, 'authSub'>) {
     // getCurrentUser also lazily backfills the friend code for pre-existing users.
     return this.authService.getCurrentUser(user.id);
   }
 
   @Patch('me')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   updateMe(
     @CurrentUser() user: Omit<User, 'authSub'>,
     @Body() body: { username?: string; displayName?: string; avatarUrl?: string; status?: string },
@@ -128,13 +234,13 @@ export class AuthController {
   }
 
   @Put('server-layout')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   updateServerLayout(@CurrentUser() user: Omit<User, 'authSub'>, @Body() body: { layout: unknown }) {
     return this.authService.updateServerLayout(user.id, body?.layout);
   }
 
   @Get('ws-ticket')
-  @UseGuards(SessionGuard)
+  @UseGuards(AuthGuard)
   wsTicket(@CurrentUser() user: Omit<User, 'authSub'>) {
     return this.authService.mintWsTicket(user.id);
   }

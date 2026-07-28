@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { DmsService } from './dms.service';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { User } from '@prisma/client';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -11,7 +11,7 @@ const OpenDmSchema = z.object({
 });
 
 @Controller('dms')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class DmsController {
   constructor(private readonly dmsService: DmsService) {}
 

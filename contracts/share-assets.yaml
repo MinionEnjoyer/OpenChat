@@ -1,0 +1,441 @@
+openapi: 3.1.0
+info:
+  title: OpenShare Asset API
+  version: 0.1.0
+  description: >
+    OpenShare REST API for asset storage and retrieval.
+
+    **Current state (Phase 0 observed):** OpenShare uses its own OIDC session
+    (independent from OpenChat). Cookie-session routes are documented below with
+    `x-status: current`. Public endpoints (no auth) are also documented.
+
+    **Planned (Phase 5):** A service-account-based asset API (upload proxy,
+    authenticated retrieval) will be built in Phase 5. Those paths are marked
+    `x-status: planned`.
+servers:
+  - url: http://localhost:8800
+    description: Dev stack OpenShare
+
+security:
+  - cookieAuth: []
+
+paths:
+  # ── Current: Public endpoints ──
+  /:
+    get:
+      operationId: rootPage
+      summary: Root page (serves login HTML)
+      tags: [public]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: HTML page
+      x-evidence: E4
+
+  /raw/{media_id}:
+    parameters:
+      - name: media_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: rawFile
+      summary: Download raw file (PUBLIC, no auth required)
+      tags: [public]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: Raw file content
+        '302':
+          description: Redirect for bundle files
+        '404':
+          description: Not found
+      x-evidence: share.spec.ts#raw, E4
+
+  /raw/{media_id}/{filename}:
+    parameters:
+      - name: media_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: filename
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: rawBundleFile
+      summary: Download file from bundle (PUBLIC, no auth required)
+      tags: [public]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: File content
+        '404':
+          description: Not found
+      x-evidence: E5 (source reading: OpenShare/main.py:830)
+
+  /thumb/{media_id}:
+    parameters:
+      - name: media_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: thumbnail
+      summary: Download thumbnail (PUBLIC, no auth required)
+      tags: [public]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: JPEG thumbnail
+        '404':
+          description: Not found or no thumbnail
+      x-evidence: share.spec.ts#thumb, E4
+
+  /m/{media_id}:
+    parameters:
+      - name: media_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: viewModel
+      summary: View 3D model page
+      tags: [public]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: HTML page with 3D viewer
+        '404':
+          description: Not found or not a model
+      x-evidence: E5 (source reading: OpenShare/main.py:747)
+
+  /f/{folder_id}:
+    parameters:
+      - name: folder_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: publicFolder
+      summary: View public folder
+      tags: [public]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: HTML page with folder contents
+        '404':
+          description: Not found
+      x-evidence: E5 (source reading: OpenShare/main.py:787)
+
+  # ── Current: Auth-required endpoints ──
+  /upload:
+    post:
+      operationId: uploadFile
+      summary: Upload file (requires OpenShare OIDC session)
+      tags: [upload]
+      x-status: current
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                source:
+                  type: string
+                  enum: [chat, gallery]
+                  description: "'chat' creates auto-named Chat folder"
+                folder:
+                  type: string
+                  description: Target folder name
+      responses:
+        '200':
+          description: >
+            `{saved: [{id, media_type, original_name, size, ...}], rejected: [...]}`.
+            SHA-256 dedup: same-content re-upload returns existing asset id.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavedAsset'
+                  rejected:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RejectedFile'
+        '401':
+          description: No OpenShare session cookie
+      x-evidence: >
+        E5 (auth barrier — unable to exercise directly without Authentik;
+        schema confirmed from source reading OpenShare/main.py:408-565)
+
+  /search:
+    get:
+      operationId: searchAssets
+      summary: Search user's assets (requires OpenShare OIDC session)
+      tags: [search]
+      x-status: current
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML search results page
+        '401':
+          description: No session
+      x-evidence: E5 (source reading: OpenShare/main.py:769)
+
+  /auth/dev-login:
+    post:
+      operationId: devLogin
+      summary: Dev-only login bypass (DEV_AUTH=1 required)
+      tags: [auth]
+      security: []
+      x-status: current
+      responses:
+        '200':
+          description: Session cookie set
+      x-evidence: share.spec.ts#dev-login
+
+   # ── Planned: Phase 5 service asset API (FR-MED-001) ──
+   /api/assets:
+     post:
+       operationId: createAsset
+       summary: Upload an asset (service-to-service with Bearer token)
+       description: >
+         Service-to-service endpoint for OpenChat's ShareService.
+         Auth via Bearer token (SHARE_API_KEY). Reuses the exact internal
+         save path of /upload (SHA-256 dedup preserved).
+         Does NOT exist today (2026-07-25) — POST returns 404.
+         Phase 5 will implement this endpoint.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       requestBody:
+         content:
+           multipart/form-data:
+             schema:
+               type: object
+               properties:
+                 file:
+                   type: string
+                   format: binary
+                   description: The file to upload
+                 source:
+                   type: string
+                   enum: [chat, gallery]
+                   description: "'chat' creates auto-named Chat folder"
+               required: [file]
+       responses:
+         '201':
+           description: Asset created successfully
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/AssetMetadata'
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Route does not exist (pre-Phase 5)
+       x-evidence: >
+         Spec from 14-PHASE5-MEDIA.md P5-01.
+         Verified 404 on 2026-07-25 — route not yet built.
+
+   /api/assets/{id}:
+     parameters:
+       - name: id
+         in: path
+         required: true
+         schema:
+           type: string
+     get:
+       operationId: getAsset
+       summary: Get asset metadata (service-to-service with Bearer token)
+       description: >
+         Returns full asset metadata. Auth via Bearer token (SHARE_API_KEY).
+         Does NOT exist today — GET returns 404.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       responses:
+         '200':
+           description: Asset metadata
+           content:
+             application/json:
+               schema:
+                 $ref: '#/components/schemas/AssetMetadata'
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Asset not found or route not yet built
+       x-evidence: Spec from 14-PHASE5-MEDIA.md P5-01
+
+   /api/assets/{id}/raw:
+     parameters:
+       - name: id
+         in: path
+         required: true
+         schema:
+           type: string
+     get:
+       operationId: getAssetRaw
+       summary: Download raw asset bytes (service-to-service with Bearer token)
+       description: >
+         Returns raw file bytes with Content-Type, ETag=sha256,
+         Accept-Ranges: bytes + Range support for video seeking.
+         Auth via Bearer token.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       responses:
+         '200':
+           description: Raw file content
+           headers:
+             ETag:
+               schema:
+                 type: string
+               description: SHA-256 hash of the file
+             Content-Type:
+               schema:
+                 type: string
+             Accept-Ranges:
+               schema:
+                 type: string
+                 enum: [bytes]
+         '206':
+           description: Partial content (Range request)
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Asset not found or route not yet built
+       x-evidence: Spec from 14-PHASE5-MEDIA.md P5-01
+
+   /api/assets/{id}/thumb:
+     parameters:
+       - name: id
+         in: path
+         required: true
+         schema:
+           type: string
+     get:
+       operationId: getAssetThumb
+       summary: Download thumbnail (service-to-service with Bearer token)
+       description: >
+         Returns JPEG thumbnail bytes. Auth via Bearer token.
+       tags: [service-api]
+       security:
+         - bearerAuth: []
+       x-status: planned
+       x-phase: 14-PHASE5-MEDIA
+       responses:
+         '200':
+           description: JPEG thumbnail
+         '401':
+           description: Missing or invalid Bearer token
+         '404':
+           description: Asset not found or no thumbnail, or route not yet built
+       x-evidence: Spec from 14-PHASE5-MEDIA.md P5-01
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+      description: OpenShare OIDC session cookie (independent from OpenChat)
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: OpenShare service API key (SHARE_API_KEY env var)
+
+  schemas:
+    SavedAsset:
+      type: object
+      properties:
+        id:
+          type: string
+        media_type:
+          type: string
+          enum: [image, video, audio, pdf, model, text, archive, other]
+        original_name:
+          type: string
+        size:
+          type: integer
+        url:
+          type: string
+          format: uri
+      x-source: E5, OpenShare/main.py:520-550
+
+    RejectedFile:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+      x-source: E5, OpenShare/main.py:520-550
+
+    AssetMetadata:
+      type: object
+      description: Full asset metadata returned by /api/assets and /api/assets/{id}
+      properties:
+        id:
+          type: string
+          description: Unique asset identifier
+        filename:
+          type: string
+          description: Original upload filename
+        mimeType:
+          type: string
+          description: Detected MIME type
+        size:
+          type: integer
+          description: File size in bytes
+        mediaType:
+          type: string
+          enum: [image, video, audio, pdf, model, text, archive, other]
+          description: Broad media category
+        width:
+          type: integer
+          nullable: true
+          description: Image/video width in pixels (if applicable)
+        height:
+          type: integer
+          nullable: true
+          description: Image/video height in pixels (if applicable)
+        durationMs:
+          type: integer
+          nullable: true
+          description: Audio/video duration in milliseconds
+        sha256:
+          type: string
+          description: SHA-256 hash of the file content
+      required: [id, filename, mimeType, size, mediaType]
+      x-phase: 14-PHASE5-MEDIA
+      x-source: Spec from 14-PHASE5-MEDIA.md P5-01

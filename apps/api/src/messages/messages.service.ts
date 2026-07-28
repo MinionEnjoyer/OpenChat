@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { ServersService } from '../servers/servers.service';
 import { PresenceService } from '../realtime/presence.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
@@ -89,8 +91,12 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly auditLog: AuditLogService,
+    private readonly servers: ServersService,
     private readonly presence: PresenceService,
   ) {}
+
+  private readonly logger = new Logger(MessagesService.name);
 
   /**
    * Assert the user may access a channel: a ServerMember for server channels,
@@ -116,13 +122,84 @@ export class MessagesService {
     }
   }
 
-  async list(channelId: string, userId: string, options?: { before?: string; limit?: number }): Promise<MessageWithRelations[]> {
+  async list(channelId: string, userId: string, options?: { before?: string; around?: string; limit?: number }): Promise<MessageWithRelations[]> {
     await this.assertChannelAccess(channelId, userId);
 
     const limit = options?.limit ?? 50;
+
+    // ── around pagination: window centred on a target message ──
+    if (options?.around) {
+      const target = await this.prisma.message.findUnique({
+        where: { id: options.around },
+        select: { id: true, createdAt: true, channelId: true },
+      });
+      if (!target || target.channelId !== channelId) {
+        throw new NotFoundException('Message not found');
+      }
+
+      // Split the remaining slots roughly in half.
+      // newerCount gets the extra slot when limit is odd so that
+      // around + newer + older ≤ limit (target takes 1 slot).
+      const newerCount = Math.ceil((limit - 1) / 2);
+      const olderCount = Math.floor((limit - 1) / 2);
+
+      // Messages strictly newer than target (createdAt > target.createdAt),
+      // ordered ascending so we can reverse to newest-first.
+      let newer = await this.prisma.message.findMany({
+        where: { channelId, deletedAt: null, createdAt: { gt: target.createdAt } },
+        include: MESSAGE_INCLUDE,
+        orderBy: { createdAt: 'asc' },
+        take: newerCount,
+      });
+      newer.reverse(); // now newest-first
+
+      const older = await this.prisma.message.findMany({
+        where: { channelId, deletedAt: null, createdAt: { lt: target.createdAt } },
+        include: MESSAGE_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        take: olderCount,
+      });
+
+      // If one side is short, pad from the other side.
+      if (newer.length < newerCount) {
+        const deficit = Math.min(newerCount - newer.length, limit - 1 - newer.length - older.length);
+        if (deficit > 0) {
+          const extraOlder = await this.prisma.message.findMany({
+            where: { channelId, deletedAt: null, createdAt: { lt: target.createdAt } },
+            include: MESSAGE_INCLUDE,
+            orderBy: { createdAt: 'desc' },
+            skip: older.length,
+            take: deficit,
+          });
+          older.push(...extraOlder);
+        }
+      }
+      if (older.length < olderCount) {
+        const deficit = Math.min(olderCount - older.length, limit - 1 - newer.length - older.length);
+        if (deficit > 0) {
+          const extraNewer = await this.prisma.message.findMany({
+            where: { channelId, deletedAt: null, createdAt: { gt: target.createdAt } },
+            include: MESSAGE_INCLUDE,
+            orderBy: { createdAt: 'asc' },
+            skip: newer.length,
+            take: deficit,
+          });
+          extraNewer.reverse();
+          newer = [...extraNewer, ...newer];
+        }
+      }
+
+      const targetFull = await this.prisma.message.findUniqueOrThrow({
+        where: { id: options.around },
+        include: MESSAGE_INCLUDE,
+      });
+
+      return [...newer.map((m: any) => this.serializeMessage(m)), this.serializeMessage(targetFull), ...older.map((m: any) => this.serializeMessage(m))];
+    }
+
+    // ── before cursor pagination (original behaviour) ──
     const whereClause: any = { channelId, deletedAt: null };
 
-    // Cursor pagination by the createdAt of the `before` message id.
     if (options?.before) {
       const cursor = await this.prisma.message.findUnique({
         where: { id: options.before },
@@ -145,6 +222,20 @@ export class MessagesService {
     const validated = CreateMessageSchema.parse(data);
 
     await this.assertChannelAccess(channelId, userId);
+
+    // FR-ROLE-005: reject sends when the author is timed out
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { serverId: true },
+    });
+    if (channel?.serverId) {
+      await this.servers.assertNotTimedOut(channel.serverId, userId);
+      // FR-ROLE-003: check channel-level effective permissions for SEND_MESSAGES
+      const channelPerms = await this.servers.getChannelPermissions(channel.serverId, channelId, userId);
+      if (!hasPermission(channelPerms, Permission.SEND_MESSAGES)) {
+        throw new ForbiddenException('You do not have permission to send messages in this channel');
+      }
+    }
 
     // If replying, make sure the referenced message is in the same channel.
     if (validated.replyToId) {
@@ -187,9 +278,18 @@ export class MessagesService {
 
     // Publish serialized event to Redis for cross-instance fan-out
     const dto = this.serializeMessage(message);
-    await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto });
+    await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto, nonce: data.nonce });
 
-    this.dispatchMentions(channelId, validated.content, userId, message.id).catch(() => {});
+    const authorName = message.author.displayName || message.author.username || 'Someone';
+    const content = validated.content;
+
+    this.dispatchMentions(channelId, content, userId, message.id).catch((err) => {
+      this.logger.error('dispatchMentions failed', err);
+    });
+
+    this.dispatchNotify(channelId, userId, authorName, content, message.id).catch((err) => {
+      this.logger.error('dispatchNotify failed', err);
+    });
 
     return dto;
   }
@@ -258,20 +358,38 @@ export class MessagesService {
     return this.publishMessageUpdate(poll.message.id);
   }
 
-  /** Parse @user / @everyone / @here from content and ping the mentioned members. */
+  /** Parse @user / @everyone / @here / @role from content and ping the mentioned members. @satisfies FR-ROLE-007 */
   private async dispatchMentions(channelId: string, content: string, authorId: string, messageId: string) {
+
     const hasEveryone = /(^|\s)@everyone\b/.test(content);
     const hasHere = /(^|\s)@here\b/.test(content);
     const userMentions = [...content.matchAll(/(?:^|\s)@([\w.-]+)/g)]
       .map((m) => m[1].toLowerCase())
       .filter((u) => u !== 'everyone' && u !== 'here');
-    if (!hasEveryone && !hasHere && userMentions.length === 0) return;
 
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId },
       select: { serverId: true, name: true },
     });
     if (!channel) return;
+
+    // Detect role mentions in server channels (FR-ROLE-007)
+    let mentionedRoles: Array<{ id: string; name: string }> = [];
+    if (channel.serverId) {
+      const mentionableRoles = await this.prisma.role.findMany({
+        where: { serverId: channel.serverId, mentionable: true },
+        select: { id: true, name: true },
+      });
+      for (const role of mentionableRoles) {
+        const escaped = role.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(?:^|\\s)@${escaped}\\b`, 'i');
+        if (re.test(content)) {
+          mentionedRoles.push(role);
+        }
+      }
+    }
+
+    if (!hasEveryone && !hasHere && userMentions.length === 0 && mentionedRoles.length === 0) return;
 
     const targets = new Set<string>();
     let authorName = 'Someone';
@@ -306,6 +424,20 @@ export class MessagesService {
         });
         for (const m of mentioned) targets.add(m.userId);
       }
+      // FR-ROLE-007: fan-out to all members with a mentioned role
+      if (mentionedRoles.length) {
+        const roleMembers = await this.prisma.serverMember.findMany({
+          where: { serverId: channel.serverId },
+          include: { roles: true },
+        });
+        for (const role of mentionedRoles) {
+          for (const m of roleMembers) {
+            if (m.roles.some((r) => r.id === role.id)) {
+              targets.add(m.userId);
+            }
+          }
+        }
+      }
     } else {
       const recips = await this.prisma.channelRecipient.findMany({ where: { channelId }, include: { user: true } });
       const author = recips.find((r) => r.userId === authorId);
@@ -322,6 +454,60 @@ export class MessagesService {
       await this.redis.publish('chat:events', {
         type: 'MENTION', userId: uid, channelId, messageId, channelName: channel.name, authorName, preview,
       });
+    }
+  }
+
+  /**
+   * Publish push NOTIFY events for non-author recipients of a message.
+   * DM: all non-author participants. Server channel: all non-author members.
+   * Runs fire-and-forget; errors are logged and never fail the message send.
+   */
+  private async dispatchNotify(
+    channelId: string,
+    authorId: string,
+    authorName: string,
+    content: string,
+    messageId: string,
+  ): Promise<void> {
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { serverId: true, name: true },
+    });
+    if (!channel) return;
+
+    const preview = content.replace(/\s+/g, ' ').slice(0, 80);
+    const targets = new Set<string>();
+
+    if (channel.serverId) {
+      // Server channel — notify all non-author members
+      const members = await this.prisma.serverMember.findMany({
+        where: { serverId: channel.serverId },
+        select: { userId: true },
+      });
+      for (const m of members) {
+        if (m.userId !== authorId) targets.add(m.userId);
+      }
+    } else {
+      // DM — notify all non-author participants
+      const recips = await this.prisma.channelRecipient.findMany({
+        where: { channelId },
+        select: { userId: true },
+      });
+      for (const r of recips) {
+        if (r.userId !== authorId) targets.add(r.userId);
+      }
+    }
+
+    for (const uid of targets) {
+      this.redis.publish('chat:events', {
+        type: 'NOTIFY',
+        userId: uid,
+        channelId,
+        authorName,
+        messageId,
+        preview,
+        channelName: channel.name,
+      }).catch(() => {});
     }
   }
 
@@ -395,6 +581,17 @@ export class MessagesService {
       throw new ForbiddenException('Insufficient permissions to delete this message');
     }
 
+    // Audit-log moderator-delete (only when not the author)
+    if (!isAuthor && message.channel?.serverId) {
+      await this.auditLog.write({
+        serverId: message.channel.serverId,
+        actorId: userId,
+        action: 'MESSAGE_DELETE',
+        targetType: 'message',
+        targetId: messageId,
+      });
+    }
+
     const deleted = await this.prisma.message.update({
       where: { id: messageId },
       data: {
@@ -444,6 +641,17 @@ export class MessagesService {
     }
 
     await this.prisma.message.update({ where: { id: messageId }, data: { pinned } });
+
+    if (message.channel?.serverId) {
+      await this.auditLog.write({
+        serverId: message.channel.serverId,
+        actorId: userId,
+        action: pinned ? 'MESSAGE_PIN' : 'MESSAGE_UNPIN',
+        targetType: 'message',
+        targetId: messageId,
+      });
+    }
+
     return this.publishMessageUpdate(messageId);
   }
 
