@@ -35,7 +35,7 @@ module.exports = [
       'no-console': 'error',
 
       // ── No `any` in src — matches mobile config strictness ──
-      // TODO: 48 sites — see BACKLOG. Typed incrementally; must not grow.
+      // TODO: 48 remaining sites, typed incrementally. This count must not grow.
       '@typescript-eslint/no-explicit-any': 'warn',
 
       // ── Unused vars: error on the variable, ok on rest args ──

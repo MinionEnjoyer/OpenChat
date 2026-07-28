@@ -28,7 +28,7 @@ export const ANDROID_EMULATOR_HOST = '10.0.2.2';
  * loopback), so device builds must point at the dev machine's LAN address. Set
  * EXPO_PUBLIC_API_HOST at build time — Expo inlines EXPO_PUBLIC_* at bundle time:
  *
- *   EXPO_PUBLIC_API_HOST=192.168.0.106 npm run apk:release
+ *   EXPO_PUBLIC_API_HOST=192.168.1.100 npm run apk:release
  *
  * For E2E builds, also enable the dev-login UI (compile-time gated, see
  * LoginScreen.tsx and P1-04):

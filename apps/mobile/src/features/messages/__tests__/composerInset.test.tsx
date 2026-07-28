@@ -7,9 +7,9 @@
  * inset, useSafeAreaInsets().bottom is applied as paddingBottom on the
  * composer container.
  *
- * Device verification of the visual result is OUTSTANDING and requires an
- * architect rebuild — the native dependency change prevents us from building
- * a new APK in this worktree.
+ * The visual result is not asserted here — this covers the inset calculation
+ * only. Confirming how it looks on a device requires a rebuild, since the
+ * change touches a native dependency.
  *
  * @satisfies DD-023
  */
