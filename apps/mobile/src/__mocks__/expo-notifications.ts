@@ -24,3 +24,7 @@ export const addNotificationResponseReceivedListener = jest.fn(() => ({
 export const getLastNotificationResponse = jest.fn(() => null);
 export const clearLastNotificationResponse = jest.fn();
 export const AndroidImportance = { DEFAULT: 3 };
+
+// ── Local notifications (WO-NOTIF-LOCAL) ──
+export const scheduleNotificationAsync = jest.fn(() => Promise.resolve('local-notif-id'));
+export const presentNotificationAsync = jest.fn(() => Promise.resolve());

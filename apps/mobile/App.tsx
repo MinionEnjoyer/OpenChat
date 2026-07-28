@@ -10,7 +10,7 @@ import { LoginScreen } from './src/features/auth';
 import { ShellScreen } from './src/features/shell';
 import { ToastHost } from './src/ui/Toast';
 import { palette } from './src/ui/tokens';
-import { initializePush } from './src/features/notifications';
+import { initializePush, initLocalNotifications } from './src/features/notifications';
 
 /**
  * Root: restore the session from the vault (FR-AUTH-003), then route —
@@ -32,6 +32,7 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     if (status === 'signedIn') {
       void initializePush();
+      void initLocalNotifications();
     }
   }, [status]);
 
