@@ -65,9 +65,9 @@ describe('PushDispatchService', () => {
 
     service = module.get(PushDispatchService);
 
-    // Default: 3 active device tokens
+    // Default: 3 active device tokens (all android to preserve existing test behaviour)
     mockPrisma.deviceToken.findMany.mockResolvedValue(
-      DEVICE_TOKENS.map((t) => ({ token: t })),
+      DEVICE_TOKENS.map((t) => ({ token: t, platform: 'android' })),
     );
     // Default: channel exists with a server
     mockPrisma.channel.findUnique.mockResolvedValue({ serverId: SERVER_ID });
@@ -312,4 +312,115 @@ describe('PushDispatchService', () => {
 
     expect(transport.sends.length).toBe(0);
   });
+
+  // ── Platform-specific payload shaping ────────────────────
+  describe('platform-specific payload', () => {
+    it('iOS token → apns block present, android block absent', async () => {
+      mockPrisma.deviceToken.findMany.mockResolvedValue([
+        { token: 'tok-ios-1', platform: 'ios' },
+      ]);
+
+      await service.handleEvent({
+        type: 'MENTION',
+        userId: USER_ID,
+        channelId: CHANNEL_ID,
+        authorName: 'Alice',
+        preview: 'Hey @you',
+        messageId: 'msg-1',
+      });
+
+      expect(transport.sends.length).toBe(1);
+      const s = transport.sends[0];
+      expect(s.tokens).toEqual(['tok-ios-1']);
+      expect(s.payload.apns).toBeDefined();
+      expect(s.payload.android).toBeUndefined();
+      expect(s.payload.apns?.headers?.['apns-push-type']).toBe('alert');
+      expect(s.payload.apns?.payload.aps.alert?.title).toContain('Alice');
+      expect(s.payload.apns?.payload.aps.alert?.body).toBe('Hey @you');
+      expect(s.payload.apns?.payload.aps.sound).toBe('default');
+      expect(s.payload.apns?.payload.aps.badge).toBe(1);
+      expect(s.payload.apns?.payload.aps['content-available']).toBe(1);
+    });
+
+    it('Android token → android block present, apns block absent', async () => {
+      mockPrisma.deviceToken.findMany.mockResolvedValue([
+        { token: 'tok-and-1', platform: 'android' },
+      ]);
+
+      await service.handleEvent({
+        type: 'NOTIFY',
+        userId: USER_ID,
+        channelId: CHANNEL_ID,
+        authorName: 'Bob',
+        preview: 'Hello',
+      });
+
+      expect(transport.sends.length).toBe(1);
+      const s = transport.sends[0];
+      expect(s.tokens).toEqual(['tok-and-1']);
+      expect(s.payload.android).toBeDefined();
+      expect(s.payload.apns).toBeUndefined();
+      expect(s.payload.android?.channelId).toBe('notifications');
+    });
+
+    it('mixed batch → two send calls with correct platform payloads', async () => {
+      mockPrisma.deviceToken.findMany.mockResolvedValue([
+        { token: 'tok-and-1', platform: 'android' },
+        { token: 'tok-ios-1', platform: 'ios' },
+        { token: 'tok-and-2', platform: 'android' },
+      ]);
+
+      await service.handleEvent({
+        type: 'MENTION',
+        userId: USER_ID,
+        channelId: CHANNEL_ID,
+        authorName: 'Alice',
+        preview: 'ping',
+        messageId: 'msg-1',
+      });
+
+      expect(transport.sends.length).toBe(2);
+
+      const androidSend = transport.sends.find((s) =>
+        s.tokens.every((t) => t.startsWith('tok-and')),
+      );
+      expect(androidSend).toBeDefined();
+      expect(androidSend!.tokens).toEqual(['tok-and-1', 'tok-and-2']);
+      expect(androidSend!.payload.android).toBeDefined();
+      expect(androidSend!.payload.apns).toBeUndefined();
+
+      const iosSend = transport.sends.find((s) =>
+        s.tokens.every((t) => t.startsWith('tok-ios')),
+      );
+      expect(iosSend).toBeDefined();
+      expect(iosSend!.tokens).toEqual(['tok-ios-1']);
+      expect(iosSend!.payload.apns).toBeDefined();
+      expect(iosSend!.payload.android).toBeUndefined();
+    });
+
+    it('CALL_RING iOS → voip push-type with apns-priority', async () => {
+      mockPrisma.deviceToken.findMany.mockResolvedValue([
+        { token: 'tok-ios-1', platform: 'ios' },
+      ]);
+
+      await service.handleEvent({
+        type: 'CALL_RING',
+        userId: USER_ID,
+        channelId: CHANNEL_ID,
+        callerId: 'caller-99',
+        callerName: 'Bob',
+      });
+
+      expect(transport.sends.length).toBe(1);
+      const s = transport.sends[0];
+      expect(s.payload.apns?.headers?.['apns-push-type']).toBe('voip');
+      expect(s.payload.apns?.headers?.['apns-priority']).toBe('10');
+      expect(s.payload.apns?.payload.aps.alert?.title).toBe('Incoming call');
+      expect(s.payload.apns?.payload.aps.alert?.body).toContain('Bob');
+      expect(s.payload.apns?.payload.aps.sound).toBe('call_ring.aiff');
+      expect(s.payload.apns?.payload.aps['content-available']).toBeUndefined();
+      expect(s.payload.apns?.payload.aps.badge).toBeUndefined();
+    });
+  });
+
 });

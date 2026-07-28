@@ -124,7 +124,7 @@ function buildMockPrisma(cfg: MockPrismaConfig = {}) {
   const notificationSettingFindUnique = jest.fn().mockResolvedValue(null);
 
   const deviceTokenFindMany = jest.fn().mockResolvedValue(
-    tokens.map((t) => ({ token: t })),
+    tokens.map((t) => ({ token: t, platform: 'android' })),
   );
   const deviceTokenUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
   const deviceTokenDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
