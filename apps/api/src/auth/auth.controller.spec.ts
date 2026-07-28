@@ -126,9 +126,9 @@ describe('AuthController — desktop PKCE', () => {
     });
   });
 
-  // ── POST /auth/token (desktop PKCE exchange) ───────────────
+  // ── POST /auth/oauth/token (desktop PKCE exchange) ───────────────
 
-  describe('POST /auth/token — desktop PKCE exchange', () => {
+  describe('POST /auth/oauth/token — desktop PKCE exchange', () => {
     it('desktop PKCE code → calls exchangeDesktopPkceCode then issueFamily', async () => {
       authService.exchangeDesktopPkceCode!.mockResolvedValue({ id: USER_ID });
       authService.getCurrentUser!.mockResolvedValue({ id: USER_ID, username: 'test' } as any);

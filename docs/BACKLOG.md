@@ -223,7 +223,7 @@ suite covers every route with a contract schema. Routes without schemas are trac
   The annotation was corrected to `@satisfies FR-AUTH-005` (ws-ticket via
   bearer) which the test genuinely proves.
 - **User-visible impact:** There is no OIDC login path. Users cannot log in
-  via Authentik or any IdP. The backend exchange endpoint (`POST /api/auth/token`
+  via Authentik or any IdP. The backend exchange endpoint (`POST /api/auth/oauth/token`
   with grant `authorization_code`) exists and is tested, but the client half
   is missing.
 - **Priority:** HIGH — this is a Phase 1 requirement that blocks real auth.

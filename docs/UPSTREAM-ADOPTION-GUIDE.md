@@ -48,7 +48,7 @@ login is completely untouched.
 
 ### Endpoints
 
-**`POST /auth/token`** — issue bearer tokens (no prior session required)
+**`POST /auth/oauth/token`** — issue bearer tokens (no prior session required)
 
 Request body:
 ```json
@@ -108,7 +108,7 @@ No new database models. Token state lives entirely in Redis:
 
 ### Client work required
 Desktop client: exchange the OIDC authorization code for tokens via
-`POST /auth/token`, store the refresh token securely, and attach
+`POST /auth/oauth/token`, store the refresh token securely, and attach
 `Authorization: Bearer <accessToken>` to all API requests. Refresh
 transparently on 401.
 
@@ -124,7 +124,7 @@ Core for any native client. Entirely optional for web-only deployments — the
 cookie session path is unchanged. The upstream `POST /auth/tokens` (named API
 token CRUD) serves a related but different purpose (manual token creation for
 bots/scripts). These two subsystems can coexist; they don't conflict at the
-route level (`/auth/token` vs `/auth/tokens`).
+route level (`/auth/oauth/token` vs `/auth/tokens`).
 
 **⚠️ Merge question for upstream:** Upstream has its own native auth system
 with `ApiToken` model + `POST/GET/DELETE /auth/tokens`. Our PKCE system is

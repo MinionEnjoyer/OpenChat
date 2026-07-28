@@ -71,7 +71,7 @@ neither exists in any client-facing endpoint today.
 | `client_secret` | **No** — backend-only | **Yes** — MUST NOT reach client | N/A |
 
 The native flow uses public-client PKCE (Authorization Code + PKCE, no client secret).
-Phase 1 §P1-01 depends on this: `POST /api/auth/token` exchanges the code server-side using
+Phase 1 §P1-01 depends on this: `POST /api/auth/oauth/token` exchanges the code server-side using
 the backend-held `OIDC_CLIENT_SECRET`. The mobile app never sees it.
 
 ## What `jellyfinUrl` is

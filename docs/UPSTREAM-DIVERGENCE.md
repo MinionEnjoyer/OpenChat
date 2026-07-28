@@ -36,7 +36,7 @@ No upstream route is removed or re-pathed.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/auth/token` | Bearer token issuance via authorization_code or refresh_token grant (PKCE exchange for native clients) |
+| `POST` | `/auth/oauth/token` | Bearer token issuance via authorization_code or refresh_token grant (PKCE exchange for native clients) |
 | `GET`  | `/auth/oidc-metadata` | Public OIDC discovery metadata for native clients (no auth required) |
 
 ### 2.2 Device tokens (push notifications)
@@ -208,7 +208,7 @@ merged in before we can claim parity.
 | `GET`    | `/auth/desktop`    | `94408dc` | Browser SSO → deep-link token handoff for desktop client |
 
 The upstream `ApiToken` model + these 4 routes form the upstream native-auth
-system. Our branch has a parallel system (`POST /auth/token`, `GET /auth/oidc-metadata`,
+system. Our branch has a parallel system (`POST /auth/oauth/token`, `GET /auth/oidc-metadata`,
 `TokenService` with refresh-token families). These two auth subsystems will need
 reconciliation during merge — they serve overlapping purposes with different
 designs (upstream: simple named tokens with manual revocation; ours: PKCE code

@@ -191,7 +191,7 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
   });
 
   // Successful exchange: code + right verifier → tokens.
-  it('code exchanges successfully at POST /auth/token with right verifier', async () => {
+  it('code exchanges successfully at POST /auth/oauth/token with right verifier', async () => {
     const { jar } = await devLogin('desk-xchg-' + Date.now());
     const { verifier, challenge } = generatePkcePair();
     const qs = `code_challenge=${encodeURIComponent(challenge)}&code_challenge_method=S256`;
@@ -202,7 +202,7 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
     const code = m![1];
 
     // Exchange the code
-    const tokenRes = await apiFetch('/auth/token', {
+    const tokenRes = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: {
         grantType: 'authorization_code',
@@ -232,7 +232,7 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
 
     // Exchange with a DIFFERENT verifier
     const wrongVerifier = randomBytes(32).toString('base64url');
-    const tokenRes = await apiFetch('/auth/token', {
+    const tokenRes = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: {
         grantType: 'authorization_code',
@@ -257,7 +257,7 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
     const code = m![1];
 
     // First exchange → succeeds
-    const r1 = await apiFetch('/auth/token', {
+    const r1 = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: {
         grantType: 'authorization_code',
@@ -269,7 +269,7 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
     expect(r1.status).toBe(201);
 
     // Second exchange with same code → fails (code already consumed)
-    const r2 = await apiFetch('/auth/token', {
+    const r2 = await apiFetch('/auth/oauth/token', {
       method: 'POST',
       body: {
         grantType: 'authorization_code',

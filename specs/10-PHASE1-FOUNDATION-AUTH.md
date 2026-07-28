@@ -16,7 +16,7 @@ catching Expo config-plugin breakage starting at Phase 1 instead of Phase 5. See
 
 ## Backend work items (additive; web client untouched behaviorally — NFR-10 gate on every one)
 
-**P1-01 [BE] Bearer token issuance — `POST /api/auth/token`**
+**P1-01 [BE] Bearer token issuance — `POST /api/auth/oauth/token`**
 - Grant `authorization_code`: body `{grantType:"authorization_code", code, codeVerifier,
   redirectUri}`. Server exchanges against Authentik using existing `openid-client` config but
   with the NATIVE redirect URI (`openchat://auth`; register a second redirect in the
@@ -59,7 +59,7 @@ additive endpoint) and cost/risk analysis.
 ## Mobile work items
 
 **P1-04 Auth flow (`features/auth`)**
-- Login screen → `expo-auth-session` PKCE against issuer from config → code → `/auth/token` →
+- Login screen → `expo-auth-session` PKCE against issuer from config → code → `/auth/oauth/token` →
   tokens into SecureStore → `['me']` primed. Logout per FR-AUTH-004. Silent refresh
   interceptor per 06 §5 (single-flight; FR-AUTH-010). E2E `p1-02-devlogin-session-restore`
   (dev-login path): login → kill → relaunch → authenticated (FR-AUTH-003). Nightly

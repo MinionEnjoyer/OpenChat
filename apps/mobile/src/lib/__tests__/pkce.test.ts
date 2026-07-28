@@ -148,7 +148,7 @@ describe('exchangeCode', () => {
   it('POSTs grantType=authorization_code with code + codeVerifier + redirectUri', async () => {
     mockFetch([
       {
-        url: '/auth/token',
+        url: '/auth/oauth/token',
         status: 201,
         body: {
           accessToken: 'at-1',
@@ -161,7 +161,7 @@ describe('exchangeCode', () => {
 
     const result = await exchangeCode(BASE, 'the-code', 'the-verifier', 'openchat://auth');
 
-    expect(fetch).toHaveBeenCalledWith(`${BASE}/auth/token`, expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith(`${BASE}/auth/oauth/token`, expect.objectContaining({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
     }));
@@ -180,7 +180,7 @@ describe('exchangeCode', () => {
   });
 
   it('throws PkceError when token endpoint returns non-2xx', async () => {
-    mockFetch([{ url: '/auth/token', status: 400, body: { message: 'bad code' } }]);
+    mockFetch([{ url: '/auth/oauth/token', status: 400, body: { message: 'bad code' } }]);
     await expect(
       exchangeCode(BASE, 'bad', 'v', 'openchat://auth'),
     ).rejects.toMatchObject({ code: 'token_exchange_failed' });
@@ -189,7 +189,7 @@ describe('exchangeCode', () => {
   it('throws PkceError when response is missing accessToken', async () => {
     mockFetch([
       {
-        url: '/auth/token',
+        url: '/auth/oauth/token',
         status: 201,
         body: { refreshToken: 'rt-1', user: testUser },
       },

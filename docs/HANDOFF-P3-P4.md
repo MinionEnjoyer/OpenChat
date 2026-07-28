@@ -22,7 +22,7 @@ not run it, say "not run" — that is an acceptable answer. A false "done" is no
 - `.phase` = 1. Phases 0 and 1 are signed off (`docs/signoffs/T4-phase0-signoff.md`).
 - The app **works**: dev-login → server rail → channel list → live messages.
   Two clients exchange messages over the WebSocket in under 5s, proven on device.
-- Backend: bearer auth is live (`POST /api/auth/token`, rotation + family
+- Backend: bearer auth is live (`POST /api/auth/oauth/token`, rotation + family
   revocation). Every guarded route accepts bearer OR cookie. Web client untouched.
 - Test suites, all green: 89 characterization, 38 contract, 8 integration,
   52 mobile unit. `./tools/devctl verify` passes all seven layers.

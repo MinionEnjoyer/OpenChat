@@ -3,7 +3,7 @@
  * (FR-AUTH-001). Uses expo-auth-session's PKCE utilities for verifier/challenge
  * generation and expo-web-browser for the system-browser authorization flow.
  *
- * The actual token exchange POSTs to our custom `/auth/token` endpoint
+ * The actual token exchange POSTs to our custom `/auth/oauth/token` endpoint
  * (not a standard OAuth token endpoint), so we cannot use
  * `exchangeCodeAsync` from expo-auth-session directly.
  */
@@ -115,7 +115,7 @@ export interface PkceAuthResult {
 /**
  * Open the system browser for authorization, receive the callback on the
  * registered deep-link scheme (`openchat://auth`), extract the auth code,
- * and exchange it for tokens via `POST /auth/token`.
+ * and exchange it for tokens via `POST /auth/oauth/token`.
  */
 export async function authorizeViaBrowser(
   baseUrl: string,
@@ -159,7 +159,7 @@ export async function authorizeViaBrowser(
 
 /**
  * POST the authorization code + PKCE verifier + redirect URI to
- * `POST /auth/token` (grantType=authorization_code). The server finishes
+ * `POST /auth/oauth/token` (grantType=authorization_code). The server finishes
  * the OIDC exchange and returns `{ accessToken, refreshToken, expiresIn, user }`.
  */
 export async function exchangeCode(
@@ -168,7 +168,7 @@ export async function exchangeCode(
   codeVerifier: string,
   redirectUri: string,
 ): Promise<PkceAuthResult> {
-  const url = `${baseUrl}/auth/token`;
+  const url = `${baseUrl}/auth/oauth/token`;
   logger.debug('exchanging authorization code for tokens');
   const res = await fetch(url, {
     method: 'POST',

@@ -50,7 +50,7 @@ const DevLoginResponse = {
   required: ['id', 'username', 'accessToken', 'refreshToken', 'expiresIn'],
 };
 
-// [P1-01] POST /auth/token response.
+// [P1-01] POST /auth/oauth/token response.
 const TokenResponse = {
   type: 'object', additionalProperties: false,
   properties: {
@@ -333,10 +333,10 @@ describe('Phase 1 — Auth (contract-validated)', () => {
     expect({ ok, error }).toEqual({ ok: true, error: null });
   });
 
-  it('POST /auth/token (refresh grant) → TokenResponse schema [P1-01]', async () => {
+  it('POST /auth/oauth/token (refresh grant) → TokenResponse schema [P1-01]', async () => {
     cookies = [];
     const login = await api('/auth/dev-login', { method: 'POST', body: JSON.stringify({ username: 'contract-token' }) });
-    const r = await api('/auth/token', {
+    const r = await api('/auth/oauth/token', {
       method: 'POST',
       body: JSON.stringify({ grantType: 'refresh_token', refreshToken: login.body.refreshToken }),
     });

@@ -14,7 +14,7 @@ exercises the required full loop.
 
 | ID | Requirement | Acceptance criterion | Pri | Ph |
 |----|-------------|----------------------|-----|----|
-| FR-AUTH-001 | [BE] Native OIDC login: system-browser PKCE against Authentik, code exchanged at new `POST /api/auth/token` for bearer access+refresh tokens | E2E: fresh install → login → `GET /api/auth/me` 200 with bearer; no cookies used | P0 | 1 |
+| FR-AUTH-001 | [BE] Native OIDC login: system-browser PKCE against Authentik, code exchanged at new `POST /api/auth/oauth/token` for bearer access+refresh tokens | E2E: fresh install → login → `GET /api/auth/me` 200 with bearer; no cookies used | P0 | 1 |
 
 The criterion is E2E — the full system-browser round-trip must be exercised.
 
@@ -22,7 +22,7 @@ The criterion is E2E — the full system-browser round-trip must be exercised.
 
 ## What exists — server side
 
-### `POST /api/auth/token` — authorization_code grant
+### `POST /api/auth/oauth/token` — authorization_code grant
 - **`apps/api/src/auth/auth.controller.ts:27-58`** — accepts `grantType: 'authorization_code'` with `code`, `codeVerifier`, `redirectUri`; calls `exchangeNativeCode`; issues bearer + refresh tokens.
 - **`apps/api/src/auth/auth.service.ts:133`** — `exchangeNativeCode` validates redirect URI, exchanges the code with the OIDC provider using the server's client_secret.
 - **`apps/api/test/integration/bearer-auth.spec.ts:40-45`** — validates grant type rejection (password → 400) but does NOT exercise `authorization_code` grant against a live OIDC provider. Token refresh and rotation are integration-tested (FR-AUTH-002).
@@ -45,7 +45,7 @@ Committed 2026-07-26 at `7824cd6` ("feat(mobile): OIDC PKCE login client — clo
 - **`:66-69`** — `generatePkcePair()` → delegates to `expo-auth-session/build/PKCE.buildCodeAsync` for S256 verifier/challenge.
 - **`:78-104`** — `getAuthorizationUrl()` → discovers the provider's authorization endpoint from `.well-known/openid-configuration` via `expo-auth-session`, builds full auth URL with PKCE params.
 - **`:120-156`** — `authorizeViaBrowser()` → opens system browser via `expo-web-browser.openAuthSessionAsync`, extracts `code` from redirect, calls `exchangeCode`.
-- **`:165-206`** — `exchangeCode()` → `POST /auth/token` with `grantType: 'authorization_code'`, code, verifier, redirectUri; returns `{ accessToken, refreshToken, expiresIn, user }`.
+- **`:165-206`** — `exchangeCode()` → `POST /auth/oauth/token` with `grantType: 'authorization_code'`, code, verifier, redirectUri; returns `{ accessToken, refreshToken, expiresIn, user }`.
 
 ### Session store integration (`apps/mobile/src/stores/session.ts:98-110`)
 - `loginWithPkce()` — calls `fetchOidcMetadata` → `generatePkcePair` → `authorizeViaBrowser` → saves tokens to vault → sets `signedIn` state.
@@ -113,7 +113,7 @@ A Maestro flow (e.g. `apps/mobile/e2e/flows/p1-oidc-login.yaml`) that:
 4. **System browser opens** — must navigate to a reachable Authentik (or mocked OIDC endpoint) at the URL built by `getAuthorizationUrl()`.
 5. **User authenticates** — browser flow completes, redirect fires `openchat://auth?code=...`.
 6. **App receives the callback** — `WebBrowser.openAuthSessionAsync` resolves with the redirect URL containing the authorization code.
-7. **Code exchanged** — `POST /api/auth/token` returns 201 with `{ accessToken, refreshToken, expiresIn, user }`.
+7. **Code exchanged** — `POST /api/auth/oauth/token` returns 201 with `{ accessToken, refreshToken, expiresIn, user }`.
 8. **Assert** — `GET /api/auth/me` returns 200 with the authenticated user's username, no cookies in the request.
 
 ### Prerequisites
