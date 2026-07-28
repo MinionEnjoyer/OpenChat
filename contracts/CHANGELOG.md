@@ -13,6 +13,11 @@
   remove once old installs have updated.
 - **[CLARIFY] `GET/POST/DELETE /auth/tokens`** are now positioned as **personal access tokens**
   (scripts/bots/API), NOT the native sign-in mechanism. Behavior unchanged.
+- **[FIX] `AuthGuard` now validates legacy `oc_…` app tokens (and `?token=` media auth).**
+  P1-02's guard replaced `SessionGuard` but only accepted JWT-or-cookie, so it silently rejected
+  the `oc_` app tokens `SessionGuard` had honored — 401-ing every request from installed desktop
+  clients (< 0.9.0) and PATs. `AuthGuard` is now a genuine superset: JWT → legacy `oc_` app token
+  → session cookie.
 
 ## 2026-07-21 — P0-10 shape corrections (three routes)
 
