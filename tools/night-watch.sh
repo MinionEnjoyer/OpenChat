@@ -34,6 +34,22 @@ else
   echo "  scheduler: no completion doc yet (physical device stays reserved)"
 fi
 
+# ── W0: agent API failures masquerading as completion ──
+# On 2026-07-27 06:48 the DeepSeek balance hit zero. Agents exited INSTANTLY with
+# "HTTP 402: Insufficient Balance" and reported status=completed. Zero commits,
+# zero work, indistinguishable from a finished job. Check the API before trusting
+# any "completed" agent that produced nothing.
+TASKDIR="/private/tmp/claude-501/-Users-$USER-work"
+RECENT402=$(find /private/tmp/claude-501 -name "*.output" -newermt '-30 minutes' 2>/dev/null \
+            | xargs grep -l "Insufficient Balance\|HTTP 4[0-9][0-9]" 2>/dev/null | wc -l | tr -d ' ')
+if [ "${RECENT402:-0}" -gt 0 ]; then
+  echo "  *** AGENT API FAILURE — $RECENT402 task(s) died on an HTTP error in the last 30min ***"
+  echo "      likely exhausted credit; agents will report 'completed' with no commits"
+  RC=1
+else
+  echo "  agent API: no recent HTTP failures"
+fi
+
 # ── W5: host pressure ──
 FREE=$(vm_stat | awk '/Pages free/{printf "%.1f", $3*16384/1073741824}')
 LOAD=$(sysctl -n vm.loadavg | tr -d '{}' | awk '{print $1}')
