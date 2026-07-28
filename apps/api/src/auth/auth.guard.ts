@@ -10,7 +10,7 @@ import { User } from '@prisma/client';
  *   1. a native access JWT (Authorization: Bearer …, P1-01), or
  *   2. a legacy personal/app token `oc_…` (Bearer, or ?token= for <img>/<video>
  *      media that can't set headers) — DEPRECATED but still honored so installed
- *      desktop clients (< 0.9.0) and PATs keep working, or
+ *      desktop clients (< 0.8.3) and PATs keep working, or
  *   3. the browser session cookie (web).
  * `@CurrentUser` and the attached user shape are unchanged.
  */

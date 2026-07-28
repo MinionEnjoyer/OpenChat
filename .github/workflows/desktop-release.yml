@@ -81,8 +81,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_SERVER_URL: ${{ vars.SERVER_URL }}
 
-  # 3) Publish the release once both platforms are uploaded.
-  publish-release:
+  # 3) Leave the release as a DRAFT once both platforms are uploaded. Publishing is a
+  #    manual step (edit the release in the GitHub UI → "Publish"): the updater's
+  #    latest.json only goes live on publish, so you can install + smoke-test the built
+  #    app (especially sign-in) before it auto-updates everyone. To restore fully
+  #    automatic publishing, set draft: false below.
+  finalize-release:
     needs: [create-release, build]
     runs-on: ubuntu-latest
     steps:
@@ -93,5 +97,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: ${{ needs.create-release.outputs.release_id }},
-              draft: false,
+              draft: true,
             });

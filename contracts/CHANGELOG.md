@@ -5,18 +5,18 @@
   **OAuth Authorization-Code + PKCE → `POST /auth/oauth/token`**, yielding a short-lived
   access JWT + rotating refresh family (`TokenService`). The browser is unchanged (session
   cookie); the composite `AuthGuard` keeps bearer-OR-cookie working.
-- **[CHANGE] Desktop client (0.9.0) switched to PKCE.** `/auth/desktop` is now opened with
+- **[CHANGE] Desktop client (0.8.3) switched to PKCE.** `/auth/desktop` is now opened with
   `?code_challenge=<S256>&code_challenge_method=S256`; the client exchanges the returned
   `openchat://auth?code=…` for a token family and refreshes on 401 (single-flight rotation).
 - **[DEPRECATED] `/auth/desktop` without a `code_challenge`** — the legacy branch that minted a
-  long-lived opaque app token and deep-linked `?token=…`. Kept only for desktop clients < 0.9.0;
+  long-lived opaque app token and deep-linked `?token=…`. Kept only for desktop clients < 0.8.3;
   remove once old installs have updated.
 - **[CLARIFY] `GET/POST/DELETE /auth/tokens`** are now positioned as **personal access tokens**
   (scripts/bots/API), NOT the native sign-in mechanism. Behavior unchanged.
 - **[FIX] `AuthGuard` now validates legacy `oc_…` app tokens (and `?token=` media auth).**
   P1-02's guard replaced `SessionGuard` but only accepted JWT-or-cookie, so it silently rejected
   the `oc_` app tokens `SessionGuard` had honored — 401-ing every request from installed desktop
-  clients (< 0.9.0) and PATs. `AuthGuard` is now a genuine superset: JWT → legacy `oc_` app token
+  clients (< 0.8.3) and PATs. `AuthGuard` is now a genuine superset: JWT → legacy `oc_` app token
   → session cookie.
 
 ## 2026-07-21 — P0-10 shape corrections (three routes)
