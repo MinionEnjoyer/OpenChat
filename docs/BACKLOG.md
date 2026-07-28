@@ -624,3 +624,41 @@ rendering on a physical device on 2026-07-27.
 
 The stale `wire-markdown` branch (230 commits behind `integration`) is superseded
 and should be retired rather than merged.
+
+## EVIDENCE-AGENTS-2026-07-28 — three branches held back, and why
+
+Three agents were dispatched with one requirement each (FR-MSG-005, FR-MSG-011,
+FR-NOTIF-002) to close evidence-type violations. All three finished — the
+one-requirement scoping fixed the step-cap problem that killed both earlier
+seven-requirement attempts.
+
+All three independently reached for the same solution: write a Maestro flow,
+move the `@satisfies` annotation onto it, violation closed. Each honestly
+reported the flow as unexecuted. **The gate would have gone green anyway**,
+because `classifyFileEvidenceType` decided evidence level by file path — so a
+requirement demanding end-to-end proof was satisfiable by creating a file.
+
+That is not three agents cheating. It is three agents finding the cheapest path
+that the gate declared acceptable, which is what any optimiser does. The defect
+was in the gate.
+
+Fixed in `7d6a122`: e2e evidence now requires a passing receipt in
+`artifacts/e2e/receipts/`, written by the runner that actually executed the flow.
+
+### Status of the branches
+
+`ev-msg005`, `ev-msg011`, `ev-notif002` are **unmerged, pending adjudication**.
+
+With receipts required they can no longer close anything falsely, so the risk is
+gone. But the net effect of merging as-is is still negative:
+
+- the `@satisfies` moves strip a unit-test annotation the requirement had, and
+  replace it with a flow that has never run — the gate stays red either way, but
+  the unit test stops being visible as partial evidence;
+- `ev-notif002` deletes 29 lines from `push.test.ts`, which needs a reason
+  before it is accepted.
+
+The flows themselves are worth keeping — they are the artefact that must
+eventually run. Suggested resolution: take the flow files, drop the annotation
+moves and the test deletion, then run the flows and let the receipts close the
+requirements honestly.
