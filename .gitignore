@@ -38,3 +38,6 @@ redis-data/
 artifacts/nfr/*.json
 !artifacts/nfr/report.json
 tools/seed/fixture-ids.local.json
+
+# Firebase client config — deployment-specific, each deployer supplies their own
+apps/mobile/google-services.json

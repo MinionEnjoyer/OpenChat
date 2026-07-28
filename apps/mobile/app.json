@@ -19,7 +19,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-secure-store",
@@ -37,7 +38,9 @@
           "icon": "./assets/android-icon-foreground.png",
           "color": "#5865F2"
         }
-      ]
+      ],
+      "expo-web-browser",
+      "expo-audio"
     ]
   }
 }
