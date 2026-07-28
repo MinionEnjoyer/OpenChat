@@ -163,7 +163,7 @@ export class AuthController {
       return;
     }
 
-    // DEPRECATED legacy path (kept only for desktop clients < 0.9.0 that don't send a
+    // DEPRECATED legacy path (kept only for desktop clients < 0.8.3 that don't send a
     // code_challenge): mint a long-lived opaque app token and deep-link it. New clients
     // use the PKCE branch above → /auth/oauth/token (rotating refresh family). Remove once
     // old installs have updated.
