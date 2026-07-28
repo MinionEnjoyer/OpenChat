@@ -105,6 +105,29 @@ while read -r f <&3; do
   [ -z "$f" ] && continue
   FLOW_COUNT=$((FLOW_COUNT + 1))
   base=$(basename "$f" .yaml)
+
+  # ── Device liveness + tunnel re-arm. BOTH failures observed 2026-07-27:
+  #
+  #   1. A tablet dropped off USB mid-run. `adb devices` stopped listing it,
+  #      every remaining flow "failed", and the verdicts looked like product
+  #      defects. They were a detached cable.
+  #   2. `adb reverse` does NOT survive a USB reconnect. The app reaches the API
+  #      through 127.0.0.1:3030 over that tunnel, so once it dies every flow
+  #      fails at login with "shell-screen is visible" — indistinguishable from
+  #      a real auth regression. On both phones ONLY the first flow passed.
+  #
+  # Re-arming per flow is cheap; a whole run misattributed to the product is not.
+  if ! adb devices | awk '$2=="device"{print $1}' | grep -qx "$DEV"; then
+    echo "ABORT $DEV: device is no longer attached (was it unplugged?)" | tee -a "$OUT"
+    exit 3
+  fi
+  if [ "$(adb -s "$DEV" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r ')" != "1" ]; then
+    echo "ABORT $DEV: device present in adb but not booted (sys.boot_completed != 1)" | tee -a "$OUT"
+    exit 3
+  fi
+  adb -s "$DEV" reverse tcp:3030 tcp:3030 >/dev/null 2>&1 \
+    || { echo "ABORT $DEV: could not establish reverse tunnel to :3030" | tee -a "$OUT"; exit 3; }
+
   echo "[$(date +%H:%M:%S)] RUNNING $base on $DEV" | tee -a "$OUT"
   # ── Hard clear: pm clear wipes expo-secure-store tokens that Maestro's
   #     clearState may leave behind. Repeat before every flow for isolation.
