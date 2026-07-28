@@ -1,7 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger as NestLogger, VersioningType, VERSION_NEUTRAL } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+// Swagger is optional (installed separately); gracefully skip when not present.
+let DocumentBuilder: any, SwaggerModule: any;
+try {
+  const swagger = require('@nestjs/swagger');
+  DocumentBuilder = swagger.DocumentBuilder;
+  SwaggerModule = swagger.SwaggerModule;
+} catch { /* optional */ }
 import session from 'express-session';
 import RedisStore from 'connect-redis';
 import helmet from 'helmet';
@@ -40,14 +46,16 @@ async function bootstrap() {
   });
 
   // OpenAPI spec + docs at /api/docs (JSON at /api/docs-json) for native SDK generation.
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('OpenChat API')
-    .setDescription('OpenChat REST API — versioned under /api/v1')
-    .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'token' }, 'app-token')
-    .addCookieAuth('chat.sid')
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  if (SwaggerModule) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('OpenChat API')
+      .setDescription('OpenChat REST API — versioned under /api/v1')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'token' }, 'app-token')
+      .addCookieAuth('chat.sid')
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  }
 
   app.use(helmet({ crossOriginResourcePolicy: false }));
 

@@ -1,10 +1,12 @@
 import {
-  Injectable, NotFoundException, ForbiddenException, BadRequestException,
+  Injectable, NotFoundException, ForbiddenException, BadRequestException, Inject, forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { Server, ChannelType, Role } from '@prisma/client';
-import { Permission, ALL_PERMISSIONS, hasPermission } from '../permissions/permissions';
+import { OverwritesService } from '../overwrites/overwrites.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { Permission, ALL_PERMISSIONS, hasPermission, resolveEffectivePermissions, DEFAULT_MEMBER_PERMISSIONS } from '../permissions/permissions';
 
 export interface SerializedServer extends Omit<Server, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'> {
   id: string;
@@ -22,6 +24,7 @@ export interface SerializedRole {
   color: number;
   permissions: string;
   position: number;
+  mentionable: boolean;
 }
 
 export interface SerializedChannel {
@@ -40,6 +43,8 @@ export class ServersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    @Inject(forwardRef(() => OverwritesService)) private readonly overwrites: OverwritesService,
+    private readonly auditLog: AuditLogService,
   ) {}
 
   private serializeServer(server: Server, myPermissions: bigint = 0n): SerializedServer {
@@ -61,6 +66,7 @@ export class ServersService {
       color: r.color,
       permissions: r.permissions.toString(),
       position: r.position,
+      mentionable: r.mentionable ?? true,
     };
   }
 
@@ -112,6 +118,17 @@ export class ServersService {
         data: {
           name: data.name,
           ownerId: userId,
+        },
+      });
+
+      // Default "@everyone" role — base permissions for all members (FR-ROLE-003).
+      await tx.role.create({
+        data: {
+          serverId: server.id,
+          name: '@everyone',
+          color: 0x99aab5,
+          permissions: DEFAULT_MEMBER_PERMISSIONS,
+          position: 0,
         },
       });
 
@@ -245,6 +262,20 @@ export class ServersService {
     }));
   }
 
+  async listCategories(serverId: string, userId: string) {
+    await this.get(serverId, userId);
+    const categories = await this.prisma.category.findMany({
+      where: { serverId },
+      orderBy: { position: 'asc' },
+    });
+    return categories.map((c) => ({
+      id: c.id,
+      serverId: c.serverId,
+      name: c.name,
+      position: c.position,
+    }));
+  }
+
   async createChannel(
     serverId: string,
     userId: string,
@@ -263,7 +294,12 @@ export class ServersService {
       },
     });
 
-    return {
+    await this.auditLog.write({
+      serverId, actorId: userId, action: "CHANNEL_CREATE",
+      targetType: "channel", targetId: channel.id,
+    });
+
+    const serializedChannel = {
       id: channel.id.toString(),
       serverId: channel.serverId.toString(),
       categoryId: channel.categoryId ? channel.categoryId.toString() : null,
@@ -273,6 +309,44 @@ export class ServersService {
       position: channel.position,
       parentId: channel.parentId ? channel.parentId.toString() : null,
     };
+    this.redis.publish('chat:events', { type: 'CHANNEL_CREATED', serverId, channel: serializedChannel }).catch(() => {});
+
+    return serializedChannel;
+  }
+
+  async updateChannel(
+    serverId: string,
+    channelId: string,
+    userId: string,
+    data: { name?: string; topic?: string | null; categoryId?: string | null },
+  ): Promise<SerializedChannel> {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const channel = await this.prisma.channel.findUnique({ where: { id: channelId }, select: { serverId: true } });
+    if (!channel || channel.serverId !== serverId) throw new NotFoundException('Channel not found');
+
+    const updated = await this.prisma.channel.update({
+      where: { id: channelId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.topic !== undefined ? { topic: data.topic } : {}),
+        ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
+      },
+    });
+
+    const serialized = {
+      id: updated.id.toString(),
+      serverId: updated.serverId!.toString(),
+      categoryId: updated.categoryId ? updated.categoryId.toString() : null,
+      name: updated.name,
+      type: updated.type,
+      topic: updated.topic,
+      position: updated.position,
+      parentId: updated.parentId ? updated.parentId.toString() : null,
+    };
+
+    this.redis.publish('chat:events', { type: 'CHANNEL_UPDATED', serverId, channel: serialized }).catch(() => {});
+
+    return serialized;
   }
 
   async listMembers(serverId: string, userId: string) {
@@ -316,14 +390,16 @@ export class ServersService {
     } catch {
       throw new BadRequestException('Invalid permissions value');
     }
-    // Drop any bits that aren't real permissions.
-    return value & ALL_PERMISSIONS;
+    // FR-ROLE-001: must NOT mask against ALL_PERMISSIONS — BigInt round-trip
+    // must be exact for any valid BigInt. Permission checking happens at
+    // authorization time via hasPermission(), not at persist time.
+    return value;
   }
 
   async createRole(
     serverId: string,
     userId: string,
-    data: { name: string; color?: number; permissions?: string },
+    data: { name: string; color?: number; permissions?: string; mentionable?: boolean },
   ): Promise<SerializedRole> {
     await this.assertPermission(serverId, userId, Permission.MANAGE_ROLES);
     const top = await this.prisma.role.findFirst({
@@ -337,16 +413,25 @@ export class ServersService {
         color: data.color ?? 0,
         permissions: this.sanitizePerms(data.permissions ?? '0'),
         position: (top?.position ?? 0) + 1,
+        mentionable: data.mentionable ?? true,
       },
     });
-    return this.serializeRole(role);
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: 'ROLE_CREATE',
+      targetType: 'role', targetId: role.id,
+      metadata: { name: role.name, permissions: role.permissions.toString() },
+    });
+    const serializedRole = this.serializeRole(role);
+    this.redis.publish('chat:events', { type: 'ROLE_CREATED', serverId, role: serializedRole }).catch(() => {});
+    return serializedRole;
   }
 
   async updateRole(
     serverId: string,
     roleId: string,
     userId: string,
-    data: { name?: string; color?: number; permissions?: string },
+    data: { name?: string; color?: number; permissions?: string; mentionable?: boolean },
   ): Promise<SerializedRole> {
     await this.assertPermission(serverId, userId, Permission.MANAGE_ROLES);
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
@@ -357,9 +442,18 @@ export class ServersService {
         ...(data.name !== undefined ? { name: data.name.trim() || role.name } : {}),
         ...(data.color !== undefined ? { color: data.color } : {}),
         ...(data.permissions !== undefined ? { permissions: this.sanitizePerms(data.permissions) } : {}),
+        ...(data.mentionable !== undefined ? { mentionable: data.mentionable } : {}),
       },
     });
-    return this.serializeRole(updated);
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: 'ROLE_UPDATE',
+      targetType: 'role', targetId: roleId,
+      metadata: { changes: data },
+    });
+    const serializedRole = this.serializeRole(updated);
+    this.redis.publish('chat:events', { type: 'ROLE_UPDATED', serverId, role: serializedRole }).catch(() => {});
+    return serializedRole;
   }
 
   async deleteRole(serverId: string, roleId: string, userId: string): Promise<{ success: true }> {
@@ -367,6 +461,12 @@ export class ServersService {
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
     if (!role || role.serverId !== serverId) throw new NotFoundException('Role not found');
     await this.prisma.role.delete({ where: { id: roleId } });
+      await this.auditLog.write({
+        serverId, actorId: userId, action: 'ROLE_DELETE',
+        targetType: 'role', targetId: roleId,
+        metadata: { name: role.name },
+      });
+    this.redis.publish('chat:events', { type: 'ROLE_DELETED', serverId, roleId }).catch(() => {});
     return { success: true };
   }
 
@@ -388,7 +488,14 @@ export class ServersService {
       where: { serverId_userId: { serverId, userId: targetUserId } },
       data: { roles: assign ? { connect: { id: roleId } } : { disconnect: { id: roleId } } },
     });
-    return { success: true };
+
+    const action = assign ? 'ROLE_ASSIGN' as const : 'ROLE_UNASSIGN' as const;
+    await this.auditLog.write({
+      serverId, actorId: userId, action,
+      targetType: 'member', targetId: targetUserId,
+      metadata: { roleId, roleName: role.name },
+    });
+return { success: true };
   }
 
   // ---- Members / server management ----
@@ -451,6 +558,25 @@ export class ServersService {
       return tx.server.findUniqueOrThrow({ where: { id: invitation.serverId } });
     });
     const perms = await this.getMemberPermissions(server.id, userId);
+    const memberRecord = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId: invitation.serverId, userId } },
+      include: { user: true, roles: true },
+    });
+    const member = {
+      userId,
+      nickname: memberRecord?.nickname ?? null,
+      joinedAt: memberRecord!.joinedAt.toISOString(),
+      isOwner: server.ownerId === userId,
+      roleIds: memberRecord!.roles.map((r: any) => r.id),
+      user: {
+        id: memberRecord!.user.id,
+        username: memberRecord!.user.username,
+        displayName: memberRecord!.user.displayName,
+        avatarUrl: memberRecord!.user.avatarUrl,
+        status: memberRecord!.user.status,
+      },
+    };
+    this.redis.publish('chat:events', { type: 'MEMBER_JOINED', serverId: invitation.serverId, userId, member }).catch(() => {});
     return this.serializeServer(server, perms);
   }
 
@@ -480,6 +606,14 @@ export class ServersService {
     const channel = await this.prisma.channel.findUnique({ where: { id: channelId }, select: { serverId: true } });
     if (!channel || channel.serverId !== serverId) throw new NotFoundException('Channel not found');
     await this.prisma.channel.delete({ where: { id: channelId } });
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: "CHANNEL_DELETE",
+      targetType: "channel", targetId: channelId,
+    });
+
+    this.redis.publish('chat:events', { type: 'CHANNEL_DELETED', serverId, channelId }).catch(() => {});
+
     return { success: true };
   }
 
@@ -495,6 +629,17 @@ export class ServersService {
     await this.prisma.serverMember.delete({
       where: { serverId_userId: { serverId, userId: targetUserId } },
     });
+
+    await this.auditLog.write({
+      serverId,
+      actorId: userId,
+      action: 'KICK',
+      targetType: 'member',
+      targetId: targetUserId,
+    });
+
+    this.redis.publish('chat:events', { type: 'MEMBER_KICKED', serverId, userId: targetUserId }).catch(() => {});
+
     return { success: true };
   }
 
@@ -511,8 +656,17 @@ export class ServersService {
         ...(data.iconUrl !== undefined ? { iconUrl: data.iconUrl || null } : {}),
       },
     });
+
+    await this.auditLog.write({
+      serverId, actorId: userId, action: 'SERVER_UPDATE',
+      targetType: 'server', targetId: serverId,
+      metadata: { changes: data },
+    });
+
     const perms = await this.getMemberPermissions(serverId, userId);
-    return this.serializeServer(server, perms);
+    const serializedServer = this.serializeServer(server, perms);
+    this.redis.publish('chat:events', { type: 'SERVER_UPDATED', serverId, server: serializedServer }).catch(() => {});
+    return serializedServer;
   }
 
   async deleteServer(serverId: string, userId: string): Promise<{ success: true }> {
@@ -529,6 +683,180 @@ export class ServersService {
       this.prisma.auditLog.deleteMany({ where: { serverId } }),
       this.prisma.server.delete({ where: { id: serverId } }),
     ]);
+    this.redis.publish('chat:events', { type: 'SERVER_DELETED', serverId }).catch(() => {});
+    return { success: true };
+  }
+
+  // ---- Timeout (FR-ROLE-005) ----
+
+  /** Set or update a timeout for a member (gated: MANAGE_MEMBERS). */
+  async setTimeout(serverId: string, targetUserId: string, until: Date, actorId: string) {
+    await this.assertPermission(serverId, actorId, Permission.MANAGE_MEMBERS);
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+    if (!server) throw new NotFoundException('Server not found');
+    if (server.ownerId === targetUserId) throw new ForbiddenException('Cannot timeout the server owner');
+
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      select: { timedOutUntil: true },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    // Cap at 28 days from now
+    const max = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000);
+    const capped = until > max ? max : until;
+    if (capped <= new Date()) throw new BadRequestException('Timeout must be in the future');
+
+    await this.prisma.serverMember.update({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      data: { timedOutUntil: capped },
+    });
+
+    return { timedOutUntil: capped.toISOString() };
+  }
+
+  /** Clear a member's timeout (gated: MANAGE_MEMBERS). */
+  async clearTimeout(serverId: string, targetUserId: string, actorId: string) {
+    await this.assertPermission(serverId, actorId, Permission.MANAGE_MEMBERS);
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      select: { timedOutUntil: true },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    await this.prisma.serverMember.update({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+      data: { timedOutUntil: null },
+    });
+
+    return { success: true };
+  }
+
+  /** Check whether a user is timed out in a given server. Throws 403 if so. */
+  async assertNotTimedOut(serverId: string, userId: string): Promise<void> {
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      select: { timedOutUntil: true },
+    });
+    if (member?.timedOutUntil && member.timedOutUntil > new Date()) {
+      throw new ForbiddenException({
+        message: 'You are timed out',
+        code: 'timed_out',
+      });
+    }
+  }
+
+
+  // ---- Bans (P7 add_ban) ----
+
+  async listBans(serverId: string, userId: string) {
+    await this.assertPermission(serverId, userId, Permission.BAN_MEMBERS);
+    const bans = await this.prisma.ban.findMany({
+      where: { serverId },
+      include: {
+        user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        createdBy: { select: { id: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return bans.map((b) => ({
+      id: b.id,
+      userId: b.userId,
+      serverId: b.serverId,
+      reason: b.reason,
+      createdById: b.createdById,
+      deleteMessageDays: b.deleteMessageDays,
+      createdAt: b.createdAt.toISOString(),
+      user: b.user,
+      createdBy: b.createdBy,
+    }));
+  }
+
+  async banMember(
+    serverId: string,
+    targetUserId: string,
+    actorId: string,
+    opts: { reason?: string; deleteMessageDays?: number },
+  ) {
+    await this.assertPermission(serverId, actorId, Permission.BAN_MEMBERS);
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+    if (!server) throw new NotFoundException('Server not found');
+    if (server.ownerId === targetUserId) throw new ForbiddenException('Cannot ban the server owner');
+    if (targetUserId === actorId) throw new BadRequestException('You cannot ban yourself');
+
+    // Check if already banned
+    const existing = await this.prisma.ban.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+    });
+    if (existing) throw new BadRequestException('User is already banned');
+
+    const deleteMessageDays = opts.deleteMessageDays !== undefined
+      ? Math.max(0, Math.min(7, opts.deleteMessageDays))
+      : undefined;
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Purge messages if requested
+      if (deleteMessageDays && deleteMessageDays > 0) {
+        const cutoff = new Date(Date.now() - deleteMessageDays * 24 * 60 * 60 * 1000);
+        const channels = await tx.channel.findMany({
+          where: { serverId },
+          select: { id: true },
+        });
+        const channelIds = channels.map((c) => c.id);
+        if (channelIds.length > 0) {
+          await tx.message.updateMany({
+            where: {
+              channelId: { in: channelIds },
+              authorId: targetUserId,
+              createdAt: { gte: cutoff },
+            },
+            data: { deletedAt: new Date() },
+          });
+        }
+      }
+
+      // Remove from server members
+      await tx.serverMember.deleteMany({
+        where: { serverId, userId: targetUserId },
+      });
+
+      // Create ban record
+      const ban = await tx.ban.create({
+        data: {
+          serverId,
+          userId: targetUserId,
+          reason: opts.reason ?? null,
+          createdById: actorId,
+          deleteMessageDays: deleteMessageDays ?? null,
+        },
+        include: {
+          user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+          createdBy: { select: { id: true, username: true } },
+        },
+      });
+
+      return ban;
+    });
+
+    this.redis.publish('chat:events', { type: 'MEMBER_KICKED', serverId, userId: targetUserId }).catch(() => {});
+    return { ...result, createdAt: result.createdAt.toISOString() };
+  }
+
+  async unbanMember(serverId: string, targetUserId: string, actorId: string) {
+    await this.assertPermission(serverId, actorId, Permission.BAN_MEMBERS);
+    const ban = await this.prisma.ban.findUnique({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+    });
+    if (!ban) throw new NotFoundException('Ban not found');
+    await this.prisma.ban.delete({
+      where: { serverId_userId: { serverId, userId: targetUserId } },
+    });
     return { success: true };
   }
 
@@ -546,6 +874,90 @@ export class ServersService {
     await this.prisma.serverMember.delete({
       where: { serverId_userId: { serverId, userId } },
     });
+
+      await this.auditLog.write({
+        serverId,
+        actorId: userId,
+        action: "MEMBER_LEAVE",
+        targetType: "member",
+        targetId: userId,
+      });
+
+    this.redis.publish('chat:events', { type: 'MEMBER_LEFT', serverId, userId }).catch(() => {});
     return { success: true };
+  }
+
+  // ---- Channel permission overwrites (FR-ROLE-003) x-added-by P7 ----
+
+  async listOverwrites(serverId: string, channelId: string, userId: string) {
+    return this.overwrites.list(serverId, channelId, userId);
+  }
+
+  async upsertOverwrite(
+    serverId: string,
+    channelId: string,
+    userId: string,
+    data: { targetType: 'ROLE' | 'MEMBER'; targetId: string; allow?: string; deny?: string },
+  ) {
+    return this.overwrites.upsert(serverId, channelId, userId, data);
+  }
+
+  async deleteOverwrite(serverId: string, channelId: string, overwriteId: string, userId: string) {
+    return this.overwrites.delete(serverId, channelId, overwriteId, userId);
+  }
+
+  /**
+   * Compute effective permissions for a user on a specific channel,
+   * incorporating channel permission overwrites.
+   * Returns the effective BigInt permission bitfield.
+   */
+  async getChannelPermissions(serverId: string, channelId: string, userId: string): Promise<bigint> {
+    const server = await this.prisma.server.findUnique({
+      where: { id: serverId },
+      select: { ownerId: true },
+    });
+    if (!server) throw new NotFoundException('Server not found');
+
+    const isOwner = server.ownerId === userId;
+
+    const member = await this.prisma.serverMember.findUnique({
+      where: { serverId_userId: { serverId, userId } },
+      include: { roles: true },
+    });
+    if (!member) throw new ForbiddenException('Not a member of this server');
+
+    // Find @everyone role for base permissions
+    const everyoneRole = await this.prisma.role.findFirst({
+      where: { serverId, name: '@everyone' },
+    });
+    const everyonePermissions = everyoneRole?.permissions ?? 0n;
+
+    // Union of all non-@everyone role permissions
+    const rolePermissions = member.roles
+      .filter((r) => r.name !== '@everyone')
+      .reduce((acc, r) => acc | r.permissions, 0n);
+
+    const memberRoleIds = new Set(member.roles.map((r) => r.id));
+
+    // Load channel overwrites
+    const overwriteRecords = await this.prisma.channelOverwrite.findMany({
+      where: { channelId },
+    });
+
+    const overwrites = overwriteRecords.map((ow) => ({
+      targetType: ow.targetType as 'ROLE' | 'MEMBER',
+      targetId: ow.targetId,
+      allow: ow.allow,
+      deny: ow.deny,
+    }));
+
+    return resolveEffectivePermissions({
+      everyonePermissions,
+      rolePermissions,
+      memberRoleIds,
+      userId,
+      overwrites,
+      isOwner,
+    });
   }
 }

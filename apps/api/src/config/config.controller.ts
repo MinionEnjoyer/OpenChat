@@ -1,9 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
-import { SessionGuard } from '../auth/session.guard';
-import { UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('config')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class ConfigController {
   @Get()
   getConfig() {

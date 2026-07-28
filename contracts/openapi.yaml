@@ -1,0 +1,2368 @@
+openapi: 3.1.0
+info:
+  title: OpenChat API
+  version: 0.1.0
+  description: >
+    REST API for OpenChat — derived from Phase 0 observed behavior (E-experiments,
+    characterization tests). Every operation cites its evidence. Routes marked
+    `x-unverified: true` carry a note explaining what would verify them.
+servers:
+  - url: http://localhost:3001/api
+    description: Dev stack
+
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+paths:
+  # ── Health ──
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      tags: [health]
+      security: []
+      responses:
+        '200':
+          description: OK
+      x-evidence: stack health check
+
+  # ── Config ──
+  /config:
+    get:
+      operationId: getConfig
+      summary: Client config (requires auth — characterized)
+      tags: [config]
+      responses:
+        '200':
+          description: >
+            Client config (shareBaseUrl, jellyfinUrl).
+            Requires auth. Characterized: returns 401 without session cookie.
+            A pre-auth public subset (`GET /config/public`) will be added in Phase 1
+            per DR-002.
+      x-evidence: provider.spec.ts#config-auth-char, DRIFT-LOG 2026-07-21
+
+  # ── Auth ──
+  /auth/login:
+    get:
+      operationId: oidcLogin
+      summary: OIDC login redirect
+      tags: [auth]
+      security: []
+      responses:
+        '302':
+          description: Redirect to OIDC provider
+      x-evidence: E10
+
+  /auth/callback:
+    get:
+      operationId: oidcCallback
+      summary: OIDC callback
+      tags: [auth]
+      security: []
+      responses:
+        '302':
+          description: Redirect to app on success
+      x-evidence: E10
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Destroy session
+      tags: [auth]
+      responses:
+        '201':
+          description: >
+            Returns `{endSessionUrl: string}` and destroys the local session.
+            Characterized: returns 201 (not 200).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  endSessionUrl:
+                    type: string
+                required: [endSessionUrl]
+      x-evidence: auth.spec.ts#logout, E1
+
+  /auth/dev-login:
+    post:
+      operationId: devLogin
+      summary: Dev-only test login (DEV_AUTH=1 required)
+      tags: [auth]
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+              example:
+                username: alice
+      responses:
+        '201':
+          description: >
+            Returns user object with standard shape PLUS bearer tokens
+            (x-added-by P1-02). Sets session cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevLoginResponse'
+        '404':
+          description: Not found in production (route gated by DEV_AUTH)
+      x-evidence: auth.spec.ts#dev-login, integration/bearer-auth.spec.ts, E1
+
+  /auth/oauth/token:
+    post:
+      operationId: issueToken
+      summary: Bearer token issuance for native clients (x-added-by P1-01)
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grantType: { type: string, enum: [authorization_code, refresh_token] }
+                code: { type: string }
+                codeVerifier: { type: string }
+                redirectUri: { type: string }
+                refreshToken: { type: string }
+              required: [grantType]
+      responses:
+        '201':
+          description: Tokens issued (refresh rotation with family revocation on reuse)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Unknown grantType or missing fields
+        '401':
+          description: Invalid, spent, or family-revoked refresh token
+      x-evidence: integration/bearer-auth.spec.ts
+
+  /auth/oidc-metadata:
+    get:
+      operationId: getOidcMetadata
+      summary: Public OIDC metadata for native clients (x-added-by P1-03, DR-002)
+      tags: [auth]
+      security: []
+      responses:
+        '200':
+          description: Issuer/clientId/nativeRedirectUri/scopes. Never contains secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issuer: { type: string, nullable: true }
+                  clientId: { type: string, nullable: true }
+                  nativeRedirectUri: { type: string }
+                  scopes: { type: array, items: { type: string } }
+                required: [issuer, clientId, nativeRedirectUri, scopes]
+      x-evidence: integration/bearer-auth.spec.ts
+
+  /auth/me:
+    get:
+      operationId: getMe
+      summary: Get current user
+      tags: [auth]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: No session
+      x-evidence: auth.spec.ts#me, E1
+    patch:
+      operationId: updateMe
+      summary: Update current user profile
+      tags: [auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  maxLength: 32
+                displayName:
+                  type: string
+                  maxLength: 80
+                avatarUrl:
+                  type: string
+                  maxLength: 1000
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: No session
+      x-evidence: auth.spec.ts#patch-me, E1
+
+  /auth/server-layout:
+    put:
+      operationId: updateServerLayout
+      summary: Save server navigation layout
+      tags: [auth]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                layout:
+                  type: object
+                  properties:
+                    folders:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          color:
+                            type: integer
+                          serverIds:
+                            type: array
+                            items:
+                              type: string
+                          collapsed:
+                            type: boolean
+                        required: [id, name, color, serverIds]
+                    order:
+                      type: array
+                      items:
+                        type: string
+                  required: [folders]
+                  x-added-by: P3-01
+      responses:
+        '200':
+          description: Layout accepted
+      x-evidence: auth.spec.ts#server-layout, E1
+
+  /auth/ws-ticket:
+    get:
+      operationId: getWsTicket
+      summary: Mint WebSocket connection ticket
+      tags: [auth]
+      responses:
+        '200':
+          description: >
+            Returns `{ticket: string, expiresAt: string}`. Ticket is used as
+            `?ticket=<value>` query param on WS connect.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+                required: [ticket, expiresAt]
+        '401':
+          description: No session
+      x-evidence: auth.spec.ts#ws-ticket, E2
+
+  # ── Servers ──
+  /servers/permissions:
+    get:
+      operationId: getPermissionCatalog
+      summary: Get server permission catalog
+      tags: [servers]
+      responses:
+        '200':
+          description: >
+            Permission catalog with bitfield values. Bits are serialized as
+            decimal strings (BigInt safety).
+      x-evidence: roles.spec.ts#permissions, E3
+
+  /servers:
+    get:
+      operationId: listServers
+      summary: List current user's servers
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of servers with myPermissions (string)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Server'
+      x-evidence: servers.spec.ts#list, E1
+    post:
+      operationId: createServer
+      summary: Create server
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+              required: [name]
+      responses:
+        '201':
+          description: Created server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+      x-evidence: servers.spec.ts#create, E3
+
+  /servers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getServer
+      summary: Get server by ID
+      tags: [servers]
+      responses:
+        '200':
+          description: Server detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+        '403':
+          description: Non-member
+        '404':
+          description: Not found
+      x-evidence: servers.spec.ts#get, E1
+    patch:
+      operationId: updateServer
+      summary: Update server (owner only)
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Updated server
+      x-evidence: servers.spec.ts#update, E3
+    delete:
+      operationId: deleteServer
+      summary: Delete server (owner only)
+      tags: [servers]
+      responses:
+        '200':
+          description: Deleted
+      x-evidence: servers.spec.ts#delete, E3
+
+  /servers/{id}/sounds:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listSounds
+      summary: List server sounds
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of sound objects
+      x-evidence: servers.spec.ts#sounds, E3
+    post:
+      operationId: createSound
+      summary: Upload server sound
+      tags: [servers]
+      responses:
+        '201':
+          description: Created sound
+      x-evidence: servers.spec.ts#sounds, E3
+    delete:
+      operationId: deleteSound
+      summary: Delete server sound
+      tags: [servers]
+      responses:
+        '200':
+          description: Deleted
+      x-evidence: servers.spec.ts#sounds, E3
+    patch:
+      operationId: updateSound
+      summary: Update server sound
+      tags: [servers]
+      responses:
+        '200':
+          description: Updated
+      x-unverified: true
+      x-note: "PATCH has same guard as POST+DELETE but no dedicated characterization test"
+      x-evidence: "route exists in controller; no characterization test"
+
+  /servers/{id}/audit-log:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listAuditLog
+      summary: List audit log entries for a server
+      description: >
+        Returns audit log entries for the server in reverse-chronological order.
+        Requires MANAGE_SERVER permission (or server ownership). Non-privileged
+        members receive 403.
+      tags: [servers]
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: action
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Paginated audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        serverId:
+                          type: string
+                          format: uuid
+                        actor:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            username:
+                              type: string
+                            displayName:
+                              type: string
+                              nullable: true
+                            avatarUrl:
+                              type: string
+                              nullable: true
+                        action:
+                          type: string
+                          enum:
+                            - KICK
+                            - ROLE_CREATE
+                            - ROLE_UPDATE
+                            - ROLE_DELETE
+                            - ROLE_ASSIGN
+                            - ROLE_UNASSIGN
+                            - CHANNEL_CREATE
+                            - CHANNEL_DELETE
+                            - SERVER_UPDATE
+                            - MEMBER_JOIN
+                            - MEMBER_LEAVE
+                            - MESSAGE_DELETE
+                            - MESSAGE_PIN
+                            - MESSAGE_UNPIN
+                        targetType:
+                          type: string
+                          nullable: true
+                        targetId:
+                          type: string
+                          nullable: true
+                          format: uuid
+                        metadata: {}
+                        createdAt:
+                          type: string
+                          format: date-time
+        '403':
+          description: Missing MANAGE_SERVER permission or not a server member
+      x-added-by: P7
+      x-evidence: "audit-log.spec.ts (integration), FR-ROLE-006"
+
+  /servers/{id}/channels:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listChannels
+      summary: List channels in server
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of channel objects
+      x-evidence: servers.spec.ts#channels, E3
+    post:
+      operationId: createChannel
+      summary: Create channel
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [TEXT, VOICE]
+              required: [name, type]
+      responses:
+        '201':
+          description: Created channel
+      x-evidence: servers.spec.ts#channels-create, E3
+
+  /servers/{id}/channels/reorder:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: reorderChannels
+      summary: Reorder channels
+      tags: [servers]
+      responses:
+        '200':
+          description: Reorder accepted
+      x-evidence: servers.spec.ts#channels-reorder, E3
+
+  /servers/{id}/channels/{channelId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteChannel
+      summary: Delete channel
+      tags: [servers]
+      responses:
+        '200':
+          description: Deleted
+      x-evidence: servers.spec.ts#channel-delete, E3
+
+  /servers/{id}/channels/{channelId}/permissions/me:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMyChannelPermissions
+      summary: Get effective channel permissions for current user (post-overwrites)
+      tags: [servers]
+      responses:
+        '200':
+          description: Permissions bitfield for current user on this channel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permissions:
+                    type: string
+                    description: BigInt permission bitfield as decimal string
+                required: [permissions]
+      x-added-by: FR-SRV-010
+
+  /servers/{id}/members:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listMembers
+      summary: List server members
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of member objects with user and roleIds
+      x-evidence: servers.spec.ts#members, E3
+    post:
+      operationId: addMember
+      summary: Add member to server
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+              required: [userId]
+      responses:
+        '201':
+          description: Member added
+      x-evidence: helpers.ts#seed, E3
+
+  /servers/{id}/members/me:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: leaveServer
+      summary: Leave server
+      tags: [servers]
+      responses:
+        '200':
+          description: Left (may also return 500 - characterized as-is)
+        '500':
+          description: Characterized edge case
+      x-evidence: servers.spec.ts#leave, E3
+
+  /servers/{id}/members/{userId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: kickMember
+      summary: Kick member from server
+      tags: [servers]
+      responses:
+        '200':
+          description: Kicked (may also return 500 - characterized)
+        '500':
+          description: Characterized edge case
+      x-evidence: servers.spec.ts#kick, E3
+
+  # ── Bans (x-added-by P7) ──
+  /servers/{id}/bans:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listBans
+      summary: List server bans
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of ban objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ban'
+        '403':
+          description: Missing BAN_MEMBERS permission
+      x-added-by: P7
+      x-evidence: integration/p7-02-ban.spec.ts
+
+  /servers/{id}/bans/{userId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: banMember
+      summary: Ban a member from the server
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 512
+                deleteMessageDays:
+                  type: integer
+                  minimum: 0
+                  maximum: 7
+      responses:
+        '200':
+          description: Ban applied; member removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ban'
+        '400':
+          description: Already banned, or self-ban
+        '403':
+          description: Missing BAN_MEMBERS permission, or cannot ban owner
+      x-added-by: P7
+      x-evidence: integration/p7-02-ban.spec.ts
+    delete:
+      operationId: unbanMember
+      summary: Unban a member from the server
+      tags: [servers]
+      responses:
+        '200':
+          description: Unbanned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                required: [success]
+        '403':
+          description: Missing BAN_MEMBERS permission
+        '404':
+          description: Ban not found
+      x-added-by: P7
+      x-evidence: integration/p7-02-ban.spec.ts
+
+  /servers/{id}/roles:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listRoles
+      summary: List server roles
+      tags: [servers]
+      responses:
+        '200':
+          description: Array of role objects
+      x-evidence: roles.spec.ts#list, E3
+    post:
+      operationId: createRole
+      summary: Create role
+      tags: [servers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                color:
+                  type: integer
+                permissions:
+                  type: string
+                  description: Bitfield as decimal string
+              required: [name, permissions]
+      responses:
+        '201':
+          description: Created role
+      x-evidence: roles.spec.ts#create, E3
+
+  /servers/{id}/roles/{roleId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateRole
+      summary: Update role
+      tags: [servers]
+      responses:
+        '200':
+          description: Updated
+      x-evidence: roles.spec.ts#create, E3
+    delete:
+      operationId: deleteRole
+      summary: Delete role
+      tags: [servers]
+      responses:
+        '200':
+          description: Deleted
+      x-evidence: roles.spec.ts#create, E3
+
+  /servers/{id}/members/{userId}/roles/{roleId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: assignMemberRole
+      summary: Assign role to member
+      tags: [servers]
+      responses:
+        '200':
+          description: Role assigned
+      x-evidence: roles.spec.ts#member-role, E3
+    delete:
+      operationId: removeMemberRole
+      summary: Remove role from member
+      tags: [servers]
+      responses:
+        '200':
+          description: Role removed
+      x-evidence: roles.spec.ts#member-role, E3
+
+  # ── Timeout (x-added-by: P7) ──
+  /servers/{id}/members/{userId}/timeout:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setTimeout
+      summary: Set or update a member's timeout
+      tags: [servers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [until]
+              properties:
+                until:
+                  type: string
+                  format: date-time
+                  description: ISO 8601 timestamp; capped at 28 days from now
+      responses:
+        '200':
+          description: Timeout applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  timedOutUntil:
+                    type: string
+                    format: date-time
+        '403':
+          description: >
+            Forbidden — actor lacks MANAGE_MEMBERS permission, or target is server owner,
+            or target is not a member.
+        '404':
+          description: Server or member not found
+      x-evidence: p7-timeout.spec.ts#set-timeout
+      x-added-by: P7
+    delete:
+      operationId: clearTimeout
+      summary: Clear a member's timeout
+      tags: [servers]
+      responses:
+        '200':
+          description: Timeout cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '403':
+          description: Forbidden — actor lacks MANAGE_MEMBERS permission
+        '404':
+          description: Server or member not found
+      x-evidence: p7-timeout.spec.ts#clear-timeout
+      x-added-by: P7
+
+  # ── Invites ──
+  /servers/{id}/invites:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: createInvite
+      summary: Create server invite
+      tags: [invites]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                maxUses:
+                  type: integer
+                expiresInHours:
+                  type: number
+      responses:
+        '201':
+          description: >
+            Returns `{code, serverId, expiresAt, maxUses}`. No `id` field at
+            top level (characterized).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  serverId:
+                    type: string
+                    format: uuid
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  maxUses:
+                    type: integer
+                    nullable: true
+      x-evidence: invites.spec.ts#create, E3, FR-SRV-006
+
+  /invites/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: previewInvite
+      summary: Preview invite (public, no auth)
+      tags: [invites]
+      security: []
+      responses:
+        '200':
+          description: Invite preview with server info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  server:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      iconUrl: { type: string, nullable: true }
+                  inviter:
+                    type: object
+                    properties:
+                      id: { type: string, format: uuid }
+                      username: { type: string }
+        '404':
+          description: Invalid code
+      x-evidence: invites.spec.ts#preview, E3, FR-SRV-006
+
+  /invites/{code}/accept:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: acceptInvite
+      summary: Accept invite (join server)
+      tags: [invites]
+      responses:
+        '200':
+          description: Joined server
+        '403':
+          description: User is banned from the server (x-added-by P7)
+      x-evidence: invites.spec.ts#accept, E3, integration/p7-02-ban.spec.ts
+
+  # ── Server Invitations (notification-driven) ──
+  /server-invitations/{id}/accept:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: acceptServerInvitation
+      summary: Accept server invitation from notifications
+      tags: [notifications]
+      responses:
+        '200':
+          description: Accepted
+      x-evidence: invites.spec.ts#notif-accept
+
+  /server-invitations/{id}/decline:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: declineServerInvitation
+      summary: Decline server invitation from notifications
+      tags: [notifications]
+      responses:
+        '200':
+          description: Declined
+      x-evidence: invites.spec.ts#notif-decline
+
+  # ── Messages ──
+  /channels/{id}/messages:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listMessages
+      summary: List channel messages (newest-first)
+      tags: [messages]
+      parameters:
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Cursor — message ID to page before
+        - name: around
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: >
+            Jump-to-message — returns a window centred on this message ID.
+            Split roughly limit/2 newer and limit/2 older, newest-first.
+            Near edges, the short side is padded from the other side.
+            404 if the message is not in this channel.
+          x-added-by: P2
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: >
+            Max messages to return. Service fetches limit+1 internally for
+            hasMore detection — actual response may contain limit items.
+      responses:
+        '200':
+          description: >
+            Paginated messages (newest-first). May return up to limit+1 items
+            (service internal behavior).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+      x-evidence: messages.spec.ts#list, E6
+    post:
+      operationId: sendMessage
+      summary: Send message to channel
+      tags: [messages]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: Message text (required)
+                attachments:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/AttachmentInput'
+                nonce:
+                  type: string
+                  description: Client idempotency key (echoed in response)
+              required: [content]
+      responses:
+        '201':
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: Empty content
+      x-evidence: messages.spec.ts#send, E2
+
+  # ── Individual Message ──
+  /messages/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: editMessage
+      summary: Edit message (author only)
+      tags: [messages]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+              required: [content]
+      responses:
+        '200':
+          description: Updated message (sets editedAt)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          description: Non-author
+      x-evidence: messages.spec.ts#edit, E3
+    delete:
+      operationId: deleteMessage
+      summary: Soft-delete message
+      tags: [messages]
+      responses:
+        '200':
+          description: Soft-deleted (sets deletedAt, content cleared, attachments preserved)
+      x-evidence: messages.spec.ts#delete, E3
+
+  # ── Reactions ──
+  /messages/{id}/reactions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: addReaction
+      summary: Add reaction to message (characterized: returns 201)
+      tags: [messages]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                emoji:
+                  type: string
+              required: [emoji]
+      responses:
+        '201':
+          description: "Message with updated reactions array. Characterized: returns 201 (not 200)."
+      x-evidence: reactions.spec.ts#add, E7
+    delete:
+      operationId: removeReaction
+      summary: Remove reaction
+      tags: [messages]
+      responses:
+        '200':
+          description: Message with updated reactions
+      x-evidence: reactions.spec.ts#remove, E7
+
+  # ── Pins ──
+  /channels/{id}/pins:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listPinnedMessages
+      summary: List pinned messages in channel
+      tags: [messages]
+      responses:
+        '200':
+          description: Array of pinned messages
+      x-evidence: pins-polls.spec.ts#pins-list, E7
+
+  /messages/{id}/pin:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: togglePin
+      summary: Toggle pin on message
+      tags: [messages]
+      responses:
+        '200':
+          description: Message with updated pin state
+      x-evidence: pins-polls.spec.ts#pin, E7
+
+  # ── Polls ──
+  /channels/{id}/polls:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: createPoll
+      summary: Create poll in channel
+      tags: [messages]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                options:
+                  type: array
+                  items:
+                    type: string
+                multiple:
+                  x-verified-against: live API 2026-07-25
+                  type: boolean
+                  description: Allow multiple votes (default false)
+              required: [question, options]
+      responses:
+        '201':
+          description: Created poll message
+      x-evidence: pins-polls.spec.ts#poll-create, E7
+
+  /polls/options/{optionId}/vote:
+    parameters:
+      - name: optionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: votePoll
+      summary: Vote on poll option (characterized: returns 201)
+      tags: [messages]
+      responses:
+        '201':
+          description: >
+            Poll message with updated voterIds. Characterized: returns 201
+            (not 200).
+      x-evidence: pins-polls.spec.ts#vote, E7
+
+  # ── Read Receipts ──
+  /channels/{id}/read:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: markRead
+      summary: Mark channel as read (no WS event emitted)
+      tags: [messages]
+      responses:
+        '200':
+          description: Read receipt recorded
+      x-evidence: messages.spec.ts#read, E7
+
+  # ── DMs ──
+  /dms:
+    get:
+      operationId: listDMs
+      summary: List DM channels
+      tags: [dms]
+      responses:
+        '200':
+          description: Array of DM objects
+      x-evidence: dms-friends.spec.ts#dms, E1
+    post:
+      operationId: createDM
+      summary: Create DM with user (requires friendship)
+      tags: [dms]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+              required: [userId]
+      responses:
+        '201':
+          description: Created DM
+        '403':
+          description: Not friends
+      x-evidence: dms-friends.spec.ts#dms-create, E3
+
+  # ── Friends ──
+  /friends:
+    get:
+      operationId: listFriends
+      summary: List friends
+      tags: [friends]
+      responses:
+        '200':
+          description: Array of friend user objects
+      x-evidence: dms-friends.spec.ts#friends-list, E1
+
+  /friends/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: removeFriend
+      summary: Remove friend
+      tags: [friends]
+      responses:
+        '200':
+          description: Removed
+      x-evidence: dms-friends.spec.ts#remove
+
+  /friends/requests:
+    get:
+      operationId: listFriendRequests
+      summary: List pending friend requests (returns {incoming, outgoing})
+      tags: [friends]
+      responses:
+        '200':
+          description: >
+            Object with `incoming` and `outgoing` arrays (not a bare array).
+            Each array element is a friend request object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incoming:
+                    type: array
+                  outgoing:
+                    type: array
+                required: [incoming, outgoing]
+      x-evidence: provider.spec.ts#friend-requests-shape, DRIFT-LOG 2026-07-21
+    post:
+      operationId: sendFriendRequest
+      summary: Send friend request (by username)
+      tags: [friends]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+              required: [username]
+      responses:
+        '201':
+          description: Request sent
+      x-evidence: dms-friends.spec.ts#friend-request, E3
+
+  /friends/requests/{id}/accept:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: acceptFriendRequest
+      summary: Accept friend request
+      tags: [friends]
+      responses:
+        '200':
+          description: Friend added
+      x-evidence: dms-friends.spec.ts#full-cycle, E3
+
+  /friends/requests/{id}/decline:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: declineFriendRequest
+      summary: Decline friend request
+      tags: [friends]
+      responses:
+        '200':
+          description: Declined
+      x-evidence: dms-friends.spec.ts#decline
+
+  /friends/block/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: blockUser
+      summary: Block user
+      tags: [friends]
+      responses:
+        '200':
+          description: Blocked
+      x-evidence: dms-friends.spec.ts#block
+  /friends/blocked:
+    get:
+      operationId: listBlocked
+      summary: List blocked users
+      tags: [friends]
+      responses:
+        '200':
+          description: Array of blocked user objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+      x-evidence: FR-SOC-007
+      x-fr: FR-SOC-007
+
+  /friends/blocked:
+    get:
+      operationId: listBlocked
+      summary: List blocked users
+      tags: [friends]
+      responses:
+        '200':
+          description: Array of blocked user objects
+      x-evidence: Manual verification — FR-SOC-001 blocked tab
+
+  /friends/unblock/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: unblockUser
+      summary: Unblock user (removes the BLOCKED friendship row)
+      tags: [friends]
+      responses:
+        '201':
+          description: Unblocked
+        '404':
+          description: Block not found
+      x-evidence: Manual verification — FR-SOC-001
+
+  # ── Notifications ──
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: List notifications (returns {friendRequests, serverInvites, count})
+      tags: [notifications]
+      responses:
+        '200':
+          description: >
+            Object with `friendRequests`, `serverInvites`, and `count` fields (not a bare array).
+            Server-observed shape; server beats aspirational contract.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  friendRequests:
+                    type: array
+                  serverInvites:
+                    type: array
+                  count:
+                    type: integer
+                required: [friendRequests, serverInvites, count]
+      x-evidence: provider.spec.ts#notifications-shape, DRIFT-LOG 2026-07-21
+
+  # ── Notification settings (FR-NOTIF-003) ──
+  /notifications/settings:
+    get:
+      operationId: listNotificationSettings
+      summary: List per-server/per-channel notification level overrides
+      tags: [notifications]
+      responses:
+        '200':
+          description: Array of NotificationSetting objects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationSetting'
+      x-evidence: FR-NOTIF-003 implementation
+    put:
+      operationId: upsertNotificationSetting
+      summary: Create or update a notification level override
+      tags: [notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [SERVER, CHANNEL]
+                scopeId:
+                  type: string
+                  format: uuid
+                level:
+                  type: string
+                  enum: [ALL, MENTIONS, NONE]
+                mutedUntil:
+                  type: string
+                  format: date-time
+                  nullable: true
+              required: [scope, scopeId, level]
+      responses:
+        '200':
+          description: The upserted NotificationSetting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSetting'
+      x-evidence: FR-NOTIF-003 implementation
+
+  /notifications/settings/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteNotificationSetting
+      summary: Remove a notification level override
+      tags: [notifications]
+      responses:
+        '200':
+          description: Deleted confirmation
+        '404':
+          description: Setting not found
+      x-evidence: FR-NOTIF-003 implementation
+
+  # ── Device token registry (FR-NOTIF-001) ──
+  /devices:
+    get:
+      operationId: listDevices
+      summary: List the current user's device tokens
+      tags: [devices]
+      responses:
+        '200':
+          description: List of device tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceToken'
+      x-evidence: FR-NOTIF-001 implementation
+    post:
+      operationId: registerDevice
+      summary: Register or refresh a push notification device token (idempotent)
+      tags: [devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [android, ios]
+              required: [token, platform]
+      responses:
+        '201':
+          description: Device token registered or updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceToken'
+      x-evidence: FR-NOTIF-001 implementation
+
+  /devices/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: deleteDevice
+      summary: Remove a device token (idempotent — unknown token returns 204)
+      tags: [devices]
+      responses:
+        '204':
+          description: Token removed (or was not present)
+      x-evidence: FR-NOTIF-001 implementation
+
+  # ── Voice ──
+  /voice/{channelId}/join:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: joinVoice
+      summary: Join voice channel (characterized: returns 201)
+      tags: [voice]
+      responses:
+        '201':
+          description: >
+            Returns `{url, token, room}`. `url` is LiveKit WebSocket URL.
+            `token` is JWT with claims per E8. Characterized: returns 201.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  token:
+                    type: string
+                  room:
+                    type: string
+                required: [url, token, room]
+      x-evidence: voice.spec.ts#join, E8
+
+  /voice/{channelId}/leave:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: leaveVoice
+      summary: Leave voice channel (characterized: returns 201)
+      tags: [voice]
+      responses:
+        '201':
+          description: '`{success: true}`'
+      x-evidence: voice.spec.ts#leave, E8
+
+  /voice/{channelId}/participants:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listVoiceParticipants
+      summary: List voice channel participants
+      tags: [voice]
+      responses:
+        '200':
+          description: Array of participant objects (empty when nobody connected)
+      x-evidence: voice.spec.ts#participants, E8
+
+  # ── Gifs ──
+  /gifs/search:
+    get:
+      operationId: searchGifs
+      summary: Search Giphy (requires external API key)
+      tags: [gifs]
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results
+      x-evidence: "route exists in controller; no characterization test; requires external API key"
+
+  # ── Upload broker + media proxy (x-added-by: P5) ──
+  /uploads:
+    post:
+      operationId: uploadFiles
+      summary: Upload files through the broker (FR-MED-002)
+      tags: [uploads]
+      x-added-by: P5
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: One or more files (max 10, 100 MB each)
+      responses:
+        '201':
+          description: Array of UploadedAttachment refs (matching web Attachment shape)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadedAttachment'
+        '401':
+          description: Missing or invalid bearer token
+
+  /media/{assetId}/raw:
+    parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: proxyRaw
+      summary: Proxied raw asset download with optional Range support (FR-MED-003)
+      tags: [media]
+      x-added-by: P5
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: range
+          in: header
+          schema:
+            type: string
+          description: Byte range (RFC 7233), e.g. "bytes=0-1023"
+      responses:
+        '200':
+          description: Full file content
+        '206':
+          description: Partial content (Range request fulfilled)
+        '401':
+          description: Missing or invalid bearer token
+        '404':
+          description: Asset not found on Share backend
+
+  /media/{assetId}/thumb:
+    parameters:
+      - name: assetId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: proxyThumb
+      summary: Proxied thumbnail download (FR-MED-003)
+      tags: [media]
+      x-added-by: P5
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: JPEG thumbnail
+        '401':
+          description: Missing or invalid bearer token
+        '404':
+          description: No thumbnail available
+
+  # ── Watchparty (deferred, P2 scope) ──
+  /watchparty/library:
+    get:
+      operationId: watchpartyLibrary
+      summary: Watchparty library
+      tags: [watchparty]
+      responses:
+        '200':
+          description: Library items
+      x-unverified: true
+      x-note: "Deferred to Phase 7; requires Jellyfin"
+
+  # ── Search (FR-MSG-020) ──
+  /channels/{id}/messages/search:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: searchMessages
+      summary: Search messages in a channel (full-text)
+      tags: [messages, search]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: Search query (plain text, PostgreSQL full-text search)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Max results to return
+      responses:
+        '200':
+          description: Search results (ranked by relevance, newest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '400':
+          description: Validation error (empty query, etc.)
+        '401':
+          description: Not authenticated or not a member
+      x-evidence: integration/p7-05-message-search.spec.ts
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Express session cookie (dev-login or OIDC sets this)
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token from POST /auth/oauth/token or dev-login (x-added-by P1)
+
+  schemas:
+    DevLoginResponse:
+      description: User fields plus bearer tokens (x-added-by P1-02; explicit rather than allOf so exact-key validation holds)
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        friendCode: { type: string, nullable: true }
+        serverLayout: { nullable: true }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, enum: [3600] }
+      required: [id, username, accessToken, refreshToken, expiresIn]
+
+    UploadedAttachment:
+      description: Broker attachment ref matching web Attachment shape (x-added-by: P5)
+      type: object
+      properties:
+        shareAssetId: { type: string }
+        filename: { type: string }
+        mimeType: { type: string }
+        size: { type: number }
+        url: { type: string }
+        thumbnailUrl: { type: string, nullable: true }
+        width: { type: number, nullable: true }
+        height: { type: number, nullable: true }
+        durationMs: { type: number, nullable: true }
+      required: [shareAssetId, filename, mimeType, size, url, thumbnailUrl, width, height, durationMs]
+      x-added-by: P5
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresIn: { type: integer, enum: [3600] }
+        refreshToken: { type: string }
+        user:
+          $ref: '#/components/schemas/User'
+      required: [accessToken, expiresIn, refreshToken, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        friendCode:
+          type: string
+          nullable: true
+          description: Lazily backfilled; may be null
+      required: [id, username]
+
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ownerId:
+          type: string
+          format: uuid
+        myPermissions:
+          type: string
+          description: BigInt serialized as decimal string
+        iconUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name]
+
+    ServerSound:
+      description: A soundboard clip for a server (FR-SOUND-001)
+      x-verified-against: live API 2026-07-26
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+        emoji:
+          type: string
+          nullable: true
+
+    AuthorBrief:
+      x-verified-against: live API 2026-07-25
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+      required: [id, username]
+      description: Author summary embedded in message responses (observed from API).
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        channelId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        author:
+          x-verified-against: live API 2026-07-25
+          $ref: '#/components/schemas/AuthorBrief'
+        content:
+          type: string
+        nonce:
+          type: string
+          nullable: true
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        replyToId:
+          x-verified-against: live API 2026-07-25
+          type: string
+          nullable: true
+        replyTo:
+          x-verified-against: live API 2026-07-25
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            authorName: { type: string }
+            content: { type: string }
+          required: [id, authorName, content]
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionGroup'
+        pinned:
+          type: boolean
+        poll:
+          $ref: '#/components/schemas/Poll'
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, channelId, authorId, content]
+
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        messageId:
+          type: string
+          format: uuid
+        shareAssetId:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: string
+          pattern: "^\\d+$"
+          description: BigInt serialized as decimal string
+        url:
+          type: string
+        thumbnailUrl:
+          type: string
+          nullable: true
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        durationMs:
+          type: integer
+          nullable: true
+      required: [id, messageId, shareAssetId, filename, size, url]
+
+    AttachmentInput:
+      type: object
+      properties:
+        shareAssetId:
+          type: string
+        url:
+          type: string
+        thumbnailUrl:
+          type: string
+        filename:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        width:
+          type: integer
+        height:
+          type: integer
+      required: [shareAssetId, url]
+
+    ReactionGroup:
+      x-verified-against: live API 2026-07-25
+      type: object
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required: [emoji, count, userIds]
+      description: >
+        Grouped reaction as received on the wire (pre-aggregated by backend groupReactions).
+        Replaces the old flat Reaction schema.
+
+    Poll:
+      type: object
+      properties:
+        id:
+          type: string
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              text:
+                type: string
+              voterIds:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+        multiple:
+          x-verified-against: live API 2026-07-25
+          type: boolean
+        closesAt:
+          x-verified-against: live API 2026-07-25
+          type: string
+          format: date-time
+          nullable: true
+
+    Ban:
+      description: A server ban (x-added-by P7)
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        serverId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          nullable: true
+        createdById:
+          type: string
+          format: uuid
+        deleteMessageDays:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+            displayName:
+              type: string
+              nullable: true
+            avatarUrl:
+              type: string
+              nullable: true
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+             username:
+              type: string
+      x-added-by: P7
+
+    ChannelPermissionsResponse:
+      description: Effective channel permissions for current user (post-overwrites)
+      x-added-by: FR-SRV-010
+      type: object
+      properties:
+        permissions:
+          type: string
+          description: BigInt permission bitfield as decimal string
+      required: [permissions]
+
+    NotificationSetting:
+      description: Per-server or per-channel notification level override (FR-NOTIF-003)
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        scope:
+          type: string
+          enum: [SERVER, CHANNEL]
+        scopeId:
+          type: string
+          format: uuid
+        level:
+          type: string
+          enum: [ALL, MENTIONS, NONE]
+        mutedUntil:
+          type: string
+          format: date-time
+          nullable: true
+      x-added-by: P8
+
+    DeviceToken:
+      description: Push notification device token (FR-NOTIF-001)
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        token:
+          type: string
+        platform:
+          type: string
+          enum: [android, ios]
+        lastSeen:
+          type: string
+          format: date-time
+      x-added-by: P8

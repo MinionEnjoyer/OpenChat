@@ -34,7 +34,7 @@ interface Envelope<T = any> {
 
 /** Internal event shape published to Redis by services + this gateway. */
 type BusEvent =
-  | { type: 'MESSAGE_CREATED'; message: any }
+  | { type: 'MESSAGE_CREATED'; message: any; nonce?: string }
   | { type: 'MESSAGE_UPDATED'; message: any }
   | { type: 'MESSAGE_DELETED'; id: string; channelId: string }
   | { type: 'TYPING_START'; channelId: string; userId: string }
@@ -42,12 +42,26 @@ type BusEvent =
   | { type: 'WATCHPARTY_SYNC'; channelId: string; state: any | null }
   | { type: 'NOTIFY'; userId: string }
   | { type: 'MENTION'; userId: string; channelId: string; messageId: string; channelName: string; authorName: string; preview: string }
-  | { type: 'CALL_RING'; userId: string; channelId: string; callerId: string; callerName: string; callerAvatar: string | null };
+  | { type: 'CALL_RING'; userId: string; channelId: string; callerId: string; callerName: string; callerAvatar: string | null }
+  | { type: 'VOICE_OCCUPANCY_CHANGED'; channelId: string; serverId: string | null }
+  // ── P3 granular guild-structure events ──
+  | { type: 'CHANNEL_CREATED'; serverId: string; channel: any }
+  | { type: 'CHANNEL_DELETED'; serverId: string; channelId: string }
+  | { type: 'ROLE_CREATED'; serverId: string; role: any }
+  | { type: 'ROLE_UPDATED'; serverId: string; role: any }
+  | { type: 'ROLE_DELETED'; serverId: string; roleId: string }
+  | { type: 'MEMBER_JOINED'; serverId: string; userId: string; member: any }
+  | { type: 'MEMBER_LEFT'; serverId: string; userId: string }
+  | { type: 'MEMBER_KICKED'; serverId: string; userId: string }
+  | { type: 'SERVER_UPDATED'; serverId: string; server: any }
+  | { type: 'SERVER_DELETED'; serverId: string; serverId_2?: never }; // serverId is the deleted server
 
 interface Client {
   socket: WebSocket;
   userId: string;
   channels: Set<string>;
+  /** Server IDs this user belongs to — populated on connect, kept current by MEMBER_JOINED/LEFT events. */
+  serverIds: Set<string>;
   alive: boolean;
 }
 
@@ -91,7 +105,7 @@ export class EventsGateway {
         socket.destroy();
         return;
       }
-      this.wss!.handleUpgrade(req, socket, head, (ws) => this.onConnection(ws, req));
+      this.wss!.handleUpgrade(req, socket, head, (ws) => { void this.onConnection(ws, req); });
     });
 
     this.subscribeToBus();
@@ -114,10 +128,17 @@ export class EventsGateway {
       return;
     }
 
-    const client: Client = { socket, userId, channels: new Set(), alive: true };
+    // Load server memberships so guild-structure events can be scoped correctly.
+    const memberships = await this.prisma.serverMember.findMany({
+      where: { userId },
+      select: { serverId: true },
+    });
+    const serverIds = new Set(memberships.map((m) => m.serverId));
+
+    const client: Client = { socket, userId, channels: new Set(), serverIds, alive: true };
     this.clients.set(socket, client);
 
-    socket.on('message', (data) => this.onMessage(client, data));
+    socket.on('message', (data) => { void this.onMessage(client, data); });
     socket.on('pong', () => (client.alive = true));
     socket.on('close', () => this.handleDisconnect(socket));
     socket.on('error', () => this.handleDisconnect(socket));
@@ -254,6 +275,20 @@ export class EventsGateway {
     });
   }
 
+
+  /**
+   * Relay a bus event to the appropriate connected WebSocket clients.
+   *
+   * Audience decisions:
+   * - Channel-scoped (message, typing, watchparty): only subscribers of that channel.
+   * - Global (presence): all connected clients.
+   * - User-targeted (notify, mention, call.ring): only that specific user's sockets.
+   * - Server-scoped (channel.*, role.*, member.*, server.*): all members of that server.
+   *   Membership is tracked per-connection (loaded at connect, updated dynamically
+   *   when MEMBER_JOINED / MEMBER_LEFT / MEMBER_KICKED arrive).
+   *   This ensures a client learns about a channel it hasn't subscribed to,
+   *   and roles/member changes are visible to all server members in real time.
+   */
   private relay(event: BusEvent): void {
     const channelId =
       'channelId' in event ? event.channelId : (event as any).message?.channelId;
@@ -283,13 +318,77 @@ export class EventsGateway {
         }
         continue;
       }
+
+      // ── Voice occupancy — server-scoped for server channels, channel-scoped for DMs ──
+      if (event.type === 'VOICE_OCCUPANCY_CHANGED') {
+        if (event.serverId) {
+          if (!client.serverIds.has(event.serverId)) continue;
+        } else if (!client.channels.has(event.channelId)) continue;
+        this.send(client.socket, { op: 'voice.occupancy', d: { channelId: event.channelId } });
+        continue;
+      }
+
+      // ── Server-scoped events — deliver to all members of that server ──
+      const serverId = (event as any).serverId;
+      if (serverId) {
+        const joiningOwnSock = event.type === 'MEMBER_JOINED' && client.userId === (event as any).userId;
+        if (!joiningOwnSock && !client.serverIds.has(serverId)) continue;
+
+        switch (event.type) {
+          case 'CHANNEL_CREATED':
+            this.send(client.socket, { op: 'channel.created', d: { channel: event.channel } });
+            break;
+          case 'CHANNEL_DELETED':
+            this.send(client.socket, { op: 'channel.deleted', d: { channelId: event.channelId } });
+            break;
+          case 'ROLE_CREATED':
+            this.send(client.socket, { op: 'role.created', d: { role: event.role } });
+            break;
+          case 'ROLE_UPDATED':
+            this.send(client.socket, { op: 'role.updated', d: { role: event.role } });
+            break;
+          case 'ROLE_DELETED':
+            this.send(client.socket, { op: 'role.deleted', d: { roleId: event.roleId } });
+            break;
+          case 'MEMBER_JOINED':
+            // Update membership tracking for the joined user if they have other sockets.
+            if (client.userId === event.userId) client.serverIds.add(serverId);
+            this.send(client.socket, { op: 'member.joined', d: { member: event.member } });
+            break;
+          case 'MEMBER_LEFT':
+            // Update membership tracking: remove server from this user's other sockets.
+            if (client.userId === event.userId) client.serverIds.delete(serverId);
+            this.send(client.socket, { op: 'member.left', d: { userId: event.userId } });
+            break;
+          case 'MEMBER_KICKED':
+            if (client.userId === event.userId) client.serverIds.delete(serverId);
+            this.send(client.socket, { op: 'member.kicked', d: { userId: event.userId } });
+            break;
+          case 'SERVER_UPDATED':
+            this.send(client.socket, { op: 'server.updated', d: { server: event.server } });
+            break;
+          case 'SERVER_DELETED':
+            // All members lose this server membership.
+            client.serverIds.delete(serverId);
+            this.send(client.socket, { op: 'server.deleted', d: { serverId: event.serverId } });
+            break;
+        }
+        continue;
+      }
+
       const global = event.type === 'PRESENCE_UPDATE';
       if (!global && (!channelId || !client.channels.has(channelId))) continue;
 
       switch (event.type) {
-        case 'MESSAGE_CREATED':
-          this.send(client.socket, { op: 'message.created', d: { message: event.message } });
+        case 'MESSAGE_CREATED': {
+          const d: any = { message: event.message };
+          // Echo nonce back only to the author for optimistic reconciliation (FR-MSG-002).
+          if (event.nonce && client.userId === event.message.authorId) {
+            d.nonce = event.nonce;
+          }
+          this.send(client.socket, { op: 'message.created', d });
           break;
+        }
         case 'MESSAGE_UPDATED':
           this.send(client.socket, { op: 'message.updated', d: { message: event.message } });
           break;
@@ -299,9 +398,15 @@ export class EventsGateway {
         case 'TYPING_START':
           this.send(client.socket, { op: 'typing', d: { channelId: event.channelId, userId: event.userId } });
           break;
-        case 'PRESENCE_UPDATE':
-          this.send(client.socket, { op: 'presence', d: { userId: event.userId, status: event.status } });
+        case 'PRESENCE_UPDATE': {
+          // FR-SOC-004: invisible reads as offline to peers.
+          // The user's own sockets see the true status; everyone else sees OFFLINE.
+          const visibleStatus = event.status === 'INVISIBLE' && client.userId !== event.userId
+            ? 'OFFLINE'
+            : event.status;
+          this.send(client.socket, { op: 'presence', d: { userId: event.userId, status: visibleStatus } });
           break;
+        }
         case 'WATCHPARTY_SYNC':
           this.send(client.socket, { op: 'watchparty.sync', d: { channelId: event.channelId, state: event.state } });
           break;

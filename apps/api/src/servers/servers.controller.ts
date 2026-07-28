@@ -1,11 +1,11 @@
 import { Controller, Get, Post, Patch, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { ServersService } from './servers.service';
-import { SessionGuard } from '../auth/session.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PERMISSION_LIST } from '../permissions/permissions';
-import type { User } from '@prisma/client';
+import { OverwriteTargetType, type User } from '@prisma/client';
 
 const CreateServerDto = z.object({ name: z.string().min(1).max(100) });
 const UpdateServerDto = z.object({
@@ -21,15 +21,21 @@ const CreateRoleDto = z.object({
   name: z.string().min(1).max(60),
   color: z.number().int().optional(),
   permissions: z.string().regex(/^\d+$/).optional(),
+  mentionable: z.boolean().optional(),
 });
 const UpdateRoleDto = z.object({
   name: z.string().min(1).max(60).optional(),
   color: z.number().int().optional(),
   permissions: z.string().regex(/^\d+$/).optional(),
+  mentionable: z.boolean().optional(),
+});
+const BanMemberDto = z.object({
+  reason: z.string().max(512).optional(),
+  deleteMessageDays: z.number().int().min(0).max(7).optional(),
 });
 
 @Controller('servers')
-@UseGuards(SessionGuard)
+@UseGuards(AuthGuard)
 export class ServersController {
   constructor(private readonly servers: ServersService) {}
 
@@ -111,6 +117,11 @@ export class ServersController {
     return this.servers.deleteSound(serverId, soundId, user.id);
   }
 
+  @Get(':id/categories')
+  listCategories(@Param('id') serverId: string, @CurrentUser() user: User) {
+    return this.servers.listCategories(serverId, user.id);
+  }
+
   @Get(':id/channels')
   listChannels(@Param('id') serverId: string, @CurrentUser() user: User) {
     return this.servers.listChannels(serverId, user.id);
@@ -133,6 +144,21 @@ export class ServersController {
     @Body(new ZodValidationPipe(z.object({ orderedIds: z.array(z.string()) }))) body: { orderedIds: string[] },
   ) {
     return this.servers.reorderChannels(serverId, user.id, body.orderedIds);
+  }
+
+  @Patch(':id/channels/:channelId')
+  updateChannel(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      name: z.string().min(1).max(100).optional(),
+      topic: z.string().max(500).nullable().optional(),
+      categoryId: z.string().uuid().nullable().optional(),
+    }))) body: { name?: string; topic?: string | null; categoryId?: string | null },
+  ) {
+    // @satisfies FR-SRV-005
+    return this.servers.updateChannel(serverId, channelId, user.id, body);
   }
 
   @Delete(':id/channels/:channelId')
@@ -172,6 +198,36 @@ export class ServersController {
     return this.servers.kickMember(serverId, targetUserId, user.id);
   }
 
+  // ---- Bans (P7) ----
+
+  @Get(':id/bans')
+  listBans(@Param('id') serverId: string, @CurrentUser() user: User) {
+    return this.servers.listBans(serverId, user.id);
+  }
+
+  @Put(':id/bans/:userId')
+  banMember(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(BanMemberDto))
+    body: { reason?: string; deleteMessageDays?: number },
+  ) {
+    return this.servers.banMember(serverId, targetUserId, user.id, {
+      reason: body.reason,
+      deleteMessageDays: body.deleteMessageDays,
+    });
+  }
+
+  @Delete(':id/bans/:userId')
+  unbanMember(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.unbanMember(serverId, targetUserId, user.id);
+  }
+
   // ---- Roles ----
 
   @Get(':id/roles')
@@ -184,7 +240,7 @@ export class ServersController {
     @Param('id') serverId: string,
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(CreateRoleDto))
-    body: { name: string; color?: number; permissions?: string },
+    body: { name: string; color?: number; permissions?: string; mentionable?: boolean },
   ) {
     return this.servers.createRole(serverId, user.id, body);
   }
@@ -195,7 +251,7 @@ export class ServersController {
     @Param('roleId') roleId: string,
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(UpdateRoleDto))
-    body: { name?: string; color?: number; permissions?: string },
+    body: { name?: string; color?: number; permissions?: string; mentionable?: boolean },
   ) {
     return this.servers.updateRole(serverId, roleId, user.id, body);
   }
@@ -219,6 +275,27 @@ export class ServersController {
     return this.servers.setMemberRole(serverId, targetUserId, roleId, user.id, true);
   }
 
+  // ---- Timeout (FR-ROLE-005) ----
+
+  @Put(':id/members/:userId/timeout')
+  setTimeout(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({ until: z.string().datetime() }))) body: { until: string },
+  ) {
+    return this.servers.setTimeout(serverId, targetUserId, new Date(body.until), user.id);
+  }
+
+  @Delete(':id/members/:userId/timeout')
+  clearTimeout(
+    @Param('id') serverId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.clearTimeout(serverId, targetUserId, user.id);
+  }
+
   @Delete(':id/members/:userId/roles/:roleId')
   unassignRole(
     @Param('id') serverId: string,
@@ -227,5 +304,64 @@ export class ServersController {
     @CurrentUser() user: User,
   ) {
     return this.servers.setMemberRole(serverId, targetUserId, roleId, user.id, false);
+  }
+
+  // ---- Channel permissions (FR-SRV-010) ----
+
+  /** Returns the effective permissions for the current user on this channel (post-overwrites). */
+  @Get(':id/channels/:channelId/permissions/me')
+  getMyChannelPermissions(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+  ) {
+    // @satisfies FR-SRV-010
+    return this.servers.getChannelPermissions(serverId, channelId, user.id).then(
+      (perms) => ({ permissions: perms.toString() }),
+    );
+  }
+
+  // ---- Channel permission overwrites (FR-ROLE-003) x-added-by P7 ----
+
+  @Get(':id/channels/:channelId/overwrites')
+  listOverwrites(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.listOverwrites(serverId, channelId, user.id);
+  }
+
+  @Put(':id/channels/:channelId/overwrites/:targetType/:targetId')
+  upsertOverwrite(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @Param('targetType') targetType: string,
+    @Param('targetId') targetId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({
+      allow: z.string().regex(/^\d+$/).optional(),
+      deny: z.string().regex(/^\d+$/).optional(),
+    }))) body: { allow?: string; deny?: string },
+  ) {
+    if (targetType !== 'ROLE' && targetType !== 'MEMBER') {
+      throw new Error('targetType must be ROLE or MEMBER');
+    }
+    return this.servers.upsertOverwrite(serverId, channelId, user.id, {
+      targetType: targetType as OverwriteTargetType,
+      targetId,
+      allow: body.allow,
+      deny: body.deny,
+    });
+  }
+
+  @Delete(':id/channels/:channelId/overwrites/:overwriteId')
+  deleteOverwrite(
+    @Param('id') serverId: string,
+    @Param('channelId') channelId: string,
+    @Param('overwriteId') overwriteId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.deleteOverwrite(serverId, channelId, overwriteId, user.id);
   }
 }
