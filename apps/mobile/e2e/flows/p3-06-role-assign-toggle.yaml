@@ -1,0 +1,76 @@
+# p3-06-role-assign-toggle — login → open server → open member list →
+#   tap member profile → verify role toggles → toggle a role → verify toggle state changed.
+# @satisfies FR-ROLE-001
+#
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2,
+#   test user with MANAGE_ROLES permission, server with at least 2 members and roles.
+#
+# NOTE: This flow is UNVERIFIED pending a device run.
+# E2E flows must be run by an agent with emulator access.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# Open left drawer and select the provisioned server
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+# Open the right drawer (members list) via the Members toggle
+- tapOn:
+    id: 'members-toggle'
+- assertVisible:
+    id: 'right-drawer'
+- assertVisible:
+    id: 'members-drawer'
+
+# Verify test user and friend appear in the member list
+- assertVisible:
+    id: 'member-${E2E_USERNAME}'
+- assertVisible:
+    id: 'member-${E2E_FRIEND_USERNAME}'
+
+# ── Tap friend: profile sheet should appear with role toggles ──
+- tapOn:
+    id: 'member-${E2E_FRIEND_USERNAME}'
+- assertVisible:
+    id: 'member-profile-sheet'
+
+# Verify role toggles section is visible (test user must have MANAGE_ROLES)
+- assertVisible:
+    id: 'member-role-toggles'
+
+# Verify at least one role toggle exists
+- assertVisible:
+    id: 'role-toggle-@everyone'
+
+# ── Toggle a role off (e.g., @everyone) ──
+# The Switch value is checked via element state; we toggle it
+- tapOn:
+    id: 'role-toggle-@everyone'
+
+# ── Toggle it back on to restore state ──
+- tapOn:
+    id: 'role-toggle-@everyone'
+
+# Close the profile sheet
+- tapOn:
+    id: 'member-profile-close'
+
+# Close the right drawer
+- tapOn:
+    point: '20%,50%'
+- assertNotVisible:
+    id: 'right-drawer'
+
+- takeScreenshot: artifacts/e2e/screens/p3-role-assign

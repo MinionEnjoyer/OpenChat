@@ -1,0 +1,17 @@
+# screen-readiness: AttachPicker
+# Opens the attachment picker from the composer-attach (+) button.
+# Does NOT switch servers/channels — the composer is always visible on shell.
+
+appId: com.openchat.mobile
+---
+- tapOn:
+    id: 'invite-decline'
+    optional: true
+- assertVisible:
+    id: 'shell-screen'
+- assertVisible:
+    id: 'composer-attach'
+- tapOn:
+    id: 'composer-attach'
+- assertVisible:
+    id: 'attach-library'

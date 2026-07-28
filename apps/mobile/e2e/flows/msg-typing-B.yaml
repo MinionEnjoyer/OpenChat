@@ -1,0 +1,44 @@
+# msg-typing-B — device B (test user): login, navigate to general, wait for
+# friend's typing indicator. Companion to msg-typing-A.yaml.
+#
+# FR-MSG-009 — Typing indicators (two-device, Part B: observer).
+# @satisfies withheld: multi-user aggregation requires two-device coordination.
+#
+# Requires: dev stack up + provisioned world, two emulators reaching 10.0.2.2.
+# Run this flow FIRST so device B is watching the channel when device A starts typing.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login as test user ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Wait for friend's typing indicator to appear ──
+# The friend (msg-typing-A) types in the composer → typing.start → server
+# broadcasts to all channel members. The typing indicator renders as
+# testID="typing-indicator" with text like "friend is typing…"
+- extendedWaitUntil:
+    visible:
+      id: 'typing-indicator'
+    timeout: 15000
+
+- takeScreenshot: artifacts/e2e/screens/msg-typing-B

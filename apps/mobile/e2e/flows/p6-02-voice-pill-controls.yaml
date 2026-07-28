@@ -1,0 +1,91 @@
+# p6-02-voice-pill-controls — join voice → navigate to text channel → toggle mute/deafen on pill → leave.
+# @satisfies FR-VOX-003
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Join provisioned voice channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- scrollUntilVisible:
+    element:
+      id: 'channel-${E2E_CHANNEL_VOICE}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Wait for voice view ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 15000
+
+# ── Phase 4: Navigate to text channel → pill appears ──
+- tapOn:
+    id: 'voice-show-chat'
+
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# ── Phase 5: Toggle mute — assert badge appears then disappears ──
+- assertNotVisible:
+    id: 'voice-pill-muted-badge'
+- tapOn:
+    id: 'voice-pill-mute'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-muted-badge'
+    timeout: 10000
+- tapOn:
+    id: 'voice-pill-mute'
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill-muted-badge'
+    timeout: 10000
+
+# ── Phase 6: Toggle deafen — assert badge appears then disappears ──
+- assertNotVisible:
+    id: 'voice-pill-deafened-badge'
+- tapOn:
+    id: 'voice-pill-deafen'
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-deafened-badge'
+    timeout: 10000
+- tapOn:
+    id: 'voice-pill-deafen'
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill-deafened-badge'
+    timeout: 10000
+
+# ── Phase 7: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-pill-controls

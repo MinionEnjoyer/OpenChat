@@ -1,0 +1,93 @@
+# p1-auth-006b-profile-verify — DEVICE B: login as friend → verify display name
+#   on message from device A.
+# @satisfies FR-AUTH-006 (device-B half)
+#
+# FR-AUTH-006 acceptance criterion: "change display name → visible in a
+# message from a second client." This flow is the SECOND client — it logs
+# in as the provisioned friend (E2E_FRIEND_USERNAME, seeded by test-world
+# as a server member) and verifies that the message sent by device A in
+# p1-auth-006a-profile-edit.yaml shows the new display name.
+#
+# CONTRACT with p1-auth-006a:
+#   - Display name was set to "E2E-DisplayName" by device A.
+#   - Message text was "Profile test: new display name" by device A.
+#   - Both flows MUST share the same provisioned world (identical env vars).
+#
+# EXECUTION ORDER:
+#   - Sequential: run p1-auth-006a-profile-edit.yaml FIRST on device A, then
+#     this flow on device B. Messages are persisted server-side; device B
+#     fetches them on channel load via REST API.
+#   - Parallel: run both flows simultaneously on two devices/emulators.
+#     Device B's WebSocket will receive the message in real time; the
+#     scrollUntilVisible with 30s timeout covers this window.
+#
+# NOTE: This flow inlines the dev-login step (does NOT use _login.yaml)
+#   because _login.yaml uses ${E2E_USERNAME} (the primary user). This flow
+#   must log in as ${E2E_FRIEND_USERNAME} — the friend provisioned by
+#   test-world and joined to the server.
+#
+# T4: Uses provisioned test world. Fresh world every run.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+#
+# UNVERIFIED — pending device run.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 0: Dev-login as the FRIEND user ──
+#    (Inline instead of _login.yaml because we need E2E_FRIEND_USERNAME,
+#    not E2E_USERNAME. The friend was provisioned by test-world and is a
+#    member of the same server.)
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: 'login-screen'
+- tapOn:
+    id: 'login-username'
+- inputText: ${E2E_FRIEND_USERNAME}
+- tapOn:
+    id: 'login-submit'
+- assertVisible:
+    id: 'shell-screen'
+
+# ── Phase 1: Navigate to the provisioned server → general channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+
+# ── Phase 2: Verify the message from device A is visible ──
+#    The message text is the contract between the two flows.
+#    Use scrollUntilVisible in case the message is off-screen (newest
+#    messages anchor at the bottom, but the chat might have scroll offset).
+- scrollUntilVisible:
+    element:
+      text: 'Profile test: new display name'
+    direction: DOWN
+    timeout: 30000
+- assertVisible: 'Profile test: new display name'
+
+# ── Phase 3: Verify the NEW display name is rendered on the message ──
+#    The author name appears as bold accent-colored text in the message
+#    header. Since it has no testID (rendered via resolveAuthorName() →
+#    author.displayName || author.username), we assert it as visible text.
+#    The friend user's own display name is their username, so "E2E-DisplayName"
+#    can only appear as the author of device A's message.
+- assertVisible: 'E2E-DisplayName'
+
+- takeScreenshot: artifacts/e2e/screens/p1-auth-006b-verify

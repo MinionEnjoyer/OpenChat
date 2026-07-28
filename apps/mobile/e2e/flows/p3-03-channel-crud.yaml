@@ -1,0 +1,93 @@
+# p3-03-channel-crud — login → create channel → edit it → delete it.
+# @satisfies FR-SRV-004 FR-SRV-005
+#
+# T4: Uses provisioned test world. Fresh world every run.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# Open left drawer and select the provisioned server
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+# ── Create a new channel ──
+- tapOn:
+    id: 'create-channel-button'
+- assertVisible:
+    id: 'channel-form-sheet'
+- tapOn:
+    id: 'channel-form-name'
+- inputText: 'e2e-test-ch'
+# Select VOICE type to exercise the toggle
+- tapOn:
+    id: 'channel-form-type-voice'
+- tapOn:
+    id: 'channel-form-submit'
+- assertNotVisible:
+    id: 'channel-form-sheet'
+
+# Verify the new channel appears in the list
+- assertVisible:
+    id: 'channel-e2e-test-ch'
+
+# ── Edit the channel (long-press to reveal actions, then tap Edit) ──
+# Close left drawer first so we have a clean slate
+- tapOn:
+    point: '20%,50%'
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+# Long-press the channel to reveal edit/delete actions
+- longPressOn:
+    id: 'channel-e2e-test-ch'
+- assertVisible:
+    id: 'edit-channel-e2e-test-ch'
+- tapOn:
+    id: 'edit-channel-e2e-test-ch'
+- assertVisible:
+    id: 'channel-form-sheet'
+# Change name and switch back to TEXT
+- tapOn:
+    id: 'channel-form-name'
+- eraseText: 100
+- inputText: 'e2e-edited-ch'
+- tapOn:
+    id: 'channel-form-type-text'
+- tapOn:
+    id: 'channel-form-submit'
+- assertNotVisible:
+    id: 'channel-form-sheet'
+
+# Verify edited channel appears with new name
+- assertVisible:
+    id: 'channel-e2e-edited-ch'
+- assertNotVisible:
+    id: 'channel-e2e-test-ch'
+
+# ── Delete the channel ──
+- longPressOn:
+    id: 'channel-e2e-edited-ch'
+- assertVisible:
+    id: 'delete-channel-e2e-edited-ch'
+- tapOn:
+    id: 'delete-channel-e2e-edited-ch'
+# Android Alert confirmation: tap the destructive "Delete" button
+- tapOn: 'Delete'
+# Verify the channel is gone
+- assertNotVisible:
+    id: 'channel-e2e-edited-ch'
+
+- takeScreenshot: artifacts/e2e/screens/p3-channel-crud

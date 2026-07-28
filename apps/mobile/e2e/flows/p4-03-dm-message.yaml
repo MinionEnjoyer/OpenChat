@@ -1,0 +1,46 @@
+# p4-03-dm-message — dev-login → open DM with provisioned friend → send message → verify.
+# @satisfies FR-SOC-002
+#
+# T4: Uses provisioned test world. DM channel exists between test user and friend.
+# Requires: dev stack up + provisioned world.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# ── Phase 1: Open left drawer → tap DM rail entry → tap DM with friend ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-dm'
+# DM section now visible in the content column
+- assertVisible:
+    id: 'dm-section'
+# Tap the DM channel with friend (by channel ID)
+- tapOn:
+    id: 'dm-${E2E_DM_CHANNEL_ID}'
+
+# ── Phase 2: Verify chat pane and composer ──
+- assertNotVisible:
+    id: 'left-drawer'
+- assertVisible:
+    id: 'chat-pane'
+- assertVisible:
+    id: 'composer-input'
+- assertVisible:
+    id: 'composer-send'
+
+# ── Phase 3: Type and send a message ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'Hello from e2e test world!'
+- tapOn:
+    id: 'composer-send'
+
+# ── Phase 4: Verify message appears in chat ──
+- assertVisible: 'Hello from e2e test world!'
+
+- takeScreenshot: artifacts/e2e/screens/p4-dm-message

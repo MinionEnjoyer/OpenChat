@@ -1,0 +1,71 @@
+# p6-01-voice-channel-join-leave — login → join voice channel → voice view appears → show chat → pill appears → disconnect → pill gone.
+# @satisfies FR-VOX-001
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Join provisioned voice channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+
+# Select provisioned server
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+
+# Tap the voice channel to join
+- scrollUntilVisible:
+    element:
+      id: 'channel-${E2E_CHANNEL_VOICE}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+
+# Left drawer closes
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Assert VoiceChannelView appeared ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 15000
+
+# Voice controls are visible in the voice view
+- assertVisible:
+    id: 'voice-controls'
+
+# ── Phase 4: Navigate away → VoicePill appears ──
+- tapOn:
+    id: 'voice-show-chat'
+
+# VoiceChannelView is dismissed; the pill now renders at the bottom.
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+# ── Phase 5: Leave via disconnect button in the pill ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+# Pill disappears after disconnect (async — wait for it)
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-join

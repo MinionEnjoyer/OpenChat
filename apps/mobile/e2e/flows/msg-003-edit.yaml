@@ -1,0 +1,78 @@
+# msg-003-edit — send → long-press → Edit → modify → Save → verify (edited) marker.
+# @satisfies FR-MSG-003
+#
+# Demonstrates single-device edit flow:
+#   - Long-press on own message opens action sheet.
+#   - "Edit" action opens edit modal with pre-filled content.
+#   - Modified text can be saved.
+#   - Edited message shows "(edited)" marker.
+#
+# ACCEPTANCE-CRITERION GAP:
+#   FR-MSG-003 AC requires "E2E two-device propagation ≤2s".
+#   This flow does NOT cover two-device propagation — only single-device
+#   edit UX and the (edited) marker rendering.
+#
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Navigate to provisioned server → general ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Send a message to edit ──
+- tapOn:
+    id: 'composer-input'
+- inputText: 'e2e-edit-before'
+- tapOn:
+    id: 'composer-send'
+- assertVisible: 'e2e-edit-before'
+
+# ── Phase 4: Long-press message → tap Edit ──
+# Tap first to prime the Pressable (RN gesture system requires a prior touch
+# before long-press is recognized; Maestro longPressOn alone does not trigger
+# onLongPress when the native view lacks long-clickable).
+# Use text selector to target the specific sent message.
+- tapOn: 'e2e-edit-before'
+- longPressOn: 'e2e-edit-before'
+# The custom MessageActionSheet appears with testID-based actions
+- assertVisible:
+    id: 'message-action-sheet'
+- tapOn:
+    id: 'msg-action-edit'
+
+# ── Phase 5: Edit modal appears; modify text and save ──
+# The edit modal title is strings.messages.editTitle = "Edit message"
+- assertVisible: 'Edit message'
+# The TextInput is prefilled with the original content; we clear and retype
+# (Maestro's inputText appends; we erase first with a backspaces workaround
+# by using a distinct suffix strategy)
+- inputText: ' [modified]'
+# Tap Save button — text-based since no testID on the edit modal buttons
+- tapOn: 'Save'
+
+# ── Phase 6: Verify edited message appears with modified content + (edited) marker ──
+- assertVisible: 'e2e-edit-before [modified]'
+# The (edited) marker text is strings.messages.edited — appears next to author name
+- assertVisible: '(edited)'
+
+- takeScreenshot: artifacts/e2e/screens/msg-003-edit

@@ -1,0 +1,60 @@
+# msg-rich-markdown-mentions — @mention autocomplete + send markdown-formatted message.
+# @satisfies FR-MSG-007, FR-MSG-008
+#
+# T4: Uses provisioned test world. Friend is mentionable as server member.
+# Requires: dev stack up + provisioned world, emulator reaching 10.0.2.2.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login and navigate to provisioned server → general ──
+- runFlow: _login.yaml
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_GENERAL}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 2: Compose a mention + markdown message ──
+- tapOn:
+    id: 'composer-input'
+
+# Type "@" followed by friend username to trigger mention autocomplete
+- inputText: '@${E2E_FRIEND_USERNAME}'
+
+# Assert mention picker appears
+- assertVisible:
+    id: 'mention-picker'
+
+# Tap the friend mention to insert
+- tapOn:
+    id: 'mention-${E2E_FRIEND_USERNAME}'
+
+# Complete the message with markdown syntax
+- inputText: ' **bold** *italic* ~~strike~~'
+
+# Send
+- tapOn:
+    id: 'composer-send'
+
+# ── Phase 3: Verify the message appears ──
+- assertVisible: '@${E2E_FRIEND_USERNAME}'
+
+# ── Phase 4: Verify the mention picker dismissed after sending ──
+- assertNotVisible:
+    id: 'mention-picker'
+
+- takeScreenshot: artifacts/e2e/screens/msg-rich-markdown-mentions

@@ -1,0 +1,83 @@
+# p6-02-voice-camera-publish — login → join voice → navigate to text channel → toggle camera on pill
+# @satisfies FR-VOX-006
+#
+# T4: Uses provisioned test world.
+# Requires: dev stack up + provisioned world, LiveKit running, emulator.
+
+appId: com.openchat.mobile
+
+---
+# ── Phase 1: Login ──
+- runFlow: _login.yaml
+
+# ── Phase 2: Join provisioned voice channel ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- assertVisible:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# ── Phase 3: Wait for voice view ──
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# ── Phase 4: Navigate to text channel so pill appears ──
+- tapOn:
+    id: 'voice-show-chat'
+
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+- assertVisible:
+    id: 'voice-pill-controls'
+
+# ── Phase 5: Toggle camera on (FR-VOX-006) ──
+- assertVisible:
+    id: 'voice-pill-camera'
+- tapOn:
+    id: 'voice-pill-camera'
+
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-flip-camera'
+    timeout: 30000
+
+# Flip camera (verify the button works)
+- tapOn:
+    id: 'voice-pill-flip-camera'
+
+# ── Phase 6: Toggle camera off ──
+- tapOn:
+    id: 'voice-pill-camera'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill-flip-camera'
+    timeout: 10000
+
+# ── Phase 7: Disconnect ──
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
+
+- takeScreenshot: artifacts/e2e/screens/p6-voice-camera

@@ -1,0 +1,64 @@
+# p4-01-friends-list — dev-login → open friends → verify tabs and friend.
+# @satisfies FR-SOC-001
+#
+# T4: Uses provisioned test world. Single friend provided by the contract.
+# Verifies friend appears in Online + All tabs. Pending and Blocked tabs
+# exist but are empty in a fresh world.
+# Requires: dev stack up + provisioned world.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+# ── Phase 1: Open friends screen ──
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- tapOn:
+    id: 'rail-friends'
+- assertVisible:
+    id: 'friends-screen'
+- assertVisible:
+    id: 'friends-tabs'
+
+# ── Phase 2: Verify all four tabs exist ──
+- assertVisible:
+    id: 'friends-tab-online'
+- assertVisible:
+    id: 'friends-tab-all'
+- assertVisible:
+    id: 'friends-tab-pending'
+- assertVisible:
+    id: 'friends-tab-blocked'
+
+# ── Phase 3: Online tab — friend is listed (status ONLINE from dev-login) ──
+- assertVisible:
+    id: 'friend-item-${E2E_FRIEND_USERNAME}'
+
+# ── Phase 4: All tab — friend with remove/block buttons ──
+- tapOn:
+    id: 'friends-tab-all'
+- assertVisible:
+    id: 'friend-item-${E2E_FRIEND_USERNAME}'
+- assertVisible:
+    id: 'friend-remove-${E2E_FRIEND_USERNAME}'
+- assertVisible:
+    id: 'friend-block-${E2E_FRIEND_USERNAME}'
+
+# ── Phase 5: Pending tab — exists (fresh world has no pending requests) ──
+- tapOn:
+    id: 'friends-tab-pending'
+
+# ── Phase 6: Blocked tab — exists (fresh world has no blocked users) ──
+- tapOn:
+    id: 'friends-tab-blocked'
+
+# ── Phase 7: Close friends screen ──
+- tapOn:
+    id: 'friends-close-button'
+- assertNotVisible:
+    id: 'friends-screen'
+
+- takeScreenshot: artifacts/e2e/screens/p4-friends-list

@@ -1,0 +1,523 @@
+/**
+ * Strings — every user-facing string in the app (NFR-11).
+ *
+ * Content is English-only for v1, but nothing renders a literal: a lint rule
+ * rejects literal JSX text, so adding a locale later is a data change rather
+ * than a hunt through the component tree.
+ */
+
+export const strings = {
+  app: {
+    name: 'OpenChat',
+  },
+  hello: {
+    title: 'OpenChat',
+    subtitle: 'Skeleton build — no features yet (P0-17)',
+  },
+  auth: {
+    title: 'OpenChat',
+    subtitle: 'Sign in to get started',
+    usernamePlaceholder: 'Username',
+    devLoginButton: 'Sign in (dev)',
+    loginFailed: 'Sign-in failed',
+    loggingIn: 'Signing in…',
+  },
+  shell: {
+    hamburger: '\u2630',
+    channelHash: '#',
+    hamburgerIcon: '☰',
+    channelsFallbackTitle: 'Channels',
+    noServers: 'No servers yet',
+    noChannels: 'No channels',
+    selectChannel: 'Select a channel',
+    chatPlaceholder: 'No text channels here yet',
+    membersTitle: 'Members',
+    menuGlyph: '\u2630',
+    /** MaterialIcons name — settings */
+    settingsIcon: 'settings',
+    logout: 'Sign out',
+    /** MaterialIcons name — notifications */
+    notifIcon: 'notifications',
+  },
+  messages: {
+    empty: 'No messages yet',
+    composerPlaceholder: 'Message',
+    send: 'Send',
+    sendFailed: 'Message failed to send',
+    edited: '(edited)',
+    deleted: 'Message removed',
+    react: 'React',
+    edit: 'Edit',
+    delete: 'Delete',
+    copyText: 'Copy text',
+    copyLink: 'Copy link',
+    editTitle: 'Edit message',
+    editSave: 'Save',
+    editCancel: 'Cancel',
+    deleteConfirm: 'Delete this message?',
+    deleteConfirmOk: 'Delete',
+    editFailed: 'Edit failed',
+    deleteFailed: 'Delete failed',
+    pin: 'Pin',
+    unpin: 'Unpin',
+    pinFailed: 'Pin failed',
+    pinsPanelTitle: 'Pinned messages',
+    pinsEmpty: 'No pinned messages',
+    /** MaterialIcons name — push-pin */
+    pinIcon: 'push-pin',
+    /** MaterialIcons name — close */
+    closeIcon: 'close',
+    announcementReadOnly: 'You do not have permission to send in this announcement channel',
+    reply: 'Reply',
+    replyingTo: 'Replying to',
+    replyCancel: 'Cancel reply',
+    replyNotFound: 'Original message not found',
+  },
+  mentions: {
+    everyoneLabel: '@everyone',
+    hereLabel: '@here',
+  },
+  reactions: {
+    pickerTitle: 'Add reaction',
+    pickerSearchPlaceholder: 'Search emoji',
+    reactorListTitle: 'Reactions',
+    noReactors: '—',
+  },
+  connection: {
+    offline: 'Offline — reconnecting…',
+    connecting: 'Connecting…',
+  },
+  profile: {
+    title: 'Account',
+    displayNameLabel: 'Display name',
+    save: 'Save',
+    saved: 'Profile updated',
+    saveFailed: 'Could not update profile',
+  },
+  typing: {
+    one: 'is typing\u2026',
+    two: 'are typing\u2026',
+    twoConjunction: 'and',
+    many: 'Several people are typing\u2026',
+  },
+  embeds: {
+    youtubeTitle: 'YouTube',
+    linkTitle: 'Link',
+    openLink: 'Open link',
+    youtubePlay: '▶',
+    shareSeparator: '/',
+    /** MaterialIcons name — link */
+    linkIcon: 'link',
+  },
+  gifs: {
+    searchPlaceholder: 'Search GIFs…',
+    loading: 'Loading…',
+    searchFailed: 'GIF search failed',
+    notConfigured: 'GIF search is not configured',
+    poweredBy: 'Powered by GIPHY',
+    button: 'GIF',
+    close: '✕',
+  },
+  poll: {
+    createTitle: 'Create Poll',
+    /** MaterialIcons name — poll */
+    chartIcon: 'poll',
+    /** MaterialIcons name — close */
+    closeIcon: 'close',
+    percentSign: '%',
+    totalLabel: 'total',
+    questionPlaceholder: 'Ask a question…',
+    optionPlaceholder: 'Option',
+    addOption: '+ Add option',
+    removeOption: 'Remove',
+    create: 'Create',
+    createFailed: 'Failed to create poll',
+    optionsTooFew: 'Add at least 2 options',
+    optionsTooMany: 'Maximum 10 options allowed',
+    voteFailed: 'Vote failed',
+    closed: 'Poll closed',
+    totalVotes: 'vote',
+    totalVotesPlural: 'votes',
+    multipleLabel: 'Allow multiple choices',
+  },
+  servers: {
+    createTitle: 'Create Server',
+    createNamePlaceholder: 'Server name',
+    createButton: 'Create',
+    createFailed: 'Failed to create server',
+    settingsTitle: 'Server Settings',
+    renameLabel: 'Server name',
+    renameSave: 'Save',
+    renameSaved: 'Server renamed',
+    renameFailed: 'Failed to rename server',
+    deleteTitle: 'Delete Server',
+    deleteConfirm: 'Are you sure you want to delete this server? This action cannot be undone.',
+    deleteButton: 'Delete Server',
+    deleteConfirmButton: 'Delete',
+    deleteFailed: 'Failed to delete server',
+    settingsButton: 'Settings',
+    createButtonNav: '+',
+    /** MaterialIcons name — link */
+    joinButtonNav: 'link',
+    renameDenied: 'You need the Manage Server permission to rename this server.',
+    deleteDenied: 'Only the server owner can delete this server.',
+  },
+  invites: {
+    joinTitle: 'Join a server',
+    codePlaceholder: 'Enter invite code',
+    join: 'Join',
+    joinFailed: 'Failed to join server',
+    previewTitle: "You've been invited!",
+    previewServer: 'Server',
+    previewInviter: 'Invited by',
+    accept: 'Accept',
+    decline: 'Decline',
+    acceptFailed: 'Failed to accept invite',
+    invalidCode: 'Invalid invite code',
+    createTitle: 'Invite',
+    /** MaterialIcons name — link */
+    createGlyph: 'link',
+    createInvite: 'Create invite link',
+    creating: 'Creating…',
+    createFailed: 'Failed to create invite',
+    shareTitle: 'Share invite link',
+    copy: 'Copy',
+    copied: 'Copied!',
+    noPermission: 'You cannot create invites in this server',
+    expiresLabel: 'Expires:',
+  },
+  channels: {
+    categoryDefault: 'Uncategorized',
+    /** MaterialIcons name — volume-up */
+    voicePrefix: 'volume-up',
+    /** Accessibility label for voice prefix icon */
+    voicePrefixLabel: 'Voice',
+    voiceParticipants: '{count} connected',
+    createTitle: 'Create Channel',
+    editTitle: 'Edit Channel',
+    nameLabel: 'Channel name',
+    typeLabel: 'Channel type',
+    categoryLabel: 'Category',
+    topicLabel: 'Topic',
+    save: 'Create',
+    saveEdit: 'Save',
+    deleteConfirm: 'Delete this channel?',
+    deleteConfirmOk: 'Delete',
+    reorderTitle: 'Reorder Channels',
+    reorderHint: 'Drag to reorder — up/down arrows',
+    noCategory: 'No category',
+    noVoiceParticipants: '0 connected',
+    typeText: '# TEXT',
+    /** MaterialIcons name — volume-up */
+    typeVoiceIcon: 'volume-up',
+    typeVoiceLabel: 'VOICE',
+    createAction: '+',
+    reorderAction: '\u2630',
+    editAction: '\u270E',
+    deleteAction: '\u2715',
+    moveUpAction: '\u25B2',
+    moveDownAction: '\u25BC',
+    typeAnnouncementLabel: 'ANNOUNCEMENT',
+  },
+  roles: {
+    title: 'Roles',
+    /** MaterialIcons name — shield */
+    glyph: 'shield',
+    create: 'Create Role',
+    noRoles: 'No roles',
+    editTitle: 'Edit Role',
+    createTitle: 'Create Role',
+    namePlaceholder: 'Role name',
+    colorLabel: 'Color',
+    save: 'Save',
+    delete: 'Delete',
+    confirmDelete: 'Delete this role?',
+    permissionsLabel: 'Permissions',
+  },
+  common: {
+    retry: 'Retry',
+    cancel: 'Cancel',
+    error: 'Something went wrong',
+  },
+  attachments: {
+    imageGrid: 'Image attachments',
+    imageLabel: 'Image',
+    closeGallery: 'Close gallery',
+    /** MaterialIcons name — close */
+    closeIcon: 'close',
+    share: 'Share',
+    /** MaterialIcons name — share */
+    shareIcon: 'share',
+    galleryCounterSeparator: '\u00A0/\u00A0',
+    pickerTitle: 'Add attachment',
+    photoLibrary: 'Photo Library',
+    /** MaterialIcons name — photo-library */
+    photoLibraryIcon: 'photo-library',
+    camera: 'Camera',
+    /** MaterialIcons name — camera-alt */
+    cameraIcon: 'camera-alt',
+    files: 'Files',
+    /** MaterialIcons name — folder */
+    filesIcon: 'folder',
+    cancel: 'Cancel',
+    remove: 'Remove',
+    /** MaterialIcons name — check */
+    doneIcon: 'check',
+    /** MaterialIcons name — insert-drive-file */
+    fileIcon: 'insert-drive-file',
+    originalToggle: 'Original',
+    /** @satisfies FR-MED-030 */
+    originalLabel: 'Original',
+    originalBadge: 'ORIG',
+    cancelUpload: 'Cancel upload',
+    /** MaterialIcons name — attach-file */
+    attach: 'attach-file',
+    uploadFailed: 'Upload failed',
+    uploading: 'Uploading\u2026',
+    tooManyFiles: 'Maximum 10 files per message',
+    fileTooLarge: 'File too large (100 MB)',
+    /** @satisfies FR-MED-030 */
+    compressing: 'Compressing\u2026',
+    /** @satisfies FR-MED-030 */
+    compressFailed: 'Compression failed',
+  },
+  notifSettings: {
+    title: 'Notification Settings',
+    serverLabel: 'Servers',
+    channelLabel: 'Channels',
+    levelAll: 'All',
+    levelMentions: 'Mentions',
+    levelNone: 'None',
+    mutePlaceholder: 'Mute',
+    mute15m: '15 min',
+    mute1h: '1 hour',
+    mute8h: '8 hours',
+    mute24h: '24 hours',
+    muteForever: 'Until I turn it back on',
+    unmute: 'Unmute',
+    saved: 'Saved',
+    saveFailed: 'Failed to save',
+    reset: 'Reset',
+  },
+  dms: {
+    title: 'Direct Messages',
+    empty: 'No direct messages yet',
+    atSign: '@',
+    openDmFailed: 'Could not open DM',
+  },
+  members: {
+    title: 'Members',
+    empty: 'No members',
+    crown: '\u2655',
+    ownerBadge: 'Server Owner',
+    nickname: 'Nickname',
+    nicknameColon: 'Nickname:',
+    usernamePrefix: '@',
+    kick: 'Kick',
+    leave: 'Leave Server',
+    kickConfirm: 'Kick this member?',
+    kickConfirmOk: 'Kick',
+    leaveConfirm: 'Leave this server?',
+    leaveConfirmOk: 'Leave',
+    roleLabel: 'Roles',
+    roleToggleFailed: 'Could not update role',
+  },
+  presence: {
+    title: 'Set Status',
+    statusLabel: 'Presence status',
+    updateFailed: 'Could not update status',
+    chevronDown: '\u25BC',
+    checkmark: '\u2713',
+    setStatus: 'Set Status',
+    online: 'Online',
+    away: 'Away',
+    dnd: 'Do Not Disturb',
+    invisible: 'Invisible',
+    activeCheck: '\u2713',
+  },
+  avatars: {
+    placeholder: '?',
+    pickButton: 'Choose image',
+    uploadFailed: 'Upload failed',
+    saveFailed: 'Could not save avatar',
+    avatarSaved: 'Avatar updated',
+    avatarLabel: 'Avatar',
+    iconLabel: 'Server icon',
+    iconSaved: 'Server icon updated',
+  },
+  // @satisfies FR-NOTIF-004
+  notifications: {
+    genericNotification: 'New notification',
+    mentionToast: '{author} mentioned you in #{channel}: {preview}',
+    callRingToast: '{caller} is calling\u2026',
+  },
+  blockedMessages: {
+    collapsed: 'Blocked message — tap to show',
+  },
+  friends: {
+    title: 'Friends',
+    tabOnline: 'Online',
+    tabAll: 'All',
+    tabPending: 'Pending',
+    tabBlocked: 'Blocked',
+    addTitle: 'Add Friend',
+    addPlaceholder: 'Username or friend code',
+    addButton: 'Send Friend Request',
+    addSent: 'Friend request sent',
+    addFailed: 'Failed to send friend request',
+    addSelf: 'You cannot add yourself',
+    /** MaterialIcons name — people */
+    icon: 'people',
+    accept: 'Accept',
+    decline: 'Decline',
+    cancel: 'Cancel',
+    acceptOk: 'Friend added',
+    acceptFailed: 'Failed to accept request',
+    declineOk: 'Request declined',
+    declineFailed: 'Failed to decline request',
+    cancelRequest: 'Cancel request',
+    cancelRequestFailed: 'Failed to cancel request',
+    remove: 'Remove',
+    removeConfirm: 'Remove this friend?',
+    removeOk: 'Friend removed',
+    removeFailed: 'Failed to remove friend',
+    block: 'Block',
+    blockConfirm: 'Block this user?',
+    blockOk: 'User blocked',
+    blockFailed: 'Failed to block user',
+    unblock: 'Unblock',
+    unblockOk: 'User unblocked',
+    unblockFailed: 'Failed to unblock user',
+    emptyOnline: 'No friends online',
+    emptyAll: 'No friends yet',
+    emptyPending: 'No pending requests',
+    emptyBlocked: 'No blocked users',
+    outgoingPrefix: 'Outgoing: ',
+  },
+  inbox: {
+    title: 'Inbox',
+    empty: 'All clear — no notifications',
+    friendRequests: 'Friend Requests',
+    serverInvites: 'Server Invitations',
+    /** MaterialIcons name — inbox */
+    icon: 'inbox',
+    invitationFrom: 'Invited by {username}',
+    invitationTo: 'to {serverName}',
+    accept: 'Accept',
+    decline: 'Decline',
+    countLabel: '({count})',
+    acceptFailed: 'Failed to accept invitation',
+    declineFailed: 'Failed to decline invitation',
+  },
+  voice: {
+    pillConnected: 'Voice Connected',
+    pillConnecting: 'Connecting…',
+    pillLeave: 'Leave',
+    pillLeaveA11y: 'Disconnect voice',
+    tilesHeading: 'Voice Connected',
+    tilesEmpty: 'Waiting for participants…',
+    tileMutedSymbol: '⊘',
+    tileLocalTag: '(you)',
+    /** @satisfies FR-VOX-003 */
+    mute: 'Mute',
+    /** @satisfies FR-VOX-003 */
+    unmute: 'Unmute',
+    /** @satisfies FR-VOX-003 */
+    muteA11y: 'Toggle microphone mute',
+    /** @satisfies FR-VOX-003 */
+    deafen: 'Deafen',
+    /** @satisfies FR-VOX-003 */
+    undeafen: 'Undeafen',
+    /** @satisfies FR-VOX-003 */
+    deafenA11y: 'Toggle deafen',
+    /** @satisfies FR-VOX-003 */
+    speaker: 'Speaker',
+    /** @satisfies FR-VOX-003 */
+    earpiece: 'Earpiece',
+    /** @satisfies FR-VOX-003 */
+    speakerA11y: 'Toggle speaker/earpiece',
+    /** @satisfies FR-VOX-003 */
+    disconnect: 'Disconnect',
+    /** @satisfies FR-VOX-003 */
+    disconnectA11y: 'Disconnect from voice channel',
+    /** @satisfies FR-VOX-003 */
+    /** MaterialIcons name — mic-off */
+    iconMuted: 'mic-off',
+    /** MaterialIcons name — mic */
+    iconUnmuted: 'mic',
+    /** MaterialIcons name — hearing-disabled */
+    iconDeafened: 'hearing-disabled',
+    /** MaterialIcons name — headset */
+    iconUndeafened: 'headset',
+    /** MaterialIcons name — call-end */
+    iconDisconnect: 'call-end',
+    /** MaterialIcons name — volume-up */
+    iconSpeaker: 'volume-up',
+    /** MaterialIcons name — volume-down */
+    iconEarpiece: 'volume-down',
+    /** MaterialIcons name — videocam */
+    iconCameraOn: 'videocam',
+    /** MaterialIcons name — videocam-off */
+    iconCameraOff: 'videocam-off',
+    /** @satisfies FR-VOX-005 */
+    incomingCall: 'Incoming Call',
+    /** @satisfies FR-VOX-005 */
+    incomingCallSubtitle: 'wants to talk',
+    /** @satisfies FR-VOX-005 */
+    accept: 'Accept',
+    /** @satisfies FR-VOX-005 */
+    decline: 'Decline',
+    /** @satisfies FR-VOX-005 */
+    callButtonA11y: 'Start voice call',
+    /** @satisfies FR-VOX-005 */
+    /** MaterialIcons name — call */
+    iconCall: 'call',
+    // ── Video (FR-VOX-006) ──
+    /** @satisfies FR-VOX-006 */
+    cameraOn: 'Turn on camera',
+    /** @satisfies FR-VOX-006 */
+    cameraOff: 'Turn off camera',
+    /** @satisfies FR-VOX-006 */
+    flipCamera: 'Flip camera',
+    /** @satisfies FR-VOX-006 */
+    videoOff: 'Camera off',
+    /** @satisfies FR-VOX-006 */
+    cameraOnA11y: 'Enable camera',
+    /** @satisfies FR-VOX-006 */
+    cameraOffA11y: 'Disable camera',
+    /** @satisfies FR-VOX-006 */
+    flipCameraA11y: 'Switch camera',
+    /** @satisfies FR-VOX-002 */
+    voiceViewHeading: 'Voice Channel',
+    /** @satisfies FR-VOX-002 */
+    showChat: 'Chat',
+    /** @satisfies FR-VOX-002 */
+    showChatA11y: 'Show text channel',
+    videoSectionLabel: 'Video',
+    /** @untraced FR-SOUND-001 */
+    soundboardOpen: '🔊',
+    /** @untraced FR-SOUND-001 */
+    soundboardOpenA11y: 'Open soundboard',
+    /** @untraced FR-SOUND-001 */
+    soundboardClose: '✕',
+    /** @untraced FR-SOUND-001 */
+    soundboardCloseA11y: 'Close soundboard',
+    /** @untraced FR-SOUND-001 */
+    soundboardTitle: 'Soundboard',
+    /** @untraced FR-SOUND-001 */
+    soundboardEmpty: 'No sounds yet — upload one from the web app',
+    /** @untraced FR-SOUND-001 */
+    soundboardError: 'Failed to load sounds',
+  },
+  screenshare: {
+    live: 'LIVE',
+    /** MaterialIcons name — screen-share */
+    screenIcon: 'screen-share',
+    hide: 'Hide',
+    show: 'Show',
+    hideA11y: 'Hide screen share',
+    showA11y: 'Show screen share',
+  },
+} as const;
+
+export type Strings = typeof strings;

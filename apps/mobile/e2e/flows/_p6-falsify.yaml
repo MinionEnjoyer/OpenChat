@@ -1,0 +1,58 @@
+# _p6-falsify — falsification for permission grant
+# T4: Uses provisioned test world.
+
+appId: com.openchat.mobile
+
+---
+- runFlow: _login.yaml
+
+- tapOn:
+    id: 'hamburger-button'
+- assertVisible:
+    id: 'left-drawer'
+- scrollUntilVisible:
+    element:
+      id: 'rail-server-${E2E_SERVER_NAME}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'rail-server-${E2E_SERVER_NAME}'
+- scrollUntilVisible:
+    element:
+      id: 'channel-${E2E_CHANNEL_VOICE}'
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: 'channel-${E2E_CHANNEL_VOICE}'
+- assertNotVisible:
+    id: 'left-drawer'
+
+# Wait for voice view (not pill — the voice view shows on join)
+- extendedWaitUntil:
+    visible:
+      id: 'voice-channel-view'
+    timeout: 30000
+
+# Navigate to text channel → pill appears
+- tapOn:
+    id: 'voice-show-chat'
+
+# Wait for pill + connection to fully establish
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill'
+    timeout: 15000
+
+- extendedWaitUntil:
+    visible:
+      id: 'voice-pill-disconnect'
+    timeout: 30000
+
+# Now disconnect
+- tapOn:
+    id: 'voice-pill-disconnect'
+
+- extendedWaitUntil:
+    notVisible:
+      id: 'voice-pill'
+    timeout: 20000
