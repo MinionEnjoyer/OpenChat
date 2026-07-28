@@ -573,6 +573,10 @@ VERIFY_JSON=false
 
 cmd_verify() {
   local only_layer="${1:-}"
+  # --changed means "run all layers" (used by pre-push hook).  Without this,
+  # the literal string "--changed" matched no layer guard and every gate
+  # silently no-opped.
+  [ "$only_layer" = "--changed" ] && only_layer=""
   # Check for --json flag
   for a in "$@"; do [ "$a" = "--json" ] && VERIFY_JSON=true; done
   echo "[devctl] verify — Phase 0 signoff gates"
@@ -922,6 +926,48 @@ cmd_selftest() {
   if [ "$(read_phase)" != "$real_phase" ]; then
     echo "  ✗ nfr: .phase not restored (expected $real_phase, got $(read_phase))"
     failures=$((failures + 1))
+  fi
+
+  # ── Unreachable: inject a dummy component that nothing references,
+  # ── assert check-unreachable.sh catches it, remove it, assert green.
+  local ureach_feat="$ROOT/apps/mobile/src/features/messages"
+  local ureach_file="$ureach_feat/SelftestUnreachable.tsx"
+  if [ -d "$ureach_feat" ]; then
+    # Inject
+    cat > "$ureach_file" <<'EOF'
+export function SelftestUnreachable() {
+  return null;
+}
+EOF
+    set +e
+    local ureach_out ureach_rc
+    ureach_out=$(bash "$ROOT/tools/check-unreachable.sh" 2>&1)
+    ureach_rc=$?
+    set -e
+    # Remove before restoration checks
+    rm -f "$ureach_file"
+    if [ "$ureach_rc" -eq 0 ]; then
+      echo "  ✗ unreachable: did not catch injected SelftestUnreachable"
+      failures=$((failures + 1))
+    else
+      if echo "$ureach_out" | grep -q 'SelftestUnreachable'; then
+        echo "  ✓ unreachable: caught injected component (exit $ureach_rc)"
+      else
+        echo "  ✗ unreachable: exit $ureach_rc but output did not mention SelftestUnreachable"
+        failures=$((failures + 1))
+      fi
+    fi
+    # Prove restoration — gate must pass after cleanup
+    set +e
+    ureach_out=$(bash "$ROOT/tools/check-unreachable.sh" 2>&1)
+    ureach_rc=$?
+    set -e
+    if [ "$ureach_rc" -ne 0 ]; then
+      echo "  ✗ unreachable: gate did not return to green after cleanup (exit $ureach_rc)"
+      failures=$((failures + 1))
+    else
+      echo "  ✓ unreachable: gate returns green after cleanup"
+    fi
   fi
 
   if [ "$failures" -gt 0 ]; then
