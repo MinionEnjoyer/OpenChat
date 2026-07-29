@@ -5,7 +5,9 @@
  * voice participants query for the correct channel, and that the end-to-end
  * path (event → invalidate) converges within 3 seconds.
  *
- * @satisfies FR-VOX-004
+ * NOTE: The satisfies annotation for FR-VOX-004 now lives on the
+ * integration test (voiceOccupancy.integration.test.ts) which exercises
+ * the real cache seam without mocking invalidateQueries.
  */
 
 import { applyEvent, queryClient } from '../../../sync/queryClient';
@@ -23,7 +25,7 @@ describe('voice occupancy event (FR-VOX-004)', () => {
     queryClient.clear();
   });
 
-  // @satisfies FR-VOX-004 — core correctness: event invalidates the right key
+  // core correctness: event invalidates the right key
   it('invalidates voiceParticipants query when voice.occupancy arrives', () => {
     const spy = jest.spyOn(queryClient, 'invalidateQueries');
 
@@ -36,7 +38,7 @@ describe('voice occupancy event (FR-VOX-004)', () => {
     spy.mockRestore();
   });
 
-  // @satisfies FR-VOX-004 — convergence within ≤3s
+  // convergence within ≤3s
   it('converges within 3 seconds (event → invalidate completes)', () => {
     const spy = jest.spyOn(queryClient, 'invalidateQueries');
     const start = Date.now();
@@ -49,7 +51,7 @@ describe('voice occupancy event (FR-VOX-004)', () => {
     spy.mockRestore();
   });
 
-  // @satisfies FR-VOX-004 — prove convergence budget assertion catches violations
+  // prove convergence budget assertion catches violations
   it('converges within 3s and proves budget assertion is live', () => {
     const spy = jest.spyOn(queryClient, 'invalidateQueries');
     const start = Date.now();
@@ -65,7 +67,7 @@ describe('voice occupancy event (FR-VOX-004)', () => {
     spy.mockRestore();
   });
 
-  // @satisfies FR-VOX-004 — scoped: only invalidates the target channel
+  // scoped: only invalidates the target channel
   it('does NOT invalidate voice participants for a different channel', () => {
     const spy = jest.spyOn(queryClient, 'invalidateQueries');
 
@@ -94,7 +96,7 @@ describe('voice occupancy event (FR-VOX-004)', () => {
     spy.mockRestore();
   });
 
-  // @satisfies FR-VOX-004 — no-op for unknown ops
+  // no-op for unknown ops
   it('does not react to unrelated frame ops', () => {
     const spy = jest.spyOn(queryClient, 'invalidateQueries');
     applyEvent({ op: 'presence', d: { userId: 'u1', status: 'ONLINE' } } as any);
