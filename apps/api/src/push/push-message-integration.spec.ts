@@ -226,7 +226,6 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
     return {
       assertNotTimedOut: jest.fn().mockResolvedValue(undefined),
       getChannelPermissions: jest.fn().mockResolvedValue(
-        // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
         BigInt(0xFFFFFFFFFFFFFFFEn), // all perms (not quite all-1s to avoid exact ADMINISTRATOR)
       ),
     };
