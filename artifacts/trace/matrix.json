@@ -1,12 +1,12 @@
 {
-  "generated": "2026-07-28T08:47:13.642Z",
+  "generated": "2026-07-29T02:55:25.836Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
     "missing": 17,
-    "errors": 39,
-    "evidence_violations": 38,
+    "errors": 38,
+    "evidence_violations": 37,
     "manual": 0
   },
   "errors": [
@@ -45,7 +45,6 @@
     "EVIDENCE: FR-SRV-008 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p3-05-kick-leave.spec.ts:4",
     "EVIDENCE: FR-VOX-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/voiceJoinOnTap.test.tsx:10",
     "EVIDENCE: FR-VOX-002 requires integration evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/voiceChannelView.test.tsx:9",
-    "EVIDENCE: FR-VOX-004 requires integration evidence (found unit) — claimed by apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts:8",
     "EVIDENCE: FR-VOX-005 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/callStore.test.ts:4",
     "EVIDENCE: FR-VOX-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/videoTile.test.ts:7",
     "EVIDENCE: FR-VOX-007 requires integration evidence (found unit) — claimed by apps/mobile/src/features/voice/__tests__/ScreenShareView.test.tsx:13"
@@ -288,13 +287,6 @@
       "found": "unit",
       "file": "apps/mobile/src/features/voice/__tests__/voiceChannelView.test.tsx",
       "line": 9
-    },
-    {
-      "id": "FR-VOX-004",
-      "required": "integration",
-      "found": "unit",
-      "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-      "line": 8
     },
     {
       "id": "FR-VOX-005",
@@ -3087,28 +3079,28 @@
           "line": 48
         },
         {
-          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-          "line": 8
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.integration.test.ts",
+          "line": 14
         },
         {
-          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-          "line": 26
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.integration.test.ts",
+          "line": 35
         },
         {
-          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-          "line": 39
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.integration.test.ts",
+          "line": 61
         },
         {
-          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-          "line": 52
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.integration.test.ts",
+          "line": 82
         },
         {
-          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-          "line": 68
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.integration.test.ts",
+          "line": 100
         },
         {
-          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.test.ts",
-          "line": 97
+          "file": "apps/mobile/src/features/channels/__tests__/voiceOccupancy.integration.test.ts",
+          "line": 119
         },
         {
           "file": "apps/mobile/src/sync/queryClient.ts",
