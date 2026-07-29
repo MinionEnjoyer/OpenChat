@@ -7,6 +7,7 @@ import { uploadToShare } from '../lib/share';
 import { Avatar } from './Avatar';
 import { VoiceSettings, type AudioControls } from './VoiceSettings';
 import { AppTokens } from './AppTokens';
+import { BotsManager } from './BotsManager';
 
 export function SettingsModal({
   user,
@@ -37,7 +38,7 @@ export function SettingsModal({
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'profile' | 'appearance' | 'voice' | 'tokens'>('profile');
+  const [tab, setTab] = useState<'profile' | 'appearance' | 'voice' | 'tokens' | 'bots'>('profile');
   const fileRef = useRef<HTMLInputElement>(null);
   const pressedOnOverlay = useRef(false);
 
@@ -174,7 +175,7 @@ export function SettingsModal({
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
-          {([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens']] as const).map(([val, lbl]) => (
+          {([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens'], ['bots', '🤖 Bots']] as const).map(([val, lbl]) => (
             <button key={val} onClick={() => setTab(val)}
               style={{ padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
                 fontWeight: tab === val ? 700 : 500, color: tab === val ? 'var(--text-strong)' : 'var(--muted)',
@@ -198,6 +199,8 @@ export function SettingsModal({
         {tab === 'voice' && <VoiceSettings audio={audio} label={label} input={input} />}
 
         {tab === 'tokens' && <AppTokens label={label} input={input} />}
+
+        {tab === 'bots' && <BotsManager label={label} input={input} />}
 
         {tab === 'profile' && (
           <>

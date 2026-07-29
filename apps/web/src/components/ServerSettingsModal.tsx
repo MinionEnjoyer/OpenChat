@@ -5,8 +5,9 @@ import { listFriends, createInvite } from '../lib/social';
 import { uploadToShare } from '../lib/share';
 import { Permission, PERMISSION_LIST, has, toBig } from '../lib/permissions';
 import { Avatar } from './Avatar';
+import { AddBotBrowser } from './AddBotBrowser';
 
-type Tab = 'overview' | 'roles' | 'members' | 'invite';
+type Tab = 'overview' | 'roles' | 'members' | 'invite' | 'bots';
 
 function extractError(err: any): string {
   const raw = String(err?.message ?? 'Something went wrong.');
@@ -261,6 +262,7 @@ export function ServerSettingsModal({
           {tabBtn('invite', 'Invite People', canInvite)}
           {tabBtn('roles', 'Roles', canRoles)}
           {tabBtn('members', 'Members', true)}
+          {tabBtn('bots', 'Bots', canServer)}
         </div>
 
         {/* content */}
@@ -272,6 +274,8 @@ export function ServerSettingsModal({
 
           <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
             {error && <p style={{ color: 'var(--danger)', marginTop: 0 }}>{error}</p>}
+
+            {tab === 'bots' && <AddBotBrowser serverId={server.id} label={sectionLabel} />}
 
             {tab === 'overview' && (
               <div>

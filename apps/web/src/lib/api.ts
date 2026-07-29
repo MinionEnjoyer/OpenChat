@@ -1,4 +1,4 @@
-import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, NotificationSetting, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken } from './types';
+import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, NotificationSetting, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken, Bot } from './types';
 import { apiBase, getToken, getRefreshToken, setTokens, clearTokens } from './serverConfig';
 
 // Native-client token refresh (OAuth refresh_token grant). Single-flight so a burst
@@ -95,6 +95,22 @@ export const updateServerLayout = (layout: unknown) =>
 export const getNotifications = () => request<Notifications>('/notifications');
 export const getNotificationSettings = () =>
   request<NotificationSetting[]>('/notifications/settings');
+
+// ---- bots ----
+export const listBots = () => request<Bot[]>('/bots');
+export const listBotDirectory = () => request<Bot[]>('/bots/directory');
+export const createBot = (data: { username: string; displayName?: string; description?: string }) =>
+  request<{ bot: Bot; token: string }>('/bots', { method: 'POST', body: JSON.stringify(data) });
+export const updateBot = (id: string, data: { displayName?: string; description?: string; published?: boolean; avatarUrl?: string }) =>
+  request<Bot>(`/bots/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+export const resetBotToken = (id: string) =>
+  request<{ token: string }>(`/bots/${id}/token`, { method: 'POST' });
+export const deleteBot = (id: string) =>
+  request<{ success: true }>(`/bots/${id}`, { method: 'DELETE' });
+export const addBotToServer = (serverId: string, botId: string) =>
+  request<{ success: true }>(`/servers/${serverId}/bots/${botId}`, { method: 'POST' });
+export const removeBotFromServer = (serverId: string, botId: string) =>
+  request<{ success: true }>(`/servers/${serverId}/bots/${botId}`, { method: 'DELETE' });
 export const acceptServerInvite = (id: string) =>
   request<Server>(`/server-invitations/${id}/accept`, { method: 'POST' });
 export const declineServerInvite = (id: string) =>

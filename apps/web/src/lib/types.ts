@@ -178,6 +178,20 @@ export interface Notifications {
   count: number;
 }
 
+// A bot account (Discord-style). A bot is a User with isBot=true; the developer view
+// manages these and the add-bot browser lists the published ones.
+export interface Bot {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  botDescription: string | null;
+  botPublished: boolean;
+  botOwnerId: string | null;
+  isBot: boolean;
+  createdAt: string;
+}
+
 export type NotificationLevel = 'ALL' | 'MENTIONS' | 'NONE';
 
 // Per-user notification preference for a server or channel (GET /notifications/settings).
