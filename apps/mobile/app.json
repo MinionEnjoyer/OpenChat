@@ -17,6 +17,9 @@
         ],
         "ITSAppUsesNonExemptEncryption": false
       },
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "buildNumber": "2"
     },
     "android": {
