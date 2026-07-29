@@ -31,7 +31,10 @@ export function BotsManager({ label, input }: { label: React.CSSProperties; inpu
       setUsername(''); setDisplayName(''); setDescription('');
       await load();
     } catch (e: any) {
-      setError((e?.message || '').replace(/^API Error \d+: /, '') || 'Could not create bot');
+      // request() throws `API Error 400: {json}` — pull out the server's human message.
+      let msg = (e?.message || '').replace(/^API Error \d+: /, '');
+      try { const j = JSON.parse(msg); msg = j.message || msg; } catch { /* not json */ }
+      setError(msg || 'Could not create bot');
     } finally { setBusy(false); }
   }
 
@@ -51,8 +54,13 @@ export function BotsManager({ label, input }: { label: React.CSSProperties; inpu
       <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--muted)' }}>
         Bots use their token to talk to the API + WebSocket, just like any client. Publish a bot to add it to servers from the add-bot browser.
       </p>
-      <input style={{ ...input, marginBottom: 8 }} value={username} maxLength={32} placeholder="username (e.g. releasebot)" onChange={(e) => setUsername(e.target.value)} />
-      <input style={{ ...input, marginBottom: 8 }} value={displayName} maxLength={80} placeholder="display name (optional)" onChange={(e) => setDisplayName(e.target.value)} />
+      <input style={{ ...input, marginBottom: 4 }} value={username} maxLength={32}
+        placeholder="username handle, e.g. releasebot"
+        onChange={(e) => setUsername(e.target.value)} />
+      <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--muted)' }}>
+        Handle — 2–32 chars, letters/numbers/<code>. _ -</code> only (no spaces).
+      </p>
+      <input style={{ ...input, marginBottom: 8 }} value={displayName} maxLength={80} placeholder="display name (optional, spaces OK)" onChange={(e) => setDisplayName(e.target.value)} />
       <input style={{ ...input, marginBottom: 8 }} value={description} maxLength={300} placeholder="what does it do? (optional)" onChange={(e) => setDescription(e.target.value)} />
       {error && <p style={{ color: 'var(--danger)', fontSize: 13, margin: '0 0 8px' }}>{error}</p>}
       <button onClick={create} disabled={!username.trim() || busy}
