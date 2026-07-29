@@ -1,9 +1,15 @@
+use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, WindowEvent,
+    AppHandle, Emitter, Manager, State, WindowEvent,
 };
 use tauri_plugin_updater::UpdaterExt;
+
+// Holds the target (channel/DM) of the most recently shown notification so that a click on
+// it (routed back from the web layer via `notify_activate`) can jump straight there.
+#[derive(Default)]
+struct LastNotify(Mutex<Option<serde_json::Value>>);
 
 // Hand an openchat://auth deep link to the web layer. Preferred: ?code=… (PKCE
 // authorization code, exchanged for a token family) → "auth-code". Legacy: ?token=…
@@ -34,10 +40,27 @@ async fn open_external(app: AppHandle, url: String) -> Result<(), String> {
 }
 
 // Show an OS notification (mentions, DMs, incoming calls when the app is unfocused).
+// `target` (the channel/DM to open) is stashed so a click can navigate there.
 #[tauri::command]
-fn notify(app: AppHandle, title: String, body: String) {
+fn notify(app: AppHandle, title: String, body: String, target: Option<serde_json::Value>, last: State<'_, LastNotify>) {
     use tauri_plugin_notification::NotificationExt;
+    if let Ok(mut guard) = last.0.lock() {
+        *guard = target;
+    }
     let _ = app.notification().builder().title(title).body(body).show();
+}
+
+// Called by the web layer when a notification is clicked (via the notification plugin's
+// action event). Raises the window out of the tray and hands back the stashed target so the
+// web layer can navigate to that DM/channel. Returns null if there's nothing pending.
+#[tauri::command]
+fn notify_activate(app: AppHandle, last: State<'_, LastNotify>) -> Option<serde_json::Value> {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+    last.0.lock().ok().and_then(|mut g| g.take())
 }
 
 // Push-to-talk: register a global shortcut so the mic key works even when the app is
@@ -138,10 +161,14 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        // Launch-at-login (opt-in via Settings): keeps the app alive in the tray so the
+        // live notification path works without the user reopening it after a reboot.
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![open_external, notify, run_update, register_ptt, unregister_ptt])
+        .manage(LastNotify::default())
+        .invoke_handler(tauri::generate_handler![open_external, notify, notify_activate, run_update, register_ptt, unregister_ptt])
         .setup(|app| {
             // Deep links that cold-started the app / arrive while running.
             #[cfg(desktop)]
@@ -158,6 +185,17 @@ pub fn run() {
                         handle_auth_url(&handle, u.as_str());
                     }
                 });
+            }
+
+            // Notifications (mentions, DMs, incoming calls) need OS permission before
+            // `notification().show()` will surface anything — on macOS an ungranted app
+            // silently drops them. Request once on launch if the user hasn't decided yet.
+            {
+                use tauri_plugin_notification::{NotificationExt, PermissionState};
+                match app.notification().permission_state() {
+                    Ok(PermissionState::Granted) => {}
+                    _ => { let _ = app.notification().request_permission(); }
+                }
             }
 
             // System tray with Open / Quit.

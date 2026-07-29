@@ -175,6 +175,18 @@ export interface Notifications {
   count: number;
 }
 
+export type NotificationLevel = 'ALL' | 'MENTIONS' | 'NONE';
+
+// Per-user notification preference for a server or channel (GET /notifications/settings).
+// Mirrors the server's NotificationSetting model.
+export interface NotificationSetting {
+  id: string;
+  scope: 'SERVER' | 'CHANNEL';
+  scopeId: string;
+  level: NotificationLevel;
+  mutedUntil: string | null;
+}
+
 export interface ApiToken {
   id: string;
   name: string;

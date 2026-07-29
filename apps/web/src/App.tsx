@@ -35,6 +35,7 @@ import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
 import { UpdateGate } from './components/UpdateGate';
 import { notifyNative } from './lib/notify';
+import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
 
 interface AppState {
@@ -62,6 +63,15 @@ interface AppState {
   setPresence: (userId: string, status: string) => void;
   bumpUnread: (channelId: string) => void;
   clearUnread: (channelId: string) => void;
+}
+
+// Which server a channel belongs to, from the loaded channel lists. Returns null for a DM
+// or a server whose channels aren't loaded yet (notify prefs then fall back to channel scope).
+function serverIdForChannel(st: { channelsByServer: Record<string, { id: string }[]> }, channelId: string): string | null {
+  for (const sid in st.channelsByServer) {
+    if (st.channelsByServer[sid]?.some((c) => c.id === channelId)) return sid;
+  }
+  return null;
 }
 
 const useStore = create<AppState>((set) => ({
@@ -227,6 +237,9 @@ export default function App() {
       try {
         const user = await api.getMe();
         useStore.getState().set({ user });
+        // Load notification prefs so the desktop shell can suppress muted/level-gated OS
+        // notifications (mirrors the server push gate). Fire-and-forget; defaults to notify.
+        loadNotifyPrefs();
         const [cfg, servers, dms] = await Promise.all([
           getConfig().catch(() => ({ shareBaseUrl: '', jellyfinUrl: '' })),
           api.listServers().catch(() => [] as Server[]),
@@ -257,6 +270,46 @@ export default function App() {
         }
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Desktop: clicking an OS notification routes back through the notification plugin's
+  // action event. Raise the window out of the tray (Rust `notify_activate`) and jump to the
+  // conversation the notification was for. Kept in a ref so the once-registered listener
+  // always calls the latest navigation closure.
+  const notifyNavRef = useRef<(t: { channelId?: string; serverId?: string } | null) => void>(() => {});
+  useEffect(() => {
+    notifyNavRef.current = (target) => {
+      if (!target?.channelId) return;
+      const st = useStore.getState();
+      if (target.serverId) {
+        selectServer(target.serverId).then(() => selectChannel(target.channelId!)).catch(() => {});
+      } else {
+        const dm = st.dms.find((d) => d.id === target.channelId);
+        const title = dm
+          ? (dm.recipients.filter((u) => u.id !== st.user?.id).map((u) => u.displayName || u.username).join(', ') || 'Direct Message')
+          : 'Direct Message';
+        openDm(target.channelId, title);
+      }
+    };
+  });
+  useEffect(() => {
+    if (!isTauri()) return;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const mod = await import('@tauri-apps/plugin-notification');
+        const listener = await mod.onAction(async () => {
+          try {
+            const target = await (window as any).__TAURI__?.core?.invoke('notify_activate');
+            if (target) notifyNavRef.current(target);
+          } catch { /* ignore */ }
+        });
+        if (cancelled) listener.unregister(); else unlisten = () => { listener.unregister(); };
+      } catch { /* plugin unavailable, or clicks not delivered on this platform */ }
+    })();
+    return () => { cancelled = true; unlisten?.(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -320,10 +373,12 @@ export default function App() {
           const isDm = st.dms.some((dm) => dm.id === d.message.channelId);
           if (isDm) {
             st.set({ dms: st.dms.map((dm) => (dm.id === d.message.channelId ? { ...dm, lastMessageAt: d.message.createdAt } : dm)) });
-            if (d.message.authorId !== st.user?.id) {
+            if (d.message.authorId !== st.user?.id
+                && st.user?.status !== 'DND'
+                && notifyAllowed({ channelId: d.message.channelId, serverId: null, isMention: false })) {
               const name = d.message.author?.displayName || d.message.author?.username || 'New message';
               const body = (d.message.content === '​' ? '(attachment)' : d.message.content || '').slice(0, 120);
-              notifyNative(name, body);
+              notifyNative(name, body, { channelId: d.message.channelId, kind: 'dm' });
             }
           }
         } else if (op === 'message.updated') st.updateMessage(d.message);
@@ -333,7 +388,12 @@ export default function App() {
         else if (op === 'mention') {
           if (d.channelId !== st.activeChannelId) st.bumpUnread(d.channelId);
           showToast(`💬 ${d.authorName} mentioned you in #${d.channelName}`);
-          notifyNative(`Mention in #${d.channelName}`, `${d.authorName} mentioned you`);
+          const serverId: string | null = d.serverId ?? serverIdForChannel(st, d.channelId);
+          if (st.user?.status !== 'DND'
+              && notifyAllowed({ channelId: d.channelId, serverId, isMention: true })) {
+            notifyNative(`Mention in #${d.channelName}`, `${d.authorName} mentioned you`,
+              { channelId: d.channelId, serverId: serverId ?? undefined, kind: 'mention' });
+          }
         }
         else if (op === 'call.ring') {
           // Ignore if we're already in this call; otherwise ring for ~30s.
@@ -341,7 +401,10 @@ export default function App() {
             setIncomingCall({ channelId: d.channelId, callerId: d.callerId, callerName: d.callerName, callerAvatar: d.callerAvatar });
             if (ringTimer.current) window.clearTimeout(ringTimer.current);
             ringTimer.current = window.setTimeout(() => setIncomingCall(null), 30000);
-            notifyNative('Incoming call', `${d.callerName} is calling`);
+            // Calls are high-signal: only Do-Not-Disturb suppresses the OS notification.
+            if (st.user?.status !== 'DND') {
+              notifyNative('Incoming call', `${d.callerName} is calling`, { channelId: d.channelId, kind: 'call' });
+            }
           }
         }
         else if (op === 'presence.snapshot') {

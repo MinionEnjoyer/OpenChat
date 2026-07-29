@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { User } from '../lib/types';
+import { isTauri } from './TitleBar';
 import type { Theme } from '../lib/theme';
 import { updateProfile } from '../lib/api';
 import { uploadToShare } from '../lib/share';
@@ -186,6 +187,7 @@ export function SettingsModal({
               <button style={themeBtn(theme === 'dark')} onClick={() => onThemeChange('dark')}>🌙 Dark</button>
               <button style={themeBtn(theme === 'light')} onClick={() => onThemeChange('light')}>☀️ Light</button>
             </div>
+            {isTauri() && <AutostartToggle label={label} />}
           </div>
         )}
 
@@ -283,6 +285,49 @@ export function SettingsModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Desktop "launch at login" toggle. Talks to the Tauri autostart plugin directly (dynamic
+// import so the browser build ignores it). Keeping the app running at login is our pragmatic
+// stand-in for after-quit push: it stays in the tray with a live socket, so notifications
+// keep arriving without the user reopening it. Only rendered inside the desktop shell.
+function AutostartToggle({ label }: { label: CSSProperties }) {
+  const [enabled, setEnabled] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { isEnabled } = await import('@tauri-apps/plugin-autostart');
+        const e = await isEnabled();
+        if (alive) { setEnabled(e); setReady(true); }
+      } catch { if (alive) setReady(true); }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      const mod = await import('@tauri-apps/plugin-autostart');
+      if (enabled) { await mod.disable(); setEnabled(false); }
+      else { await mod.enable(); setEnabled(true); }
+    } catch { /* ignore */ } finally { setBusy(false); }
+  }
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <span style={label}>Startup</span>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: ready && !busy ? 'pointer' : 'default' }}>
+        <input type="checkbox" checked={enabled} disabled={!ready || busy} onChange={toggle} />
+        <span style={{ fontSize: 14, color: 'var(--text)' }}>
+          Launch OpenChat at login — keeps it in the tray so notifications keep arriving.
+        </span>
+      </label>
     </div>
   );
 }

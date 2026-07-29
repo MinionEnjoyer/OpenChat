@@ -1,4 +1,4 @@
-import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken } from './types';
+import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, NotificationSetting, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken } from './types';
 import { apiBase, getToken, getRefreshToken, setTokens, clearTokens } from './serverConfig';
 
 // Native-client token refresh (OAuth refresh_token grant). Single-flight so a burst
@@ -93,6 +93,8 @@ export const updateServerLayout = (layout: unknown) =>
   request<User>('/auth/server-layout', { method: 'PUT', body: JSON.stringify({ layout }) });
 
 export const getNotifications = () => request<Notifications>('/notifications');
+export const getNotificationSettings = () =>
+  request<NotificationSetting[]>('/notifications/settings');
 export const acceptServerInvite = (id: string) =>
   request<Server>(`/server-invitations/${id}/accept`, { method: 'POST' });
 export const declineServerInvite = (id: string) =>
