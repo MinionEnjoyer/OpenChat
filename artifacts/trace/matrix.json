@@ -1,12 +1,12 @@
 {
-  "generated": "2026-07-29T02:48:19.591Z",
+  "generated": "2026-07-29T02:59:18.794Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
     "missing": 17,
-    "errors": 38,
-    "evidence_violations": 37,
+    "errors": 37,
+    "evidence_violations": 36,
     "manual": 0
   },
   "errors": [
@@ -16,7 +16,6 @@
     "EVIDENCE: FR-AUTH-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:101",
     "EVIDENCE: FR-AUTH-003 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:50",
     "EVIDENCE: FR-AUTH-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/profile.test.ts:19",
-    "EVIDENCE: FR-AUTH-010 requires integration evidence (found unit) — claimed by apps/mobile/src/api/__tests__/client.test.ts:42",
     "EVIDENCE: FR-MED-010 requires e2e evidence (found integration) — claimed by apps/mobile/src/features/attachments/__tests__/upload.integration.test.ts:8",
     "EVIDENCE: FR-MED-011 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/attachments.test.ts:1",
     "EVIDENCE: FR-MED-020 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p5-05-avatar-server-icon.spec.ts:4",
@@ -84,13 +83,6 @@
       "found": "unit",
       "file": "apps/mobile/src/stores/__tests__/profile.test.ts",
       "line": 19
-    },
-    {
-      "id": "FR-AUTH-010",
-      "required": "integration",
-      "found": "unit",
-      "file": "apps/mobile/src/api/__tests__/client.test.ts",
-      "line": 42
     },
     {
       "id": "FR-MED-010",
@@ -558,8 +550,8 @@
       "satisfied": true,
       "locations": [
         {
-          "file": "apps/mobile/src/api/__tests__/client.test.ts",
-          "line": 42
+          "file": "apps/mobile/src/api/__tests__/client.integration.test.ts",
+          "line": 1
         }
       ],
       "missing": false
