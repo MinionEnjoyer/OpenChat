@@ -106,6 +106,18 @@ export class BotsService {
       create: { serverId, userId: botId },
       update: {},
     });
+    // A fresh member has no roles → no perms on servers without a permissive @everyone, so the
+    // bot couldn't even read/send. Give it a shared "Bots" role granting basic chat access.
+    const chatPerms = Permission.SEND_MESSAGES | Permission.READ_MESSAGES;
+    let role = await this.prisma.role.findFirst({ where: { serverId, name: 'Bots' } });
+    if (!role) {
+      const mx = await this.prisma.role.aggregate({ where: { serverId }, _max: { position: true } });
+      role = await this.prisma.role.create({ data: { serverId, name: 'Bots', permissions: chatPerms, position: (mx._max.position ?? 0) + 1 } });
+    }
+    await this.prisma.serverMember.update({
+      where: { serverId_userId: { serverId, userId: botId } },
+      data: { roles: { connect: { id: role.id } } },
+    });
     return { success: true as const };
   }
 
