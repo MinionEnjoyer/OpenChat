@@ -1,19 +1,18 @@
 {
-  "generated": "2026-07-28T08:47:13.642Z",
+  "generated": "2026-07-29T02:48:19.591Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
     "missing": 17,
-    "errors": 39,
-    "evidence_violations": 38,
+    "errors": 38,
+    "evidence_violations": 37,
     "manual": 0
   },
   "errors": [
     "17 requirement(s) lack @satisfies annotation: FR-APP-004, FR-APP-005, FR-MSG-014, FR-SOC-003, FR-SOC-006, FR-VOX-060, NFR-01, NFR-02, NFR-03, NFR-04, NFR-05, NFR-06, NFR-08, NFR-09, NFR-10, NFR-11, NFR-12",
     "EVIDENCE: FR-APP-001 requires e2e evidence (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run) — claimed by apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml:2",
     "EVIDENCE: FR-APP-002 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/shell/__tests__/coldstart.test.ts:1",
-    "EVIDENCE: FR-APP-003 requires integration evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/connection.test.ts:8",
     "EVIDENCE: FR-AUTH-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:101",
     "EVIDENCE: FR-AUTH-003 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:50",
     "EVIDENCE: FR-AUTH-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/profile.test.ts:19",
@@ -64,13 +63,6 @@
       "found": "unit",
       "file": "apps/mobile/src/features/shell/__tests__/coldstart.test.ts",
       "line": 1
-    },
-    {
-      "id": "FR-APP-003",
-      "required": "integration",
-      "found": "unit",
-      "file": "apps/mobile/src/stores/__tests__/connection.test.ts",
-      "line": 8
     },
     {
       "id": "FR-AUTH-001",
@@ -383,8 +375,8 @@
       "satisfied": true,
       "locations": [
         {
-          "file": "apps/mobile/src/stores/__tests__/connection.test.ts",
-          "line": 8
+          "file": "apps/mobile/src/stores/__tests__/connection.integration.test.ts",
+          "line": 1
         }
       ],
       "missing": false
