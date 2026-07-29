@@ -18,7 +18,7 @@ module.exports = function withFirebaseNotificationManifestFix(config) {
 
     if (!colorEntry) {
       throw new Error(
-        `Missing ${FIREBASE_NOTIFICATION_COLOR}; run this plugin after expo-notifications`,
+        `Missing ${FIREBASE_NOTIFICATION_COLOR}; check the expo-notifications plugin configuration`,
       );
     }
 
