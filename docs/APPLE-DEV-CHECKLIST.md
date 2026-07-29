@@ -101,6 +101,35 @@ This is the step that actually connects Firebase to Apple. Without it, tokens
 register and nothing is ever delivered — the failure looks like a client bug and
 is not one.
 
+### Why the screen shows development AND production rows
+
+Firebase lists dev/prod slots for both auth keys and certificates. They behave
+differently:
+
+- **Auth key (`.p8`)** — environment-agnostic. ONE key authenticates to both
+  sandbox and production APNs. That is why Apple and Firebase both recommend it.
+  If the UI offers two slots, upload the same file to both.
+- **Certificates (`.p12`)** — the legacy path, genuinely environment-specific and
+  requiring two separate files. We do not use these; ignore those rows.
+
+### The environment trap, which fails silently
+
+The APP'S ENTITLEMENT decides which APNs environment issues a device token:
+
+| Build | `aps-environment` | Token issued by |
+|---|---|---|
+| Debug / `expo run:ios` | `development` | sandbox APNs |
+| Release / TestFlight / App Store | `production` | production APNs |
+
+A token minted under one environment **cannot** be delivered to via the other.
+Mismatch them and FCM accepts the send, reports success, and the device receives
+nothing — the same silent-success shape that left Android push inert for the life
+of this project.
+
+Ours is currently `development`, which is correct for what we are doing. It must
+flip to `production` before any TestFlight or App Store build, and that is the
+moment to re-verify push rather than assume it carried over.
+
 ---
 
 ## 6. Hand me the plist
