@@ -6,7 +6,8 @@
  * Sign-out: DELETE /api/devices/:token (correctness — not best-effort cleanup).
  * Deep-link tap-through: parse notification data → navigate to channel/DM/server.
  *
- * Android only per docs/PRIORITIES.md §5. iOS is a no-op pending owner decision.
+ * Both Android and iOS obtain FCM registration tokens.
+ * Android: expo-notifications wraps Firebase. iOS: @react-native-firebase/messaging directly.
  *
  * @satisfies FR-NOTIF-002
  */
@@ -34,7 +35,7 @@ export function _resetPlatformForTest(): void {
   _platformOS = Platform.OS;
 }
 
-function isAndroid(): boolean {
+export function isAndroid(): boolean {
   return _platformOS === 'android';
 }
 
@@ -93,6 +94,9 @@ export function _resetMocksForTest(): void {
   _initialized = false;
   _platformOS = 'android';
   _onNavigate = null;
+  // Reset iOS FCM token seams to real implementations
+  _getIosFcmToken = _defaultGetIosFcmToken;
+  _subscribeIosTokenRotation = _defaultSubscribeIosTokenRotation;
 }
 
 export function _setStoredTokenForTest(token: string | null): void {
@@ -110,6 +114,47 @@ let _getDevicePushToken: () => Promise<DevicePushToken> =
 let _setNotificationHandler: typeof Notifications.setNotificationHandler =
   Notifications.setNotificationHandler.bind(Notifications);
 
+// ── iOS FCM token acquisition (test seams) ──
+
+let _getIosFcmToken: () => Promise<string | null> = async () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const messaging = require('@react-native-firebase/messaging').default as {
+      (): { getToken: () => Promise<string> };
+    };
+    return await messaging().getToken();
+  } catch {
+    return null;
+  }
+};
+
+let _subscribeIosTokenRotation: () => () => void = () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const messaging = require('@react-native-firebase/messaging').default as {
+      (): { onTokenRefresh: (cb: (token: string) => void) => () => void };
+    };
+    return messaging().onTokenRefresh(async (newToken: string) => {
+      await deleteTokenOnServer();
+      await registerTokenOnServer(newToken);
+    });
+  } catch {
+    return () => {};
+  }
+};
+
+// Capture defaults so _resetMocksForTest can restore them
+const _defaultGetIosFcmToken = _getIosFcmToken;
+const _defaultSubscribeIosTokenRotation = _subscribeIosTokenRotation;
+
+export function _setIosMessagingForTest(mock: {
+  getToken?: () => Promise<string | null>;
+  onTokenRefresh?: () => () => void;
+}): void {
+  if (mock.getToken) _getIosFcmToken = mock.getToken;
+  if (mock.onTokenRefresh) _subscribeIosTokenRotation = mock.onTokenRefresh;
+}
+
 let _addResponseListener: typeof Notifications.addNotificationResponseReceivedListener =
   Notifications.addNotificationResponseReceivedListener.bind(Notifications);
 
@@ -122,13 +167,8 @@ let _clearLastResponse: typeof Notifications.clearLastNotificationResponse =
 // ── Permission ──
 
 /**
- * Request notification permissions from the OS.
- * Android only — iOS is a no-op until the owner decides (docs/PRIORITIES.md §5).
- *
- * @returns true if permissions were granted
- */
+/** Request notification permissions from the OS. Works on both platforms. */
 export async function requestPushPermissions(): Promise<boolean> {
-  if (!isAndroid()) return false;
   try {
     const { granted } = await _requestPermissions();
     return granted;
@@ -139,12 +179,14 @@ export async function requestPushPermissions(): Promise<boolean> {
 
 // ── Token lifecycle ──
 
-/** Obtain the native device push token (FCM on Android). */
+/** Obtain the FCM registration token — platform-appropriate method. */
 async function getDeviceToken(): Promise<string | null> {
-  if (!isAndroid()) return null;
   try {
-    const token = await _getDevicePushToken();
-    return token.data;
+    if (isAndroid()) {
+      const token = await _getDevicePushToken();
+      return token.data;
+    }
+    return _getIosFcmToken();
   } catch {
     return null;
   }
@@ -183,22 +225,26 @@ async function deleteTokenOnServer(): Promise<void> {
  * @returns the registered token, or null if any step failed
  */
 export async function registerPushToken(): Promise<string | null> {
-  if (!isAndroid()) return null;
   const token = await getDeviceToken();
   if (!token) return null;
   return registerTokenOnServer(token);
 }
 
 /**
- * Token rotation handler — called automatically when FCM rotates the device token.
+ * Android token rotation handler — called automatically by expo-notifications.
  * Unregisters the old token and registers the new one.
  */
-async function handleTokenRotation(newToken: DevicePushToken): Promise<void> {
-  if (!isAndroid()) return;
+async function handleAndroidTokenRotation(newToken: DevicePushToken): Promise<void> {
   await deleteTokenOnServer();
   if (newToken.data) {
     await registerTokenOnServer(newToken.data);
   }
+}
+
+/** iOS FCM token rotation handler — called by Firebase onTokenRefresh. */
+async function handleIosTokenRotation(newToken: string): Promise<void> {
+  await deleteTokenOnServer();
+  await registerTokenOnServer(newToken);
 }
 
 /**
@@ -213,11 +259,16 @@ export async function unregisterPushToken(): Promise<void> {
 /**
  * Subscribe to FCM token rotation. Returns a cleanup function.
  * Must be called once when the user signs in; cleanup on sign-out.
+ *
+ * Android: expo-notifications addPushTokenListener.
+ * iOS: @react-native-firebase/messaging onTokenRefresh.
  */
 export function subscribeToTokenRotation(): () => void {
-  if (!isAndroid()) return () => {};
-  const subscription = _addedTokenListener(handleTokenRotation);
-  return () => subscription.remove();
+  if (isAndroid()) {
+    const subscription = _addedTokenListener(handleAndroidTokenRotation);
+    return () => subscription.remove();
+  }
+  return _subscribeIosTokenRotation();
 }
 
 // ── Foreground suppression (FR-NOTIF-004) ──
@@ -357,8 +408,6 @@ export function _resetInitializedForTest(): void {
 export async function initializePush(): Promise<void> {
   if (_initialized) return;
   _initialized = true;
-
-  if (!isAndroid()) return;
 
   const granted = await requestPushPermissions();
   if (!granted) return;
