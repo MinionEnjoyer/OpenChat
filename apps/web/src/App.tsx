@@ -47,6 +47,7 @@ interface AppState {
   dms: DmChannel[];
   membersByServer: Record<string, ServerMemberInfo[]>;
   presenceById: Record<string, string>;
+  platformsById: Record<string, string[]>; // userId -> live client platforms (['desktop'|'mobile'|'web'])
   unreadByChannel: Record<string, number>;
   notifyTick: number;
   activeServerId: string | null;
@@ -83,6 +84,7 @@ const useStore = create<AppState>((set) => ({
   dms: [],
   membersByServer: {},
   presenceById: {},
+  platformsById: {},
   unreadByChannel: {},
   notifyTick: 0,
   activeServerId: null,
@@ -342,7 +344,7 @@ export default function App() {
       try { ({ ticket } = await api.getWsTicket()); }
       catch { scheduleReconnect(); return; }
       if (closedByUs) return;
-      const ws = new WebSocket(wsUrl(`/ws?ticket=${ticket}`));
+      const ws = new WebSocket(wsUrl(`/ws?ticket=${ticket}&platform=${isTauri() ? 'desktop' : 'web'}`));
       wsRef.current = ws;
       ws.onopen = () => {
         attempt = 0;
@@ -410,11 +412,18 @@ export default function App() {
         else if (op === 'presence.snapshot') {
           // Authoritative online set on (re)connect — replace, dropping stale entries.
           const map: Record<string, string> = {};
-          for (const u of d.users || []) map[u.userId] = u.status;
-          st.set({ presenceById: map });
+          const pmap: Record<string, string[]> = {};
+          for (const u of d.users || []) { map[u.userId] = u.status; pmap[u.userId] = u.platforms || []; }
+          st.set({ presenceById: map, platformsById: pmap });
         }
         // Our own status is authoritative locally (settings/invisible); ignore echoes for self.
-        else if (op === 'presence') { if (d.userId !== st.user?.id) st.setPresence(d.userId, d.status); }
+        else if (op === 'presence') {
+          if (d.userId !== st.user?.id) {
+            st.setPresence(d.userId, d.status);
+            const cur = useStore.getState().platformsById;
+            st.set({ platformsById: { ...cur, [d.userId]: d.status === 'OFFLINE' ? [] : (d.platforms || []) } });
+          }
+        }
         else if (op === 'typing' && d.userId !== st.user?.id) {
           setTyping((prev) => ({ ...prev, [d.channelId]: { ...(prev[d.channelId] || {}), [d.userId]: Date.now() + 5000 } }));
         }
@@ -1088,8 +1097,9 @@ export default function App() {
   // authoritative — absence from the set means offline (the stored column is only their
   // saved preference and can be stale). For self we keep our own status (covers Invisible,
   // which is intentionally absent from the broadcast set).
-  const withPresence = <T extends { id: string; status?: string }>(u: T): T =>
-    ({ ...u, status: u.id === s.user?.id ? (s.user?.status ?? 'OFFLINE') : (s.presenceById[u.id] ?? 'OFFLINE') });
+  const withPresence = <T extends { id: string; status?: string }>(u: T): T & { platforms: string[] } =>
+    ({ ...u, status: u.id === s.user?.id ? (s.user?.status ?? 'OFFLINE') : (s.presenceById[u.id] ?? 'OFFLINE'),
+      platforms: u.id === s.user?.id ? [] : (s.platformsById[u.id] ?? []) });
 
   // resolve a display name for a userId (for typing indicators)
   const nameById: Record<string, string> = {};

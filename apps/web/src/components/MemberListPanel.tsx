@@ -3,7 +3,7 @@ import type { User } from '../lib/types';
 import { Avatar } from './Avatar';
 import { ProfileCard } from './ProfileCard';
 
-type M = Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'customStatus' | 'bio'> & { status?: string };
+type M = Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'customStatus' | 'bio'> & { status?: string; platforms?: string[] };
 
 function isOnline(status?: string): boolean {
   return !!status && status !== 'OFFLINE' && status !== 'INVISIBLE';

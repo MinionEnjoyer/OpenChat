@@ -13,6 +13,7 @@ export interface ProfileUser {
   status?: string;
   customStatus?: string | null;
   bio?: string | null;
+  platforms?: string[];
 }
 
 /** Read-only profile popover: avatar, name, @handle, presence, custom status, and About Me. */

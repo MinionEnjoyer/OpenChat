@@ -38,7 +38,7 @@ type BusEvent =
   | { type: 'MESSAGE_UPDATED'; message: any }
   | { type: 'MESSAGE_DELETED'; id: string; channelId: string }
   | { type: 'TYPING_START'; channelId: string; userId: string }
-  | { type: 'PRESENCE_UPDATE'; userId: string; status: string }
+  | { type: 'PRESENCE_UPDATE'; userId: string; status: string; platforms?: string[] }
   | { type: 'WATCHPARTY_SYNC'; channelId: string; state: any | null }
   | { type: 'NOTIFY'; userId: string }
   | { type: 'MENTION'; userId: string; channelId: string; messageId: string; channelName: string; authorName: string; preview: string }
@@ -63,6 +63,8 @@ interface Client {
   /** Server IDs this user belongs to — populated on connect, kept current by MEMBER_JOINED/LEFT events. */
   serverIds: Set<string>;
   alive: boolean;
+  /** Which client this socket is: 'desktop' | 'mobile' | 'web'. Drives the presence platform badge. */
+  platform: string;
 }
 
 @Injectable()
@@ -87,11 +89,33 @@ export class EventsGateway {
     return status === 'ONLINE' || status === 'AWAY' || status === 'DND' ? status : 'OFFLINE';
   }
 
-  private publishPresence(userId: string, status: string): Promise<void> {
+  /** Classify a connection as desktop/mobile/web. Prefers an explicit ?platform=, else sniffs
+   *  the handshake (Tauri origin = desktop; RN/native UA = mobile; otherwise a browser = web). */
+  private detectPlatform(sp: URLSearchParams, headers: IncomingMessage['headers']): string {
+    const explicit = (sp.get('platform') || '').toLowerCase();
+    if (explicit === 'mobile' || explicit === 'desktop' || explicit === 'web') return explicit;
+    const origin = String(headers['origin'] || '').toLowerCase();
+    const ua = String(headers['user-agent'] || '').toLowerCase();
+    if (origin.includes('tauri.localhost') || ua.includes('tauri') || ua.includes('wry')) return 'desktop';
+    if (ua.includes('okhttp') || ua.includes('expo') || ua.includes('reactnative') || ua.includes('cfnetwork') || ua.includes('darwin')) return 'mobile';
+    return 'web';
+  }
+
+  /** Distinct platforms the user is currently connected from (across all their sockets). */
+  private platformsForUser(userId: string): string[] {
+    const socks = this.userSockets.get(userId);
+    if (!socks) return [];
+    const set = new Set<string>();
+    for (const s of socks) { const c = this.clients.get(s); if (c?.platform) set.add(c.platform); }
+    return [...set];
+  }
+
+  private publishPresence(userId: string, status: string, platforms: string[] = []): Promise<void> {
     return this.redis.publish(EVENTS_CHANNEL, {
       type: 'PRESENCE_UPDATE',
       userId,
       status: this.masked(status),
+      platforms,
     });
   }
 
@@ -135,7 +159,8 @@ export class EventsGateway {
     });
     const serverIds = new Set(memberships.map((m) => m.serverId));
 
-    const client: Client = { socket, userId, channels: new Set(), serverIds, alive: true };
+    const platform = this.detectPlatform(searchParams, req.headers);
+    const client: Client = { socket, userId, channels: new Set(), serverIds, alive: true, platform };
     this.clients.set(socket, client);
 
     socket.on('message', (data) => { void this.onMessage(client, data); });
@@ -155,8 +180,10 @@ export class EventsGateway {
       // Come online at the user's saved preference (default ONLINE if unset/offline).
       const initial = user.status && user.status !== 'OFFLINE' ? user.status : 'ONLINE';
       this.presence.set(userId, initial);
-      await this.publishPresence(userId, initial);
     }
+    // Publish on every connect (not just the first) so peers see the platform set grow
+    // when the same user opens a second client (e.g. desktop + mobile).
+    await this.publishPresence(userId, this.presence.get(userId), this.platformsForUser(userId));
 
     this.send(socket, {
       op: 'ready',
@@ -172,8 +199,10 @@ export class EventsGateway {
         servers: [],
       },
     });
-    // Give the fresh socket the current online set so it doesn't rely on stale DB status.
-    this.send(socket, { op: 'presence.snapshot', d: { users: this.presence.snapshot() } });
+    // Give the fresh socket the current online set (with each user's active platforms) so it
+    // doesn't rely on stale DB status.
+    const snap = this.presence.snapshot().map((u) => ({ ...u, platforms: this.platformsForUser(u.userId) }));
+    this.send(socket, { op: 'presence.snapshot', d: { users: snap } });
     this.logger.debug(`ws connected: user=${userId}`);
   }
 
@@ -190,6 +219,12 @@ export class EventsGateway {
       this.presence.clear(client.userId);
       this.publishPresence(client.userId, 'OFFLINE').catch((e) =>
         this.logger.error('presence offline publish failed', e as Error),
+      );
+    } else {
+      // Still online on another client — re-broadcast so peers see the platform set shrink
+      // (e.g. they closed the mobile app but stay on desktop).
+      this.publishPresence(client.userId, this.presence.get(client.userId), this.platformsForUser(client.userId)).catch((e) =>
+        this.logger.error('presence platform publish failed', e as Error),
       );
     }
   }
@@ -246,7 +281,7 @@ export class EventsGateway {
               await this.prisma.user.update({ where: { id: client.userId }, data: { status } });
             }
             this.presence.set(client.userId, status);
-            await this.publishPresence(client.userId, status);
+            await this.publishPresence(client.userId, status, this.platformsForUser(client.userId));
           }
           return;
         }
@@ -404,7 +439,7 @@ export class EventsGateway {
           const visibleStatus = event.status === 'INVISIBLE' && client.userId !== event.userId
             ? 'OFFLINE'
             : event.status;
-          this.send(client.socket, { op: 'presence', d: { userId: event.userId, status: visibleStatus } });
+          this.send(client.socket, { op: 'presence', d: { userId: event.userId, status: visibleStatus, platforms: event.platforms || [] } });
           break;
         }
         case 'WATCHPARTY_SYNC':

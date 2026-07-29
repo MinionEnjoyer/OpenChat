@@ -20,7 +20,7 @@ export function Avatar({
   size = 40,
   showStatus = false,
 }: {
-  user: (Pick<User, 'username' | 'displayName' | 'avatarUrl'> & { status?: string }) | null | undefined;
+  user: (Pick<User, 'username' | 'displayName' | 'avatarUrl'> & { status?: string; platforms?: string[] }) | null | undefined;
   size?: number;
   showStatus?: boolean;
 }) {
@@ -53,18 +53,39 @@ export function Avatar({
 
   if (!showStatus) return inner;
 
+  const status = user?.status || 'OFFLINE';
+  const color = STATUS_COLOR[status] || STATUS_COLOR.OFFLINE;
+  const platforms = user?.platforms || [];
+  // Discord-style: a phone badge only when the user is active on mobile *and not* desktop/web.
+  const mobileOnly = platforms.length > 0 && !platforms.includes('desktop') && !platforms.includes('web');
   const dot = Math.max(10, Math.round(size * 0.3));
+
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       {inner}
-      <span
-        title={user?.status || 'OFFLINE'}
-        style={{
-          position: 'absolute', right: -1, bottom: -1, width: dot, height: dot, borderRadius: '50%',
-          background: STATUS_COLOR[user?.status || 'OFFLINE'] || STATUS_COLOR.OFFLINE,
-          border: '2px solid var(--panel)', boxSizing: 'border-box',
-        }}
-      />
+      {mobileOnly ? (
+        <span
+          title={`${status} · mobile`}
+          style={{
+            position: 'absolute', right: -3, bottom: -3, width: Math.max(12, Math.round(size * 0.36)),
+            height: Math.max(12, Math.round(size * 0.36)), borderRadius: 3, background: 'var(--panel)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box',
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="72%" height="72%" fill={color} aria-label="on mobile">
+            <rect x="6" y="2" width="12" height="20" rx="2.5" />
+            <rect x="10" y="18.5" width="4" height="1.6" rx="0.8" fill="var(--panel)" />
+          </svg>
+        </span>
+      ) : (
+        <span
+          title={status}
+          style={{
+            position: 'absolute', right: -1, bottom: -1, width: dot, height: dot, borderRadius: '50%',
+            background: color, border: '2px solid var(--panel)', boxSizing: 'border-box',
+          }}
+        />
+      )}
     </div>
   );
 }
