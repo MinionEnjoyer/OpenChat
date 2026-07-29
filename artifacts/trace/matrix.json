@@ -1,12 +1,12 @@
 {
-  "generated": "2026-07-29T02:59:19.045Z",
+  "generated": "2026-07-29T02:59:19.287Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
     "missing": 17,
-    "errors": 36,
-    "evidence_violations": 35,
+    "errors": 35,
+    "evidence_violations": 34,
     "manual": 0
   },
   "errors": [
@@ -24,7 +24,6 @@
     "EVIDENCE: FR-MSG-004 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:103",
     "EVIDENCE: FR-MSG-005 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/reply.test.ts:4",
     "EVIDENCE: FR-MSG-006 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/reactions.test.ts:1",
-    "EVIDENCE: FR-MSG-009 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/typing.test.ts:1",
     "EVIDENCE: FR-MSG-010 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/unread.test.ts:1",
     "EVIDENCE: FR-MSG-011 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:184",
     "EVIDENCE: FR-MSG-012 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/polls.test.ts:1",
@@ -137,13 +136,6 @@
       "required": "e2e",
       "found": "unit",
       "file": "apps/mobile/src/domain/__tests__/reactions.test.ts",
-      "line": 1
-    },
-    {
-      "id": "FR-MSG-009",
-      "required": "integration",
-      "found": "unit",
-      "file": "apps/mobile/src/domain/__tests__/typing.test.ts",
       "line": 1
     },
     {
@@ -1094,11 +1086,7 @@
       "satisfied": true,
       "locations": [
         {
-          "file": "apps/mobile/src/domain/__tests__/typing.test.ts",
-          "line": 1
-        },
-        {
-          "file": "apps/mobile/src/stores/__tests__/typing.test.ts",
+          "file": "apps/mobile/src/sync/__tests__/typing.integration.test.ts",
           "line": 1
         }
       ],

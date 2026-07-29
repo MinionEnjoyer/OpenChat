@@ -1,4 +1,3 @@
-// @satisfies FR-MSG-009
 import { formatTyping, type TypingFragments } from '../typing';
 
 const f: TypingFragments = {
