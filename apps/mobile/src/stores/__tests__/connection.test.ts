@@ -1,11 +1,9 @@
 import { useConnection } from '../connection';
 
 /**
- * FR-APP-003's unit half: banner state logic. The on-device airplane-mode
- * cycle is tools/e2e-offline-banner.sh (banner appears ≤15s offline, clears
- * on reconnect), run at the phase gate.
+ * Unit test: connection store banner state logic.
+ * Integration coverage for FR-APP-003 lives in connection.integration.test.ts.
  */
-// @satisfies FR-APP-003
 describe('connection store → banner state', () => {
   beforeEach(() => useConnection.setState({ state: 'offline', everConnected: false }));
 
