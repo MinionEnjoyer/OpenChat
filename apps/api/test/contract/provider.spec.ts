@@ -30,6 +30,8 @@ const User = {
     displayName: { type: 'string', nullable: true },
     avatarUrl: { type: 'string', nullable: true },
     status: { type: 'string', nullable: true },
+    customStatus: { type: 'string', nullable: true, maxLength: 280 },
+    bio: { type: 'string', nullable: true, maxLength: 500 },
     friendCode: { type: 'string', nullable: true },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },

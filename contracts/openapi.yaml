@@ -2044,6 +2044,14 @@ components:
         status:
           type: string
           nullable: true
+        customStatus:
+          type: string
+          nullable: true
+          maxLength: 280
+        bio:
+          type: string
+          nullable: true
+          maxLength: 500
         friendCode:
           type: string
           nullable: true
