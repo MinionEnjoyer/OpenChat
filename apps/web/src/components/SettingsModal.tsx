@@ -31,6 +31,8 @@ export function SettingsModal({
   const [displayName, setDisplayName] = useState(user.displayName || '');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl);
   const [status, setStatus] = useState(user.status || 'ONLINE');
+  const [customStatus, setCustomStatus] = useState(user.customStatus || '');
+  const [bio, setBio] = useState(user.bio || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -91,6 +93,8 @@ export function SettingsModal({
         displayName: displayName.trim(),
         avatarUrl: avatarUrl || '',
         status,
+        customStatus: customStatus.trim(),
+        bio: bio.trim(),
       });
       onSaved(updated);
       // Broadcast the status live over WS so friends/servers see the change immediately
@@ -228,6 +232,20 @@ export function SettingsModal({
             <div style={{ marginBottom: 24 }}>
               <span style={label}>Display Name <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></span>
               <input style={input} value={displayName} maxLength={80} onChange={(e) => setDisplayName(e.target.value)} placeholder={username} />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <span style={label}>Custom Status <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></span>
+              <input style={input} value={customStatus} maxLength={280}
+                onChange={(e) => setCustomStatus(e.target.value)} placeholder="What's on your mind?" />
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)', textAlign: 'right' }}>{customStatus.length}/280</p>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <span style={label}>About Me <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></span>
+              <textarea style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit' }} value={bio} maxLength={500}
+                onChange={(e) => setBio(e.target.value)} placeholder="Tell people a bit about yourself…" />
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)', textAlign: 'right' }}>{bio.length}/500</p>
             </div>
 
             <div style={{ marginBottom: 24 }}>

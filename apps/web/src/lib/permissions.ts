@@ -9,6 +9,9 @@ export const Permission = {
   CREATE_INVITE: 1n << 5n,
   MANAGE_MESSAGES: 1n << 6n,
   MENTION_EVERYONE: 1n << 7n,
+  BAN_MEMBERS: 1n << 8n,
+  SEND_MESSAGES: 1n << 9n,
+  READ_MESSAGES: 1n << 10n,
 } as const;
 
 export const PERMISSION_LIST: { name: keyof typeof Permission; bit: bigint; label: string }[] = [

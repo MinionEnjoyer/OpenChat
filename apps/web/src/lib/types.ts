@@ -22,6 +22,8 @@ export interface User {
   avatarUrl: string | null;
   friendCode?: string | null;
   status: string;
+  customStatus?: string | null; // short user-set status message (<= 280 chars)
+  bio?: string | null;          // "about me" profile text (<= 500 chars)
   serverLayout?: ServerLayout | null;
 }
 
@@ -50,7 +52,7 @@ export interface ServerMemberInfo {
   joinedAt: string;
   isOwner: boolean;
   roleIds: string[];
-  user: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status'>;
+  user: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status' | 'customStatus' | 'bio'>;
 }
 
 export interface Channel {

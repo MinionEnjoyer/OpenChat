@@ -226,13 +226,15 @@ export class AuthController {
   @UseGuards(AuthGuard)
   updateMe(
     @CurrentUser() user: Omit<User, 'authSub'>,
-    @Body() body: { username?: string; displayName?: string; avatarUrl?: string; status?: string },
+    @Body() body: { username?: string; displayName?: string; avatarUrl?: string; status?: string; customStatus?: string; bio?: string },
   ) {
     return this.authService.updateProfile(user.id, {
       username: typeof body.username === 'string' ? body.username.slice(0, 32) : undefined,
       displayName: typeof body.displayName === 'string' ? body.displayName.slice(0, 80) : undefined,
       avatarUrl: typeof body.avatarUrl === 'string' ? body.avatarUrl.slice(0, 1000) : undefined,
       status: typeof body.status === 'string' ? body.status : undefined,
+      customStatus: typeof body.customStatus === 'string' ? body.customStatus.slice(0, 280) : undefined,
+      bio: typeof body.bio === 'string' ? body.bio.slice(0, 500) : undefined,
     });
   }
 

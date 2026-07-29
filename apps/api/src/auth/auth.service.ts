@@ -200,7 +200,7 @@ export class AuthService implements OnModuleInit {
   /** Update Chat-side profile fields (username/nickname + display name + avatar + status). */
   async updateProfile(
     userId: string,
-    data: { username?: string; displayName?: string; avatarUrl?: string; status?: string },
+    data: { username?: string; displayName?: string; avatarUrl?: string; status?: string; customStatus?: string; bio?: string },
   ) {
     const STATUSES = ['ONLINE', 'AWAY', 'DND', 'INVISIBLE', 'OFFLINE'];
     if (data.status !== undefined && !STATUSES.includes(data.status)) {
@@ -225,6 +225,8 @@ export class AuthService implements OnModuleInit {
         ...(data.displayName !== undefined ? { displayName: data.displayName || null } : {}),
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl || null } : {}),
         ...(data.status !== undefined ? { status: data.status as any } : {}),
+        ...(data.customStatus !== undefined ? { customStatus: data.customStatus || null } : {}),
+        ...(data.bio !== undefined ? { bio: data.bio || null } : {}),
       },
     });
     const { authSub: _authSub, ...safe } = user;

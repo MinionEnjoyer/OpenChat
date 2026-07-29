@@ -368,6 +368,8 @@ export class ServersService {
         displayName: m.user.displayName,
         avatarUrl: m.user.avatarUrl,
         status: m.user.status,
+        customStatus: m.user.customStatus,
+        bio: m.user.bio,
       },
     }));
   }
