@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-29T02:59:19.535Z",
+  "generated": "2026-07-29T04:21:13.504Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
@@ -1472,123 +1472,127 @@
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 73
+          "line": 108
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 80
+          "line": 115
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 87
+          "line": 122
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 98
+          "line": 133
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 111
+          "line": 146
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 119
+          "line": 154
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 128
+          "line": 163
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 145
+          "line": 180
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 158
+          "line": 193
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 194
+          "line": 229
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 208
+          "line": 243
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 214
+          "line": 249
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 308
+          "line": 343
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 318
+          "line": 353
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 327
+          "line": 362
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 336
+          "line": 371
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 342
+          "line": 377
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 348
+          "line": 383
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 359
+          "line": 394
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 372
+          "line": 407
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 385
+          "line": 420
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 415
+          "line": 450
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 438
+          "line": 473
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 456
+          "line": 491
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 485
+          "line": 520
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 505
+          "line": 540
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 516
+          "line": 551
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 531
+          "line": 566
+        },
+        {
+          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
+          "line": 649
         },
         {
           "file": "apps/mobile/src/features/notifications/push.ts",
-          "line": 11
+          "line": 20
         },
         {
           "file": "apps/mobile/src/features/notifications/push.ts",
-          "line": 310
+          "line": 414
         }
       ],
       "missing": false
@@ -1726,19 +1730,19 @@
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 235
+          "line": 270
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 244
+          "line": 279
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 272
+          "line": 307
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 289
+          "line": 324
         },
         {
           "file": "apps/mobile/src/features/notifications/foregroundHandler.ts",
@@ -1746,7 +1750,7 @@
         },
         {
           "file": "apps/mobile/src/features/notifications/push.ts",
-          "line": 230
+          "line": 334
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
