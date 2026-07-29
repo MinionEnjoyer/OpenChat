@@ -4,6 +4,7 @@ import type { Message } from '../lib/types';
 import { renderMessageContent } from '../lib/renderMessageContent';
 import { Avatar } from './Avatar';
 import { Attachment } from './Attachment';
+import { BotBadge } from './BotBadge';
 import { Icon } from './Icon';
 import { PollView } from './PollView';
 import { MessageEmbeds, isSingleEmbedUrl } from './MessageEmbeds';
@@ -78,6 +79,7 @@ function MessageRowInner({
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontWeight: 'bold', color: 'var(--text-strong)' }}>{m.author?.displayName || m.author?.username || 'user'}</span>
+          {m.author?.isBot && <BotBadge />}
           <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
           {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>· sending…</span>}
           {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="error" size={12} /> failed to send</span>}

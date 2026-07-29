@@ -1,4 +1,5 @@
 import { Avatar } from './Avatar';
+import { BotBadge } from './BotBadge';
 
 const STATUS_LABEL: Record<string, string> = {
   ONLINE: 'Online', AWAY: 'Away', DND: 'Do Not Disturb', INVISIBLE: 'Offline', OFFLINE: 'Offline',
@@ -14,6 +15,7 @@ export interface ProfileUser {
   customStatus?: string | null;
   bio?: string | null;
   platforms?: string[];
+  isBot?: boolean;
 }
 
 /** Read-only profile popover: avatar, name, @handle, presence, custom status, and About Me. */
@@ -27,7 +29,7 @@ export function ProfileCard({ user, onClose }: { user: ProfileUser; onClose: () 
         <div style={{ padding: '0 20px 20px', marginTop: -30 }}>
           <Avatar user={user} size={72} showStatus />
           <div style={{ marginTop: 10, fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', wordBreak: 'break-word' }}>
-            {user.displayName || user.username}
+            {user.displayName || user.username}{user.isBot && <BotBadge />}
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)' }}>@{user.username}</div>
           {user.customStatus && (

@@ -46,6 +46,12 @@ model User {
   friendCode   String?    @unique
   status       UserStatus @default(OFFLINE)
   serverLayout Json? // per-user server-rail folders/order (opaque to the server)
+  // --- bot accounts (Discord-style). A bot is a User with isBot=true; its owner created it,
+  // it authenticates with an ApiToken, and if botPublished it appears in the add-bot browser.
+  isBot          Boolean  @default(false)
+  botOwnerId     String? // the user who created/owns this bot
+  botDescription String? // shown in the add-bot browser
+  botPublished   Boolean  @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

@@ -52,6 +52,7 @@ export interface MessageWithRelations {
     displayName: string | null;
     avatarUrl: string | null;
     status: string;
+    isBot: boolean;
   };
   attachments: Array<{
     id: string;
@@ -763,6 +764,7 @@ export class MessagesService {
         displayName: msg.author.displayName,
         avatarUrl: msg.author.avatarUrl,
         status: msg.author.status,
+        isBot: msg.author.isBot,
       },
       attachments: msg.attachments.map((att: any) => ({
         id: att.id,

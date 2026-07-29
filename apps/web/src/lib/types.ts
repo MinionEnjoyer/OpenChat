@@ -24,6 +24,7 @@ export interface User {
   status: string;
   customStatus?: string | null; // short user-set status message (<= 280 chars)
   bio?: string | null;          // "about me" profile text (<= 500 chars)
+  isBot?: boolean;              // true for bot accounts (shows a BOT badge)
   serverLayout?: ServerLayout | null;
 }
 
@@ -52,7 +53,7 @@ export interface ServerMemberInfo {
   joinedAt: string;
   isOwner: boolean;
   roleIds: string[];
-  user: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status' | 'customStatus' | 'bio'>;
+  user: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status' | 'customStatus' | 'bio' | 'isBot'>;
 }
 
 export interface Channel {
@@ -89,7 +90,7 @@ export interface Message {
   deletedAt: string | null;
   replyToId: string | null;
   pinned: boolean;
-  author: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status'>;
+  author: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status' | 'isBot'>;
   attachments: Attachment[];
   reactions: { emoji: string; count: number; userIds: string[] }[];
   replyTo: { id: string; authorName: string; content: string } | null;

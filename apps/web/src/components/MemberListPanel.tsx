@@ -2,8 +2,9 @@ import { useState } from 'react';
 import type { User } from '../lib/types';
 import { Avatar } from './Avatar';
 import { ProfileCard } from './ProfileCard';
+import { BotBadge } from './BotBadge';
 
-type M = Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'customStatus' | 'bio'> & { status?: string; platforms?: string[] };
+type M = Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'customStatus' | 'bio' | 'isBot'> & { status?: string; platforms?: string[] };
 
 function isOnline(status?: string): boolean {
   return !!status && status !== 'OFFLINE' && status !== 'INVISIBLE';
@@ -18,7 +19,7 @@ function Row({ u, dim, onClick }: { u: M; dim?: boolean; onClick: () => void }) 
       <Avatar user={u} size={28} showStatus />
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)', fontSize: 14 }}>
-          {u.displayName || u.username}
+          {u.displayName || u.username}{u.isBot && <BotBadge />}
         </span>
         {u.customStatus && (
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)', fontSize: 12 }}>

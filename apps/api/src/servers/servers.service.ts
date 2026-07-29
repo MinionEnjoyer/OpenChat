@@ -370,6 +370,7 @@ export class ServersService {
         status: m.user.status,
         customStatus: m.user.customStatus,
         bio: m.user.bio,
+        isBot: m.user.isBot,
       },
     }));
   }

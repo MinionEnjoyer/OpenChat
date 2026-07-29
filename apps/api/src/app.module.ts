@@ -20,6 +20,7 @@ import { AuditLogModule } from './audit-log/audit-log.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { MediaModule } from './media/media.module';
 import { PushModule } from './push/push.module';
+import { BotsModule } from './bots/bots.module';
 import { TestWorldModule } from './test-world/test-world.module';
 import { HealthController } from './health/health.controller';
 import { ConfigController } from './config/config.controller';
@@ -42,6 +43,7 @@ import { validateEnv } from './config/configuration';
     MessagesModule,
     RealtimeModule,
     ShareModule,
+    BotsModule,
     InvitesModule,
     FriendsModule,
     DmsModule,
