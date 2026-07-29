@@ -86,7 +86,7 @@ export async function logout() {
 }
 
 export const getMe = () => request<User>('/auth/me');
-export const updateProfile = (data: { username?: string; displayName?: string; avatarUrl?: string; status?: string }) =>
+export const updateProfile = (data: { username?: string; displayName?: string; avatarUrl?: string; status?: string; customStatus?: string; bio?: string }) =>
   request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(data) });
 
 export const updateServerLayout = (layout: unknown) =>

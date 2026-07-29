@@ -41,6 +41,8 @@ model User {
   username     String
   displayName  String?
   avatarUrl    String?
+  customStatus String? // short user-set status message (<= 280 chars)
+  bio          String? // "about me" profile text (<= 500 chars)
   friendCode   String?    @unique
   status       UserStatus @default(OFFLINE)
   serverLayout Json? // per-user server-rail folders/order (opaque to the server)

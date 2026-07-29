@@ -56,7 +56,10 @@ export function UserPanel({
         >
           {user.displayName || user.username}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{STATUS_LABEL[user.status || 'ONLINE'] || 'Online'}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          title={user.customStatus || undefined}>
+          {user.customStatus || STATUS_LABEL[user.status || 'ONLINE'] || 'Online'}
+        </div>
       </button>
       <button
         onClick={onOpenSettings}
