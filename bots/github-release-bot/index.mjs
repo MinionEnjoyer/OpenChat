@@ -97,8 +97,14 @@ async function handleMessage(m) {
   } else if (cmd === 'list') {
     const list = state.watches[ch] || [];
     await post(ch, list.length ? `Watching in this channel:\n${list.map((r) => `• ${r}`).join('\n')}` : `Not watching anything here. Try \`${PREFIX} watch owner/repo\`.`);
+  } else if (cmd === 'latest') {
+    const repo = normRepo(args[0]);
+    if (!REPO_RE.test(repo)) return void post(ch, `Usage: \`${PREFIX} latest owner/repo\``);
+    const r = await latestRelease(repo);
+    if (!r) return void post(ch, `No releases found for **${repo}** (repo may be private or have no GitHub Releases).`);
+    await post(ch, `🔎 Latest for **${repo}**: **${r.tag_name}**${r.name && r.name !== r.tag_name ? ` — ${r.name}` : ''}\n${r.html_url}`);
   } else {
-    await post(ch, `**GitHub release bot** — I post here when a watched repo ships a release.\n• \`${PREFIX} watch owner/repo\`\n• \`${PREFIX} unwatch owner/repo\`\n• \`${PREFIX} list\``);
+    await post(ch, `**GitHub release bot** — I post here when a watched repo ships a release.\n• \`${PREFIX} watch owner/repo\`\n• \`${PREFIX} unwatch owner/repo\`\n• \`${PREFIX} list\`\n• \`${PREFIX} latest owner/repo\` — post the current latest now`);
   }
 }
 
