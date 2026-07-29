@@ -138,6 +138,9 @@ jobs:
         working-directory: apps/api
         run: npx prisma generate
 
+      - name: Prepare dev stack configuration
+        run: cp .env.dev.example .env.dev
+
       - name: Start dev stack
         run: |
           # Build and start api + postgres + redis (minimal set for contract tests)
