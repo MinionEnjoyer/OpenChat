@@ -4,6 +4,9 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 // Swagger is optional (installed separately); gracefully skip when not present.
 let DocumentBuilder: any, SwaggerModule: any;
 try {
+  // Swagger is an optional runtime dependency, so a static import would make
+  // the API fail to start in installations that intentionally omit it.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const swagger = require('@nestjs/swagger');
   DocumentBuilder = swagger.DocumentBuilder;
   SwaggerModule = swagger.SwaggerModule;

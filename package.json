@@ -1,0 +1,12 @@
+{
+  "name": "openchat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenChat — Discord-parity chat platform",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0"
+  }
+}

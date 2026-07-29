@@ -124,7 +124,7 @@ function buildMockPrisma(cfg: MockPrismaConfig = {}) {
   const notificationSettingFindUnique = jest.fn().mockResolvedValue(null);
 
   const deviceTokenFindMany = jest.fn().mockResolvedValue(
-    tokens.map((t) => ({ token: t })),
+    tokens.map((t) => ({ token: t, platform: 'android' })),
   );
   const deviceTokenUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
   const deviceTokenDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
@@ -226,7 +226,6 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
     return {
       assertNotTimedOut: jest.fn().mockResolvedValue(undefined),
       getChannelPermissions: jest.fn().mockResolvedValue(
-        // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
         BigInt(0xFFFFFFFFFFFFFFFEn), // all perms (not quite all-1s to avoid exact ADMINISTRATOR)
       ),
     };
@@ -269,6 +268,8 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       expect(notifyEvents.length).toBe(1);
       expect(notifyEvents[0].userId).toBe('recip-1');
       expect(notifyEvents[0].channelId).toBe('ch-1');
+      expect(notifyEvents[0].dmChannelId).toBe('ch-1');
+      expect(notifyEvents[0].serverId).toBeUndefined();
 
       // Simulate the PushDispatchService subscriber: feed the published event
       capturedHandler('chat:events', JSON.stringify(notifyEvents[0]));
@@ -279,6 +280,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       expect(s.tokens).toContain('tok-recip-1');
       expect(s.payload.data?.type).toBe('notify');
       expect(s.payload.data?.channelId).toBe('ch-1');
+      expect(s.payload.data?.dmChannelId).toBe('ch-1');
       expect(s.payload.title).toContain('Author Name');
     });
   });
@@ -300,6 +302,8 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
       // Verify redis publish happened for each non-author member
       const notifyEvents = publishedEvents('NOTIFY');
       expect(notifyEvents.length).toBe(2);
+      expect(notifyEvents[0].serverId).toBe('srv-1');
+      expect(notifyEvents[0].dmChannelId).toBeUndefined();
       const userIds = notifyEvents.map((e) => e.userId).sort();
       expect(userIds).toEqual(['member-2', 'member-3']);
 

@@ -49,6 +49,42 @@ jest.mock('../foregroundHandler', () => ({
   handleForegroundNotification: (...args: unknown[]) => mockHandleForeground(...args),
 }));
 
+// ── iOS FCM mock state ──
+const mockIosGetToken = jest.fn();
+const mockIosRegisterDevice = jest.fn();
+const mockIosGetInitialNotification = jest.fn();
+let mockIosIsDeviceRegistered = true;
+// Captured rotation callback — set by onTokenRefresh, fired by tests
+let capturedRotationCallback: ((token: string) => void) | null = null;
+let capturedIosOpenedCallback:
+  | ((message: { data?: Record<string, unknown> }) => void)
+  | null = null;
+
+jest.mock('@react-native-firebase/messaging', () => {
+  const instance = {
+    getToken: (...args: unknown[]) => mockIosGetToken(...args),
+    get isDeviceRegisteredForRemoteMessages() {
+      return mockIosIsDeviceRegistered;
+    },
+    registerDeviceForRemoteMessages: (...args: unknown[]) => mockIosRegisterDevice(...args),
+    getInitialNotification: (...args: unknown[]) => mockIosGetInitialNotification(...args),
+    onNotificationOpenedApp: (
+      cb: (message: { data?: Record<string, unknown> }) => void,
+    ) => {
+      capturedIosOpenedCallback = cb;
+      return () => { capturedIosOpenedCallback = null; };
+    },
+    onTokenRefresh: (cb: (token: string) => void) => {
+      capturedRotationCallback = cb;
+      return () => { capturedRotationCallback = null; };
+    },
+  };
+  return {
+    __esModule: true,
+    default: () => instance,
+  };
+});
+
 import {
   requestPushPermissions,
   registerPushToken,
@@ -59,12 +95,27 @@ import {
   parseNotificationRoute,
   initializePush,
   _resetMocksForTest,
+  _setIosMessagingForTest,
+  _setPlatformForTest,
+  _resetPlatformForTest,
 } from '../push';
 import type { NotificationRoute } from '../push';
 
 beforeEach(() => {
   jest.resetAllMocks();
   _resetMocksForTest();
+  // Wire iOS messaging test seams — only override getToken.
+  // Keep default _subscribeIosTokenRotation so it uses the mocked
+  // @react-native-firebase/messaging module (which captures the callback).
+  _setIosMessagingForTest({
+    getToken: mockIosGetToken,
+  });
+  mockIosGetToken.mockResolvedValue(null);
+  mockIosRegisterDevice.mockResolvedValue(undefined);
+  mockIosGetInitialNotification.mockResolvedValue(null);
+  mockIosIsDeviceRegistered = true;
+  capturedRotationCallback = null;
+  capturedIosOpenedCallback = null;
 });
 
 // ── Permission flow ──
@@ -479,6 +530,47 @@ describe('setupNotificationTapHandler — deep-link tap-through (FR-NOTIF-002)',
   });
 });
 
+describe('iOS Firebase notification tap-through (FR-NOTIF-002)', () => {
+  beforeEach(() => {
+    _setPlatformForTest('ios');
+    mockAddResponseListener.mockReturnValue({ remove: jest.fn() });
+    mockGetLastResponse.mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    _resetPlatformForTest();
+  });
+
+  it('routes a warm-opened Firebase DM notification', () => {
+    const onNavigate = jest.fn();
+    setupNotificationTapHandler(onNavigate);
+
+    capturedIosOpenedCallback!({ data: { dmChannelId: 'dm-fcm-1' } });
+
+    expect(onNavigate).toHaveBeenCalledWith({
+      type: 'dm',
+      dmChannelId: 'dm-fcm-1',
+    });
+  });
+
+  it('routes a cold-start Firebase channel notification', async () => {
+    const onNavigate = jest.fn();
+    mockIosGetInitialNotification.mockResolvedValueOnce({
+      data: { serverId: 'srv-fcm-1', channelId: 'ch-fcm-1' },
+    });
+
+    setupNotificationTapHandler(onNavigate);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onNavigate).toHaveBeenCalledWith({
+      type: 'channel',
+      serverId: 'srv-fcm-1',
+      channelId: 'ch-fcm-1',
+    });
+  });
+});
+
 // ── initializePush — integration ──
 
 describe('initializePush — full lifecycle (FR-NOTIF-002)', () => {
@@ -546,6 +638,172 @@ describe('initializePush — full lifecycle (FR-NOTIF-002)', () => {
     // Foreground handler and logout hook still installed (degrade gracefully)
     expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
     expect(mockAddPushTokenListener).toHaveBeenCalledTimes(1);
+    expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+// ── iOS push token registration (FR-NOTIF-002) ──
+
+describe('iOS: registerPushToken obtains FCM token via @react-native-firebase/messaging (FR-NOTIF-002)', () => {
+  beforeEach(() => {
+    _setPlatformForTest('ios');
+  });
+
+  afterEach(() => {
+    _resetPlatformForTest();
+  });
+
+  it('obtains iOS FCM token and POSTs with platform ios', async () => {
+    mockIosGetToken.mockResolvedValueOnce('ios-fcm-token-abc');
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    const token = await registerPushToken();
+    expect(token).toBe('ios-fcm-token-abc');
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'ios-fcm-token-abc', platform: 'ios' },
+    });
+    // expo-notifications getDevicePushTokenAsync is NOT called on iOS
+    expect(mockGetDevicePushToken).not.toHaveBeenCalled();
+  });
+
+  it('registers for remote messages before obtaining an iOS token', async () => {
+    _resetMocksForTest();
+    _setPlatformForTest('ios');
+    mockIosIsDeviceRegistered = false;
+    mockIosGetToken.mockResolvedValueOnce('ios-fcm-after-apns-registration');
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    const token = await registerPushToken();
+
+    expect(token).toBe('ios-fcm-after-apns-registration');
+    expect(mockIosRegisterDevice).toHaveBeenCalledTimes(1);
+    expect(mockIosRegisterDevice.mock.invocationCallOrder[0]!)
+      .toBeLessThan(mockIosGetToken.mock.invocationCallOrder[0]!);
+  });
+
+  // ── Perturbation proof: change token → POST body changes ──
+  it('PERTURBATION: changing the FCM token changes the POST body', async () => {
+    mockIosGetToken.mockResolvedValueOnce('ios-fcm-token-xyz');
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    const token = await registerPushToken();
+    expect(token).toBe('ios-fcm-token-xyz');
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'ios-fcm-token-xyz', platform: 'ios' },
+    });
+  });
+
+  // ── Perturbation proof: change platform → platform field changes ──
+  it('PERTURBATION: changing platform to android changes the platform field', async () => {
+    _setPlatformForTest('android');
+    mockGetDevicePushToken.mockResolvedValueOnce({ type: 'android', data: 'fcm-android-token' });
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    const token = await registerPushToken();
+    expect(token).toBe('fcm-android-token');
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'fcm-android-token', platform: 'android' },
+    });
+  });
+
+  it('returns null when iOS FCM getToken returns null', async () => {
+    mockIosGetToken.mockResolvedValueOnce(null);
+
+    const token = await registerPushToken();
+    expect(token).toBeNull();
+    expect(mockApiRequest).not.toHaveBeenCalled();
+  });
+
+  it('returns null when POST /api/devices fails on iOS', async () => {
+    mockIosGetToken.mockResolvedValueOnce('ios-fcm-token');
+    mockApiRequest.mockRejectedValueOnce(new Error('network error'));
+
+    const token = await registerPushToken();
+    expect(token).toBeNull();
+  });
+});
+
+// ── iOS token rotation (FR-NOTIF-002) ──
+
+describe('iOS: subscribeToTokenRotation uses onTokenRefresh (FR-NOTIF-002)', () => {
+  beforeEach(() => {
+    _setPlatformForTest('ios');
+  });
+
+  afterEach(() => {
+    _resetPlatformForTest();
+  });
+
+  it('subscribes via onTokenRefresh and does not use expo listener', () => {
+    const cleanup = subscribeToTokenRotation();
+    expect(typeof cleanup).toBe('function');
+    // expo-notifications listener is NOT used on iOS
+    expect(mockAddPushTokenListener).not.toHaveBeenCalled();
+    cleanup();
+  });
+
+  it('returns a cleanup function from token rotation subscription', () => {
+    const cleanup = subscribeToTokenRotation();
+    expect(typeof cleanup).toBe('function');
+    // Should not throw when called
+    cleanup();
+  });
+});
+
+// ── iOS initializePush full lifecycle ──
+
+describe('iOS: initializePush — full lifecycle (FR-NOTIF-002)', () => {
+  beforeEach(() => {
+    _setPlatformForTest('ios');
+  });
+
+  afterEach(() => {
+    _resetPlatformForTest();
+  });
+
+  it('requests permissions, registers token, subscribes to rotation, sets up foreground handler', async () => {
+    mockRequestPermissions.mockResolvedValueOnce({ granted: true });
+    mockIosGetToken.mockResolvedValueOnce('ios-init-token');
+    mockApiRequest.mockResolvedValueOnce({ status: 201 });
+
+    await initializePush();
+
+    expect(mockRequestPermissions).toHaveBeenCalledTimes(1);
+    expect(mockApiRequest).toHaveBeenCalledWith('/devices', {
+      method: 'POST',
+      body: { token: 'ios-init-token', platform: 'ios' },
+    });
+    // Rotation subscription was installed
+    expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
+    expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
+    // expo-notifications token listener NOT called on iOS
+    expect(mockAddPushTokenListener).not.toHaveBeenCalled();
+  });
+
+  // ── Perturbation: iOS still works after permission denied ──
+  it('skips registration when permission is denied on iOS', async () => {
+    mockRequestPermissions.mockResolvedValueOnce({ granted: false });
+
+    await initializePush();
+
+    expect(mockIosGetToken).not.toHaveBeenCalled();
+    expect(mockApiRequest).not.toHaveBeenCalled();
+  });
+
+  // ── Perturbation: iOS gracefully degrades when getToken fails ──
+  it('gracefully degrades when iOS getToken returns null', async () => {
+    mockRequestPermissions.mockResolvedValueOnce({ granted: true });
+    mockIosGetToken.mockResolvedValueOnce(null);
+    await initializePush();
+
+    expect(mockIosGetToken).toHaveBeenCalledTimes(1);
+    expect(mockApiRequest).not.toHaveBeenCalled(); // no token to POST
+    // Foreground handler and logout hook still installed
+    expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
     expect(mockSetLogoutHook).toHaveBeenCalledTimes(1);
   });
 });

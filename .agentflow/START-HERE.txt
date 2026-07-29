@@ -1,0 +1,5 @@
+Read .agentflow/AGENT-CONTRACT.md.
+Run: python3 .agentflow/agentflow.py reconcile
+Run: python3 .agentflow/agentflow.py status
+Run: python3 .agentflow/agentflow.py doctor
+Use the queue, supervised runs, resource claims, manifests, and trusted gates.

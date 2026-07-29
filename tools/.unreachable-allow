@@ -1,0 +1,43 @@
+# Genuine non-screen exports, or components composed by a container that IS reachable.
+# Each line needs a reason — an unjustified entry defeats the check.
+
+# Pure helpers, not user-facing surfaces:
+computeTargetDimensions
+formatSize
+isImage
+presenceColor
+computeSquareCrop
+
+# Phase 0 skeleton, deliberately retained but not routed:
+HelloScreen
+
+# Composed by VoiceChannelView, which ShellScreen renders when a call connects
+# (verified: ShellScreen.tsx imports VoiceChannelView and gates it on voiceViewVisible).
+# The checker's transitive rule does not resolve this chain; manual verification stands.
+VoiceService
+getVoiceService
+injectVoiceService
+useVoiceStore
+VoiceTile
+VoiceTileGrid
+useVoiceParticipants
+VoiceControls
+VideoTile
+useScreenShare
+ScreenShareView
+
+# Factory function for ImageProcessor — only the singleton instance (expoImageProcessor)
+# is used at runtime (via useUploadAttachments → ChatPane.tsx). Exporting the factory
+# allows consumers (tests, DI containers) to create fresh instances. No screen
+# renders it directly, and no sibling calls it (the singleton covers that).
+createExpoImageProcessor
+
+# publishSoundToRoom — called by SoundboardPanel (FR-SOUND-001).
+# SoundboardPanel is rendered inside VoiceChannelView, which ShellScreen renders
+# when a call connects.
+# NOTE: this entry predates the 2026-07-26 rewrite of check-unreachable.sh, which
+# replaced the one-level `\bindex\b` word-grep with real barrel-import resolution.
+# Re-verify whether this exemption is still needed; if the rewritten checker reaches
+# publishSoundToRoom on its own, DELETE this entry rather than leaving a stale
+# exemption that quietly hides a future regression.
+publishSoundToRoom

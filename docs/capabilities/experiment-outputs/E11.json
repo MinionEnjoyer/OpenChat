@@ -1,0 +1,93 @@
+{
+  "experiment": "E11",
+  "question": "Are OpenShare asset IDs unguessable?",
+  "observed": {
+    "sourceGenerator": "secrets.choice(ID_ALPHABET, n=8) — cryptographically random",
+    "idLength": 8,
+    "charset": "0123456789ABCDEFGHIJKLMNOPQRSTVWXYZabcdefghijklmnopqrtuwxyz",
+    "charsetSize": 59,
+    "entropyBits": 47,
+    "isSequential": false,
+    "isMonotonic": false,
+    "sampleIds": [
+      "HjlQXfZL",
+      "rXAYjnZB",
+      "WcOA9WK4",
+      "y4ReCyFL",
+      "zkfDF0we",
+      "tC2cmiZD",
+      "oLxT8mm1",
+      "xN1Q5NxW",
+      "Sju5LLWF",
+      "RL1RV5LV",
+      "QDVb2mj6",
+      "YmxLZmuM",
+      "6GcGngYd",
+      "EJ17ySyx",
+      "gz5iSRuS",
+      "xpatIf3K",
+      "cWFPLH2W",
+      "x0mjyaSe",
+      "5qHxwXmX",
+      "nbqzygBh"
+    ],
+    "adjacentProbes": {
+      "totalProbes": 10,
+      "hits": 0,
+      "hitRate": "0/10",
+      "detail": [
+        {
+          "realId": "HjlQXfZL",
+          "probeId": "HjlQXfZM",
+          "hit": false
+        },
+        {
+          "realId": "HjlQXfZL",
+          "probeId": "HjlQXfZK",
+          "hit": false
+        },
+        {
+          "realId": "rXAYjnZB",
+          "probeId": "rXAYjnZC",
+          "hit": false
+        },
+        {
+          "realId": "rXAYjnZB",
+          "probeId": "rXAYjnZA",
+          "hit": false
+        },
+        {
+          "realId": "WcOA9WK4",
+          "probeId": "WcOA9WK5",
+          "hit": false
+        },
+        {
+          "realId": "WcOA9WK4",
+          "probeId": "WcOA9WK3",
+          "hit": false
+        },
+        {
+          "realId": "y4ReCyFL",
+          "probeId": "y4ReCyFM",
+          "hit": false
+        },
+        {
+          "realId": "y4ReCyFL",
+          "probeId": "y4ReCyFK",
+          "hit": false
+        },
+        {
+          "realId": "zkfDF0we",
+          "probeId": "zkfDF0wf",
+          "hit": false
+        },
+        {
+          "realId": "zkfDF0we",
+          "probeId": "zkfDF0wd",
+          "hit": false
+        }
+      ]
+    }
+  },
+  "analysis": "8-char ID from 62-char alphabet = 47 bits. secrets.choice uses OS CSPRNG (not sequential/guessable). probed 10 adjacent IDs; 0 hits."
+}

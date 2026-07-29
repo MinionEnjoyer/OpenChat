@@ -1,0 +1,77 @@
+=== E4 ===
+--- GET / (OpenShare root) ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenShare</title>
+
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <a href="/" class="brand"><img src="/static/logo.png" alt="" width="24" height="24" style="vertical-align:-6px;margin-right:8px">OpenShare</a>
+  <div class="spacer"></div>
+  
+</nav>
+
+<main>
+<div class="login-card">
+  <img src="/static/logo.png" alt="OpenShare" width="96" height="96" style="display:block;margin:0 auto 12px">
+  <h1>OpenShare</h1>
+  <p>Private image and video sharing.</p>
+  <a href="/auth/login" class="btn primary big">Sign in</a>
+  <p class="muted">By invitation only.</p>
+</div>
+</main>
+</body>
+</html>
+--- POST /upload (no cookie, 1px png) ---
+{"detail":"not logged in"}
+E4 DONE
+E4 --- GET / (OpenShare root) ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenShare</title>
+
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <a href="/" class="brand"><img src="/static/logo.png" alt="" width="24" height="24" style="vertical-align:-6px;margin-right:8px">OpenShare</a>
+  <div class="spacer"></div>
+  
+</nav>
+
+<main>
+<div class="login-card">
+  <img src="/static/logo.png" alt="OpenShare" width="96" height="96" style="display:block;margin:0 auto 12px">
+  <h1>OpenShare</h1>
+  <p>Private image and video sharing.</p>
+  <a href="/auth/login" class="btn primary big">Sign in</a>
+  <p class="muted">By invitation only.</p>
+</div>
+</main>
+</body>
+</html>
+HTTP_STATUS: 200
+
+E4 --- GET /auth/login (OpenShare OIDC redirect) ---
+Internal Server Error
+HTTP_STATUS: 500
+
+E4 --- POST /upload (no cookie) ---
+{"detail":"not logged in"}
+HTTP_STATUS: 401
+
+E4 --- GET /raw/<any> (no cookie) ---
+{"detail":"Not Found"}
+HTTP_STATUS: 404
+
+E4 E4 DONE

@@ -1,0 +1,17 @@
+{
+  "lockedAt": "2026-07-20T22:25:00-07:00",
+  "repositories": [
+    {
+      "repo": "OpenChat",
+      "remote": "https://github.com/MinionEnjoyer/OpenChat",
+      "sha": "0b71e1b4f71b5c97151cd845a8c6ea3d0206f0a9",
+      "date": "2026-07-20T21:26:16-07:00"
+    },
+    {
+      "repo": "OpenShare",
+      "remote": "https://github.com/MinionEnjoyer/OpenShare",
+      "sha": "ca8713a0987b29e19d375721eb02f761a270c4a9",
+      "date": "2026-07-17T16:46:33-07:00"
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "experiment": "E6",
+  "hypothesis": "?before=<msgId>&limit=n returns n older msgs; order TBD",
+  "observed": {
+    "totalMessagesSeen": 120,
+    "totalPages": 5,
+    "pageSizes": [
+      26,
+      26,
+      26,
+      26,
+      16
+    ],
+    "ordering": "newest-first (descending by createdAt)",
+    "noGaps": true,
+    "noDupes": true,
+    "firstPagePreview": [
+      {
+        "content": "Message 119 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.972Z"
+      },
+      {
+        "content": "Message 118 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.968Z"
+      },
+      {
+        "content": "Message 117 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.965Z"
+      },
+      {
+        "content": "Message 116 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.962Z"
+      },
+      {
+        "content": "Message 115 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.959Z"
+      },
+      {
+        "content": "Message 114 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.956Z"
+      },
+      {
+        "content": "Message 113 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.953Z"
+      },
+      {
+        "content": "Message 112 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.951Z"
+      },
+      {
+        "content": "Message 111 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.948Z"
+      },
+      {
+        "content": "Message 110 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.945Z"
+      },
+      {
+        "content": "Message 109 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.942Z"
+      },
+      {
+        "content": "Message 108 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.939Z"
+      },
+      {
+        "content": "Message 107 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.936Z"
+      },
+      {
+        "content": "Message 106 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.934Z"
+      },
+      {
+        "content": "Message 105 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.931Z"
+      },
+      {
+        "content": "Message 104 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.927Z"
+      },
+      {
+        "content": "Message 103 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.924Z"
+      },
+      {
+        "content": "Message 102 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.921Z"
+      },
+      {
+        "content": "Message 101 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.918Z"
+      },
+      {
+        "content": "Message 100 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.914Z"
+      },
+      {
+        "content": "Message 099 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.911Z"
+      },
+      {
+        "content": "Message 098 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.908Z"
+      },
+      {
+        "content": "Message 097 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.905Z"
+      },
+      {
+        "content": "Message 096 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.902Z"
+      },
+      {
+        "content": "Message 095 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.899Z"
+      },
+      {
+        "content": "Message 094 — E6 pagination test",
+        "createdAt": "2026-07-21T05:55:03.896Z"
+      }
+    ]
+  },
+  "verdict": "CONFIRMED — no gaps/dupes"
+}

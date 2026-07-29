@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# commit-msg: enforce [<ITEM-ID>] prefix
+# Format: [P<phase>-<nn>] or [OPS] or [FIX-<nn>] or [P<phase>-<nn><letter>]
+# Installed by husky; runs after commit message is written.
+set -euo pipefail
+
+MSG_FILE="$1"
+MSG=$(head -n 1 "$MSG_FILE")
+
+# Merge commits are exempt
+if echo "$MSG" | grep -qE '^Merge'; then
+  exit 0
+fi
+
+# Revert commits are exempt
+if echo "$MSG" | grep -qE '^Revert'; then
+  exit 0
+fi
+
+# Enforce prefix: [P<phase>-<nn>[a-z]?] or [OPS] or [FIX-<nn>]
+if echo "$MSG" | grep -qE '^\[(P\d+-\d{2}[a-z]?|OPS|FIX-\d+)\]'; then
+  exit 0
+fi
+
+echo "✗ Commit message does not match required format"
+echo "  Required: [<ITEM-ID>] description"
+echo "  Examples:"
+echo "    [P0-10] add git hooks"
+echo "    [P1-03a] refactor auth guard"
+echo "    [OPS] bump dependencies"
+echo "    [FIX-42] patch memory leak"
+echo ""
+echo "  Got: $MSG"
+exit 1

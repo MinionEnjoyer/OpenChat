@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# pre-commit: lint + tsc + no-console
+# Installed by husky; runs on every commit.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+FAIL=0
+
+echo "[pre-commit] running checks…"
+
+# 1. Lint staged files in apps/api
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+if echo "$STAGED" | grep -qE '^apps/api/.*\.ts$'; then
+  echo "  → lint: apps/api"
+  (cd "$ROOT/apps/api" && npx eslint --max-warnings=0 $(echo "$STAGED" | grep '^apps/api/.*\.ts$' | sed 's|^apps/api/||')) || FAIL=1
+fi
+
+# 2. Type-check: tsc --noEmit for affected packages
+if echo "$STAGED" | grep -qE '^apps/api/.*\.ts$'; then
+  echo "  → tsc: apps/api"
+  (cd "$ROOT/apps/api" && npx tsc --noEmit) || FAIL=1
+fi
+
+# 3. no-console in apps/mobile/src (when it exists)
+if echo "$STAGED" | grep -qE '^apps/mobile/src/.*\.ts'; then
+  echo "  → no-console: apps/mobile/src"
+  if echo "$STAGED" | grep '^apps/mobile/src/' | xargs grep -n 'console\.log' 2>/dev/null; then
+    echo "✗ console.log found in staged mobile source files — use the logger instead"
+    FAIL=1
+  else
+    echo "    ✓ no console.log calls"
+  fi
+fi
+
+if [ "$FAIL" -eq 0 ]; then
+  echo "[pre-commit] ✓ all checks passed"
+else
+  echo "[pre-commit] ✗ checks failed — commit aborted"
+  exit 1
+fi

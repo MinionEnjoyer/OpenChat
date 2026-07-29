@@ -1,0 +1,243 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Verify (lint + tsc + characterization) ──────────────────────────────
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: chat_user
+          POSTGRES_PASSWORD: chat_pass
+          POSTGRES_DB: chat_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+
+      - name: Check migration drift
+        working-directory: apps/api
+        env:
+          SHADOW_DATABASE_URL: postgresql://chat_user:chat_pass@localhost:5432/chat_drift_check
+        run: bash ../../tools/db/check-migration-drift.sh
+
+      - name: Lint
+        working-directory: apps/api
+        run: npx eslint "{src,test}/**/*.ts" --max-warnings=0
+
+      - name: Type-check
+        working-directory: apps/api
+        run: npx tsc --noEmit
+
+      - name: Characterize (dev-against DB, no livekit/authentik required)
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://chat_user:chat_pass@localhost:5432/chat_dev
+          REDIS_URL: redis://localhost:6379
+          DEV_AUTH: '1'
+          SESSION_SECRET: ci-test-secret-do-not-use-in-prod
+          WEB_ORIGIN: http://localhost:5173
+          OIDC_ISSUER: http://localhost:9000/application/o/openchat/
+          OIDC_CLIENT_ID: ci-test-client
+          OIDC_CLIENT_SECRET: ci-test-client-secret
+          OIDC_REDIRECT_URI: http://localhost:3001/api/auth/callback
+          OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:5173
+          JELLYFIN_URL: http://localhost:8096
+          JWT_SECRET: ci-test-jwt-secret
+          LIVEKIT_API_KEY: devkey
+          LIVEKIT_API_SECRET: devsecret
+          LIVEKIT_URL: ws://localhost:7880
+          SHARE_BASE_URL: http://localhost:8800
+          SHARE_API_KEY: dev-share-key
+          CHAR_SKIP_OPENSHARE: '1'
+        run: |
+          npx prisma migrate deploy
+          npm run build
+          node dist/main.js > characterization-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/api/health > /dev/null; then
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat characterization-api.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -f http://localhost:3001/api/health || {
+            cat characterization-api.log
+            exit 1
+          }
+          npx jest --config jest-char.config.js --forceExit
+
+  # ── Contract (provider + consumer) ─────────────────────────────────────
+  contract:
+    name: Contract
+    runs-on: ubuntu-latest
+    needs: [verify]
+    # Requires the dev stack running — use docker compose
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+
+      - name: Build API for subprocess contract guards
+        working-directory: apps/api
+        run: npm run build
+
+      - name: Prepare dev stack configuration
+        run: cp .env.dev.example .env.dev
+
+      - name: Start dev stack
+        run: |
+          # Build and start api + postgres + redis (minimal set for contract tests)
+          docker compose -f docker-compose.dev.yml up -d --build postgres redis api
+          # Wait for health
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "API healthy"
+              break
+            fi
+            echo "Waiting for API… ($i/30)"
+            sleep 2
+          done
+          # One more check — fail if not healthy
+          curl -f http://localhost:3001/api/health || { echo "API failed to start"; exit 1; }
+
+      - name: Provider contract tests
+        working-directory: apps/api
+        env:
+          NODE_ENV: development
+          DEV_AUTH: '1'
+          API_PORT: '3001'
+          WEB_ORIGIN: http://localhost:3000
+          DATABASE_URL: postgresql://chat:chat@localhost:5432/chat
+          REDIS_URL: redis://localhost:6379
+          SESSION_SECRET: dev-dev-dev-dev-16
+          OIDC_ISSUER: https://auth.example.com/application/o/chat/
+          OIDC_CLIENT_ID: dev
+          OIDC_CLIENT_SECRET: dev
+          OIDC_REDIRECT_URI: http://localhost:3000/api/auth/callback
+          OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:3000
+          SHARE_BASE_URL: http://localhost:8800
+          SHARE_API_KEY: dev-share-key
+          JELLYFIN_URL: http://localhost:8096
+          LIVEKIT_URL: ws://localhost:7880
+          LIVEKIT_API_KEY: devkey
+          LIVEKIT_API_SECRET: secretsecretsecretsecretsecret12
+          LIVEKIT_API_URL: http://localhost:7880
+          JWT_SECRET: dev-jwt-secret-not-for-prod
+        run: npx jest --config jest-contract.config.js --forceExit
+
+      - name: Consumer contract tests (if available)
+        if: hashFiles('apps/mobile/src/api/__tests__/contract/consumer.spec.ts') != ''
+        working-directory: apps/mobile
+        run: |
+          echo "Consumer contract tests exist but mobile project may not yet have node_modules"
+          # Placeholder — wiring when apps/mobile is built in P0-17
+
+      - name: Stop dev stack
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v
+
+  # ── Selftest (deliberately breaks things, asserts gates catch them) ────
+  # Only runs on main push, not PRs — it mutates.
+  selftest:
+    name: Selftest (gate-proving)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [contract]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+
+      - name: Start dev stack
+        run: |
+          docker compose -f docker-compose.dev.yml up -d --build postgres redis api
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/api/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+
+      - name: Run selftest
+        run: |
+          cp tools/devctl tools/devctl.bak
+          bash tools/devctl selftest
+        env:
+          NODE_ENV: development
+          CHAR_CONFIG: jest-char.config.js
+          CONTRACT_CONFIG: jest-contract.config.js
+
+      - name: Stop dev stack
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down -v

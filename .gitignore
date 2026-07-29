@@ -1,5 +1,6 @@
 # deps / build
 node_modules/
+node_modules
 dist/
 build/
 .vite/
@@ -31,3 +32,13 @@ coverage/
 # local data
 postgres-data/
 redis-data/
+!.env.dev.example
+
+# NFR per-sha archives — regenerated each run; report.json is the tracked pointer
+artifacts/nfr/*.json
+!artifacts/nfr/report.json
+tools/seed/fixture-ids.local.json
+
+# Firebase client config — deployment-specific, each deployer supplies their own
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist

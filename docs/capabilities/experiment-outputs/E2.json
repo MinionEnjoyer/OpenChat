@@ -1,0 +1,48 @@
+{
+  "experiment": "E2",
+  "hypothesis": "WS handshake → ready(op=ready, d.user, d.servers:[]); subscribe gates MESSAGE_CREATED by channelId",
+  "observed": {
+    "readyFrame": {
+      "ts": 1784613464865,
+      "op": "ready",
+      "d": {
+        "user": {
+          "id": "e7828399-8133-4999-80cf-b44dc31c2d52",
+          "username": "alice",
+          "displayName": "alice",
+          "avatarUrl": null,
+          "status": "ONLINE"
+        },
+        "servers": []
+      }
+    },
+    "totalFrames": 3,
+    "observedOps": [
+      "ready",
+      "pong",
+      "message.created"
+    ],
+    "messageCreatedCount": 1,
+    "messageCreatedEvent": {
+      "hasNonce": false,
+      "hasMessage": true,
+      "messageKeys": [
+        "id",
+        "channelId",
+        "authorId",
+        "content",
+        "createdAt",
+        "editedAt",
+        "deletedAt",
+        "replyToId",
+        "pinned",
+        "author",
+        "attachments",
+        "reactions",
+        "replyTo",
+        "poll"
+      ]
+    }
+  },
+  "verdict": "CONFIRMED — WS events propagate"
+}

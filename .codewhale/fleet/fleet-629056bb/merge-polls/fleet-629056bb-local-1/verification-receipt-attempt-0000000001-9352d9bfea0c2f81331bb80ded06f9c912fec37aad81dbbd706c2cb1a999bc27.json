@@ -1,0 +1,30 @@
+{
+  "run_id": "fleet-629056bb",
+  "task_id": "merge-polls",
+  "worker_id": "fleet-629056bb-local-1",
+  "attempt": 1,
+  "result": "partial",
+  "failure_kind": null,
+  "score": {
+    "value": 0.5,
+    "max": 1.0,
+    "notes": "worker exited successfully but produced no verifiable output"
+  },
+  "evidence": [
+    "no scorer configured and no verifiable artifacts recorded"
+  ],
+  "artifacts": [
+    {
+      "kind": "log",
+      "path": ".codewhale/fleet-host/local/fleet-629056bb-local-1.log",
+      "mime_type": "application/x-ndjson",
+      "size_bytes": 109079
+    },
+    {
+      "kind": "log",
+      "path": ".codewhale/fleet/fleet-629056bb/merge-polls/fleet-629056bb-local-1.log",
+      "mime_type": "text/plain",
+      "size_bytes": 132
+    }
+  ]
+}

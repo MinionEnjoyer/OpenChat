@@ -1,0 +1,10 @@
+{
+  "flow": "msg-001-list-load",
+  "result": "pass",
+  "device": "emulator-5560",
+  "timestamp": "2026-07-28T08:46:58Z",
+  "apk_sha256": "ff4f814e869784389d3e9ba3097233f9ec48f0907fc65239c8152edfe8754b0e",
+  "commit": "71e27fb",
+  "runner": "e2e-run-only.sh",
+  "run_id": "56330-1785228361"
+}

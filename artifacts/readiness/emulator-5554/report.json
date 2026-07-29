@@ -1,0 +1,162 @@
+[
+  {
+    "screen": "ShellScreen (chat)",
+    "id": "shell-chat",
+    "reached": true,
+    "pass": true,
+    "failures": []
+  },
+  {
+    "screen": "Left Drawer (rail+channels)",
+    "id": "left-drawer",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "Right Drawer (members)",
+    "id": "right-drawer",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "FriendsScreen",
+    "id": "friends",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "InboxScreen",
+    "id": "inbox",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "CreateServerScreen",
+    "id": "create-server",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "ServerSettingsScreen",
+    "id": "server-settings",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "RolesEditorScreen",
+    "id": "roles-editor",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "NotificationSettingsScreen",
+    "id": "notif-settings",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "InviteCreateOverlay",
+    "id": "invite-create",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "JoinServerOverlay",
+    "id": "join-server",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "ChannelForm",
+    "id": "channel-form",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "ChannelReorderScreen",
+    "id": "channel-reorder",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "PinsPanel",
+    "id": "pins",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "AttachPicker",
+    "id": "attach-picker",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "PollCreate",
+    "id": "poll-create",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "MemberProfileSheet",
+    "id": "member-profile",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "InvitePreviewOverlay",
+    "id": "invite-preview",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHABLE-BY-DESIGN: requires a real invite link URL in a message"
+    ]
+  }
+]
