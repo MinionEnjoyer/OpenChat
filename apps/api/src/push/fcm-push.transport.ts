@@ -27,7 +27,14 @@ interface FcmV1Message {
     android?: { notification: { channel_id: string } };
     apns?: {
       headers: Record<string, string>;
-      payload: { aps: { sound: string; badge?: number } };
+      payload: {
+        aps: {
+          alert?: { title: string; body: string };
+          sound?: string;
+          badge?: number;
+          'content-available'?: number;
+        };
+      };
     };
   };
 }
