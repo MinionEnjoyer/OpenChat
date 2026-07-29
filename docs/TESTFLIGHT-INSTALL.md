@@ -3,6 +3,10 @@
 You do not need a Mac, Xcode, a developer account, or any programming tools.
 You only need an iPhone, an Apple Account, and the OpenChat invitation.
 
+If the person distributing OpenChat wants to skip TestFlight Beta App Review
+for a small number of trusted people, see
+[Share OpenChat with a trusted friend using internal TestFlight](./TESTFLIGHT-INTERNAL-TESTERS.md).
+
 ## What the person sharing OpenChat sends you
 
 They will send one of these:
