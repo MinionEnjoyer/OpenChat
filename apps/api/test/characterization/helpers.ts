@@ -246,10 +246,23 @@ export function assertExactKeys(obj: Record<string, any>, expectedKeys: string[]
 }
 
 // ── User shape (from auth.service getCurrentUser / devLogin / me / PATCH me) ──
-// Keys: id, username, displayName, avatarUrl, friendCode, status, serverLayout, createdAt, updatedAt
+// Keys: id, username, displayName, avatarUrl, friendCode, status,
+// customStatus, bio, serverLayout, createdAt, updatedAt
 // Explicitly absent: authSub
 
-const USER_KEYS = ['id', 'username', 'displayName', 'avatarUrl', 'friendCode', 'status', 'serverLayout', 'createdAt', 'updatedAt'];
+const USER_KEYS = [
+  'id',
+  'username',
+  'displayName',
+  'avatarUrl',
+  'friendCode',
+  'status',
+  'customStatus',
+  'bio',
+  'serverLayout',
+  'createdAt',
+  'updatedAt',
+];
 
 export function assertUserShape(user: any): void {
   assertExactKeys(user, USER_KEYS, 'User');
@@ -262,6 +275,9 @@ export function assertUserShape(user: any): void {
   // friendCode: string|null (null = lazy backfill)
   if (user.friendCode !== null) { expect(typeof user.friendCode).toBe('string'); expect(user.friendCode).toMatch(/^\d{8}$/); }
   expect(typeof user.status).toBe('string');
+  // customStatus and bio: string or null
+  if (user.customStatus !== null) expect(typeof user.customStatus).toBe('string');
+  if (user.bio !== null) expect(typeof user.bio).toBe('string');
   // serverLayout: JSON object or null
   if (user.serverLayout !== null && user.serverLayout !== undefined) expect(typeof user.serverLayout).toBe('object');
   assertIsoDate(user.createdAt);

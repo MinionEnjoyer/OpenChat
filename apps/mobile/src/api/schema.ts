@@ -9,6 +9,8 @@ export interface User {
   displayName: string | null;
   avatarUrl: string | null;
   status: string | null;
+  customStatus: string | null;
+  bio: string | null;
   friendCode: string | null; // lazily backfilled; may be null
 }
 
