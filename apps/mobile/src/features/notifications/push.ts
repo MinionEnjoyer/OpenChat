@@ -6,7 +6,8 @@
  * Sign-out: DELETE /api/devices/:token (correctness — not best-effort cleanup).
  * Deep-link tap-through: parse notification data → navigate to channel/DM/server.
  *
- * Android only per docs/PRIORITIES.md §5. iOS is a no-op pending owner decision.
+ * Both Android and iOS obtain FCM registration tokens.
+ * Android: expo-notifications wraps Firebase. iOS: @react-native-firebase/messaging directly.
  *
  * @satisfies FR-NOTIF-002
  */
@@ -34,7 +35,7 @@ export function _resetPlatformForTest(): void {
   _platformOS = Platform.OS;
 }
 
-function isAndroid(): boolean {
+export function isAndroid(): boolean {
   return _platformOS === 'android';
 }
 
@@ -93,10 +94,20 @@ export function _resetMocksForTest(): void {
   _initialized = false;
   _platformOS = 'android';
   _onNavigate = null;
+  // Reset iOS FCM token seams to real implementations
+  _getIosFcmToken = _defaultGetIosFcmToken;
+  _subscribeIosTokenRotation = _defaultSubscribeIosTokenRotation;
+  _subscribeIosNotificationOpened = _defaultSubscribeIosNotificationOpened;
+  _getInitialIosNotification = _defaultGetInitialIosNotification;
 }
 
 export function _setStoredTokenForTest(token: string | null): void {
   _storedToken = token;
+}
+
+/** True once this session has registered a remote-push token with the API. */
+export function hasRegisteredPushToken(): boolean {
+  return _storedToken !== null;
 }
 
 // Writable function references (default to real Notifications)
@@ -110,6 +121,105 @@ let _getDevicePushToken: () => Promise<DevicePushToken> =
 let _setNotificationHandler: typeof Notifications.setNotificationHandler =
   Notifications.setNotificationHandler.bind(Notifications);
 
+// ── iOS FCM token acquisition (test seams) ──
+
+let _getIosFcmToken: () => Promise<string | null> = async () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const messaging = require('@react-native-firebase/messaging').default as {
+      (): {
+        getToken: () => Promise<string>;
+        registerDeviceForRemoteMessages: () => Promise<void>;
+      };
+    };
+    const instance = messaging();
+    // Apple recommends registering on every launch. The call is idempotent and,
+    // unlike RNFirebase's cached JS flag, reflects UIKit's actual APNs state.
+    await instance.registerDeviceForRemoteMessages();
+    return await instance.getToken();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[push] iOS FCM token acquisition failed', error);
+    return null;
+  }
+};
+
+let _subscribeIosTokenRotation: () => () => void = () => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const messaging = require('@react-native-firebase/messaging').default as {
+      (): { onTokenRefresh: (cb: (token: string) => void) => () => void };
+    };
+    return messaging().onTokenRefresh(async (newToken: string) => {
+      await deleteTokenOnServer();
+      await registerTokenOnServer(newToken);
+    });
+  } catch {
+    return () => {};
+  }
+};
+
+interface IosRemoteMessage {
+  data?: Record<string, unknown>;
+}
+
+let _subscribeIosNotificationOpened: (
+  listener: (message: IosRemoteMessage) => void,
+) => () => void = (listener) => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const messaging = require('@react-native-firebase/messaging').default as {
+      (): {
+        onNotificationOpenedApp: (
+          cb: (message: IosRemoteMessage) => void,
+        ) => () => void;
+      };
+    };
+    return messaging().onNotificationOpenedApp(listener);
+  } catch {
+    return () => {};
+  }
+};
+
+let _getInitialIosNotification: () => Promise<IosRemoteMessage | null> =
+  async () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+      const messaging = require('@react-native-firebase/messaging').default as {
+        (): {
+          getInitialNotification: () => Promise<IosRemoteMessage | null>;
+        };
+      };
+      return await messaging().getInitialNotification();
+    } catch {
+      return null;
+    }
+  };
+
+// Capture defaults so _resetMocksForTest can restore them
+const _defaultGetIosFcmToken = _getIosFcmToken;
+const _defaultSubscribeIosTokenRotation = _subscribeIosTokenRotation;
+const _defaultSubscribeIosNotificationOpened = _subscribeIosNotificationOpened;
+const _defaultGetInitialIosNotification = _getInitialIosNotification;
+
+export function _setIosMessagingForTest(mock: {
+  getToken?: () => Promise<string | null>;
+  onTokenRefresh?: () => () => void;
+  onNotificationOpenedApp?: (
+    listener: (message: IosRemoteMessage) => void,
+  ) => () => void;
+  getInitialNotification?: () => Promise<IosRemoteMessage | null>;
+}): void {
+  if (mock.getToken) _getIosFcmToken = mock.getToken;
+  if (mock.onTokenRefresh) _subscribeIosTokenRotation = mock.onTokenRefresh;
+  if (mock.onNotificationOpenedApp) {
+    _subscribeIosNotificationOpened = mock.onNotificationOpenedApp;
+  }
+  if (mock.getInitialNotification) {
+    _getInitialIosNotification = mock.getInitialNotification;
+  }
+}
+
 let _addResponseListener: typeof Notifications.addNotificationResponseReceivedListener =
   Notifications.addNotificationResponseReceivedListener.bind(Notifications);
 
@@ -122,30 +232,31 @@ let _clearLastResponse: typeof Notifications.clearLastNotificationResponse =
 // ── Permission ──
 
 /**
- * Request notification permissions from the OS.
- * Android only — iOS is a no-op until the owner decides (docs/PRIORITIES.md §5).
- *
- * @returns true if permissions were granted
- */
+/** Request notification permissions from the OS. Works on both platforms. */
 export async function requestPushPermissions(): Promise<boolean> {
-  if (!isAndroid()) return false;
   try {
     const { granted } = await _requestPermissions();
     return granted;
-  } catch {
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[push] permission request failed', error);
     return false;
   }
 }
 
 // ── Token lifecycle ──
 
-/** Obtain the native device push token (FCM on Android). */
+/** Obtain the FCM registration token — platform-appropriate method. */
 async function getDeviceToken(): Promise<string | null> {
-  if (!isAndroid()) return null;
   try {
-    const token = await _getDevicePushToken();
-    return token.data;
-  } catch {
+    if (isAndroid()) {
+      const token = await _getDevicePushToken();
+      return token.data;
+    }
+    return _getIosFcmToken();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[push] device token acquisition failed', error);
     return null;
   }
 }
@@ -159,7 +270,9 @@ async function registerTokenOnServer(token: string): Promise<string | null> {
     });
     _storedToken = token;
     return token;
-  } catch {
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[push] token registration with API failed', error);
     return null;
   }
 }
@@ -183,22 +296,26 @@ async function deleteTokenOnServer(): Promise<void> {
  * @returns the registered token, or null if any step failed
  */
 export async function registerPushToken(): Promise<string | null> {
-  if (!isAndroid()) return null;
   const token = await getDeviceToken();
   if (!token) return null;
   return registerTokenOnServer(token);
 }
 
 /**
- * Token rotation handler — called automatically when FCM rotates the device token.
+ * Android token rotation handler — called automatically by expo-notifications.
  * Unregisters the old token and registers the new one.
  */
-async function handleTokenRotation(newToken: DevicePushToken): Promise<void> {
-  if (!isAndroid()) return;
+async function handleAndroidTokenRotation(newToken: DevicePushToken): Promise<void> {
   await deleteTokenOnServer();
   if (newToken.data) {
     await registerTokenOnServer(newToken.data);
   }
+}
+
+/** iOS FCM token rotation handler — called by Firebase onTokenRefresh. */
+async function handleIosTokenRotation(newToken: string): Promise<void> {
+  await deleteTokenOnServer();
+  await registerTokenOnServer(newToken);
 }
 
 /**
@@ -213,11 +330,16 @@ export async function unregisterPushToken(): Promise<void> {
 /**
  * Subscribe to FCM token rotation. Returns a cleanup function.
  * Must be called once when the user signs in; cleanup on sign-out.
+ *
+ * Android: expo-notifications addPushTokenListener.
+ * iOS: @react-native-firebase/messaging onTokenRefresh.
  */
 export function subscribeToTokenRotation(): () => void {
-  if (!isAndroid()) return () => {};
-  const subscription = _addedTokenListener(handleTokenRotation);
-  return () => subscription.remove();
+  if (isAndroid()) {
+    const subscription = _addedTokenListener(handleAndroidTokenRotation);
+    return () => subscription.remove();
+  }
+  return _subscribeIosTokenRotation();
 }
 
 // ── Foreground suppression (FR-NOTIF-004) ──
@@ -312,28 +434,42 @@ export function parseNotificationRoute(
 export function setupNotificationTapHandler(onNavigate: NavigationHandler): () => void {
   _onNavigate = onNavigate;
 
-  // Warm-start: listen for taps while the app is running
-  const sub = _addResponseListener((response: NotificationResponse) => {
-    const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+  const navigateFromData = (data: Record<string, unknown> | undefined): void => {
     const route = parseNotificationRoute(data);
     if (route.type) {
       _onNavigate?.(route);
     }
+  };
+
+  // Warm-start: listen for taps while the app is running
+  const sub = _addResponseListener((response: NotificationResponse) => {
+    const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+    navigateFromData(data);
   });
+
+  // iOS remote notifications are delivered by RNFirebase, so consume its
+  // warm-open and cold-start callbacks in addition to Expo's local responses.
+  let unsubscribeIos = () => {};
+  if (!isAndroid()) {
+    unsubscribeIos = _subscribeIosNotificationOpened((message) => {
+      navigateFromData(message.data);
+    });
+    void _getInitialIosNotification().then((message) => {
+      if (message) navigateFromData(message.data);
+    });
+  }
 
   // Cold-start: handle the notification that launched the app
   const last = _getLastResponse();
   if (last) {
     const data = last.notification.request.content.data as Record<string, unknown> | undefined;
-    const route = parseNotificationRoute(data);
-    if (route.type) {
-      _onNavigate(route);
-    }
+    navigateFromData(data);
     _clearLastResponse();
   }
 
   return () => {
     sub.remove();
+    unsubscribeIos();
     _onNavigate = null;
   };
 }
@@ -357,8 +493,6 @@ export function _resetInitializedForTest(): void {
 export async function initializePush(): Promise<void> {
   if (_initialized) return;
   _initialized = true;
-
-  if (!isAndroid()) return;
 
   const granted = await requestPushPermissions();
   if (!granted) return;

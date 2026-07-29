@@ -1,0 +1,29 @@
+{
+  "experiment": "E8",
+  "hypothesis": "POST /api/voice/:id/join → {url, token, room} LiveKit access token; GET :id/participants returns users",
+  "observed": {
+    "joinResponse": {
+      "url": "ws://livekit:7880",
+      "token": "eyJhbGciOiJIUzI1NiJ9.eyJuYW1lIjoiYWxpY2UiLCJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6IjM1MTJmNzM0LTI3ZDgtNDA0MS1hODRiLTYxZDBlYmEyYzU2OCIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZX0sImlzcyI6ImRldmtleSIsImV4cCI6MTc4NDYzNDkwNywibmJmIjoxNzg0NjEzMzA3LCJzdWIiOiJlNzgyODM5OS04MTMzLTQ5OTktODBjZi1iNDRkYzMxYzJkNTIifQ.gSaHLLYLuwVHBhvYRu56fnNO0_u11FXFzFpd3SpBUWc",
+      "room": "3512f734-27d8-4041-a84b-61d0eba2c568"
+    },
+    "jwtClaims": {
+      "name": "alice",
+      "video": {
+        "roomJoin": true,
+        "room": "3512f734-27d8-4041-a84b-61d0eba2c568",
+        "canPublish": true,
+        "canSubscribe": true
+      },
+      "iss": "devkey",
+      "exp": 1784634907,
+      "nbf": 1784613307,
+      "sub": "e7828399-8133-4999-80cf-b44dc31c2d52"
+    },
+    "participantsShape": [],
+    "leaveResponse": {
+      "success": true
+    }
+  },
+  "verdict": "CONFIRMED"
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentflow run artifact manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "outcome",
+    "generated_at",
+    "command_sha256",
+    "files"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_id": {"type": "string", "pattern": "^run-"},
+    "outcome": {
+      "enum": ["PASSED", "FAILED", "CRASHED", "TIMED_OUT", "CANCELLED", "SIGNALLED"]
+    },
+    "exit_code": {"type": ["integer", "null"]},
+    "generated_at": {"type": "string"},
+    "source_commit": {"type": ["string", "null"]},
+    "dirty": {"type": "boolean"},
+    "executable": {"type": "string"},
+    "command_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": {"type": "string"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

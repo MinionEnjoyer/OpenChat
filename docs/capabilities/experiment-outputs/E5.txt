@@ -1,0 +1,27 @@
+=== E5 ===
+--- OpenShare /auth/login GET ---
+Internal Server Error
+HTTP_STATUS: 500
+
+--- POST /upload with OpenChat session cookie ---
+{"detail":"not logged in"}
+HTTP_STATUS: 401
+
+--- Second upload of same 1px.png (dedup test) ---
+{"detail":"not logged in"}
+HTTP_STATUS: 401
+
+E5 DONE
+E5 --- OpenShare /auth/login (follow redirects) ---
+Internal Server Error
+HTTP_STATUS: 500
+
+E5 --- OpenShare /raw/<id> (public, no auth needed) ---
+{"detail":"Not Found"}
+HTTP_STATUS: 404
+
+E5 --- OpenShare /thumb/<id> (public, no auth needed) ---
+{"detail":"Not Found"}
+HTTP_STATUS: 404
+
+E5 E5 DONE

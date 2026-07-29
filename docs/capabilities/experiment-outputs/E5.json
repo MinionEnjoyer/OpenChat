@@ -1,0 +1,52 @@
+{
+  "experiment": "E5 (rework)",
+  "e5a": {
+    "assertion": "E5a - envelope shape with source=chat",
+    "status": 200,
+    "responseKeys": [
+      "saved",
+      "rejected"
+    ],
+    "savedShape": {
+      "id": "EqR4MKQM",
+      "media_type": "image"
+    },
+    "savedFieldTypes": {
+      "id": "string",
+      "media_type": "string"
+    },
+    "rejectedShape": []
+  },
+  "e5b": {
+    "assertion": "E5b - same bytes, different filename → dedup",
+    "firstId": "EqR4MKQM",
+    "dupId": "EqR4MKQM",
+    "dupMediaType": "image",
+    "idsIdentical": true,
+    "differentBytesId": "HevwMuOC",
+    "differentBytesIsNew": true
+  },
+  "e5c": {
+    "assertion": "E5c - rejection paths",
+    "disallowedMime": {
+      "filename": "bad.exe",
+      "mime": "application/x-msdownload",
+      "status": 200,
+      "rejected": [
+        {
+          "name": "bad.exe",
+          "reason": "unsupported type (application/x-msdownload)"
+        }
+      ]
+    },
+    "oversizeNote": "Archive size limit (ARCHIVE_MAX_MB default 2048) is code-confirmed at main.py:474-490"
+  },
+  "e5d": {
+    "assertion": "E5d - different user uploads same bytes",
+    "aliceId": "EqR4MKQM",
+    "bobId": "eroZNqXi",
+    "idsIdentical": false,
+    "note": "Dedup is scoped to (owner_sub, sha256) — different users get different IDs"
+  },
+  "verdict": "CONFIRMED"
+}

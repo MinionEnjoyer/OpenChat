@@ -1,0 +1,30 @@
+{
+  "branch": "p7-search",
+  "port": 3002,
+  "timestamp": "2026-07-25T09:15:13Z",
+  "all_passed": true,
+  "gates": [
+    {
+      "name": "char",
+      "pass": true,
+      "expected_suites": 11,
+      "expected_tests": 89,
+      "observed_suites": 11,
+      "observed_tests": 89,
+      "observed_suites_passed": 11,
+      "observed_tests_passed": 89
+    },
+    {
+      "name": "integration",
+      "pass": true
+    },
+    {
+      "name": "tsc",
+      "pass": true
+    },
+    {
+      "name": "codegen",
+      "pass": true
+    }
+  ]
+}

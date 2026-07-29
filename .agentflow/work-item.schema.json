@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentflow work item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "work_id",
+    "title",
+    "deliverable",
+    "kind",
+    "resources",
+    "paths"
+  ],
+  "properties": {
+    "work_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deliverable": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "implementation",
+        "diagnostic",
+        "verification",
+        "audit"
+      ]
+    },
+    "priority": {
+      "type": "integer"
+    },
+    "verifies_run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^run-"
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "decides": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "What a pass or fail would settle that is not already known. Required when the item reserves a device:* resource."
+    }
+  }
+}

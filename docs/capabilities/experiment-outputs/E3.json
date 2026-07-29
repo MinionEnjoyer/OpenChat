@@ -1,0 +1,65 @@
+{
+  "experiment": "E3",
+  "hypothesis": "Only messages/typing/presence/watchparty/notify/mention/call.ring emit bus events; CRUD emits at most NOTIFY",
+  "matrix": [
+    {
+      "mutation": "POST channels/:id/messages (create)",
+      "wsOps": [
+        "message.created"
+      ]
+    },
+    {
+      "mutation": "PATCH /api/messages/:id (edit)",
+      "wsOps": [
+        "message.updated"
+      ]
+    },
+    {
+      "mutation": "POST /api/messages/:id/reactions",
+      "wsOps": [
+        "message.updated"
+      ]
+    },
+    {
+      "mutation": "DELETE /api/messages/:id/reactions/:emoji",
+      "wsOps": [
+        "message.updated"
+      ]
+    },
+    {
+      "mutation": "PATCH /api/messages/:id/pin",
+      "wsOps": [
+        "message.updated"
+      ]
+    },
+    {
+      "mutation": "POST /api/channels/:id/polls",
+      "wsOps": [
+        "message.created"
+      ]
+    },
+    {
+      "mutation": "DELETE /api/messages/:id",
+      "wsOps": [
+        "message.deleted"
+      ]
+    },
+    {
+      "mutation": "POST /api/channels/:id/read",
+      "wsOps": [
+        "(none)"
+      ]
+    },
+    {
+      "mutation": "POST /api/servers (create)",
+      "wsOps": [],
+      "note": "Expected: no granular event per spec G4"
+    },
+    {
+      "mutation": "POST /api/servers/:id/channels",
+      "wsOps": [],
+      "note": "Expected: no granular event"
+    }
+  ],
+  "verdict": "RECORDED"
+}

@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --platform android --clean",
     "apk:release": "cd android && ./gradlew assembleRelease",
+    "apk:prod": "EXPO_PUBLIC_DISABLE_CLEARTEXT=1 npx expo prebuild --platform android --clean && cd android && ./gradlew assembleRelease",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "jest"
@@ -17,6 +18,8 @@
     "@expo/vector-icons": "^15.0.2",
     "@livekit/react-native": "^2.12.0",
     "@livekit/react-native-webrtc": "^144.1.2",
+    "@react-native-firebase/app": "^25.1.0",
+    "@react-native-firebase/messaging": "^25.1.0",
     "@react-native/jest-preset": "0.86.0",
     "@tanstack/react-query": "^5.101.4",
     "babel-preset-expo": "~57.0.0",

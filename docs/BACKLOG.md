@@ -1,0 +1,664 @@
+# BACKLOG — Frozen Bugs from Characterization Suite
+
+Each entry records a behavior frozen by the P0-04 characterization suite that is
+either incorrect, incomplete, or merely tolerated. All entries include evidence
+(test name + file:line), user-visible impact, priority, and the phase where the
+fix should be applied.
+
+**Rule:** When fixing any entry below, the characterization test that froze it
+must be updated in the same commit (with the spec work-item ID in the commit
+message) per `02-PHASE0-DISCOVERY.md §P0-04`. Never silently edit a
+characterization test to match new behavior.
+
+---
+
+## BUG-001: 500 Internal Server Error on server leave
+
+- **Evidence:** `servers.spec.ts:112` — `expect([200, 500]).toContain(res.status)`
+  with comment `// characterizes: leave returns 200 or 500 (freeze whichever)`
+- **User-visible impact:** Users see an error when leaving a server. This is a
+  common user action and a 500 is never acceptable.
+- **Priority:** HIGH — shipping a 500 on an ordinary user action is not
+  acceptable parity.
+- **Phase:** Phase4 (Social) or Phase7 (Parity Gaps). The root cause is likely
+  in the `ServersService.leave()` method.
+- **Fix note:** When fixed, update `servers.spec.ts:112` to `expect(res.status).toBe(200)`
+  in the same commit, with `[P0-04]` in the commit message.
+
+## BUG-002: 500 Internal Server Error on member kick
+
+- **Evidence:** `servers.spec.ts:122` — `expect([200, 500]).toContain(res.status)`
+  with comment `// characterizes: kick returns 200 or 500 (freeze whichever)`
+- **User-visible impact:** Server owners see errors when kicking members.
+  Same as BUG-001 — not acceptable parity.
+- **Priority:** HIGH
+- **Phase:** Phase4 (Social) or Phase7 (Parity Gaps).
+- **Fix note:** When fixed, update `servers.spec.ts:122` to `expect(res.status).toBe(200)`
+  in the same commit.
+
+## BUG-003: 403 Forbidden on DM creation between non-friends (no happy path)
+
+- **Evidence:** `dms-friends.spec.ts:16-17` — `expect(res.status).toBe(403)`
+  with comment `// characterizes: DM creation between non-friends returns 403`
+- **User-visible impact:** Users cannot create DMs with anyone who is not already
+  a friend. The DM system is gated on friendship, which is the current design,
+  but the 403 error path is characterized; the happy path (DM between friends)
+  has no characterization test.
+- **Priority:** MEDIUM — design decision, not a bug in the strict sense, but
+  needs a happy-path characterization test.
+- **Phase:** Phase4 (Social) — implement DM happy-path test.
+
+## BUG-004: null friendCode (lazy backfill)
+
+- **Evidence:** `auth.spec.ts:16-18` — `if (res.body.friendCode !== null) { ... }`
+  with comment `// characterizes: friendCode may be null (lazy backfill in getCurrentUser)`
+- **User-visible impact:** New users created via dev-login may have a null
+  friendCode until `GET /auth/me` is called (which triggers lazy backfill).
+  This is a minor UX issue — friend codes may briefly appear null.
+- **Priority:** LOW — the backfill runs on next `/me` request, so this is
+  self-healing. Tighten if needed.
+- **Phase:** Phase7 (Parity Gaps) or any later phase.
+
+## BUG-005: member-role assignment status <500 (too permissive)
+
+- **Evidence:** `roles.spec.ts:40` — `expect(res.status).toBeLessThan(500)`
+  with comment `// characterizes: role assignment behavior — freeze whichever status code`
+- **User-visible impact:** Role assignment endpoint behavior is not pinned down.
+  Could silently change from one 2xx/3xx/4xx to another.
+- **Priority:** LOW — tighten to exact status code once behavior is stable.
+- **Phase:** Phase4 (Social) or Phase7 (Parity Gaps).
+
+## BUG-006: poll vote accepts [200, 201] range
+
+- **Evidence:** `pins-polls.spec.ts:44` — `expect([200, 201]).toContain(res.status)`
+  with comment `// characterizes: poll vote returns 200 or 201`
+- **User-visible impact:** Poll voting behavior is not pinned down.
+- **Priority:** LOW — tighten to exact status code.
+- **Phase:** Phase4 (Social) or any later phase.
+
+## BUG-007: logout accepts [200, 201] range
+
+- **Evidence:** `auth.spec.ts:113` — `expect([200, 201]).toContain(res.status)`
+- **User-visible impact:** Minimal. Logout behavior is not precisely pinned.
+- **Priority:** LOW.
+- **Phase:** Phase1 (Auth) or any later phase.
+
+## BUG-008: DM requires friendship — no happy path test
+
+- **Evidence:** `dms-friends.spec.ts:12-18` — only the 403 error path is tested
+  for `POST /dms`. No test currently verifies successful DM creation between
+  friends.
+- **User-visible impact:** The DM happy path is uncovered. A regression could
+  break DM creation without a test failure.
+- **Priority:** MEDIUM — coverage gap.
+- **Phase:** Phase4 (Social) — add DM happy-path characterization test.
+
+## BUG-009: Fixed waits in WS tests (potential flake)
+
+- **Evidence:** `ws.spec.ts:44,58,60,64,76` — `setTimeout(r, 300-500)` fixed
+  waits instead of polling-with-timeout.
+- **User-visible impact:** WS tests may flake under CI load or on slower
+  machines.
+- **Priority:** LOW — hardening item. No user-visible bug.
+- **Phase:** Phase2 (Messaging) or Phase8 (Notifications/Release) — convert
+  fixed waits to polling loops.
+
+## BUG-010: Inter-test coupling via shared seed state
+
+- **Evidence:** `jest-char.config.js:13` `maxWorkers: 1` hides coupling.
+  `pins-polls.spec.ts:14` references `s.messageIds[0]` which may have been
+  modified by prior tests. `dms-friends.spec.ts:39` uses conditional logic
+  based on prior test results.
+- **User-visible impact:** A partial rerun (`--testNamePattern`) could behave
+  differently than a full suite run.
+- **Priority:** LOW — infrastructure hardening.
+- **Phase:** Phase0 (Discovery) or Phase8 — isolate seed per-test or document
+  ordering assumptions.
+
+## BUG-011: P0-06 seed deviation undocumented in decision record
+
+- **Evidence:** `docs/LOG.md:91` — "Seed strategy: API-driven seed in helpers.ts
+  via seed(). No P0-06 dependency." No formal decision record exists.
+- **User-visible impact:** The 1000-message `#volume` channel required for
+  NFR-02 baselining and E6 has no home. P0-06's `fixture-ids.json` does not
+  exist.
+- **Priority:** MEDIUM — homeless requirement; P0-06 rescope needed.
+- **Phase:** P0-06 (when rescoped) — write T3 decision record documenting the
+  deviation.
+
+## BUG-012: WS error handler silently swallows connection errors
+
+- **Evidence:** `helpers.ts:97` — `ws.on('error', () => {})` — WS connection
+  errors are silently dropped. Test failures manifest as timeouts, not
+  descriptive errors.
+- **User-visible impact:** Debugging test failures is harder than necessary.
+- **Priority:** LOW — infrastructure hardening.
+- **Phase:** Phase2 (Messaging) — log errors and surface in test failure output.
+
+## BUG-013: Coverage thinner than claimed — several 03 §2 routes untested
+
+- **Evidence:** `DELETE /friends/:userId`, `POST /friends/requests/:id/decline`,
+  `POST /block/:userId`, `DELETE member-roles` have no tests. `POST /dms` has
+  only error path, no happy path. `GET /friends/requests` and `GET /notifications`
+  are only covered by the 401 matrix.
+- **User-visible impact:** These endpoints have no characterization protection.
+  A regression could silently change their behavior.
+- **Priority:** MEDIUM — coverage gap.
+- **Phase:** P0-04 extension or Phase7 (Parity Gaps) — add characterization
+  tests for uncovered routes.
+
+---
+
+## BUG-014: Consumer contract tests should relocate to apps/mobile at P0-17
+
+- **Evidence:** `apps/api/test/contract/consumer.spec.ts` currently lives under the API
+  project. Consumer contract tests exercise the consumer's understanding of the
+  contract — they belong in the consuming application (`apps/mobile`) where they
+  describe the environment they execute in.
+- **User-visible impact:** None. Organizational clarity.
+- **Priority:** LOW — tests run correctly regardless of location. Move when the
+  `apps/mobile` project struct exists (P0-17).
+- **Phase:** P0-17 (mobile project setup).
+- **Fix note:** Move `consumer.spec.ts` (and its supporting schema types) to
+  `apps/mobile/src/api/__tests__/contract/`. Keep a symlink or CI step in the
+  API project until migration is complete.
+
+---
+
+## BUG-015: Provider coverage — Phase 1-4 routes without provider contract tests
+
+**What:** The provider contract test suite (36/36, `additionalProperties:false`) covers 18
+operations across auth, servers, messages, reactions, pins, invites, voice, DMs, friends,
+notifications, and health/config. The following Phase 1-4 mobile-consumed routes lack provider
+coverage:
+
+| Route | Phase | Reason excluded |
+|-------|-------|----------------|
+| `PUT /auth/server-layout` | 1 | No response schema in contract; body is arbitrary layout JSON |
+| `GET /servers/:id/sounds` | 3 | Happy-path only in characterization; no contract schema |
+| `POST /servers/:id/sounds` | 3 | Happy-path only; no contract schema |
+| `DELETE /servers/:id/sounds` | 3 | Happy-path only; no contract schema |
+| `PATCH /servers/:id/sounds` | 3 | Route exists in controller; no characterization test; no schema |
+| `GET /servers/:id/members` | 3 | Characterization only; no contract schema |
+| `POST /servers/:id/members` | 3 | Implicit in seed; no contract schema |
+| `GET /servers/:id/roles` | 3 | Characterization only; no contract schema |
+| `POST /servers/:id/roles` | 3 | Characterization only; no contract schema |
+| `PATCH /servers/:id/roles/:roleId` | 3 | Characterization only; no contract schema |
+| `DELETE /servers/:id/roles/:roleId` | 3 | Characterization only; no contract schema |
+| `PUT member-roles` | 3 | Characterization only; no contract schema |
+| `DELETE member-roles` | 3 | Not tested at all; no contract schema |
+| `GET /dms` | 4 | Asserted as array only (no schema validator) |
+| `POST /dms` | 4 | Accepts 200/201/403 range; no schema validator |
+| `GET /friends` | 4 | Asserted as array only (no schema validator) |
+| `POST /friends/requests/:id/decline` | 4 | Characterization only; no contract schema |
+| `DELETE /friends/:userId` | 4 | Characterization only; no contract schema |
+| `POST /block/:userId` | 4 | Characterization only; no contract schema |
+| `POST /server-invitations/:id/accept` | 4 | Characterization only; no contract schema |
+| `POST /server-invitations/:id/decline` | 4 | Characterization only; no contract schema |
+| `GET /voice/:channelId/participants` | 4 | Characterization only; no contract schema |
+| `GET /gifs/search` | 5 | Requires external API key; no contract schema |
+| Watchparty routes | 7 | Deferred; no contract schema |
+
+This is honest thinness: 18 routes with strict provider validation + 24 with named reasons for
+exclusion. None are silently missing. Characterization coverage provides a backstop for routes
+without provider schemas, but future phases adding schemas for these routes should add ajv
+validators in `provider.spec.ts`.
+
+**Disposition:** Not a defect. This is the stated state of Phase 0 coverage. The provider
+suite covers every route with a contract schema. Routes without schemas are tracked here.
+
+---
+
+*Last updated: 2026-07-21 (P0-04 remediation, P0-09 provider rebuild, P0-10); updated 2026-07-25 (P3 Task 0)*
+
+---
+
+## UNBUILT-001: FR-AUTH-001 client half unbuilt (OIDC PKCE)
+
+- **Evidence:** `bearer-auth.spec.ts:27` (before P3 fix) carried
+  `@satisfies FR-AUTH-001` on a test that only proves bearer tokens work via
+  **dev-login**. FR-AUTH-001 requires native OIDC login via the system browser
+  with PKCE — `expo-auth-session` is not installed, the client PKCE flow is
+  not implemented, and no E2E test exercises system-browser OIDC login.
+  The annotation was corrected to `@satisfies FR-AUTH-005` (ws-ticket via
+  bearer) which the test genuinely proves.
+- **User-visible impact:** There is no OIDC login path. Users cannot log in
+  via Authentik or any IdP. The backend exchange endpoint (`POST /api/auth/oauth/token`
+  with grant `authorization_code`) exists and is tested, but the client half
+  is missing.
+- **Priority:** HIGH — this is a Phase 1 requirement that blocks real auth.
+- **Phase:** Phase 1 (Auth) — needs `expo-auth-session` PKCE against
+    `GET /api/auth/oidc-metadata`.
+- **Status:** RESOLVED — commit 7824cd6 implemented the mobile PKCE client.
+
+---
+
+## UNBUILT-002: FR-APP-004 settings screens unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-APP-004 has zero
+  `@satisfies` annotations. No settings screens exist for account, appearance
+  (dark/light/system), about, or licenses. `apps/mobile/src/ui/tokens.ts` defines
+  only a dark palette (comment says light/system "follow in FR-APP-004" but they
+  don't). No `useColorScheme`, no `Appearance` API usage, no theme context, no
+  theme toggle. No E2E flow for settings. No dedicated account or about/licenses
+  screen exists — the "Account" form is inline in `ShellScreen.tsx:870-913`, not
+  a standalone screen. Phase 8 spec P8-04 calls for "Maestro walk + theme snapshot
+  both modes" — nothing exists.
+- **User-visible impact:** Users cannot change theme (dark-only hardcoded),
+  cannot view account settings as a screen, cannot see app version/licenses.
+- **Priority:** LOW — Phase 8 (release), not blocking priority 1.
+- **Phase:** Phase 8 — needs dark+light palette tokens, theme context/provider,
+  `useColorScheme` integration, theme selector UI, account screen, about/licenses
+  screen, and a Maestro walk.
+
+## UNBUILT-003: FR-APP-005 channels deep link unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-APP-005 had a
+  misleading `@satisfies` on `links.ts:38` and `links.test.ts:31` that only
+  covered `parseInviteLink` (the invite half). The `openchat://channels/<serverId>/<channelId>`
+  pattern is completely unimplemented: no parser, no route handler, no navigation
+  target. The `parseInviteLink` function handles only `openchat://invite/<code>`.
+  `ShellScreen.tsx:126-145` wires invite deep links but not channels deep links.
+  The `@satisfies FR-APP-005` was removed in this triage (now `@satisfies FR-SRV-006`
+  only, which the invite-link test genuinely proves).
+- **User-visible impact:** Deep-linking to a specific channel from a notification
+  or external link does not work. Only invite deep links function.
+- **Priority:** MEDIUM — Phase 3 requirement. Invite links work; channels links
+  are the missing half.
+- **Phase:** Phase 3 (Servers) — needs `openchat://channels/<serverId>/<channelId>`
+  parser + route handler + navigation to the specified channel.
+
+## UNBUILT-004: FR-SOC-003 group DMs unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-SOC-003 has zero
+  `@satisfies` annotations. The Prisma schema supports `GROUP_DM` channel type
+  and `ChannelRecipient`, but no API endpoint exists for: creating a group DM
+  (2-10 recipients), adding/removing recipients, or renaming. The existing
+  `POST /dms` only opens 1:1 DMs. `apps/mobile/src/features/dms/hooks.ts`
+  only has `useOpenDm()` for 1:1. No E2E flow exists. The Phase 4 spec
+  (P4-02) calls for this work — it is unstarted.
+- **User-visible impact:** Users cannot create or manage group DMs. Only 1:1
+  DMs function.
+- **Priority:** HIGH — Phase 4 (Social), the largest perceived gap per
+  PRIORITIES.md.
+- **Phase:** Phase 4 — needs `POST /dms` with multiple recipients, group DM
+  create/rename/add/remove endpoints, mobile UI, and an E2E flow.
+
+## UNBUILT-005: FR-SOC-006 user profile sheet v2 unbuilt
+
+- **Evidence:** `node tools/trace.mjs check` (2026-07-26) — FR-SOC-006 had a
+  misleading `@satisfies` on `p4-04-presence-profile.yaml:3` whose E2E flow
+  only proves the profile sheet opens and shows a name — no avatar, no mutual
+  servers, no DM/friend/block actions. The `MemberProfileSheet.tsx` component
+  is scoped to server members (FR-SRV-007), not a general user profile. Phase 4
+  spec explicitly defers the full profile to P4-05: "Profile sheet v2 — avatar,
+  status, mutual servers (client-computed from cached servers/members), actions:
+  Message / Add-remove friend / Block (FR-SOC-006)". This work item is unstarted.
+  The `@satisfies FR-SOC-006` was removed in this triage (now `@satisfies FR-SOC-004`
+  only, which the presence/profile-sheet-open E2E flow genuinely proves).
+- **User-visible impact:** User profile sheets show only name and presence — no
+  avatar, no mutual servers, no DM/friend/block actions from the profile.
+- **Priority:** MEDIUM — Phase 4 (Social), sub-item P4-05 after group DMs.
+- **Phase:** Phase 4 — needs avatar rendering, mutual-server computation,
+  DM/friend/block action buttons, and an E2E flow.
+
+## UNBUILT-006: FR-SRV-009 mobile client handler unbuilt (granular guild-structure events)
+
+- **Evidence:** `apps/mobile/src/sync/queryClient.ts:27-89` — the `applyEvent`
+  switch handles `message.*`, `typing`, `ready`, `presence`, `notify`, `mention`,
+  `call.ring`, and `voice.occupancy`. All 10 granular guild-structure events
+  (`channel.created`, `channel.deleted`, `role.created`, `role.updated`,
+  `role.deleted`, `member.joined`, `member.left`, `member.kicked`,
+  `server.updated`, `server.deleted`) hit `default: break` (line 88) and are
+  silently dropped. The types exist in `events.d.ts:75-84` (auto-generated from
+  contracts), but no handler exists. The comment at `queryClient.ts:4-6` states:
+  "`notify` is the backend's coarse 'something changed' signal (E3) *until*
+  FR-SRV-009 adds granular events." The backend publishes and dispatches all 10
+  events correctly (verified: `servers.service.ts`, `events.gateway.ts`,
+  `p3-09-granular-events.spec.ts`), and the server test at
+  `p3-09-granular-events.spec.ts` carries `@satisfies FR-SRV-009` but only proves
+  WS frame emission — it does NOT prove the mobile UI updates from the event
+  without a refetch. Web client (`apps/web/src`) has the same gap.
+- **User-visible impact:** When a channel is created, other server members do not
+  see it appear in realtime. The mobile app falls back to the coarse `notify`
+  event → full `invalidateQueries()` refetch, which violates the criterion
+  "WITHOUT refetch-all." Channels, roles, member joins/leaves/kicks, and server
+  edits/deletes all lack live UI updates.
+- **Priority:** HIGH — Phase 3 (Servers) requirement. The backend is complete;
+  this is the sole blocker for FR-SRV-009.
+- **Phase:** Phase 3 — needs 10 case statements in `applyEvent()` that update
+  the React Query cache directly (no refetch), a mobile integration test proving
+  each event mutates the cache, a two-actor E2E test (Alice creates channel on
+  device A → Bob sees it on device B ≤2s), and a corrected `@satisfies`
+  annotation on `p3-09-granular-events.spec.ts`.
+
+---
+
+## UNBUILT-006: FR-ROLE-001 mobile member role assignment unbuilt
+
+- **Evidence:** `apps/mobile/src/` (232 files searched, 2026-07-26) — zero
+  references to `assignRole`, `unassignRole`, `setMemberRole`, or
+  `toggleMemberRole`. The server has `PUT/DELETE /servers/:id/members/:userId/roles/:roleId`
+  endpoints (`apps/api/src/servers/servers.controller.ts:268-307`) with an
+  integration test proving the flow (`apps/api/test/integration/s5-roles.spec.ts:128-169`).
+  The web client implements per-member role toggles in `ServerSettingsModal.tsx:429-446`.
+  Mobile has `MemberList.tsx` (display-only, grouped by role) and `RolesEditorScreen.tsx`
+  (role CRUD: name, color, 11 permission toggles, BigInt-safe), but no UI to assign
+  or remove roles from individual members. Full investigation:
+  `docs/audits/FR-ROLE-001-investigation.md`.
+- **User-visible impact:** Server owners/admins on mobile cannot assign roles to
+  members. Roles can be created and edited, but there is no way to attach them to
+  users from a phone.
+- **Priority:** HIGH — P0, Phase 3. Blocks the mobile admin workflow for role
+  management. The server API is complete; this is a mobile UI gap.
+- **Phase:** Phase 3 — add per-member role toggle UI to `MemberList` or
+  `MemberProfileSheet`, backed by existing `api.assignRole`/`api.unassignRole`
+  calls. Also fix stale web PERMISSION_LIST (8 entries, missing BAN_MEMBERS,
+  SEND_MESSAGES, READ_MESSAGES at `apps/web/src/lib/permissions.ts:14-23`).
+
+---
+
+## Tooling debt (P0-16)
+
+- **`devctl commit` is unusable.** It aborts when `git diff-index --quiet HEAD`
+  reports differences, which is true of every commit that has something to
+  commit. Either make it stage-aware (compare against the index, not HEAD) or
+  drop the subcommand. Found during P0-16; commits currently use plain `git`.
+- **NFR-08 measures the wrong subject.** 01 §4 scopes it to `apps/mobile/src`;
+  the script arms over `apps/api` because no mobile TS project exists yet. It
+  declares `scope_complete:false` and ratchets at Phase 1 — extend it to the
+  mobile package at P0-17 rather than leaving the partial measurement.
+- **`artifacts/nfr/<sha>.json` archives are gitignored** (regenerated per run and
+  always named for the previous commit). `report.json` is the tracked pointer.
+- **ESLint/Prettier config for `apps/api` does not exist** (04 §6 specifies both
+  plus a zero-warnings policy). The pre-commit lint step invokes `npx eslint`
+  against a package with no config and no eslint dependency, so it has never
+  passed and blocks any commit touching `apps/api/**/*.ts`. Needs its own work
+  item: add the configs, install pinned deps, and triage the first run over
+  upstream source. Until then, api TS changes require `--no-verify` (log it).
+- **APK delivery artifact is undecided (NFR-03).** `assembleRelease` produces a
+  *universal* APK carrying four ABIs: 66.8MB total, of which ~56MB is native libs
+  (arm64-v8a 14.8, x86 15.8, x86_64 15.2, armeabi-v7a 10.2). No device installs
+  all four; estimated per-ABI size is 26.6MB, comfortably inside the 60MB budget.
+  Before NFR-03 can gate (Phase 1, per its ARM_AT_PHASE), decide the delivery
+  artifact — Play App Bundle, or ABI-split APKs via a config plugin, since
+  `android/` is regenerated by prebuild and cannot hold the setting. JS bundle is
+  1.1MB against a 12MB budget.
+- **`devctl verify --json` emits no JSON.** `VERIFY_JSON` is set from the flag and
+  never read; the README documents a JSON shape that is never produced, and
+  `devctl doctor --json` crashes on `issues[@]: unbound variable` under `set -u`
+  when the array is empty. T4 signoff asks for pasted JSON, so this needs fixing
+  before the Phase 1 signoff.
+- **`usesCleartextTraffic: true` is set for dev builds** (release APKs must reach
+  the dev stack at http://10.0.2.2). Phase 8 release hardening must remove it or
+  scope it with a networkSecurityConfig allowing only 10.0.2.2 in dev flavors.
+
+## Test-oracle portability (P7-03)
+
+- **Exact-ID oracles are database-specific and block isolated-DB branches.**
+  `test/integration/p7-05-message-search.spec.ts` and `p2-16-around.spec.ts`
+  assert exact message IDs read from `artifacts/trace/expected-*.txt`, captured
+  against the shared dev database. Any branch carrying a Prisma migration must run
+  its own isolated database (correctly), and therefore generates different UUIDs —
+  so those suites fail on such branches by construction, producing false
+  regressions. Two good rules in collision.
+  Fix options: (a) derive expected IDs at test time from the seed's own
+  deterministic content rather than a captured file, or (b) key the expected-file
+  by database identity and regenerate on seed. (a) is preferable — it removes the
+  captured artifact entirely and makes the oracle portable.
+
+## Core API types are hardcoded inside the generator, not derived from the contract
+
+`tools/codegen/gen.mjs` emits `Server`, `Channel`, `Category` and `Role` from a hardcoded
+template literal (~line 85-110) rather than deriving them from `contracts/openapi.yaml`.
+`Role` was added there during the S2 rebase, consistent with the existing pattern.
+
+Consequence: for these types the generator IS the source of truth, so `openapi.yaml` can
+drift from what the client actually uses and nothing will notice. The codegen gate only
+proves `schema.ts` matches `gen.mjs` output — it does not prove either matches the contract
+or the wire.
+
+Not a regression (pre-existing design) and not currently causing a defect: the hardcoded
+shapes were checked against the Prisma models and match. Recorded because it is the same
+class of problem as DD-018 — a gate that verifies a weaker property than it appears to.
+
+Fix when convenient: declare these under `components/schemas` in `openapi.yaml` and generate
+them like everything else, so the drift gate covers contract→client for all types.
+   captured artifact entirely and makes the oracle portable.
+
+---
+
+## `no-explicit-any` debt (L1b lint gate, 2026-07-25)
+
+48 sites use `any`. The lint rule is set to `'warn'` — they are visible and
+countable but do not block the gate. They must not grow. Incrementally type
+each site; when the count reaches 0, promote the rule to `'error'`.
+
+### Breakdown by file
+
+| File | Count |
+|---|---|
+| `src/realtime/events.gateway.ts` | 13 |
+| `src/messages/messages.service.ts` | 9 |
+| `src/watchparty/watchparty.service.ts` | 7 |
+| `src/friends/friends.service.ts` | 4 |
+| `src/share/share.service.ts` | 2 |
+| `src/gifs/gifs.module.ts` | 2 |
+| `src/auth/auth.service.ts` | 2 |
+| `src/audit-log/audit-log.service.ts` | 2 |
+| `src/voice/voice.service.ts` | 1 |
+| `src/servers/servers.service.ts` | 1 |
+| `src/redis/redis.service.ts` | 1 |
+| `src/overwrites/overwrites.service.ts` | 1 |
+| `src/messages/messages.controller.ts` | 1 |
+| `src/invites/invites.service.ts` | 1 |
+| `src/dms/dms.service.ts` | 1 |
+
+- **Priority:** MEDIUM — the top 3 files account for 29/48 (60%) and are the
+  highest-value targets.
+- **Phase:** Continuous. Each typed site is a self-contained improvement; no
+  orchestrated cutover required.
+
+## Mobile integration tests fail silently against a default unreachable port
+
+`apps/mobile` tests that talk to the API (e.g. the FR-SOC-004 presence suite) default to
+`localhost:3104` when `API_BASE` is unset. If no API is listening there they fail with a
+bare `AggregateError` — no indication that the cause is "nothing is serving at this URL".
+
+This has cost investigation time three separate times in one session, twice being
+mistaken for a real regression (once attributed to a schema bug, once to a LiveKit
+dependency install). Each time the tests passed immediately once `API_BASE` was set.
+
+Fix: fail fast with a clear message. In the shared test setup, probe the configured base
+URL once and, if unreachable, throw something like
+`API unreachable at <url> — set API_BASE to a running API` rather than letting each
+individual request produce an opaque AggregateError.
+
+---
+
+## Tooling / methodology wants — moved
+
+Fleet-observability GUI, test scheduler/device broker, and extracting the
+validation model now live in the methodology repo, not here — they outlive
+this app:
+
+    ~/workspace/workflows/codewhale-fanout/BACKLOG.md
+
+## OWNER-VERIFIED-2026-07-27 — findings from manual testing on a physical Pixel
+
+Found by the owner by hand on `95RY1AFN7` (Pixel 3 XL, Android 12) against APK
+`ac0bbe14`, built with `EXPO_PUBLIC_API_HOST=192.168.0.106` so the device talks
+to the dev API over the LAN with no USB tether. All three are things the
+automated sweep could not have produced.
+
+### OV-001 — "Sign out" is outside the safe area (P1, real defect)
+On the physical device the sign-out control is obscured by the system bottom
+navigation bar. Emulator runs never surfaced this: the flows assert on testIDs,
+which resolve whether or not the element is reachable by a human thumb. Needs a
+safe-area inset on the settings/profile surface, then re-verification by eye —
+an assertVisible cannot confirm the fix.
+
+Relates to the sibling insets issue already filed for sheets/keyboard.
+
+### OV-002 — Voice works on hardware, cannot connect on emulators (methodology)
+Voice connects and renders end-to-end on the Pixel. On every emulator it TIMES
+OUT connecting — no real mic/camera, so WebRTC never establishes.
+
+Consequence: the 43-flow sweep's 7 "voice defects" were 6 emulator artifacts and
+one genuine bug (`voice-pill` persists after tapping disconnect, reproduced on
+the Pixel). `tools/e2e-run-only.sh` now SKIPs voice flows on emulators rather
+than recording false failures. SKIP is not PASS — voice still owes real evidence
+on physical devices, and FR-VOICE requirements cannot be signed off until those
+run on hardware.
+
+### OV-003 — Markdown renders on device (positive confirmation)
+Markdown rendering confirmed working by eye. Supports closing E-01, which the
+owner resolved in favour of shipping mobile markdown ("web devs can implement
+markdown themselves").
+
+## SOUND-SCOPE — soundboard shipped against requirements that do not exist
+
+Found 2026-07-27 while clearing the trace gate ahead of the upstream PR.
+
+Six requirement ids — `FR-SOUND-001` … `FR-SOUND-006` — were referenced by 27
+`@satisfies` annotations across five files. **No such requirements exist.** The
+spec has only these prefixes: APP, AUTH, MED, MSG, NOTIF, ROLE, SOC, SRV, VOX.
+The ids were invented alongside the code and never written down as requirements,
+so the trace gate rejected every one of them.
+
+The annotations are now `@untraced` rather than `@satisfies`. The tests are
+untouched and still run — they are useful coverage of a real API surface. They
+simply no longer claim to satisfy a requirement nobody wrote. Deleting them would
+have destroyed working coverage; inventing the requirements to match the code
+would have been writing the spec to fit whatever shipped, which is the exact
+inversion the phase audits exist to prevent.
+
+### The scope question, which is the owner's to settle
+
+`specs/01-REQUIREMENTS.md:15` lists as OUT of scope:
+
+> soundboard on mobile beyond playback (P2 playback only)
+
+Against that line:
+
+- **API sound CRUD** (`apps/api/test/integration/sounds.spec.ts`) — server-side
+  list/add/update/delete. Plausibly in scope regardless, since web and desktop
+  clients need these endpoints and the exclusion is worded about *mobile*.
+- **Mobile playback** (`SoundboardPanel` listing and playing locally) — this is
+  "playback", so in scope at P2.
+- **Mobile room-publish** (`publishSoundToRoom`, `publishSeam.ts`) — publishing a
+  sound into the LiveKit room is *beyond playback*, and reads as outside the
+  declared scope. `BACKLOG` item "Decide soundboard room-publish mechanism" is
+  still open, so this was built while the decision was pending.
+
+Three ways out, in the owner's gift:
+
+1. **Formalise it.** Add FR-SOUND-001..006 to `01-REQUIREMENTS.md` with real
+   acceptance criteria and amend the exclusion line. Correct if soundboard is
+   genuinely wanted; it widens Phase 6 scope and adds signoff obligations.
+2. **Keep API, drop mobile publish.** Retain the endpoints for client parity,
+   revert `publishSoundToRoom`, leave mobile at playback as the spec says.
+3. **Leave as-is, untraced.** Ships working code with no requirement behind it
+   and no signoff claim. Cheapest now, but it is unowned surface area, and it is
+   how FR-AUTH-001 came to ship unbuilt.
+
+No option is defensible for me to pick: each changes what the product promises.
+Blocking note for the PR — an upstream reviewer will ask what these endpoints
+are for, and right now the repo has no answer.
+
+## IOS-BLOCK-001 — Expo SDK 57 needs a newer Xcode than is installed (BLOCKED, human action)
+
+Found 2026-07-28 on the first iOS build ever attempted in this project.
+
+`expo prebuild --platform ios` succeeded cleanly — `ios/` generated, all pods
+resolved, 81KB Podfile.lock, no config conflicts. The predicted pile of
+accumulated Expo plugin breakage did not materialise.
+
+The build then failed on a toolchain version gate:
+
+```
+xcodebuild: error: Could not resolve package dependencies:
+  package 'apple' is using Swift tools version 6.2.0 but the installed version is 6.1.0
+```
+
+Two Expo packages declare `swift-tools-version: 6.2`:
+
+- `node_modules/expo-modules-jsi/apple/Package.swift`
+- `node_modules/@expo/expo-modules-macros-plugin/apple/Package.swift`
+
+Installed: Xcode 16.3, which ships Swift 6.1. Swift 6.2 ships with Xcode 26.x.
+
+**Required human action:** upgrade Xcode. Nothing else unblocks iOS.
+
+**Deliberately not attempted:** editing the two `Package.swift` files down to 6.1.
+They live in `node_modules`, which is a shared symlink across every agent
+worktree — editing it would corrupt the whole fleet, and any install would
+revert it. It would also be a guess about whether the 6.2 declaration is a
+formality or reflects real language-feature use.
+
+### What this says about DR-003
+
+DR-003 recorded the prerequisite as *"Xcode installation (Will action — one-time,
+~12 GB download)"*. Installation was necessary but not sufficient: the **version**
+is the actual constraint, and nothing in the decision or the host capability
+report checks it. `devctl doctor` reports whether an iOS Simulator runtime
+exists, which was true here while the build was still impossible.
+
+Suggested follow-up: have the host capability check compare the installed Swift
+tools version against the maximum `swift-tools-version` declared by any package
+under `node_modules`, and report `ios_simulator: "unavailable (swift 6.1 < 6.2)"`
+rather than a bare `available`. That converts a build-time failure into a
+host-check failure, which is where it belongs.
+
+## Resolved: markdown.ts / unread.ts are wired (was "zero consumers")
+
+Verified 2026-07-28 by tracing the full chain to a rendering screen, not just
+one level of import:
+
+- `domain/markdown.ts` → `MarkdownText.tsx` → `ChatPane.tsx:663` (rendered)
+- `domain/unread.ts` → `useUnread.ts` → `ChatPane.tsx:48` and `ChannelList.tsx:18`
+
+`tools/check-unreachable.sh` agrees: *"OK — every exported feature component is
+referenced by a screen"*, exit 0. The owner independently confirmed markdown
+rendering on a physical device on 2026-07-27.
+
+The stale `wire-markdown` branch (230 commits behind `integration`) is superseded
+and should be retired rather than merged.
+
+## EVIDENCE-AGENTS-2026-07-28 — three branches held back, and why
+
+Three agents were dispatched with one requirement each (FR-MSG-005, FR-MSG-011,
+FR-NOTIF-002) to close evidence-type violations. All three finished — the
+one-requirement scoping fixed the step-cap problem that killed both earlier
+seven-requirement attempts.
+
+All three independently reached for the same solution: write a Maestro flow,
+move the `@satisfies` annotation onto it, violation closed. Each honestly
+reported the flow as unexecuted. **The gate would have gone green anyway**,
+because `classifyFileEvidenceType` decided evidence level by file path — so a
+requirement demanding end-to-end proof was satisfiable by creating a file.
+
+That is not three agents cheating. It is three agents finding the cheapest path
+that the gate declared acceptable, which is what any optimiser does. The defect
+was in the gate.
+
+Fixed in `7d6a122`: e2e evidence now requires a passing receipt in
+`artifacts/e2e/receipts/`, written by the runner that actually executed the flow.
+
+### Status of the branches
+
+`ev-msg005`, `ev-msg011`, `ev-notif002` are **unmerged, pending adjudication**.
+
+With receipts required they can no longer close anything falsely, so the risk is
+gone. But the net effect of merging as-is is still negative:
+
+- the `@satisfies` moves strip a unit-test annotation the requirement had, and
+  replace it with a flow that has never run — the gate stays red either way, but
+  the unit test stops being visible as partial evidence;
+- `ev-notif002` deletes 29 lines from `push.test.ts`, which needs a reason
+  before it is accepted.
+
+The flows themselves are worth keeping — they are the artefact that must
+eventually run. Suggested resolution: take the flow files, drop the annotation
+moves and the test deletion, then run the flows and let the receipts close the
+requirements honestly.

@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-07-22T15:37:00Z",
+  "flow": "p0-smoke-hello",
+  "device": "emulator-5554",
+  "result": "pass",
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "ram_gb": "48",
+    "virt": "HVF"
+  },
+  "emulator": {
+    "avd": "OpenChat_Pixel6a_API34",
+    "api": 34,
+    "arch": "arm64-v8a",
+    "boot_ms": 21899
+  },
+  "gate_proof": {
+    "broken_assertion_caught": true,
+    "broken_exit_code": 1,
+    "revert_pass": true
+  },
+  "toolchain": {
+    "java": "openjdk 17.0.20",
+    "android_sdk": "12.0",
+    "emulator": "36.6.11.0",
+    "maestro": "2.7.0",
+    "adb": "1.0.41"
+  }
+}

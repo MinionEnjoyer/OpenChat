@@ -39,7 +39,6 @@ function makeClient(fetchImpl: jest.Mock) {
 }
 
 describe('api client refresh interceptor', () => {
-  // @satisfies FR-AUTH-010
   it('a 401 triggers one refresh and one replay; concurrent 401s share the refresh', async () => {
     let refreshCalls = 0;
     const fetchImpl = mockFetch((url, init) => {

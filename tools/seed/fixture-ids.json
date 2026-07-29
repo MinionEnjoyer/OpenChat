@@ -1,0 +1,28 @@
+{
+  "users": {
+    "alice": "6d30e0fc-0373-4d06-8208-98b4703cc352",
+    "bob": "de7bf295-0ccc-4e1b-8580-d386b370eb7a",
+    "carol": "17718d75-038c-4c92-9945-1f2f3d8aa6b1",
+    "dave": "12f7737c-c382-429b-b371-29fc99c1d2bf"
+  },
+  "server": {
+    "fixtureGuild": "3ecbf3e9-d52c-4d8e-a7d0-f7dac828f65f"
+  },
+  "roles": {
+    "admin": "7a5b766a-de89-403e-8df4-f7feb56bec6d",
+    "mod": "300c3bfc-b976-4947-8dea-077d02344f36",
+    "member": "c475d3f9-fab2-459a-abf7-87e244cb7697"
+  },
+  "channels": {
+    "general": "3f067e20-b777-475f-9bcf-552c3579fd30",
+    "#general": "fdf0a948-f489-4071-9fd3-ec18ed9b630c",
+    "#random": "7d69930d-7789-4705-a6a5-2893f1df7101",
+    "#announcements": "6dc1f0ba-a297-45bc-959d-ab23597b5f45",
+    "#lounge": "cc8b30ef-2ed7-4523-9750-753a39bb3e5d",
+    "#memes": "9799b123-9f64-4436-9fad-4db938a45922",
+    "#volume": "25628aa7-9fd6-4587-8f7e-de465e8f8cee",
+    "#voice-general": "ea3e280d-af11-4db8-9697-041da302f5d1",
+    "#voice-gaming": "470dc399-72d4-4b24-ab95-ea187422714c"
+  },
+  "volumeChannelId": "25628aa7-9fd6-4587-8f7e-de465e8f8cee"
+}

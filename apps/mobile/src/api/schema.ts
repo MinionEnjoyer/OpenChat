@@ -212,7 +212,7 @@ export interface VoiceLeaveResponse {
   success: true;
 }
 
-/** Channel permissions for current user (GET /servers/:id/channels/:channelId/permissions/me). @satisfies FR-SRV-010 */
+/** Channel permissions for current user (GET /servers/:id/channels/:channelId/permissions/me). @infra FR-SRV-010 */
 export interface ChannelPermissionsResponse {
   permissions: string; // BigInt serialized as decimal string
 }
@@ -278,7 +278,14 @@ export interface UploadedAttachment {
   shareAssetId: string;
   filename: string;
   mimeType: string;
-  size: string; // BigInt serialized as decimal string by server
+  // BigInt serialized as decimal string by server — NOT a number.
+  // contracts/x-attachment-shape.yaml declares: {type: string, pattern: "^\d+$"}.
+  // The API sends "31", not 31. Typing this as number made formatSize() render
+  // the wrong value. That was found and fixed once already, but the fix was
+  // applied to the GENERATED schema.ts instead of here, so every regeneration
+  // silently reverted it. The drift went unnoticed because the pre-push gate
+  // was a no-op; the first run of a working gate surfaced it immediately.
+  size: string;
   url: string;
   thumbnailUrl: string | null;
   width: number | null;

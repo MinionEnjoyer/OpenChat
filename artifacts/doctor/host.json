@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-07-25T07:17:19Z",
+  "phase": 1,
+  "os": "Darwin",
+  "arch": "arm64",
+  "virt": "hvf",
+  "ram_gb": 48,
+  "free_disk_gb": 35,
+  "docker": {"available": true, "version": "28.3.0"},
+  "android_sdk": {"available": false, "image_arch": ""},
+  "maestro": {"available": true, "version": "The operation couldn’t be completed. Unable to locate a Java Runtime."},
+  "xcode": {"available": true, "version": "xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance", "ios_simulator": "unavailable"},
+  "issues": [
+  "android_sdk: Android SDK, emulator, and adb required for Phase 1+ E2E (run tools/setup-android-toolchain.sh)"
+]
+}

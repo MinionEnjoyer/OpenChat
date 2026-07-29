@@ -1,0 +1,143 @@
+# =============================================================================
+# OpenChat — development stack (additive; never touches docker-compose.yml)
+# Usage: docker compose -f docker-compose.dev.yml up --build
+# =============================================================================
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chat}
+      POSTGRES_DB: ${POSTGRES_DB:-chat}
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    networks: [dev_net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat-dev-redis
+    restart: unless-stopped
+    command: redis-server --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "6379:6379"
+    networks: [dev_net]
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    container_name: chat-dev-api
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    environment:
+      NODE_ENV: development
+      DEV_AUTH: "1"
+      API_PORT: "3001"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chat}:${POSTGRES_PASSWORD:-chat}@postgres:5432/${POSTGRES_DB:-chat}
+      REDIS_URL: redis://redis:6379
+      SESSION_SECRET: dev-dev-dev-dev-16
+      JWT_SECRET: dev-jwt-secret-not-for-prod
+      SHARE_BASE_URL: http://openshare:8800
+      SHARE_API_KEY: dev-share-key
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secretsecretsecretsecretsecret12
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_API_URL: http://livekit:7880
+    volumes:
+      - ./apps/api/src:/app/src:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+      - "9229:9229"
+    networks: [dev_net]
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    container_name: chat-dev-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    networks: [dev_net]
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: chat-dev-livekit
+    restart: unless-stopped
+    # --node-ip is the address LiveKit advertises to clients as its ICE candidate
+    # for MEDIA (UDP 50000). It OVERRIDES rtc.node_ip in livekit.dev.yaml.
+    #
+    # Getting this wrong fails silently in the worst way: signalling succeeds,
+    # participants join and appear in the room, and no audio ever flows — nothing
+    # in the app looks broken.
+    #
+    # Default "livekit" (the compose service name) resolves inside dev_net, which
+    # is right for host/emulator clients. A PHYSICAL device on the LAN cannot
+    # resolve it, so device testing needs the dev machine's LAN address:
+    #   LIVEKIT_NODE_IP=192.168.0.106 docker compose -f docker-compose.dev.yml up -d livekit
+    # Not hardcoded: DHCP reassigns it, and a baked-in IP breaks other machines and CI.
+    command: --config /etc/livekit/livekit.yaml --node-ip=${LIVEKIT_NODE_IP:-livekit}
+    volumes:
+      - ./livekit.dev.yaml:/etc/livekit/livekit.yaml:ro
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000:50000/udp"
+    networks: [dev_net]
+
+  openshare:
+    build:
+      context: ../OpenShare
+    container_name: chat-dev-openshare
+    restart: unless-stopped
+    environment:
+      DEV_AUTH: "1"
+      SESSION_SECRET: dev-share-session-secret-not-for-prod
+      OIDC_CLIENT_ID: dev
+      OIDC_CLIENT_SECRET: dev
+      OIDC_ISSUER: https://auth.example.com/application/o/openshare/
+      PUBLIC_URL: http://localhost:8800
+      ALLOWED_ORIGINS: http://localhost:3000
+      STORAGE_ROOT: /srv/openshare
+      PORT: "8800"
+      STORAGE_PATH: /tmp/openshare-storage
+      DB_PATH: /tmp/openshare-data
+    volumes:
+      - openshare_storage:/srv/openshare
+      - openshare_data:/tmp/openshare-data
+    ports:
+      - "8800:8000"
+    networks: [dev_net]
+
+networks:
+  dev_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.107.0.0/24
+
+volumes:
+  openshare_storage:
+  openshare_data:

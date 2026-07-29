@@ -1,4 +1,3 @@
-// @satisfies FR-MSG-009
 import { useTyping } from '../typing';
 import { setClock, resetClock, createFrozenClock } from '../../lib/clock';
 

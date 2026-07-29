@@ -93,12 +93,25 @@ function getToken(login: DevLoginResponse): string {
 
 describe('FR-VOX-001 Voice API integration', () => {
   let token: string;
-  const voiceChannelId = '0fa7d184-2109-44ac-930e-c5fbe7ad0115';
+  /** Discovered dynamically from the seed because the API generates fresh UUIDs. */
+  let voiceChannelId: string;
   const badChannelId = '00000000-0000-0000-0000-000000000000';
 
   beforeAll(async () => {
     const user = await devLogin('alice');
     token = getToken(user);
+
+    // Discover a VOICE channel dynamically (seed UUIDs are not stable across runs).
+    const serversRes = await request('GET', '/api/servers', { token });
+    const servers = (serversRes.body as any[]) ?? [];
+    if (servers.length === 0) throw new Error('alice has no servers — is the DB seeded?');
+    const serverId = (servers[0] as any).id as string;
+
+    const channelsRes = await request('GET', `/api/servers/${serverId}/channels`, { token });
+    const channels = (channelsRes.body as any[]) ?? [];
+    const voiceCh = channels.find((c: any) => c.type === 'VOICE');
+    if (!voiceCh) throw new Error('no VOICE channel found in seed — run tools/seed/seed.mjs first');
+    voiceChannelId = voiceCh.id as string;
   });
 
   describe('POST /voice/:id/join', () => {

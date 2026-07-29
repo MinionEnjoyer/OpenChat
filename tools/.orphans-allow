@@ -1,0 +1,147 @@
+# Allowlist for tools/check-orphans.sh
+# Every entry must have a # REASON — an unjustified entry defeats the check.
+#
+# The gate flags files whose only production importers are inside the same
+# directory (barrel, sibling files). These entries exempt files that are
+# transitively reachable through their feature barrel → external consumer.
+# Each entry documents the chain: Filename ← barrel ← external_consumer.
+
+# ── apps/api ──
+
+# FcmPushTransport is wired through the PUSH_TRANSPORT DI token via
+# useExisting in push.module.ts. The class name is never directly
+# referenced outside its module, but NestJS injects it through the
+# token system. It is not orphaned — it is the push transport.
+api:FcmPushTransport
+
+# ── apps/mobile: attachments ──
+# All files below are re-exported through features/attachments/index.ts
+# barrel, which is imported by ChatPane.tsx → ShellScreen.tsx → App.tsx.
+mobile:useCompression
+mobile:AttachPicker
+mobile:AuthImage
+mobile:AttachmentGrid
+mobile:uploadService
+mobile:GalleryModal
+mobile:attachmentUtils
+mobile:types
+mobile:AttachmentTray
+mobile:useAttachments
+mobile:expoImageProcessor
+mobile:imageCompression
+mobile:useUploadAttachments
+
+# ── apps/mobile: avatars ──
+# Re-exported through features/avatars/index.ts barrel →
+# ShellScreen.tsx → App.tsx, and ServerSettingsScreen.tsx.
+mobile:AvatarPicker
+mobile:useAvatarUpload
+
+# ── apps/mobile: blocked-messages ──
+# Re-exported through features/blocked-messages/index.ts barrel →
+# ChatPane.tsx → ShellScreen.tsx → App.tsx, and PinsPanel.tsx.
+mobile:useRevealedStore
+mobile:useBlockedStore
+
+# ── apps/mobile: channels ──
+# channels has NO barrel (no index.ts). However:
+# - categories.ts provides types consumed by hooks.ts and ChannelForm.tsx,
+#   both directly imported by ShellScreen.tsx → App.tsx.
+#   The type exports flow through the consumer chain.
+mobile:categories
+
+# ── apps/mobile: dms ──
+# Re-exported through features/dms/index.ts barrel →
+# ShellScreen.tsx → App.tsx.
+# hooks.ts is directly imported by DmsList.tsx (same dir) which IS in
+# the barrel → ShellScreen chain.
+mobile:DmsList
+mobile:hooks
+
+# ── apps/mobile: friends ──
+# Re-exported through features/friends/index.ts barrel →
+# ShellScreen.tsx → App.tsx.
+mobile:FriendsScreen
+
+# ── apps/mobile: inbox ──
+# inboxHelpers.ts is imported by InboxScreen (barrel entry point).
+# The barrel is imported by ShellScreen.tsx → App.tsx.
+mobile:inboxHelpers
+
+# ── apps/mobile: messages ──
+# All files below are re-exported through features/messages/index.ts
+# barrel, imported by ShellScreen.tsx → App.tsx and queryClient.ts.
+mobile:PollCreate
+mobile:EmojiPicker
+mobile:ChatPane
+mobile:GifPicker
+mobile:gifFeature
+mobile:announceReadOnly
+mobile:ReactorListSheet
+mobile:ReactionPills
+mobile:serverConfig
+mobile:usePaginatedMessages
+mobile:PinsPanel
+mobile:MessageActionSheet
+mobile:MessageEmbeds
+mobile:PollCard
+
+# ── apps/mobile: notif-settings ──
+# Re-exported through features/notif-settings/index.ts barrel →
+# ShellScreen.tsx → App.tsx.
+# notifSettings.ts is imported by NotificationSettingsScreen.tsx (same dir),
+# which is in the barrel → ShellScreen chain.
+mobile:NotificationSettingsScreen
+mobile:notifSettings
+
+# ── apps/mobile: presence ──
+# Re-exported through features/presence/index.ts barrel →
+# ShellScreen.tsx → App.tsx, MemberList.tsx, MemberProfileSheet.tsx,
+# and queryClient.ts.
+mobile:StatusPicker
+mobile:PresenceDot
+
+# ── apps/mobile: shell ──
+# MemberList.tsx and MemberProfileSheet.tsx are directly imported by
+# ShellScreen.tsx (same feature dir, but ShellScreen IS the entry point
+# directly rendered by App.tsx). coldstart.ts is imported by ShellScreen
+# and carries last-channel restore logic — reachable.
+# NOTE: ShellScreen itself is NOT in the barrel — App.tsx imports it
+# directly: import { ShellScreen } from './src/features/shell'.
+mobile:coldstart
+mobile:MemberList
+mobile:MemberProfileSheet
+
+# ── apps/mobile: voice ──
+# All files below are re-exported through features/voice/index.ts barrel,
+# imported by ShellScreen.tsx → App.tsx.
+# useVoiceConnection and CallStore have direct external importers and are
+# not flagged. The rest go through the barrel.
+mobile:VoiceTile
+mobile:IncomingCallOverlay
+mobile:VoiceControls
+mobile:VoiceService
+mobile:VoiceStore
+mobile:VoiceChannelView
+mobile:VideoTile
+mobile:VoiceTileGrid
+mobile:useVoiceParticipants
+mobile:useScreenShare
+mobile:ScreenShareView
+mobile:VoicePill
+
+# ── INTENTIONALLY NOT ALLOWLISTED (known orphans) ──
+# PushDispatchService is no longer listed here — it is an event-bus
+# subscriber (Redis chat:events pub/sub via OnModuleInit) and the
+# script now correctly skips such providers. Event-bus subscribers
+# are wired through the bus, not DI injection.
+#
+# mobile:push — imported only by index.ts (barrel) + __tests__.
+#   No direct external consumer. The barrel's initializePush is
+#   called by App.tsx, but the file-level wiring gap means the
+#   integration was never verified.
+#
+# mobile:foregroundHandler — same pattern: barrel-only + tests.
+#   handleForegroundNotification is called by queryClient.ts through
+#   the barrel, but the file itself has no direct external importer.
+#   Flagged alongside push.ts as the same class of wiring gap.

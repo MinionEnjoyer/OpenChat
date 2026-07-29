@@ -11,6 +11,7 @@ module.exports = {
     '^expo-notifications$': '<rootDir>/src/__mocks__/expo-notifications.ts',
     '^@expo/vector-icons$': '<rootDir>/src/__mocks__/@expo-vector-icons.ts',
     '^expo-audio$': '<rootDir>/src/__mocks__/expo-audio.ts',
+    '^@react-native-firebase/messaging$': '<rootDir>/src/__mocks__/react-native-firebase-messaging.ts',
   },
   testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts?(x)'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/src/api/__tests__/contract/'],

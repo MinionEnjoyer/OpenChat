@@ -6,6 +6,8 @@
  * giphy/share) is fetched at boot in Phase 1 and is deliberately not here.
  */
 
+import { Platform } from 'react-native';
+
 export interface AppConfig {
   /** Base URL including the `/api` global prefix (00 §0.3). */
   apiBaseUrl: string;
@@ -38,11 +40,67 @@ export const ANDROID_EMULATOR_HOST = '10.0.2.2';
  * Deliberately NOT hardcoded: a LAN IP baked into committed config breaks the
  * moment DHCP reassigns it, and breaks other machines and CI immediately.
  */
-export const API_HOST = process.env.EXPO_PUBLIC_API_HOST ?? ANDROID_EMULATOR_HOST;
+/**
+ * iOS Simulator shares the host's network stack, so the host is reachable at
+ * plain localhost. It has no equivalent of 10.0.2.2 — that alias is created by
+ * the Android emulator's NAT and means nothing on iOS.
+ */
+export const IOS_SIMULATOR_HOST = '127.0.0.1';
+
+/**
+ * Platform-correct default when EXPO_PUBLIC_API_HOST is unset.
+ *
+ * This used to fall back to ANDROID_EMULATOR_HOST on every platform. The first
+ * iOS build ever produced (2026-07-28) therefore dialled http://10.0.2.2:3030
+ * and sat on a spinner until it timed out — an address that cannot resolve on
+ * iOS, over cleartext that ATS would refuse anyway. The failure looked like
+ * broken auth; it was a default written when only Android existed.
+ *
+ * Platform.OS is read lazily rather than at module load so the value stays
+ * correct under Jest, where react-native is mocked per-suite.
+ */
+function defaultHost(): string {
+  return Platform.OS === 'ios' ? IOS_SIMULATOR_HOST : ANDROID_EMULATOR_HOST;
+}
+
+export const API_HOST = process.env.EXPO_PUBLIC_API_HOST ?? defaultHost();
+
+/** Port the local dev stack publishes. Not used when a full URL is supplied. */
+export const DEV_API_PORT = 3030;
+
+/**
+ * Full API base URL, when the deployment is not a local dev stack.
+ *
+ * EXPO_PUBLIC_API_HOST alone cannot describe production: it only substitutes the
+ * host into `http://<host>:3030/api`, so scheme and port stay pinned to the dev
+ * stack. A build pointed at chat.creeger.com therefore requested
+ * http://chat.creeger.com:3030/api — which times out, because production serves
+ * HTTPS on 443. Verified 2026-07-28: https://chat.creeger.com/api/health → 200,
+ * http://chat.creeger.com:3030/api/health → timeout.
+ *
+ * That made the client structurally incapable of reaching ANY production
+ * deployment, on either platform, no matter how the server was configured. It
+ * surfaced as "auth failed" on iOS and a retry icon on Android, which reads like
+ * an auth defect rather than a URL that cannot resolve.
+ *
+ *   EXPO_PUBLIC_API_URL=https://chat.creeger.com/api npm run apk:release
+ *
+ * Falls back to the dev-stack shape so existing emulator and LAN builds are
+ * unchanged.
+ */
+const explicitApiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
+const explicitWsUrl = process.env.EXPO_PUBLIC_WS_URL?.replace(/\/+$/, '');
+
+/** Derive the websocket origin from an http(s) API base URL. */
+function wsFromApi(apiUrl: string): string {
+  return apiUrl.replace(/^http/, 'ws').replace(/\/api$/, '/ws');
+}
 
 export const DEFAULT_DEV_CONFIG: AppConfig = {
-  apiBaseUrl: `http://${API_HOST}:3030/api`,
-  wsUrl: `ws://${API_HOST}:3030/ws`,
+  apiBaseUrl: explicitApiUrl ?? `http://${API_HOST}:${DEV_API_PORT}/api`,
+  wsUrl:
+    explicitWsUrl ??
+    (explicitApiUrl ? wsFromApi(explicitApiUrl) : `ws://${API_HOST}:${DEV_API_PORT}/ws`),
   e2e: false,
 };
 

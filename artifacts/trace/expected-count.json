@@ -1,0 +1,12 @@
+{
+  "fr": 74,
+  "nfr": 12,
+  "total": 86,
+  "canonical_source": "specs/01-REQUIREMENTS.md",
+  "extraction_regex": {
+    "fr": "^\\|\\s*(FR-[A-Z]+-\\d{3})\\b",
+    "nfr": "^\\|\\s*(NFR-\\d{2})\\b"
+  },
+  "last_verified": "2026-07-24",
+  "note": "Changing this file is the intentional-change ritual for adding/removing requirements. trace.mjs asserts parsed counts match these values and FAILS if they drift without an update to this file."
+}

@@ -12,7 +12,7 @@ export class NoopPushTransport implements PushTransport {
   private readonly logger = new Logger(NoopPushTransport.name);
   private lastWarn = 0;
 
-  async sendPush(tokens: string[], _payload: PushPayload): Promise<SendPushResult> {
+  async sendPush(_tokens: string[], _payload: PushPayload): Promise<SendPushResult> {
     const now = Date.now();
     if (now - this.lastWarn > 60_000) {
       this.lastWarn = now;

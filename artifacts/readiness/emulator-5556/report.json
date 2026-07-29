@@ -1,0 +1,20 @@
+[
+  {
+    "screen": "InviteCreateOverlay",
+    "id": "invite-create",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  },
+  {
+    "screen": "JoinServerOverlay",
+    "id": "join-server",
+    "reached": false,
+    "pass": false,
+    "failures": [
+      "UNREACHED: Maestro flow failed (exit code 1)"
+    ]
+  }
+]

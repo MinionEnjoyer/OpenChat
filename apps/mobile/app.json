@@ -9,7 +9,18 @@
     "scheme": "openchat",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.openchat.mobile"
+      "bundleIdentifier": "com.openchat.mobile",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
+      },
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.openchat.mobile",
@@ -23,15 +34,20 @@
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
+      "@react-native-firebase/app",
       "expo-secure-store",
       [
         "expo-build-properties",
         {
           "android": {
             "usesCleartextTraffic": true
+          },
+          "ios": {
+            "useFrameworks": "static"
           }
         }
       ],
+      "./plugins/with-firebase-notification-manifest-fix",
       [
         "expo-notifications",
         {

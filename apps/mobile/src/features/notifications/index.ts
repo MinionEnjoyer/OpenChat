@@ -16,6 +16,9 @@ export {
   _setNotificationsForTest,
   _resetMocksForTest,
   _setStoredTokenForTest,
+  _setIosMessagingForTest,
+  hasRegisteredPushToken,
+  isAndroid,
 } from './push';
 export type { NotificationRoute, NavigationHandler } from './push';
 
@@ -28,6 +31,8 @@ export {
   _setRequestPermsForTest,
   _resetRequestPermsForTest,
   _resetPermRequestedForTest,
+  _setRemotePushPreferredForTest,
+  _resetRemotePushPreferredForTest,
   _fsSet,
   _fsReset,
 } from './localNotify';

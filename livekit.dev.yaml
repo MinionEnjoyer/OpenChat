@@ -1,0 +1,14 @@
+port: 7880
+rtc:
+  udp_port: 50000
+  tcp_port: 7881
+  use_external_ip: false
+  # NOTE: node_ip is set on the command line in docker-compose.dev.yml
+  # (--node-ip=...), which OVERRIDES anything written here. Change it there,
+  # not in this file. See the comment on the livekit service in that compose file
+  # for why it matters for physical-device testing.
+  node_ip: 127.0.0.1
+keys:
+  devkey: secretsecretsecretsecretsecret12
+logging:
+  level: debug

@@ -1,0 +1,18 @@
+{
+  "device_broker": {
+    "command_prefix": [],
+    "required": true
+  },
+  "gate_promotion": {
+    "negative_controls": 1,
+    "positive_runs": 2
+  },
+  "heartbeat_seconds": 10,
+  "heartbeat_ttl_seconds": 120,
+  "implementation_may_reserve_device": false,
+  "max_parallel_agents": 8,
+  "require_clean_worktree": true,
+  "require_independent_verifier": true,
+  "require_merged_result_gate": true,
+  "schema_version": 1
+}

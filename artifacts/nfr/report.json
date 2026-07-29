@@ -1,0 +1,220 @@
+{
+  "generated": "2026-07-25T07:17:30.750Z",
+  "tool": "tools/nfr/nfr-runner.mjs",
+  "sha": "7456293",
+  "phase": "1",
+  "summary": {
+    "total": 12,
+    "armed": 2,
+    "baseline": 1,
+    "blocked": 9,
+    "overdue": 0,
+    "error": 0,
+    "pass": 2,
+    "fail": 0
+  },
+  "results": [
+    {
+      "id": "NFR-01",
+      "name": "cold start to interactive channel list",
+      "budget": "≤3.0s p95 on Pixel-6a-class emulator, release build",
+      "tool": "adb shell am start -W + reportFullyDrawn",
+      "arm_at_phase": 1,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no APK and no channel list — P0-17 builds the skeleton, P1-06 the shell",
+      "evidence": {
+        "apk_search": "apps/mobile/**/*.apk",
+        "apk_found": "/Users/williambsexton/work/OpenChat/apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 1",
+      "script": "nfr-01-cold-start.sh"
+    },
+    {
+      "id": "NFR-02",
+      "name": "scroll jank on 1000-msg channel",
+      "budget": "<5% janky frames",
+      "tool": "dumpsys gfxinfo <pkg> framestats during a Maestro scroll flow",
+      "arm_at_phase": 2,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no message list — Phase 2 (the #volume 1000-msg channel already seeds via P0-06)",
+      "evidence": {
+        "apk_found": "/Users/williambsexton/work/OpenChat/apps/mobile/android/app/build/outputs/apk/release/app-release.apk",
+        "seeded_volume_channel": "tools/seed/seed.mjs #volume (1000 msgs)"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 2",
+      "script": "nfr-02-jank-scroll.sh"
+    },
+    {
+      "id": "NFR-03",
+      "name": "release APK size",
+      "budget": "≤60MB APK, ≤12MB JS bundle",
+      "tool": "stat on gradle outputs + per-ABI breakdown from the APK's lib/ entries",
+      "arm_at_phase": 1,
+      "observed_phase": 1,
+      "status": "baseline",
+      "value": "universal APK 67.1MB; est. per-ABI 26.9MB; JS bundle 1.2MB",
+      "evidence": {
+        "apk_path": "apps/mobile/android/app/build/outputs/apk/release/app-release.apk",
+        "universal_apk_mb": "67.1",
+        "js_bundle_mb": "1.2",
+        "abi_breakdown": "x86=15.8MB armeabi-v7a=10.2MB x86_64=15.2MB arm64-v8a=14.8MB ",
+        "est_per_abi_mb": "26.9",
+        "budget_note": "universal 67.1MB exceeds the 60MB budget; est. per-ABI 26.9MB is within it"
+      },
+      "reason": "measured and recorded, not gating until phase 1: delivery artifact not decided (universal vs per-ABI split) — see BACKLOG",
+      "script": "nfr-03-apk-size.sh"
+    },
+    {
+      "id": "NFR-04",
+      "name": "steady-state memory in voice call",
+      "budget": "≤400MB PSS",
+      "tool": "dumpsys meminfo <pkg> sampled in-call",
+      "arm_at_phase": 6,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no voice call path on mobile — Phase 6",
+      "evidence": {
+        "livekit_dev_service": "docker-compose.dev.yml: livekit",
+        "mobile_voice_feature": "absent"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 6",
+      "script": "nfr-04-memory-voice.sh"
+    },
+    {
+      "id": "NFR-05",
+      "name": "offline read of bounded message cache",
+      "budget": "last 50 msgs of last 10 viewed channels render with airplane mode",
+      "tool": "Maestro flow with airplane mode toggled via adb",
+      "arm_at_phase": 2,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no persisted message cache — Phase 2 (06 §6 defines the bounded cache)",
+      "evidence": {
+        "e2e_flows_present": "3",
+        "mobile_cache_module": "absent"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 2",
+      "script": "nfr-05-offline.sh"
+    },
+    {
+      "id": "NFR-06",
+      "name": "outbound queue ordering on reconnect",
+      "budget": "bounded 50; delivered in order on reconnect",
+      "tool": "integration test with WS chaos + ordered nonce assertion",
+      "arm_at_phase": 2,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no outbox — Phase 2 (06 §6: FIFO per-channel queue surviving restart)",
+      "evidence": {
+        "mobile_outbox_module": "absent",
+        "ws_gateway_characterized": "apps/api/test/characterization/ws.spec.ts"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 2",
+      "script": "nfr-06-outbox.sh"
+    },
+    {
+      "id": "NFR-07",
+      "name": "reconnect backoff and idempotent resubscribe",
+      "budget": "exponential 1s→32s with jitter; resubscribe idempotent",
+      "tool": "unit test on the backoff schedule table + chaos test killing WS 20×",
+      "arm_at_phase": 1,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no gateway client — P1-05 builds the reconnect loop",
+      "evidence": {
+        "mobile_realtime_dir": "README.md __tests__ backoff.ts events.d.ts gateway.ts index.ts ",
+        "note": "generated event types only; no client implementation"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 1",
+      "script": "nfr-07-reconnect.sh"
+    },
+    {
+      "id": "NFR-08",
+      "name": "type safety (tsc --strict, no any)",
+      "budget": "tsc --strict zero errors; no `any` in apps/mobile/src",
+      "tool": "tsc --noEmit per package + eslint no-explicit-any",
+      "arm_at_phase": 1,
+      "observed_phase": 1,
+      "status": "armed",
+      "value": "api 0 errors; mobile 0 errors; 0 explicit any",
+      "pass": true,
+      "evidence": {
+        "api_tsc_errors": "0",
+        "mobile_tsc_errors": "0",
+        "explicit_any": "0",
+        "mobile_tsconfig": "/Users/williambsexton/work/OpenChat/apps/mobile/tsconfig.json"
+      },
+      "script": "nfr-08-types.sh"
+    },
+    {
+      "id": "NFR-09",
+      "name": "accessibility labels and font scaling",
+      "budget": "all tappables labelled; text scales to 1.3× without clipping critical UI",
+      "tool": "eslint a11y rule + Maestro re-run of core flows at --font-scale 1.3",
+      "arm_at_phase": 2,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no product UI and no core flows to re-run — P0-17 then Phase 1/2",
+      "evidence": {
+        "mobile_src_files": "40",
+        "e2e_flows_present": "3",
+        "note": "existing flows are rig validation (@infra), not product flows"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 2",
+      "script": "nfr-09-a11y.sh"
+    },
+    {
+      "id": "NFR-10",
+      "name": "web client backward compatibility",
+      "budget": "web smoke E2E green on every backend change",
+      "tool": "CI web-smoke job triggered on apps/api or contracts/ changes",
+      "arm_at_phase": 1,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "CI has never executed — the web-smoke job is wired in ci.yml but unproven (docs/release/HITL-0.md)",
+      "evidence": {
+        "ci_workflow": "/Users/williambsexton/work/OpenChat/.github/workflows/ci.yml",
+        "proven_run_record": "none — see docs/release/HITL-0.md",
+        "backend_changes_so_far": "0 (git diff apps/api/src against upstream base is empty)"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 1",
+      "script": "nfr-10-backcompat.sh"
+    },
+    {
+      "id": "NFR-11",
+      "name": "i18n readiness (no literal JSX strings)",
+      "budget": "no literal JSX strings; all user-facing text via the strings module",
+      "tool": "eslint react/jsx-no-literals over apps/mobile",
+      "arm_at_phase": 1,
+      "observed_phase": 1,
+      "status": "armed",
+      "value": "0 literal JSX strings",
+      "pass": true,
+      "evidence": {
+        "rule": "react/jsx-no-literals (noStrings)",
+        "scope": "apps/mobile",
+        "strings_module": "src/ui/strings.ts"
+      },
+      "script": "nfr-11-i18n.sh"
+    },
+    {
+      "id": "NFR-12",
+      "name": "crash-free harness sessions",
+      "budget": "≥99.5% crash-free across the full E2E suite ×3 consecutive runs",
+      "tool": "E2E suite ×3 + adb logcat FATAL scanner",
+      "arm_at_phase": 8,
+      "observed_phase": 1,
+      "status": "blocked",
+      "blocked_by": "no product E2E suite — the release gate runs at Phase 8",
+      "evidence": {
+        "e2e_flows_present": "3",
+        "last_e2e_run": "artifacts/e2e/last-run.json",
+        "note": "existing flows are rig validation (@infra), not product flows"
+      },
+      "reason": "not yet measurable at phase 1; must be armed during phase 8",
+      "script": "nfr-12-reliability.sh"
+    }
+  ]
+}

@@ -22,6 +22,8 @@ interface PushEvent {
   type: 'MENTION' | 'NOTIFY' | 'CALL_RING';
   userId: string;
   channelId?: string;
+  serverId?: string;
+  dmChannelId?: string;
   /** For MENTION: the author who wrote the message (NOT the push target). */
   authorName?: string;
   /** For CALL_RING: the caller (NOT the push target). */
@@ -107,23 +109,59 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     // ── Load device tokens ──────────────────────────────────────
-    const tokens = await this.loadDeviceTokens(userId);
-    if (tokens.length === 0) return;
+    const devices = await this.loadDeviceTokens(userId);
+    if (devices.length === 0) return;
 
     // ── Build payload ───────────────────────────────────────────
-    const payload = this.buildPayload(event);
+    const basePayload = this.buildPayload(event);
+
+    // ── Partition by platform ───────────────────────────────────
+    const androidTokens: string[] = [];
+    const iosTokens: string[] = [];
+    for (const d of devices) {
+      if (d.platform === 'android') androidTokens.push(d.token);
+      else if (d.platform === 'ios') iosTokens.push(d.token);
+      else androidTokens.push(d.token); // unknown → treat as android (FCM default)
+    }
+
+    // Build platform-specific payloads from the shared base.
+    const androidPayload = {
+      title: basePayload.title,
+      body: basePayload.body,
+      data: basePayload.data,
+      android: basePayload.android,
+    };
+    const iosPayload = {
+      title: basePayload.title,
+      body: basePayload.body,
+      data: basePayload.data,
+      apns: basePayload.apns,
+    };
 
     // ── Dispatch ────────────────────────────────────────────────
-    const result = await this.transport.sendPush(tokens, payload);
+    let totalSuccess = 0;
+    const allPruned: string[] = [];
+
+    if (androidTokens.length > 0) {
+      const r = await this.transport.sendPush(androidTokens, androidPayload);
+      totalSuccess += r.success;
+      allPruned.push(...r.invalidTokens);
+    }
+    if (iosTokens.length > 0) {
+      const r = await this.transport.sendPush(iosTokens, iosPayload);
+      totalSuccess += r.success;
+      allPruned.push(...r.invalidTokens);
+    }
+
+    const allTokenStrs = devices.map((d) => d.token);
     this.logger.log(
       `push dispatched: type=${type} userId=${userId.slice(0, 8)}... ` +
-        `tokens=${tokens.length} success=${result.success} pruned=${result.invalidTokens.length}`,
+        `tokens=${allTokenStrs.length} success=${totalSuccess} pruned=${allPruned.length}`,
     );
 
     // ── Update lastSeen on successful tokens ────────────────────
-    if (result.success > 0) {
-      // Update lastSeen for tokens that weren't reported invalid
-      const validTokens = tokens.filter((t) => !result.invalidTokens.includes(t));
+    if (totalSuccess > 0) {
+      const validTokens = allTokenStrs.filter((t) => !allPruned.includes(t));
       if (validTokens.length > 0) {
         await this.prisma.deviceToken.updateMany({
           where: { token: { in: validTokens } },
@@ -133,11 +171,11 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
     }
 
     // ── Prune invalid tokens ────────────────────────────────────
-    if (result.invalidTokens.length > 0) {
+    if (allPruned.length > 0) {
       await this.prisma.deviceToken.deleteMany({
-        where: { token: { in: result.invalidTokens } },
+        where: { token: { in: allPruned } },
       });
-      this.logger.log(`pruned ${result.invalidTokens.length} invalid device tokens`);
+      this.logger.log(`pruned ${allPruned.length} invalid device tokens`);
     }
   }
 
@@ -205,12 +243,12 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
   /**
    * Load all device tokens for a user. Returns empty array if none.
    */
-  async loadDeviceTokens(userId: string): Promise<string[]> {
+  async loadDeviceTokens(userId: string): Promise<{ token: string; platform: string }[]> {
     const tokens = await this.prisma.deviceToken.findMany({
       where: { userId },
-      select: { token: true },
+      select: { token: true, platform: true },
     });
-    return tokens.map((t) => t.token);
+    return tokens.map((t) => ({ token: t.token, platform: t.platform }));
   }
 
   private buildPayload(event: PushEvent) {
@@ -224,12 +262,26 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
           data: {
             type: 'mention',
             channelId: event.channelId ?? '',
+            serverId: event.serverId ?? '',
+            dmChannelId: event.dmChannelId ?? '',
             messageId: event.messageId ?? '',
           },
           android: { channelId: 'mentions', priority: 'high' },
           apns: {
             headers: { 'apns-push-type': 'alert' },
-            payload: { aps: { sound: 'default' } },
+            payload: {
+              aps: {
+                alert: {
+                  title: event.authorName
+                    ? `${event.authorName} mentioned you`
+                    : 'You were mentioned',
+                  body: event.preview ?? '',
+                },
+                sound: 'default',
+                badge: 1,
+                'content-available': 1,
+              },
+            },
           },
         };
 
@@ -246,8 +298,21 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
           },
           android: { channelId: 'calls', priority: 'high' },
           apns: {
-            headers: { 'apns-push-type': 'voip' },
-            payload: { aps: { sound: 'call_ring.aiff' } },
+            headers: {
+              'apns-push-type': 'voip',
+              'apns-priority': '10',
+            },
+            payload: {
+              aps: {
+                alert: {
+                  title: 'Incoming call',
+                  body: event.callerName
+                    ? `${event.callerName} is calling you`
+                    : 'Someone is calling you',
+                },
+                sound: 'call_ring.aiff',
+              },
+            },
           },
         };
 
@@ -260,12 +325,26 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
           data: {
             type: 'notify',
             channelId: event.channelId ?? '',
+            serverId: event.serverId ?? '',
+            dmChannelId: event.dmChannelId ?? '',
             messageId: event.messageId ?? '',
           },
           android: { channelId: 'notifications', priority: 'default' },
           apns: {
             headers: { 'apns-push-type': 'alert' },
-            payload: { aps: { sound: 'default' } },
+            payload: {
+              aps: {
+                alert: {
+                  title: event.authorName
+                    ? `${event.authorName} — ${event.channelName ?? 'message'}`
+                    : (event.channelName ?? 'New notification'),
+                  body: event.preview ?? 'You have a new notification',
+                },
+                sound: 'default',
+                badge: 1,
+                'content-available': 1,
+              },
+            },
           },
         };
 
@@ -276,7 +355,12 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
           android: { channelId: 'default', priority: 'default' },
           apns: {
             headers: { 'apns-push-type': 'alert' },
-            payload: { aps: { sound: 'default' } },
+            payload: {
+              aps: {
+                alert: { title: 'Notification', body: '' },
+                sound: 'default',
+              },
+            },
           },
         };
     }
