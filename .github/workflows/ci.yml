@@ -79,6 +79,14 @@ jobs:
           REDIS_URL: redis://localhost:6379
           DEV_AUTH: '1'
           SESSION_SECRET: ci-test-secret-do-not-use-in-prod
+          WEB_ORIGIN: http://localhost:5173
+          OIDC_ISSUER: http://localhost:9000/application/o/openchat/
+          OIDC_CLIENT_ID: ci-test-client
+          OIDC_CLIENT_SECRET: ci-test-client-secret
+          OIDC_REDIRECT_URI: http://localhost:3001/api/auth/callback
+          OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:5173
+          JELLYFIN_URL: http://localhost:8096
+          JWT_SECRET: ci-test-jwt-secret
           LIVEKIT_API_KEY: devkey
           LIVEKIT_API_SECRET: devsecret
           LIVEKIT_URL: http://localhost:7880
