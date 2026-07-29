@@ -3,8 +3,6 @@
  *
  * Tests: page merge (no dupes/gaps, overlapping pages), day dividers,
  * author grouping at boundary values.
- *
- * // @satisfies FR-MSG-001
  */
 import type { Message, Attachment, ReactionGroup, Poll } from '../../api/schema';
 import { mergePage, insertDayDividers, computeAuthorGroups, type DayDivider } from '../pagination';
@@ -51,7 +49,6 @@ function div(date: string): DayDivider {
 }
 
 // ── Page merge ─────────────────────────────────────────────────────────
-// @satisfies FR-MSG-001
 describe('mergePage (FR-MSG-001)', () => {
   it('empty existing + incoming = incoming', () => {
     const incoming = [msg({ id: 'a', createdAt: '2026-07-25T10:00:00Z' })];
@@ -147,7 +144,6 @@ describe('mergePage (FR-MSG-001)', () => {
 });
 
 // ── Day dividers ───────────────────────────────────────────────────────
-// @satisfies FR-MSG-001
 describe('insertDayDividers (FR-MSG-001)', () => {
   it('empty list returns empty', () => {
     expect(insertDayDividers([])).toEqual([]);
@@ -201,7 +197,6 @@ describe('insertDayDividers (FR-MSG-001)', () => {
 });
 
 // ── Author grouping ────────────────────────────────────────────────────
-// @satisfies FR-MSG-001
 describe('computeAuthorGroups (FR-MSG-001)', () => {
   it('empty list returns empty', () => {
     expect(computeAuthorGroups([])).toEqual([]);

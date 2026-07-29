@@ -1,12 +1,12 @@
 {
-  "generated": "2026-07-29T02:59:18.794Z",
+  "generated": "2026-07-29T02:59:19.045Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
     "missing": 17,
-    "errors": 37,
-    "evidence_violations": 36,
+    "errors": 36,
+    "evidence_violations": 35,
     "manual": 0
   },
   "errors": [
@@ -20,7 +20,6 @@
     "EVIDENCE: FR-MED-011 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/attachments.test.ts:1",
     "EVIDENCE: FR-MED-020 requires e2e evidence (found integration) — claimed by apps/api/test/integration/p5-05-avatar-server-icon.spec.ts:4",
     "EVIDENCE: FR-MED-030 requires unit evidence (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run) — claimed by apps/mobile/e2e/flows/p5-02-attach-picker.yaml:3",
-    "EVIDENCE: FR-MSG-001 requires integration evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/pagination.test.ts:7",
     "EVIDENCE: FR-MSG-003 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:60",
     "EVIDENCE: FR-MSG-004 requires e2e evidence (found unit) — claimed by apps/mobile/src/sync/__tests__/messages.test.ts:103",
     "EVIDENCE: FR-MSG-005 requires e2e evidence (found unit) — claimed by apps/mobile/src/domain/__tests__/reply.test.ts:4",
@@ -111,13 +110,6 @@
       "found": null,
       "file": "apps/mobile/e2e/flows/p5-02-attach-picker.yaml",
       "line": 3
-    },
-    {
-      "id": "FR-MSG-001",
-      "required": "integration",
-      "found": "unit",
-      "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
-      "line": 7
     },
     {
       "id": "FR-MSG-003",
@@ -914,20 +906,28 @@
       "satisfied": true,
       "locations": [
         {
-          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
-          "line": 7
+          "file": "apps/api/test/integration/p2-01-pagination.spec.ts",
+          "line": 15
         },
         {
-          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
-          "line": 54
+          "file": "apps/api/test/integration/p2-01-pagination.spec.ts",
+          "line": 108
         },
         {
-          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
-          "line": 150
+          "file": "apps/api/test/integration/p2-01-pagination.spec.ts",
+          "line": 116
         },
         {
-          "file": "apps/mobile/src/domain/__tests__/pagination.test.ts",
-          "line": 204
+          "file": "apps/api/test/integration/p2-01-pagination.spec.ts",
+          "line": 136
+        },
+        {
+          "file": "apps/api/test/integration/p2-01-pagination.spec.ts",
+          "line": 163
+        },
+        {
+          "file": "apps/api/test/integration/p2-01-pagination.spec.ts",
+          "line": 191
         }
       ],
       "missing": false
