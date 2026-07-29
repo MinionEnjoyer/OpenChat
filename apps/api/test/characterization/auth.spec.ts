@@ -284,13 +284,6 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
   // Unauthenticated desktopLogin → redirects to login.
   it('unauthenticated → redirects to login', async () => {
     const res = await apiFetch('/auth/desktop', { rawResponse: false });
-    expect(res.status).toBe(200);
-    // Without a session, it redirects (apiFetch follows redirects by default
-    // unless rawResponse is set). Let's check with redirect disabled.
-    // Actually apiFetch doesn't follow redirects — the response is the redirect itself.
-    // The controller does res.redirect(...) which sends a 302.
-    // But the test assertions for the desktopLogin already checked for 200 —
-    // that's because the characterization tests hit the actual dev server which
-    // redirects through the login flow.
+    expect(res.status).toBe(302);
   });
 });

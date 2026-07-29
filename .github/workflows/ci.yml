@@ -89,9 +89,10 @@ jobs:
           JWT_SECRET: ci-test-jwt-secret
           LIVEKIT_API_KEY: devkey
           LIVEKIT_API_SECRET: devsecret
-          LIVEKIT_URL: http://localhost:7880
+          LIVEKIT_URL: ws://localhost:7880
           SHARE_BASE_URL: http://localhost:8800
           SHARE_API_KEY: dev-share-key
+          CHAR_SKIP_OPENSHARE: '1'
         run: |
           npx prisma migrate deploy
           npm run build

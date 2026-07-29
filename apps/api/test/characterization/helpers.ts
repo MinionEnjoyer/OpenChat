@@ -538,10 +538,11 @@ export function assertWsTicketShape(body: any): void {
 }
 
 // ── WS ready frame data shape ──
-const WS_READY_DATA_KEYS = ['user', 'servers'];
+const WS_READY_DATA_KEYS = ['protocolVersion', 'user', 'servers'];
 
 export function assertWsReadyDataShape(d: any): void {
   assertExactKeys(d, WS_READY_DATA_KEYS, 'WsReadyData');
+  expect(d.protocolVersion).toBe(1);
   expect(typeof d.user).toBe('object');
   expect(d.user).toHaveProperty('id');
   expect(Array.isArray(d.servers)).toBe(true);
