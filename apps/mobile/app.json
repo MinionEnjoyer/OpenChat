@@ -50,6 +50,7 @@
           "color": "#5865F2"
         }
       ],
+      "./plugins/with-firebase-notification-manifest-fix",
       "expo-web-browser",
       "expo-audio"
     ]
