@@ -16,6 +16,8 @@ export {
   _setNotificationsForTest,
   _resetMocksForTest,
   _setStoredTokenForTest,
+  _setIosMessagingForTest,
+  isAndroid,
 } from './push';
 export type { NotificationRoute, NavigationHandler } from './push';
 
