@@ -9,15 +9,16 @@ copy rather than look things up.
 | Bundle ID | `com.openchat.mobile` |
 | App name | OpenChat |
 | Firebase project | `openchat-app-f9272` (**must be this one** — same as Android) |
-| Your Team ID | not yet known — see step 1 |
+| Your Team ID | **5SMLWYF44V** |
 
 ---
 
-## 1. Team ID — 30 seconds
+## 1. Team ID — already known
 
-<https://developer.apple.com/account> → scroll to **Membership details**.
+**`5SMLWYF44V`**
 
-Copy the **Team ID** (10 characters, like `A1B2C3D4E5`). You need it in step 4.
+It also shows on the App ID registration screen as the "App ID Prefix". Needed in
+step 5.
 
 ---
 
@@ -25,13 +26,20 @@ Copy the **Team ID** (10 characters, like `A1B2C3D4E5`). You need it in step 4.
 
 <https://developer.apple.com/account/resources/identifiers/list>
 
-**+** → **App IDs** → **App** → Continue.
+**+** → **App IDs** → **App** → Continue. You land on "Register an App ID":
 
-- Description: `OpenChat`
-- Bundle ID: **Explicit** → `com.openchat.mobile`
-- Scroll the Capabilities list and tick **Push Notifications**
+| Field | What to do |
+|---|---|
+| **Platform** | Leave the default `iOS, iPadOS, macOS, tvOS, watchOS, visionOS` |
+| **App ID Prefix** | Read-only — this is your Team ID, `5SMLWYF44V` |
+| **Description** | Type `OpenChat` (no `@ & * "`) |
+| **Bundle ID** | Click the **Explicit** radio, then enter `com.openchat.mobile` |
+| **Capabilities** | Long alphabetical list. Tick **Push Notifications** only — it sits between "Personal VPN" and "Push to Talk" |
 
-Register.
+Everything else on that page is irrelevant here — App Groups, Associated Domains,
+Sign In with Apple, HealthKit and the rest all stay unticked.
+
+**Continue** → review → **Register**.
 
 > If the identifier already exists, open it and confirm **Push Notifications** is
 > ticked. That checkbox is the whole point of this step.
