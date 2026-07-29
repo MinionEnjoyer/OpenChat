@@ -86,6 +86,24 @@ jobs:
           SHARE_API_KEY: dev-share-key
         run: |
           npx prisma migrate deploy
+          npm run build
+          node dist/main.js > characterization-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/api/health > /dev/null; then
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat characterization-api.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl -f http://localhost:3001/api/health || {
+            cat characterization-api.log
+            exit 1
+          }
           npx jest --config jest-char.config.js --forceExit
 
   # ── Contract (provider + consumer) ─────────────────────────────────────
