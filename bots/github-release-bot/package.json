@@ -1,0 +1,13 @@
+{
+  "name": "openchat-github-release-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenChat bot that posts GitHub release notifications for watched repos",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
