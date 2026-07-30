@@ -104,7 +104,8 @@ async function handleMessage(m) {
     if (!r) return void post(ch, `No releases found for **${repo}** (repo may be private or have no GitHub Releases).`);
     await post(ch, `🔎 Latest for **${repo}**: **${r.tag_name}**${r.name && r.name !== r.tag_name ? ` — ${r.name}` : ''}\n${r.html_url}`);
   } else {
-    await post(ch, `**GitHub release bot** — I post here when a watched repo ships a release.\n• \`${PREFIX} watch owner/repo\`\n• \`${PREFIX} unwatch owner/repo\`\n• \`${PREFIX} list\`\n• \`${PREFIX} latest owner/repo\` — post the current latest now`);
+    // Any unrecognized subcommand (incl. `help` and a bare prefix) prints the command list.
+    await post(ch, `**GitHub release bot** — I post here when a watched repo ships a release.\n• \`${PREFIX} watch owner/repo\` — announce new releases here\n• \`${PREFIX} unwatch owner/repo\` — stop\n• \`${PREFIX} list\` — repos watched in this channel\n• \`${PREFIX} latest owner/repo\` — post the current latest now\n• \`${PREFIX} help\` — this message`);
   }
 }
 
