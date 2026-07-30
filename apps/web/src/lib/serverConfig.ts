@@ -5,6 +5,9 @@
 
 const SERVER_URL_KEY = 'openchat.serverUrl';
 const TOKEN_KEY = 'openchat.token';
+// Native clients can sign into multiple OpenChat servers; each remembered origin keeps its
+// own token family here so the user can switch between them without re-authenticating.
+const DOMAINS_KEY = 'openchat.domains';
 
 function safeGet(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -70,6 +73,7 @@ export function setTokens(t: { accessToken: string; refreshToken?: string; expir
     if (t.refreshToken) localStorage.setItem(REFRESH_KEY, t.refreshToken);
     if (t.expiresIn) localStorage.setItem(EXP_KEY, String(Date.now() + t.expiresIn * 1000));
   } catch { /* ignore */ }
+  rememberDomain(serverOrigin()); // save/refresh this server in the switcher list
 }
 
 /** Back-compat single-token setter: sets just the access token (e.g. manual paste),
@@ -77,8 +81,65 @@ export function setTokens(t: { accessToken: string; refreshToken?: string; expir
 export function setToken(token: string | null) {
   if (token === null) { clearTokens(); return; }
   try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
+  rememberDomain(serverOrigin());
 }
 
 export function clearTokens() {
+  // Only clears the ACTIVE session; the saved-domains map is left intact so the user can
+  // switch back / re-sign-in later.
   try { [TOKEN_KEY, REFRESH_KEY, EXP_KEY].forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+}
+
+// ---- multi-domain (native clients) ----
+interface DomainAuth { accessToken?: string; refreshToken?: string; exp?: number }
+function readDomains(): Record<string, DomainAuth> {
+  try { return JSON.parse(safeGet(DOMAINS_KEY) || '{}') || {}; } catch { return {}; }
+}
+function writeDomains(d: Record<string, DomainAuth>) {
+  try { localStorage.setItem(DOMAINS_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+}
+
+/** The current active origin (same as serverOrigin), for the switcher UI. */
+export function activeDomain(): string { return serverOrigin(); }
+
+/** Servers the user has signed into (plus the current one), for the switcher UI. */
+export function listDomains(): string[] {
+  const active = serverOrigin();
+  return Array.from(new Set([active, ...Object.keys(readDomains())].filter(Boolean)));
+}
+
+/** Snapshot the current origin's token family into the saved-domains map. */
+function rememberDomain(origin: string) {
+  if (!origin) return; // web (same-origin) uses the session cookie, not saved here
+  const d = readDomains();
+  d[origin] = {
+    accessToken: safeGet(TOKEN_KEY) || undefined,
+    refreshToken: safeGet(REFRESH_KEY) || undefined,
+    exp: Number(safeGet(EXP_KEY)) || undefined,
+  };
+  writeDomains(d);
+}
+
+export function removeDomain(origin: string) {
+  const d = readDomains(); delete d[origin]; writeDomains(d);
+}
+
+/** Point the client at a saved server: make it active + hydrate its stored tokens.
+ *  Caller reloads the app afterward. */
+export function switchDomain(origin: string) {
+  rememberDomain(serverOrigin()); // preserve the current server's latest tokens first
+  const auth = readDomains()[origin] || {};
+  setServerUrl(origin);
+  try {
+    if (auth.accessToken) localStorage.setItem(TOKEN_KEY, auth.accessToken); else localStorage.removeItem(TOKEN_KEY);
+    if (auth.refreshToken) localStorage.setItem(REFRESH_KEY, auth.refreshToken); else localStorage.removeItem(REFRESH_KEY);
+    if (auth.exp) localStorage.setItem(EXP_KEY, String(auth.exp)); else localStorage.removeItem(EXP_KEY);
+  } catch { /* ignore */ }
+}
+
+/** Begin adding a new server: drop the active session (saved domains kept) so first-run
+ *  setup appears. Caller reloads. */
+export function beginAddServer() {
+  clearTokens();
+  setServerUrl('');
 }
