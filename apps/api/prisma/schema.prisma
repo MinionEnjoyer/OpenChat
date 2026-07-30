@@ -36,24 +36,24 @@ enum UserStatus {
 }
 
 model User {
-  id           String     @id @default(uuid())
-  authSub      String     @unique
-  username     String
-  displayName  String?
-  avatarUrl    String?
-  customStatus String? // short user-set status message (<= 280 chars)
-  bio          String? // "about me" profile text (<= 500 chars)
-  friendCode   String?    @unique
-  status       UserStatus @default(OFFLINE)
-  serverLayout Json? // per-user server-rail folders/order (opaque to the server)
+  id             String     @id @default(uuid())
+  authSub        String     @unique
+  username       String
+  displayName    String?
+  avatarUrl      String?
+  customStatus   String? // short user-set status message (<= 280 chars)
+  bio            String? // "about me" profile text (<= 500 chars)
+  friendCode     String?    @unique
+  status         UserStatus @default(OFFLINE)
+  serverLayout   Json? // per-user server-rail folders/order (opaque to the server)
   // --- bot accounts (Discord-style). A bot is a User with isBot=true; its owner created it,
   // it authenticates with an ApiToken, and if botPublished it appears in the add-bot browser.
-  isBot          Boolean  @default(false)
+  isBot          Boolean    @default(false)
   botOwnerId     String? // the user who created/owns this bot
   botDescription String? // shown in the add-bot browser
-  botPublished   Boolean  @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  botPublished   Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   ownedServers        Server[]
   servers             ServerMember[]
@@ -129,9 +129,22 @@ model Server {
   auditLogs         AuditLog[]
   serverInvitations ServerInvitation[]
   sounds            ServerSound[]
+  stickers          ServerSticker[]
   bans              Ban[]              @relation("BanServer")
 
   @@index([ownerId])
+}
+
+model ServerSticker {
+  id        String   @id @default(uuid())
+  serverId  String
+  name      String
+  url       String // uploaded image, sent as an image message like a GIF
+  createdAt DateTime @default(now())
+
+  server Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
 }
 
 model ServerSound {

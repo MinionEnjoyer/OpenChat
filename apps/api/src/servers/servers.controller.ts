@@ -117,6 +117,29 @@ export class ServersController {
     return this.servers.deleteSound(serverId, soundId, user.id);
   }
 
+  @Get(':id/stickers')
+  listStickers(@Param('id') serverId: string, @CurrentUser() user: User) {
+    return this.servers.listStickers(serverId, user.id);
+  }
+
+  @Post(':id/stickers')
+  addSticker(
+    @Param('id') serverId: string,
+    @CurrentUser() user: User,
+    @Body(new ZodValidationPipe(z.object({ name: z.string().min(1).max(40), url: z.string().url() }))) body: { name: string; url: string },
+  ) {
+    return this.servers.addSticker(serverId, user.id, body);
+  }
+
+  @Delete(':id/stickers/:stickerId')
+  deleteSticker(
+    @Param('id') serverId: string,
+    @Param('stickerId') stickerId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.servers.deleteSticker(serverId, stickerId, user.id);
+  }
+
   @Get(':id/categories')
   listCategories(@Param('id') serverId: string, @CurrentUser() user: User) {
     return this.servers.listCategories(serverId, user.id);

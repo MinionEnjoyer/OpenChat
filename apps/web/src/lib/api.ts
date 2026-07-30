@@ -1,4 +1,4 @@
-import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, NotificationSetting, WatchPartyState, LibraryItem, Gif, ServerSound, ApiToken, CreatedApiToken, Bot } from './types';
+import type { User, Server, Channel, Message, WsTicket, Role, ServerMemberInfo, Notifications, NotificationSetting, WatchPartyState, LibraryItem, Gif, ServerSound, ServerSticker, ApiToken, CreatedApiToken, Bot } from './types';
 import { apiBase, getToken, getRefreshToken, setTokens, clearTokens } from './serverConfig';
 
 // Native-client token refresh (OAuth refresh_token grant). Single-flight so a burst
@@ -166,6 +166,13 @@ export const updateSound = (serverId: string, soundId: string, data: { name?: st
   request<ServerSound>(`/servers/${serverId}/sounds/${soundId}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const deleteSound = (serverId: string, soundId: string) =>
   request<{ success: true }>(`/servers/${serverId}/sounds/${soundId}`, { method: 'DELETE' });
+
+export const listStickers = (serverId: string) =>
+  request<ServerSticker[]>(`/servers/${serverId}/stickers`);
+export const addSticker = (serverId: string, data: { name: string; url: string }) =>
+  request<ServerSticker>(`/servers/${serverId}/stickers`, { method: 'POST', body: JSON.stringify(data) });
+export const deleteSticker = (serverId: string, stickerId: string) =>
+  request<{ success: true }>(`/servers/${serverId}/stickers/${stickerId}`, { method: 'DELETE' });
 
 export const listMessages = (channelId: string, before?: string) => {
   const params = new URLSearchParams();

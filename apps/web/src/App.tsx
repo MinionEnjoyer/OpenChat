@@ -23,6 +23,7 @@ import { EmojiPicker } from './components/EmojiPicker';
 import { setShareHost } from './components/MessageEmbeds';
 import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
+import { StickerPicker } from './components/StickerPicker';
 import { PollModal } from './components/PollModal';
 import { Soundboard } from './components/Soundboard';
 import { MessageList } from './components/MessageList';
@@ -1515,7 +1516,8 @@ export default function App() {
             />
             {typingText && <div style={{ padding: '0 16px 2px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', height: 16 }}>{typingText}</div>}
             <Composer channelId={s.activeChannelId} shareBaseUrl={s.shareBaseUrl} wsRef={wsRef} title={headerTitle}
-              me={s.user} replyingTo={replyingTo} onClearReply={() => setReplyingTo(null)} mentionCandidates={mentionCandidates} />
+              me={s.user} replyingTo={replyingTo} onClearReply={() => setReplyingTo(null)} mentionCandidates={mentionCandidates}
+              serverId={s.activeServerId} canManageStickers={canManageChannels} />
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted-2)' }}>
@@ -1699,7 +1701,7 @@ function UnreadBadge({ n }: { n: number }) {
 type MentionUser = { id: string; username: string; displayName: string | null; avatarUrl: string | null };
 
 function Composer({
-  channelId, shareBaseUrl, wsRef, title, me, replyingTo, onClearReply, mentionCandidates,
+  channelId, shareBaseUrl, wsRef, title, me, replyingTo, onClearReply, mentionCandidates, serverId, canManageStickers,
 }: {
   channelId: string; shareBaseUrl: string;
   wsRef: React.MutableRefObject<WebSocket | null>; title?: string;
@@ -1707,6 +1709,8 @@ function Composer({
   replyingTo: { id: string; authorName: string; content: string } | null;
   onClearReply: () => void;
   mentionCandidates: MentionUser[];
+  serverId?: string | null;
+  canManageStickers?: boolean;
 }) {
   const [text, setText] = useState('');
   const [pending, setPending] = useState<Att[]>([]);
@@ -1714,6 +1718,7 @@ function Composer({
   const [dropUploading, setDropUploading] = useState(false);
   const [emojiAnchor, setEmojiAnchor] = useState<{ x: number; y: number } | null>(null);
   const [gifAnchor, setGifAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [stickerAnchor, setStickerAnchor] = useState<{ x: number; y: number } | null>(null);
   const [pollOpen, setPollOpen] = useState(false);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -1892,6 +1897,11 @@ function Composer({
           style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
           GIF
         </button>
+        {serverId && <button title="Stickers"
+          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setStickerAnchor({ x: r.right, y: r.top }); }}
+          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
+          STK
+        </button>}
         <button title="Emoji"
           onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor({ x: r.right, y: r.top }); }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--muted)', flexShrink: 0 }}>
@@ -1912,6 +1922,11 @@ function Composer({
         <GifPicker anchor={gifAnchor}
           onSelect={(gif) => { setGifAnchor(null); doSend(gif.url, []); }}
           onClose={() => setGifAnchor(null)} />
+      )}
+      {stickerAnchor && serverId && (
+        <StickerPicker anchor={stickerAnchor} serverId={serverId} canManage={!!canManageStickers}
+          onSelect={(url) => { setStickerAnchor(null); doSend(url, []); }}
+          onClose={() => setStickerAnchor(null)} />
       )}
       {pollOpen && (
         <PollModal

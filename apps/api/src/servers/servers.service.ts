@@ -241,6 +241,34 @@ export class ServersService {
     return { success: true };
   }
 
+  // ---- custom stickers (uploaded images, sent as image messages) ----
+  async listStickers(serverId: string, userId: string) {
+    await this.get(serverId, userId); // membership check
+    return this.prisma.serverSticker.findMany({
+      where: { serverId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true, url: true },
+    });
+  }
+
+  async addSticker(serverId: string, userId: string, data: { name: string; url: string }) {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const count = await this.prisma.serverSticker.count({ where: { serverId } });
+    if (count >= 200) throw new ForbiddenException('This server is at its sticker limit (200).');
+    return this.prisma.serverSticker.create({
+      data: { serverId, name: data.name.slice(0, 40), url: data.url },
+      select: { id: true, name: true, url: true },
+    });
+  }
+
+  async deleteSticker(serverId: string, stickerId: string, userId: string) {
+    await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
+    const st = await this.prisma.serverSticker.findUnique({ where: { id: stickerId }, select: { serverId: true } });
+    if (!st || st.serverId !== serverId) throw new NotFoundException('Sticker not found');
+    await this.prisma.serverSticker.delete({ where: { id: stickerId } });
+    return { success: true };
+  }
+
   async listChannels(serverId: string, userId: string): Promise<SerializedChannel[]> {
     // Assert membership first
     await this.get(serverId, userId);

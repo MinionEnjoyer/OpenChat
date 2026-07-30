@@ -108,6 +108,12 @@ export interface ServerSound {
   url: string;
 }
 
+export interface ServerSticker {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface PollOption {
   id: string;
   text: string;
