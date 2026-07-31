@@ -1,5 +1,5 @@
 /** @characterizes dms + friends — DM gated by friendship, friend state machine */
-import { seed, apiFetch, devLogin, assertFriendRequestShape, assertMessageShape } from './helpers';
+import { seed, apiFetch, devLogin, assertFriendRequestShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 

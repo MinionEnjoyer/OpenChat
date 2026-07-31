@@ -1,5 +1,5 @@
 /** @characterizes messages — list, send, edit, delete, read, pagination per E6 */
-import { seed, apiFetch, assertMessageShape, assertIsoDate, assertAttachmentShape, assertReplyToShape } from './helpers';
+import { seed, apiFetch, assertMessageShape, assertIsoDate, assertAttachmentShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 

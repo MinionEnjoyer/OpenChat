@@ -1,5 +1,5 @@
 /** @characterizes pins-polls — pin/unpin, poll create/vote */
-import { seed, apiFetch, assertPollShape, assertMessageShape, assertPollOptionShape } from './helpers';
+import { seed, apiFetch, assertPollShape, assertMessageShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 

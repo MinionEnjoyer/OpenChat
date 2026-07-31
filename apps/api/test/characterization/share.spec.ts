@@ -10,8 +10,7 @@
  * with the user's Share session cookie.
  */
 
-import { apiFetch, shareFetch, devLogin, createJar } from './helpers';
-import * as http from 'http';
+import { shareFetch, createJar } from './helpers';
 
 describe('share — OpenShare public endpoints (per E4/E5)', () => {
   it('GET /raw/:id is public (no auth)', async () => {

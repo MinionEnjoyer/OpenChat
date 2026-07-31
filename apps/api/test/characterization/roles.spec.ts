@@ -1,5 +1,5 @@
 /** @characterizes roles — CRUD, BigInt serialization, member-role */
-import { seed, apiFetch, assertBigIntString, assertUuid, assertRoleShape, assertPermissionShape } from './helpers';
+import { seed, apiFetch, assertBigIntString, assertRoleShape, assertPermissionShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -9,7 +9,6 @@ describe('roles', () => {
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThanOrEqual(3); // @everyone + Admin + Mod
     // characterizes: @everyone may or may not exist. Check what's there.
-    const names = res.body.map((r: any) => r.name);
     // characterizes: permissions is BigInt serialized as string
     for (const r of res.body) {
       assertRoleShape(r);

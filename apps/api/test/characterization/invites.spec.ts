@@ -1,5 +1,5 @@
 /** @characterizes invites — create, preview, accept, error codes */
-import { seed, apiFetch, devLogin, assertIsoDate, assertInviteShape, assertInvitePreviewShape } from './helpers';
+import { seed, apiFetch, devLogin, assertInviteShape, assertInvitePreviewShape } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 

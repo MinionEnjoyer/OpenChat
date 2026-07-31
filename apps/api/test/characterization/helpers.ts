@@ -91,7 +91,7 @@ export interface WsClient {
 export async function wsConnect(jar: CookieJar): Promise<WsClient> {
   const tr = await apiFetch('/auth/ws-ticket', { jar });
   const url = `${WS_BASE}?ticket=${encodeURIComponent(tr.body.ticket)}`;
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const ws = new WebSocket(url);
     const frames: WsFrame[] = [];
     let cc: number | null = null, cr: string | null = null;
@@ -99,7 +99,7 @@ export async function wsConnect(jar: CookieJar): Promise<WsClient> {
     const proc = (raw: string) => { let env: WsFrame; try { env = JSON.parse(raw); } catch { return; } frames.push(env); for (let i = pending.length-1; i>=0; i--) { if (pending[i].predicate(env)) { const r = pending[i]!; pending.splice(i,1); r.resolve(env); } } };
     ws.on('message', d => proc(d.toString()));
     ws.on('close', (code, reason) => { cc = code; cr = reason?.toString() ?? null; });
-    ws.on('error', (err) => { /* swalled for test stability — connection errors surface as timeout */ });
+    ws.on('error', () => { /* swallowed for test stability — connection errors surface as timeout */ });
     let resolved = false;
     ws.on('open', () => {
       const t = setTimeout(() => { if (!resolved) { resolved = true; resolve(build(ws,frames,cc,cr,pending)); } }, 10_000);

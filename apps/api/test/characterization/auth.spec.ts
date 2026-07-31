@@ -1,5 +1,5 @@
 /** @characterizes auth — dev-login, /me, PATCH /me, ws-ticket, logout, 401 matrix */
-import { apiFetch, createJar, devLogin, assertUserShape, assertIsoDate, assertWsTicketShape, assert401Shape } from './helpers';
+import { apiFetch, createJar, devLogin, assertUserShape, assertWsTicketShape, assert401Shape } from './helpers';
 
 describe('auth — dev-login', () => {
   it('returns user object with standard shape and session cookie', async () => {
@@ -176,7 +176,7 @@ describe('auth — GET /auth/desktop (PKCE opt-in)', () => {
   // OPT-IN PKCE: with code_challenge + S256 → deep-links a CODE, no token.
   it('PKCE params → deep-links a code (no bearer token)', async () => {
     const { jar } = await devLogin('desk-pkce-' + Date.now());
-    const { verifier, challenge } = generatePkcePair();
+    const { challenge } = generatePkcePair();
     const qs = `code_challenge=${encodeURIComponent(challenge)}&code_challenge_method=S256`;
     const res = await apiFetch(`/auth/desktop?${qs}`, { jar, rawResponse: false });
     expect(res.status).toBe(200);
