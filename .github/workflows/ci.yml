@@ -245,6 +245,9 @@ jobs:
         working-directory: apps/api
         run: npx prisma generate
 
+      - name: Prepare dev stack configuration
+        run: cp .env.dev.example .env.dev
+
       - name: Start dev stack
         run: |
           docker compose -f docker-compose.dev.yml up -d --build postgres redis api
