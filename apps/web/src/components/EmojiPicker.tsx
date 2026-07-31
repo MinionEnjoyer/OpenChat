@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getTheme } from '../lib/theme';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 const W = 352;
 const H = 440;
@@ -55,7 +56,10 @@ export function EmojiPicker({
         />
       ) : (
         <div style={{ width: W, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--muted)', fontSize: 13 }}>
-          Loading emojis…
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <OpenChatSpinner size={34} label="Loading emojis" />
+            Loading emojis…
+          </div>
         </div>
       )}
     </div>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { ServerSticker } from '../lib/types';
 import * as api from '../lib/api';
 import { uploadToShare } from '../lib/share';
+import { OpenChatSpinner } from './OpenChatSpinner';
+import { SpinnerImage } from './SpinnerImage';
 
 const MAX_MB = 4;
 
@@ -65,7 +67,7 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
         {canManage && <button onClick={() => setManage((m) => !m)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>{manage ? 'Done' : 'Manage'}</button>}
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-        {loading && <div style={{ gridColumn: '1/-1', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>}
+        {loading && <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'center', padding: 18 }}><OpenChatSpinner size={36} label="Loading stickers" /></div>}
         {!loading && stickers.length === 0 && (
           <div style={{ gridColumn: '1/-1', color: 'var(--muted)', fontSize: 13 }}>
             {canManage ? 'No stickers yet — add one below.' : 'No stickers on this server yet.'}
@@ -73,7 +75,8 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
         )}
         {stickers.map((s) => (
           <div key={s.id} title={s.name} style={{ position: 'relative' }}>
-            <img src={s.url} alt={s.name} onClick={() => { if (!manage) onSelect(s.url); }}
+            <SpinnerImage src={s.url} alt={s.name} spinnerSize={22} wrapperStyle={{ width: '100%', height: 60 }}
+              onClick={() => { if (!manage) onSelect(s.url); }}
               style={{ width: '100%', height: 60, objectFit: 'contain', borderRadius: 6, cursor: manage ? 'default' : 'pointer', background: 'var(--input-bg)' }} />
             {manage && (
               <button onClick={() => remove(s.id)} title="Delete"
@@ -87,7 +90,7 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={pick} />
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             style={{ width: '100%', padding: '7px 0', borderRadius: 6, border: '1px dashed var(--border)', background: 'none', color: 'var(--text)', cursor: uploading ? 'default' : 'pointer', fontSize: 13 }}>
-            {uploading ? 'Uploading…' : '＋ Add sticker'}
+            {uploading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Uploading sticker" /> Uploading…</span> : '＋ Add sticker'}
           </button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 /**
  * Shown on desktop launch before the app loads: checks for an update, and if one is
@@ -36,7 +37,7 @@ export function UpdateGate({ onDone }: { onDone: () => void }) {
 
   return (
     <div style={{ height: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, background: 'var(--bg)', color: 'var(--text)' }}>
-      <div className="oc-spinner" />
+      <OpenChatSpinner label={label} />
       <div style={{ color: 'var(--muted)', fontSize: 14 }}>{label}</div>
       {pct !== null && (
         <div style={{ width: 220, height: 6, borderRadius: 3, background: 'var(--input-bg)', overflow: 'hidden' }}>

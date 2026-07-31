@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { uploadToShare } from '../lib/share';
 import type { Attachment } from '../lib/types';
 import { SoundRecorder } from './SoundRecorder';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 /**
  * Attach button with a File / Recording menu, plus drag-and-drop + clipboard-paste.
@@ -67,7 +68,7 @@ export function AttachmentPicker({
             cursor: uploading ? 'default' : 'pointer',
           }}
         >
-          {uploading ? 'Uploading…' : '+ Attach'}
+          {uploading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Uploading attachments" /> Uploading…</span> : '+ Attach'}
         </button>
 
         {menuOpen && (

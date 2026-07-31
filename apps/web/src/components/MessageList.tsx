@@ -1,6 +1,7 @@
 import { memo, useLayoutEffect, useRef } from 'react';
 import type { Message } from '../lib/types';
 import { MessageRow } from './MessageRow';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 export interface MessageListProps {
   messages: Message[];
@@ -66,7 +67,12 @@ function MessageListInner(props: MessageListProps) {
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {loadingOlder && <div style={{ textAlign: 'center', color: 'var(--muted-2)', fontSize: 12, padding: 4 }}>Loading older messages…</div>}
+      {loadingOlder && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted-2)', fontSize: 12, padding: 4 }}>
+          <OpenChatSpinner size={22} label="Loading older messages" />
+          Loading older messages…
+        </div>
+      )}
       {messages.length === 0 && <div style={{ color: 'var(--muted-2)', fontStyle: 'italic' }}>No messages yet.</div>}
       {messages.map((m) => (
         <MessageRow

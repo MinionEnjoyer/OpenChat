@@ -6,6 +6,7 @@ import { Avatar } from './Avatar';
 import { WatchPartyPlayer } from './WatchPartyPlayer';
 import { ScreenQualityControls } from './ScreenQualityControls';
 import { Icon } from './Icon';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 /** Poll a screen-share track's WebRTC stats for a live "1080p · 58fps · 7.9 Mbps" readout. */
 function useScreenStats(videoRef: React.RefObject<HTMLVideoElement | null>, share: ScreenShare, enabled: boolean) {
@@ -313,7 +314,12 @@ export function CallView({
         ) : (
           <button onClick={onJoin} disabled={connecting}
             style={{ padding: '12px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 15, background: 'var(--success)', color: '#fff' }}>
-            {connecting ? (status ? `Connecting… (${status})` : 'Connecting…') : 'Join Voice'}
+            {connecting ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <OpenChatSpinner size={20} label="Connecting to voice" />
+                {status ? `Connecting… (${status})` : 'Connecting…'}
+              </span>
+            ) : 'Join Voice'}
           </button>
         )}
       </div>

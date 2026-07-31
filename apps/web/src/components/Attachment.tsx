@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Attachment as AttachmentModel } from '../lib/types';
 import { AudioPlayer } from './AudioPlayer';
 import { Lightbox } from './Lightbox';
+import { SpinnerImage } from './SpinnerImage';
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -36,10 +37,12 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
   if (mimeType.startsWith('image/')) {
     return (
       <>
-        <img
+        <SpinnerImage
           src={url}
           alt={filename}
           loading="lazy"
+          spinnerSize={32}
+          wrapperStyle={{ maxWidth: '400px', minWidth: 96, minHeight: 72 }}
           onClick={() => setZoomed(true)}
           style={{ maxWidth: '400px', maxHeight: '300px', objectFit: 'contain', cursor: 'zoom-in', borderRadius: 4 }}
         />
@@ -94,9 +97,11 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
       }}
     >
       {thumbnailUrl ? (
-        <img 
+        <SpinnerImage
           src={thumbnailUrl} 
-          alt="" 
+          alt=""
+          spinnerSize={18}
+          wrapperStyle={{ width: 48, height: 48, minWidth: 48, minHeight: 48 }}
           style={{ width: '48px', height: '48px', objectFit: 'cover' }} 
         />
       ) : (

@@ -35,6 +35,7 @@ import { TitleBar, isTauri, isMac } from './components/TitleBar';
 import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
 import { UpdateGate } from './components/UpdateGate';
+import { OpenChatSpinner } from './components/OpenChatSpinner';
 import { notifyNative } from './lib/notify';
 import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
@@ -1834,7 +1835,7 @@ function Composer({
       {(dropActive || dropUploading) && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <div style={{ border: '2px dashed var(--accent)', borderRadius: 16, padding: '36px 56px', background: 'var(--panel)', color: 'var(--text-strong)', fontSize: 18, fontWeight: 600, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
-            {dropUploading ? 'Uploading…' : `📎 Drop files to attach${title ? ' — ' + title : ''}`}
+            {dropUploading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><OpenChatSpinner size={34} label="Uploading attachments" /> Uploading…</span> : `📎 Drop files to attach${title ? ' — ' + title : ''}`}
           </div>
         </div>
       )}

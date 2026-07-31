@@ -9,6 +9,7 @@ import { VoiceSettings, type AudioControls } from './VoiceSettings';
 import { AppTokens } from './AppTokens';
 import { BotsManager } from './BotsManager';
 import { DomainSwitcher } from './DomainSwitcher';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 export function SettingsModal({
   user,
@@ -216,7 +217,7 @@ export function SettingsModal({
                     <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleAvatarFile} />
                     <button onClick={() => fileRef.current?.click()} disabled={uploading}
                       style={{ padding: '8px 14px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: uploading ? 'default' : 'pointer', fontWeight: 600 }}>
-                      {uploading ? 'Uploading…' : 'Change Avatar'}
+                      {uploading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Uploading avatar" /> Uploading…</span> : 'Change Avatar'}
                     </button>
                     {avatarUrl && (
                       <button onClick={() => setAvatarUrl(null)}
@@ -300,7 +301,7 @@ export function SettingsModal({
                 style={{ padding: '10px 16px', borderRadius: 4, border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSave} disabled={saving}
                 style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: saving ? 'default' : 'pointer', fontWeight: 600 }}>
-                {saving ? 'Saving…' : 'Save Changes'}
+                {saving ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Saving profile" /> Saving…</span> : 'Save Changes'}
               </button>
             </>
           ) : (

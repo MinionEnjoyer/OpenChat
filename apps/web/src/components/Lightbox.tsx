@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { SpinnerImage } from './SpinnerImage';
 
 /**
  * Full-screen overlay for viewing an image or video at a larger size. Closes on the ✕,
@@ -67,9 +68,11 @@ export function Lightbox({
       ) : (
         // Clicking the image also closes (in addition to the backdrop, ✕, and Esc) so the
         // viewer is never a trap.
-        <img
+        <SpinnerImage
           src={src}
           alt={filename}
+          spinnerSize={56}
+          wrapperStyle={{ minWidth: 160, minHeight: 120, maxWidth: '95vw', maxHeight: '92vh' }}
           onClick={onClose}
           style={{ maxWidth: '95vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 6, cursor: 'zoom-out' }}
         />

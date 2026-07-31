@@ -1,5 +1,6 @@
 import { isTauri } from './TitleBar';
 import { serverOrigin } from '../lib/serverConfig';
+import { SpinnerImage } from './SpinnerImage';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 
@@ -82,7 +83,8 @@ export function MessageEmbeds({ content }: { content: string }) {
       if (/\.mp4$/i.test(url)) {
         embeds.push(<video key={`gif-${url}`} src={url} autoPlay loop muted playsInline style={{ maxWidth: 320, maxHeight: 320, borderRadius: 8 }} />);
       } else {
-        embeds.push(<img key={`gif-${url}`} src={url} alt="" loading="lazy" style={{ maxWidth: 320, maxHeight: 320, borderRadius: 8, display: 'block' }} />);
+        embeds.push(<SpinnerImage key={`gif-${url}`} src={url} alt="" loading="lazy" spinnerSize={28}
+          wrapperStyle={{ minWidth: 96, minHeight: 72 }} style={{ maxWidth: 320, maxHeight: 320, borderRadius: 8, display: 'block' }} />);
       }
       continue;
     }
@@ -93,7 +95,8 @@ export function MessageEmbeds({ content }: { content: string }) {
       if (s.kind === 'i' || s.kind === 'raw') {
         embeds.push(
           <a key={`sh-${s.id}`} href={url} target="_blank" rel="noopener noreferrer">
-            <img src={raw} alt="" style={{ maxWidth: 400, maxHeight: 300, borderRadius: 8, display: 'block', objectFit: 'contain' }} />
+            <SpinnerImage src={raw} alt="" spinnerSize={30} wrapperStyle={{ minWidth: 96, minHeight: 72 }}
+              style={{ maxWidth: 400, maxHeight: 300, borderRadius: 8, display: 'block', objectFit: 'contain' }} />
           </a>,
         );
       } else if (s.kind === 'v') {
@@ -102,7 +105,8 @@ export function MessageEmbeds({ content }: { content: string }) {
         embeds.push(
           <a key={`sh-${s.id}`} href={url} target="_blank" rel="noopener noreferrer"
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, maxWidth: 360, border: '1px solid var(--border)', borderRadius: 8, textDecoration: 'none', color: 'inherit' }}>
-            <img src={thumb} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, background: 'var(--panel-dark)' }} />
+            <SpinnerImage src={thumb} alt="" spinnerSize={18} wrapperStyle={{ width: 48, height: 48, minWidth: 48, minHeight: 48 }}
+              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, background: 'var(--panel-dark)' }} />
             <span style={{ fontSize: 13, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.host}/{s.kind}/{s.id}</span>
           </a>,
         );

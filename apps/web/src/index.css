@@ -58,12 +58,94 @@ body {
 
 button, input, textarea { font-family: inherit; }
 
-/* connecting spinner */
-@keyframes oc-spin { to { transform: rotate(360deg); } }
+/* Branded connecting spinner: mathematically concentric CSS rings rotate around
+   a fixed center while the OpenChat mark stays anchored. The blurred duplicate
+   produces color-matched light without changing the crisp orbit geometry. */
+@keyframes oc-spin { to { transform: rotate(1turn); } }
+@keyframes oc-orbit-glow {
+  0%, 100% { opacity: 0.42; filter: blur(5px); }
+  50% { opacity: 0.82; filter: blur(8px); }
+}
+@keyframes oc-soft-glow {
+  0%, 100% {
+    box-shadow:
+      calc(-1 * var(--oc-glow-offset)) 0 var(--oc-glow-radius) rgba(32, 145, 255, 0.1),
+      var(--oc-glow-offset) 0 var(--oc-glow-radius) rgba(24, 218, 174, 0.09);
+  }
+  50% {
+    box-shadow:
+      calc(-1 * var(--oc-glow-offset)) 0 var(--oc-glow-radius) rgba(32, 145, 255, 0.18),
+      var(--oc-glow-offset) 0 var(--oc-glow-radius) rgba(24, 218, 174, 0.16);
+  }
+}
 .oc-spinner {
-  width: 34px; height: 34px; border-radius: 50%;
-  border: 3px solid var(--border); border-top-color: var(--accent);
-  animation: oc-spin 0.8s linear infinite;
+  --oc-spinner-size: 104px;
+  --oc-orbit-colors: conic-gradient(
+    transparent 0deg 7deg,
+    #14e3ba 7deg,
+    #11cda8 78deg,
+    #07836f 173deg,
+    transparent 173deg 187deg,
+    #0756a8 187deg,
+    #117ee9 254deg,
+    #2fb7ff 343deg,
+    transparent 353deg 360deg
+  );
+  --oc-orbit-mask: radial-gradient(
+    farthest-side,
+    transparent 0 83%,
+    #000 84% 97%,
+    transparent 98% 100%
+  );
+  --oc-glow-offset: 2px;
+  --oc-glow-radius: 10px;
+  position: relative;
+  display: inline-block;
+  width: var(--oc-spinner-size);
+  height: var(--oc-spinner-size);
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: url('/logo.png') center / 58% 58% no-repeat;
+  isolation: isolate;
+  animation: oc-soft-glow 2.4s ease-in-out infinite;
+}
+.oc-spinner-image {
+  display: inline-grid;
+  min-width: 48px;
+  min-height: 48px;
+  place-items: center;
+  line-height: 0;
+  vertical-align: top;
+}
+.oc-spinner-image > * { grid-area: 1 / 1; }
+.oc-spinner-image > .oc-spinner { pointer-events: none; }
+.oc-spinner-image > img { transition: opacity 0.16s ease; }
+.oc-spinner::before,
+.oc-spinner::after {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 84%, rgba(199, 255, 255, 0.82) 85%, transparent 88%),
+    var(--oc-orbit-colors);
+  -webkit-mask: var(--oc-orbit-mask);
+  mask: var(--oc-orbit-mask);
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.oc-spinner::before {
+  animation: oc-spin 1.15s linear infinite, oc-orbit-glow 1.8s ease-in-out infinite;
+}
+.oc-spinner::after {
+  animation: oc-spin 1.15s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oc-spinner { animation-duration: 4.8s; }
+  .oc-spinner::before { animation-duration: 2.4s, 3.6s; }
+  .oc-spinner::after { animation-duration: 2.4s; }
 }
 
 /* Desktop (Tauri) shell: stack the custom title bar above the app shell. */

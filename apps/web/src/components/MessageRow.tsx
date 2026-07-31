@@ -8,6 +8,7 @@ import { BotBadge } from './BotBadge';
 import { Icon } from './Icon';
 import { PollView } from './PollView';
 import { MessageEmbeds, isSingleEmbedUrl } from './MessageEmbeds';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 export interface MessageRowProps {
   message: Message;
@@ -81,7 +82,7 @@ function MessageRowInner({
           <span style={{ fontWeight: 'bold', color: 'var(--text-strong)' }}>{m.author?.displayName || m.author?.username || 'user'}</span>
           {m.author?.isBot && <BotBadge />}
           <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
-          {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>· sending…</span>}
+          {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><OpenChatSpinner size={14} label="Sending message" /> sending…</span>}
           {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="error" size={12} /> failed to send</span>}
           {m.pinned && <span title="Pinned" style={{ fontSize: 11, color: 'var(--muted-2)' }}>· 📌 pinned</span>}
         </div>

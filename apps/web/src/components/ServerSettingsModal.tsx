@@ -6,6 +6,7 @@ import { uploadToShare } from '../lib/share';
 import { Permission, PERMISSION_LIST, has, toBig } from '../lib/permissions';
 import { Avatar } from './Avatar';
 import { AddBotBrowser } from './AddBotBrowser';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 type Tab = 'overview' | 'roles' | 'members' | 'invite' | 'bots';
 
@@ -268,7 +269,10 @@ export function ServerSettingsModal({
         {/* content */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-            <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-strong)', textTransform: 'capitalize' }}>{tab}</h2>
+            <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-strong)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 9 }}>
+              {tab}
+              {busy && <OpenChatSpinner size={20} label="Updating server settings" />}
+            </h2>
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
           </div>
 
@@ -286,7 +290,7 @@ export function ServerSettingsModal({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <input ref={iconFileRef} type="file" accept="image/*" hidden onChange={handleIconFile} />
                       <button style={primaryBtn} onClick={() => iconFileRef.current?.click()} disabled={iconUploading}>
-                        {iconUploading ? 'Uploading…' : 'Change Icon'}
+                        {iconUploading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Uploading server icon" /> Uploading…</span> : 'Change Icon'}
                       </button>
                       {iconUrl && (
                         <button onClick={() => setIconUrl(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>Remove</button>

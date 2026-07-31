@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { setServerUrl, setToken, serverOrigin, getToken } from '../lib/serverConfig';
 import * as api from '../lib/api';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 // PKCE (RFC 7636) for native sign-in: generate a verifier, send only its S256
 // challenge to the server, then exchange the returned code + verifier for tokens.
@@ -136,7 +137,7 @@ export function DesktopSetup({ onDone }: { onDone: () => void }) {
                 onChange={(e) => setManualToken(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') connectManual(); }} />
               <button onClick={connectManual} disabled={busy}
                 style={{ width: '100%', padding: '9px 0', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: busy ? 'default' : 'pointer', fontWeight: 600, fontSize: 13 }}>
-                {busy ? 'Connecting…' : 'Connect with token'}
+                {busy ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Connecting" /> Connecting…</span> : 'Connect with token'}
               </button>
             </>
           )}

@@ -1,5 +1,7 @@
 /** Full-screen connecting state: spinner while loading, or an error with retry
  *  (and, on desktop, a "sign in again" that returns to the setup screen). */
+import { OpenChatSpinner } from './OpenChatSpinner';
+
 export function LoadingScreen({ error, onRetry, onReconfigure }: {
   error: string | null;
   onRetry: () => void;
@@ -9,7 +11,7 @@ export function LoadingScreen({ error, onRetry, onReconfigure }: {
     <div style={{ height: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, background: 'var(--bg)', color: 'var(--text)' }}>
       {!error ? (
         <>
-          <div className="oc-spinner" />
+          <OpenChatSpinner label="Connecting" />
           <div style={{ color: 'var(--muted)', fontSize: 14 }}>Connecting…</div>
         </>
       ) : (

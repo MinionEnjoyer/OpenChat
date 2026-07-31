@@ -6,6 +6,7 @@ import { getAudioPrefs } from '../lib/audioPrefs';
 import { EmojiPicker } from './EmojiPicker';
 import { ToggleSwitch } from './ToggleSwitch';
 import type { AudioControls } from './VoiceSettings';
+import { OpenChatSpinner } from './OpenChatSpinner';
 
 const MAX_SOUND_MB = 5;
 const MAX_SOUND_BYTES = MAX_SOUND_MB * 1024 * 1024;
@@ -123,7 +124,9 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
         </div>
 
         {loading ? (
-          <p style={{ color: 'var(--muted)', fontSize: 14 }}>Loading…</p>
+          <div style={{ minHeight: 84, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <OpenChatSpinner size={44} label="Loading soundboard" />
+          </div>
         ) : sounds.length === 0 ? (
           <p style={{ color: 'var(--muted-2)', fontStyle: 'italic', fontSize: 14 }}>No sounds yet{canManage ? ' — add one below.' : '.'}</p>
         ) : (
@@ -184,7 +187,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
                   <input style={{ ...input, flex: 1 }} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} placeholder="Sound name" />
                   <button onClick={upload} disabled={!file || !name.trim() || uploading}
                     style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: (file && name.trim() && !uploading) ? 'var(--accent)' : 'var(--panel-dark)', color: (file && name.trim() && !uploading) ? 'var(--accent-text)' : 'var(--muted-2)', cursor: (file && name.trim() && !uploading) ? 'pointer' : 'default', fontWeight: 600, flexShrink: 0 }}>
-                    {uploading ? 'Adding…' : 'Add'}
+                    {uploading ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Adding sound" /> Adding…</span> : 'Add'}
                   </button>
                 </div>
               </div>

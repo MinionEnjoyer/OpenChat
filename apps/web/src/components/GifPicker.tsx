@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Gif } from '../lib/types';
 import { gifSearch } from '../lib/api';
+import { OpenChatSpinner } from './OpenChatSpinner';
+import { SpinnerImage } from './SpinnerImage';
 
 const W = 340;
 const H = 420;
@@ -55,10 +57,15 @@ export function GifPicker({
       </div>
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '0 10px 10px' }}>
         {error && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</p>}
-        {loading && gifs.length === 0 && !error && <p style={{ color: 'var(--muted)', fontSize: 13 }}>Loading…</p>}
+        {loading && gifs.length === 0 && !error && (
+          <div style={{ height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <OpenChatSpinner size={40} label="Loading GIFs" />
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, alignContent: 'start' }}>
           {gifs.map((g) => (
-            <img key={g.id} src={g.previewUrl} alt="" loading="lazy" onClick={() => onSelect(g)}
+            <SpinnerImage key={g.id} src={g.previewUrl} alt="" loading="lazy" spinnerSize={24}
+              wrapperStyle={{ width: '100%', minHeight: 72 }} onClick={() => onSelect(g)}
               style={{ width: '100%', borderRadius: 6, cursor: 'pointer', display: 'block' }} />
           ))}
         </div>
