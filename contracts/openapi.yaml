@@ -1992,10 +1992,16 @@ components:
         displayName: { type: string, nullable: true }
         avatarUrl: { type: string, nullable: true }
         status: { type: string, nullable: true }
+        customStatus: { type: string, nullable: true, maxLength: 280 }
+        bio: { type: string, nullable: true, maxLength: 500 }
         friendCode: { type: string, nullable: true }
         serverLayout: { nullable: true }
-        createdAt: { type: string }
-        updatedAt: { type: string }
+        isBot: { type: boolean }
+        botOwnerId: { type: string, format: uuid, nullable: true }
+        botDescription: { type: string, nullable: true, maxLength: 300 }
+        botPublished: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
         accessToken: { type: string }
         refreshToken: { type: string }
         expiresIn: { type: integer, enum: [3600] }
@@ -2056,6 +2062,27 @@ components:
           type: string
           nullable: true
           description: Lazily backfilled; may be null
+        serverLayout:
+          nullable: true
+          description: User-defined server rail layout JSON
+        isBot:
+          type: boolean
+        botOwnerId:
+          type: string
+          format: uuid
+          nullable: true
+        botDescription:
+          type: string
+          nullable: true
+          maxLength: 300
+        botPublished:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
       required: [id, username]
 
     Server:
@@ -2106,6 +2133,7 @@ components:
         displayName: { type: string, nullable: true }
         avatarUrl: { type: string, nullable: true }
         status: { type: string, nullable: true }
+        isBot: { type: boolean }
       required: [id, username]
       description: Author summary embedded in message responses (observed from API).
 

@@ -11,6 +11,7 @@ import { describe, it, expect } from '@jest/globals';
 // ── Inline light mock (no msw dependency needed for contract validation) ──
 
 const API = 'http://localhost:3001/api';
+const WEB_ORIGIN = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
 
 describe('P0-09 consumer — User shape from /auth/me', () => {
   it('response matches User schema contract', async () => {
@@ -51,7 +52,9 @@ describe('P0-09 consumer — Message shape from /channels/:id/messages', () => {
     });
     expect(loginRes.status).toBe(201);
     const cookie = loginRes.headers.get('set-cookie')?.split(';')[0];
-    const headers = cookie ? { cookie, 'content-type': 'application/json' } : { 'content-type': 'application/json' };
+    const headers = cookie
+      ? { cookie, 'content-type': 'application/json', origin: WEB_ORIGIN }
+      : { 'content-type': 'application/json' };
 
     const srv = await fetch(`${API}/servers`, { method: 'POST', headers, body: JSON.stringify({ name: 'Consumer Guild' }) });
     const serverId = (await srv.json()).id;

@@ -33,6 +33,10 @@ const User = {
     customStatus: { type: 'string', nullable: true, maxLength: 280 },
     bio: { type: 'string', nullable: true, maxLength: 500 },
     friendCode: { type: 'string', nullable: true },
+    isBot: { type: 'boolean' },
+    botOwnerId: { type: 'string', format: 'uuid', nullable: true },
+    botDescription: { type: 'string', nullable: true, maxLength: 300 },
+    botPublished: { type: 'boolean' },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
     serverLayout: {}, // arbitrary JSON — no shape constraint
@@ -218,6 +222,7 @@ const validators: Record<string, any> = {
 
 // ── HTTP helpers ──
 const API = 'http://localhost:3001/api';
+const WEB_ORIGIN = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
 let cookies: string[] = [];
 
 // Mirrors the ApiResponse<T = any> convention in test/characterization/helpers.ts:
@@ -229,6 +234,9 @@ async function api<T = any>(
 ): Promise<{ status: number; body: T; headers: Record<string, string> }> {
   const headers: Record<string, string> = { ...(opts.headers as Record<string, string> ?? {}) };
   if (cookies.length > 0) headers['cookie'] = cookies.join('; ');
+  if (cookies.length > 0 && opts.method !== undefined && opts.method !== 'GET' && headers.origin === undefined) {
+    headers.origin = WEB_ORIGIN;
+  }
   if (!headers['content-type'] && opts.method !== 'GET' && opts.body) {
     headers['content-type'] = 'application/json';
   }

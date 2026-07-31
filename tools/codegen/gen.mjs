@@ -69,6 +69,13 @@ export interface User {
   customStatus: string | null;
   bio: string | null;
   friendCode: string | null; // lazily backfilled; may be null
+  serverLayout: unknown | null;
+  isBot: boolean;
+  botOwnerId: string | null;
+  botDescription: string | null;
+  botPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TokenResponse {
@@ -161,6 +168,7 @@ export interface AuthorBrief {
   displayName: string | null;
   avatarUrl: string | null;
   status: string | null;
+  isBot: boolean;
 }
 
 export interface Message {
