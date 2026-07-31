@@ -36,10 +36,14 @@ describe('ws — subscribe gating', () => {
     const client = await wsConnect(outsider.jar);
     try {
       client.send({ op: 'subscribe', d: { channelId: s.textChannelId } });
-      await client.waitFor((frame) => frame.op === 'error' && /member|access|participant/i.test(frame.d?.message ?? ''));
+      const subscribeError = await client.waitFor(
+        (frame) => frame.op === 'error' && frame.d?.message === 'Operation failed',
+      );
 
       client.send({ op: 'typing.start', d: { channelId: s.textChannelId } });
-      await client.waitFor((frame) => frame.op === 'error' && /member|access|participant/i.test(frame.d?.message ?? ''));
+      await client.waitFor(
+        (frame) => frame !== subscribeError && frame.op === 'error' && frame.d?.message === 'Operation failed',
+      );
 
       await apiFetch(`/channels/${s.textChannelId}/messages`, {
         method: 'POST', body: { content: 'private event' }, jar: s.alice.jar,

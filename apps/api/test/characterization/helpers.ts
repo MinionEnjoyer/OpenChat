@@ -335,7 +335,7 @@ export function assertChannelShape(ch: any): void {
 }
 
 // ── Author sub-shape (embedded in messages) ──
-const AUTHOR_KEYS = ['id', 'username', 'displayName', 'avatarUrl', 'status'];
+const AUTHOR_KEYS = ['id', 'username', 'displayName', 'avatarUrl', 'status', 'isBot'];
 
 export function assertAuthorShape(author: any): void {
   assertExactKeys(author, AUTHOR_KEYS, 'Author');
@@ -344,6 +344,7 @@ export function assertAuthorShape(author: any): void {
   if (author.displayName !== null) expect(typeof author.displayName).toBe('string');
   if (author.avatarUrl !== null) expect(typeof author.avatarUrl).toBe('string');
   expect(typeof author.status).toBe('string');
+  expect(typeof author.isBot).toBe('boolean');
 }
 
 // ── Attachment shape ──
