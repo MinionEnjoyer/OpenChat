@@ -47,7 +47,7 @@ function codeToLabel(code: string): string {
 }
 
 /** Human-readable label for a keybind, e.g. "Shift + V". */
-export function describeKeybind(kb: PttKeybind): string {
+function describeKeybind(kb: PttKeybind): string {
   const parts: string[] = [];
   if (kb.ctrl) parts.push('Ctrl');
   if (kb.shift) parts.push('Shift');

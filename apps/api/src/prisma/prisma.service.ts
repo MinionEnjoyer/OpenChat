@@ -13,7 +13,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   static serialize<T>(obj: T): T {
     return JSON.parse(
-      JSON.stringify(obj, (key, value) =>
+      JSON.stringify(obj, (_key, value) =>
         typeof value === 'bigint' ? value.toString() : value
       )
     );

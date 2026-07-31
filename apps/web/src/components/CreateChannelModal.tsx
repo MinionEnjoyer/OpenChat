@@ -27,7 +27,7 @@ export function CreateChannelModal({
     }
   }
 
-  const typeBtn = (t: 'TEXT' | 'VOICE', label: string): React.CSSProperties => ({
+  const typeBtn = (t: 'TEXT' | 'VOICE'): React.CSSProperties => ({
     flex: 1,
     padding: '12px',
     borderRadius: 8,
@@ -53,11 +53,11 @@ export function CreateChannelModal({
 
         <span style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 8 }}>Channel Type</span>
         <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-          <button style={typeBtn('TEXT', 'Text')} onClick={() => setType('TEXT')}>
+          <button style={typeBtn('TEXT')} onClick={() => setType('TEXT')}>
             <div># Text</div>
             <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Send messages, files</div>
           </button>
-          <button style={typeBtn('VOICE', 'Voice')} onClick={() => setType('VOICE')}>
+          <button style={typeBtn('VOICE')} onClick={() => setType('VOICE')}>
             <div>🔊 Voice</div>
             <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--muted)' }}>Talk with mic</div>
           </button>

@@ -66,7 +66,6 @@ const EXP_KEY = 'openchat.tokenExp';
 /** Access token sent as `Authorization: Bearer` (and as ?token= for media). */
 export function getToken(): string | null { return safeGet(TOKEN_KEY); }
 export function getRefreshToken(): string | null { return safeGet(REFRESH_KEY); }
-export function getTokenExpiry(): number { const v = safeGet(EXP_KEY); return v ? Number(v) : 0; }
 
 /** Store a token family from an /auth/oauth/token response (login or refresh). */
 export function setTokens(t: { accessToken: string; refreshToken?: string; expiresIn?: number }) {

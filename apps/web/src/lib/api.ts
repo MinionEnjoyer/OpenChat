@@ -71,20 +71,6 @@ export async function exchangeAuthCode(code: string, codeVerifier: string, redir
   return data;
 }
 
-/** Revoke the refresh-token family server-side (best effort) and clear local tokens. */
-export async function logout() {
-  const refreshToken = getRefreshToken();
-  try {
-    await fetch(`${apiBase()}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(refreshToken ? { refreshToken } : {}),
-    });
-  } catch { /* ignore — still clear locally */ }
-  clearTokens();
-}
-
 export const getMe = () => request<User>('/auth/me');
 export const updateProfile = (data: { username?: string; displayName?: string; avatarUrl?: string; status?: string; customStatus?: string; bio?: string }) =>
   request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(data) });
@@ -118,7 +104,6 @@ export const declineServerInvite = (id: string) =>
 export const listServers = () => request<Server[]>('/servers');
 export const createServer = (name: string) =>
   request<Server>('/servers', { method: 'POST', body: JSON.stringify({ name }) });
-export const getServer = (id: string) => request<Server>(`/servers/${id}`);
 export const updateServer = (id: string, data: { name?: string; iconUrl?: string }) =>
   request<Server>(`/servers/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const deleteServer = (id: string) =>
@@ -181,8 +166,6 @@ export const listMessages = (channelId: string, before?: string) => {
 };
 export const searchMessages = (channelId: string, q: string) =>
   request<Message[]>(`/channels/${channelId}/messages/search?q=${encodeURIComponent(q)}`);
-export const sendMessage = (channelId: string, data: { content: string; attachments?: unknown[] }) =>
-  request<Message>(`/channels/${channelId}/messages`, { method: 'POST', body: JSON.stringify(data) });
 export const updateMessage = (messageId: string, data: { content: string }) =>
   request<Message>(`/messages/${messageId}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const deleteMessage = (messageId: string) =>
@@ -201,11 +184,6 @@ export const listPins = (channelId: string) =>
   request<Message[]>(`/channels/${channelId}/pins`);
 export const pinMessage = (messageId: string, pinned: boolean) =>
   request<Message>(`/messages/${messageId}/pin`, { method: 'PATCH', body: JSON.stringify({ pinned }) });
-export const markRead = (channelId: string, lastReadMessageId: string) =>
-  request<void>(`/channels/${channelId}/read`, {
-    method: 'POST',
-    body: JSON.stringify({ lastReadMessageId }),
-  });
 export const getWsTicket = () => request<WsTicket>('/auth/ws-ticket');
 
 export const listAppTokens = () => request<ApiToken[]>('/auth/tokens');

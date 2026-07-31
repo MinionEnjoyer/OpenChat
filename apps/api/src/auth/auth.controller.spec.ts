@@ -179,6 +179,8 @@ describe('AuthController — desktop PKCE', () => {
       expect(authService.exchangeNativeCode).toHaveBeenCalledWith('oidc-code-456', 'verifier-456', 'openchat://auth');
       // Should issue tokens
       expect(tokenService.issueFamily).toHaveBeenCalledWith(USER_ID);
+      expect(result).toHaveProperty('accessToken', 'at456');
+      expect(result).toHaveProperty('refreshToken', 'rt456');
     });
 
     it('refresh_token grant is unchanged', async () => {

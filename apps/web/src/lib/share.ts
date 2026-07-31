@@ -83,16 +83,3 @@ export async function analyzeWaveform(
     return null;
   }
 }
-
-const VIEWER_PREFIX: Record<string, string> = {
-  image: 'i',
-  video: 'v',
-  pdf: 'd',
-  text: 't',
-  model: 'm',
-  archive: 'a',
-};
-
-export function viewerUrl(shareBaseUrl: string, mediaType: string, id: string): string {
-  return `${shareBaseUrl}/${VIEWER_PREFIX[mediaType] ?? 'd'}/${id}`;
-}

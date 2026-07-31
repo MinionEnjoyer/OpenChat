@@ -35,10 +35,6 @@ export class RedisService implements OnModuleDestroy {
 
     this.client.on('error', (err) => this.logger.error('Redis Client Error:', err));
     this.subscriber.on('error', (err) => this.logger.error('Redis Subscriber Error:', err));
-    this.subscriber.on('message', (_channel, _message) => {
-      // Internal handling if needed, or let the Gateway subscribe to this emitter
-      // For now, we expose the clients so the Gateway can handle subscription logic
-    });
   }
 
   getClient(): Redis {

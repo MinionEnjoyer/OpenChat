@@ -114,7 +114,7 @@ export interface ServerSticker {
   url: string;
 }
 
-export interface PollOption {
+interface PollOption {
   id: string;
   text: string;
   voterIds: string[];
@@ -131,13 +131,6 @@ export interface Poll {
 export interface WsTicket {
   ticket: string;
   expiresAt: string;
-}
-
-export interface ServerInviteNotification {
-  id: string;
-  createdAt: string;
-  server: { id: string; name: string; iconUrl: string | null };
-  inviter: { id: string; username: string; displayName: string | null; avatarUrl: string | null };
 }
 
 export interface Gif {
@@ -178,6 +171,13 @@ export interface DmChannel {
   lastMessageAt?: string | null;
 }
 
+interface ServerInviteNotification {
+  id: string;
+  createdAt: string;
+  server: { id: string; name: string; iconUrl: string | null };
+  inviter: { id: string; username: string; displayName: string | null; avatarUrl: string | null };
+}
+
 export interface Notifications {
   friendRequests: { id: string; user: User }[];
   serverInvites: ServerInviteNotification[];
@@ -198,7 +198,7 @@ export interface Bot {
   createdAt: string;
 }
 
-export type NotificationLevel = 'ALL' | 'MENTIONS' | 'NONE';
+type NotificationLevel = 'ALL' | 'MENTIONS' | 'NONE';
 
 // Per-user notification preference for a server or channel (GET /notifications/settings).
 // Mirrors the server's NotificationSetting model.

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthModule } from '../auth/auth.module';
 
-export interface Gif {
+interface Gif {
   id: string;
   url: string;
   previewUrl: string;
@@ -12,7 +12,7 @@ export interface Gif {
 }
 
 @Injectable()
-export class GifsService {
+class GifsService {
   constructor(private readonly config: ConfigService) {}
 
   async search(q: string): Promise<Gif[]> {
@@ -40,7 +40,7 @@ export class GifsService {
 
 @Controller('gifs')
 @UseGuards(AuthGuard)
-export class GifsController {
+class GifsController {
   constructor(private readonly gifs: GifsService) {}
 
   @Get('search')

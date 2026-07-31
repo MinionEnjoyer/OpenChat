@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { WebSocketServer, WebSocket, RawData } from 'ws';
 import type { Server as HttpServer, IncomingMessage } from 'http';
+import type { Duplex } from 'stream';
 import { RedisService } from '../redis/redis.service';
 import { AuthService } from '../auth/auth.service';
 import { MessagesService } from '../messages/messages.service';
@@ -74,9 +75,11 @@ interface Client {
 }
 
 @Injectable()
-export class EventsGateway {
+export class EventsGateway implements OnModuleDestroy {
   private readonly logger = new Logger(EventsGateway.name);
   private wss?: WebSocketServer;
+  private server?: HttpServer;
+  private upgradeHandler?: (req: IncomingMessage, socket: Duplex, head: Buffer) => void;
   private readonly clients = new Map<WebSocket, Client>();
   // userId -> that user's open sockets, so presence flips offline only when the LAST one closes.
   private readonly userSockets = new Map<string, Set<WebSocket>>();
@@ -87,6 +90,16 @@ export class EventsGateway {
   private readonly maxOperationsPerWindow: number;
   private readonly operationWindowMs: number;
   private readonly maxBufferedBytes: number;
+  private readonly busListener = (channel: string, raw: string): void => {
+    if (channel !== EVENTS_CHANNEL) return;
+    let event: BusEvent;
+    try {
+      event = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    this.relay(event);
+  };
 
   constructor(
     private readonly redis: RedisService,
@@ -141,16 +154,18 @@ export class EventsGateway {
 
   /** Called from main.ts after the HTTP server is listening. */
   attach(server: HttpServer): void {
+    this.server = server;
     this.wss = new WebSocketServer({ noServer: true, maxPayload: this.maxPayloadBytes });
 
-    server.on('upgrade', (req, socket, head) => {
+    this.upgradeHandler = (req, socket, head) => {
       const { pathname } = new URL(req.url ?? '', `http://${req.headers.host}`);
       if (pathname !== '/ws') {
         socket.destroy();
         return;
       }
       this.wss!.handleUpgrade(req, socket, head, (ws) => { void this.onConnection(ws, req); });
-    });
+    };
+    server.on('upgrade', this.upgradeHandler);
 
     this.subscribeToBus();
     this.heartbeat = setInterval(() => this.pingAll(), HEARTBEAT_MS);
@@ -352,16 +367,24 @@ export class EventsGateway {
   private subscribeToBus(): void {
     const sub = this.redis.getSubscriber();
     sub.subscribe(EVENTS_CHANNEL).catch((e) => this.logger.error('subscribe failed', e));
-    sub.on('message', (channel, raw) => {
-      if (channel !== EVENTS_CHANNEL) return;
-      let event: BusEvent;
-      try {
-        event = JSON.parse(raw);
-      } catch {
-        return;
-      }
-      this.relay(event);
-    });
+    sub.on('message', this.busListener);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.heartbeat) {
+      clearInterval(this.heartbeat);
+      this.heartbeat = undefined;
+    }
+    if (this.server && this.upgradeHandler) {
+      this.server.off('upgrade', this.upgradeHandler);
+    }
+    this.redis.getSubscriber().off('message', this.busListener);
+    for (const socket of this.clients.keys()) socket.terminate();
+    this.clients.clear();
+    this.userSockets.clear();
+    const wss = this.wss;
+    this.wss = undefined;
+    if (wss) await new Promise<void>((resolve) => wss.close(() => resolve()));
   }
 
 

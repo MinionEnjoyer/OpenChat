@@ -3,24 +3,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Permission, hasPermission } from '../permissions/permissions';
 import type { Prisma } from '@prisma/client';
 
-export const AUDIT_ACTIONS = [
-  'KICK',
-  'ROLE_CREATE',
-  'ROLE_UPDATE',
-  'ROLE_DELETE',
-  'ROLE_ASSIGN',
-  'ROLE_UNASSIGN',
-  'CHANNEL_CREATE',
-  'CHANNEL_DELETE',
-  'SERVER_UPDATE',
-  'MEMBER_JOIN',
-  'MEMBER_LEAVE',
-  'MESSAGE_DELETE',
-  'MESSAGE_PIN',
-  'MESSAGE_UNPIN',
-] as const;
-
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+export type AuditAction =
+  | 'KICK'
+  | 'ROLE_CREATE'
+  | 'ROLE_UPDATE'
+  | 'ROLE_DELETE'
+  | 'ROLE_ASSIGN'
+  | 'ROLE_UNASSIGN'
+  | 'CHANNEL_CREATE'
+  | 'CHANNEL_DELETE'
+  | 'SERVER_UPDATE'
+  | 'MEMBER_JOIN'
+  | 'MEMBER_LEAVE'
+  | 'MESSAGE_DELETE'
+  | 'MESSAGE_PIN'
+  | 'MESSAGE_UNPIN';
 
 export interface AuditLogEntry {
   id: string;
@@ -83,15 +80,10 @@ export class AuditLogService {
     });
     if (!member) throw new ForbiddenException('You are not a member of this server');
 
-    const perms =
-      server.ownerId === userId
-        ? (await this.prisma.role
-            .findMany({ where: { serverId }, select: { permissions: true } })
-            .then((roles) => roles.reduce((a, r) => a | r.permissions, 0n)))
-        : member.roles.reduce((acc, r) => acc | r.permissions, 0n);
-
-    // Owner always has all permissions
-    if (server.ownerId !== userId && !hasPermission(perms, Permission.MANAGE_SERVER)) {
+    // Owners bypass role resolution. Other members only need the roles already loaded above;
+    // querying every role in the server for an owner was both redundant and incorrect work.
+    const memberPermissions = member.roles.reduce((acc, role) => acc | role.permissions, 0n);
+    if (server.ownerId !== userId && !hasPermission(memberPermissions, Permission.MANAGE_SERVER)) {
       throw new ForbiddenException('You do not have permission to view the audit log');
     }
 

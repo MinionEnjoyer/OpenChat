@@ -84,13 +84,6 @@ function buildMockPrisma(cfg: MockPrismaConfig = {}) {
     channelServerId ? { serverId: channelServerId, userId: authorId } : null,
   );
 
-  const dmMemberFindMany = jest.fn().mockResolvedValue(
-    (cfg.dmRecipients ?? [authorId, 'recip-1']).map((uid) => ({
-      userId: uid,
-      user: { username: uid, displayName: `User ${uid}` },
-    })),
-  );
-
   const srvMemberFindManyResolved =
     cfg.memberDetails ??
     (cfg.serverMembers ?? [authorId, 'member-2']).map((uid) => ({
@@ -180,6 +173,7 @@ function buildMockRedis() {
       subscribe: jest.fn().mockResolvedValue(undefined),
       unsubscribe: jest.fn().mockResolvedValue(undefined),
       on: jest.fn(),
+      off: jest.fn(),
     }),
     publish: jest.fn().mockResolvedValue(undefined),
     getClient: jest.fn().mockReturnValue({ publish: jest.fn().mockResolvedValue(undefined) }),
@@ -212,7 +206,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
     // Capture the real subscriber callback registered in onModuleInit
     capturedHandler = redis.getSubscriber().on.mock.calls[0][1];
 
-    const servers = Object.assign(makeServers(cfg.authorId ?? 'author-1'), serversOverride);
+    const servers = Object.assign(makeServers(), serversOverride);
     const auditLog = { write: jest.fn().mockResolvedValue(undefined) };
 
     // MessagesService no longer injects PushDispatchService — everything goes through redis
@@ -222,7 +216,7 @@ describe('Push dispatch integration — MessagesService → redis → PushDispat
     return { pushDispatch, servers };
   };
 
-  function makeServers(authorId: string) {
+  function makeServers() {
     return {
       assertNotTimedOut: jest.fn().mockResolvedValue(undefined),
       getChannelPermissions: jest.fn().mockResolvedValue(

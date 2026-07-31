@@ -3,18 +3,13 @@
 // suppress OS notifications for muted channels/servers and honor per-scope levels,
 // matching what the mobile FCM path already does server-side.
 import * as api from './api';
-import type { NotificationLevel, NotificationSetting } from './types';
+import type { NotificationSetting } from './types';
 
 let cache: NotificationSetting[] = [];
 
 /** Fetch the user's notification settings into the module cache (best-effort). */
 export async function loadNotifyPrefs(): Promise<void> {
   try { cache = await api.getNotificationSettings(); } catch { /* keep previous cache */ }
-}
-
-/** Replace the cache after the user edits a setting (mute/level change). */
-export function setNotifyPrefs(settings: NotificationSetting[]): void {
-  cache = settings;
 }
 
 function levelAllows(s: NotificationSetting, required: 'ALL' | 'MENTIONS'): boolean {
@@ -39,5 +34,3 @@ export function notifyAllowed(opts: { channelId: string; serverId?: string | nul
   }
   return true; // no setting → default ALL
 }
-
-export type { NotificationLevel };

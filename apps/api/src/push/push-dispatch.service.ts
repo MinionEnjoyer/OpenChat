@@ -41,6 +41,24 @@ const PUSH_EVENT_TYPES = new Set(['MENTION', 'NOTIFY', 'CALL_RING']);
 @Injectable()
 export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PushDispatchService.name);
+  private readonly onMessage = (channel: string, raw: string): void => {
+    if (channel !== EVENTS_CHANNEL) return;
+    let event: unknown;
+    try {
+      event = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (
+      typeof event === 'object' &&
+      event !== null &&
+      'type' in event &&
+      typeof (event as Record<string, unknown>).type === 'string' &&
+      PUSH_EVENT_TYPES.has((event as Record<string, unknown>).type as string)
+    ) {
+      void this.handleEvent(event as PushEvent);
+    }
+  };
 
   constructor(
     private readonly redis: RedisService,
@@ -51,33 +69,12 @@ export class PushDispatchService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     const sub = this.redis.getSubscriber();
     await sub.subscribe(EVENTS_CHANNEL);
-    sub.on('message', (channel, raw) => {
-      if (channel !== EVENTS_CHANNEL) return;
-      let event: unknown;
-      try {
-        event = JSON.parse(raw);
-      } catch {
-        return;
-      }
-      if (
-        typeof event === 'object' &&
-        event !== null &&
-        'type' in event &&
-        typeof (event as Record<string, unknown>).type === 'string' &&
-        PUSH_EVENT_TYPES.has((event as Record<string, unknown>).type as string)
-      ) {
-        void this.handleEvent(event as PushEvent);
-      }
-    });
+    sub.on('message', this.onMessage);
     this.logger.log('Push dispatch worker subscribed to chat:events');
   }
 
-  async onModuleDestroy(): Promise<void> {
-    try {
-      await this.redis.getSubscriber().unsubscribe(EVENTS_CHANNEL);
-    } catch {
-      /* ignore */
-    }
+  onModuleDestroy(): void {
+    this.redis.getSubscriber().off('message', this.onMessage);
   }
 
   /** Public for testing: manually inject an event without Redis. */

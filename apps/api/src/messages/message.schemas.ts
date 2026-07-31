@@ -32,5 +32,3 @@ export const CreateMessageSchema = z.object({
 export const EditMessageSchema = z.object({
   content: z.string().min(1).max(4000),
 });
-
-export type CreateMessageInput = z.input<typeof CreateMessageSchema>;

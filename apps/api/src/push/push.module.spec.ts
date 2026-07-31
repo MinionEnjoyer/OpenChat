@@ -20,6 +20,7 @@ const mockRedis = {
     subscribe: jest.fn().mockResolvedValue(undefined),
     unsubscribe: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    off: jest.fn(),
   }),
 };
 

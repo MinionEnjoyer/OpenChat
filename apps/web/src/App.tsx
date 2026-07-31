@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import type { User, Server, Channel, Message, Attachment as Att, DmChannel, ServerMemberInfo } from './lib/types';
 import * as api from './lib/api';
@@ -11,8 +11,6 @@ import { Avatar } from './components/Avatar';
 import { FriendsView } from './components/FriendsView';
 import { ServerActions } from './components/ServerActions';
 import { UserPanel } from './components/UserPanel';
-import { SettingsModal } from './components/SettingsModal';
-import { ServerSettingsModal } from './components/ServerSettingsModal';
 import { NotificationHub } from './components/NotificationHub';
 import { HeaderPanel } from './components/HeaderPanel';
 import { MemberListPanel } from './components/MemberListPanel';
@@ -26,7 +24,6 @@ import { GifPicker } from './components/GifPicker';
 import { StickerPicker } from './components/StickerPicker';
 import { messageSummary, stickerContent } from './lib/messageContent';
 import { PollModal } from './components/PollModal';
-import { Soundboard } from './components/Soundboard';
 import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
@@ -40,6 +37,24 @@ import { OpenChatSpinner } from './components/OpenChatSpinner';
 import { notifyNative } from './lib/notify';
 import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
+
+const SettingsModal = lazy(() =>
+  import('./components/SettingsModal').then((module) => ({ default: module.SettingsModal })),
+);
+const ServerSettingsModal = lazy(() =>
+  import('./components/ServerSettingsModal').then((module) => ({ default: module.ServerSettingsModal })),
+);
+const Soundboard = lazy(() =>
+  import('./components/Soundboard').then((module) => ({ default: module.Soundboard })),
+);
+
+function DeferredToolFallback() {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 299, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+      <OpenChatSpinner size={44} label="Loading options" />
+    </div>
+  );
+}
 
 interface AppState {
   user: User | null;
@@ -1533,16 +1548,18 @@ export default function App() {
       )}
 
       {settingsOpen && (
-        <SettingsModal
-          user={s.user}
-          theme={theme}
-          shareBaseUrl={s.shareBaseUrl}
-          audio={voice.audio}
-          onThemeChange={changeTheme}
-          onSaved={(u) => useStore.getState().set({ user: u })}
-          onStatusBroadcast={(status) => sendPresence(status, false)}
-          onClose={() => setSettingsOpen(false)}
-        />
+        <Suspense fallback={<DeferredToolFallback />}>
+          <SettingsModal
+            user={s.user}
+            theme={theme}
+            shareBaseUrl={s.shareBaseUrl}
+            audio={voice.audio}
+            onThemeChange={changeTheme}
+            onSaved={(u) => useStore.getState().set({ user: u })}
+            onStatusBroadcast={(status) => sendPresence(status, false)}
+            onClose={() => setSettingsOpen(false)}
+          />
+        </Suspense>
       )}
 
       {incomingCall && (
@@ -1634,14 +1651,16 @@ export default function App() {
       )}
 
       {soundboardOpen && activeServer && (
-        <Soundboard
-          serverId={activeServer.id}
-          canManage={has(activeServer.myPermissions, Permission.MANAGE_CHANNELS)}
-          shareBaseUrl={s.shareBaseUrl}
-          audio={voice.audio}
-          onPlay={(url) => voice.playSound(mediaUrl(url))}
-          onClose={() => setSoundboardOpen(false)}
-        />
+        <Suspense fallback={<DeferredToolFallback />}>
+          <Soundboard
+            serverId={activeServer.id}
+            canManage={has(activeServer.myPermissions, Permission.MANAGE_CHANNELS)}
+            shareBaseUrl={s.shareBaseUrl}
+            audio={voice.audio}
+            onPlay={(url) => voice.playSound(mediaUrl(url))}
+            onClose={() => setSoundboardOpen(false)}
+          />
+        </Suspense>
       )}
 
       {reactPickerFor && reactPickerAnchor && (
@@ -1665,22 +1684,24 @@ export default function App() {
       )}
 
       {serverSettingsOpen && activeServer && (
-        <ServerSettingsModal
-          server={activeServer}
-          me={s.user}
-          shareBaseUrl={s.shareBaseUrl}
-          onClose={() => setServerSettingsOpen(false)}
-          onUpdated={(updated) =>
-            useStore.getState().set({
-              servers: useStore.getState().servers.map((x) => (x.id === updated.id ? updated : x)),
-            })
-          }
-          onDeleted={(id) => {
-            useStore.getState().set({ servers: useStore.getState().servers.filter((x) => x.id !== id) });
-            setServerSettingsOpen(false);
-            goHome();
-          }}
-        />
+        <Suspense fallback={<DeferredToolFallback />}>
+          <ServerSettingsModal
+            server={activeServer}
+            me={s.user}
+            shareBaseUrl={s.shareBaseUrl}
+            onClose={() => setServerSettingsOpen(false)}
+            onUpdated={(updated) =>
+              useStore.getState().set({
+                servers: useStore.getState().servers.map((x) => (x.id === updated.id ? updated : x)),
+              })
+            }
+            onDeleted={(id) => {
+              useStore.getState().set({ servers: useStore.getState().servers.filter((x) => x.id !== id) });
+              setServerSettingsOpen(false);
+              goHome();
+            }}
+          />
+        </Suspense>
       )}
       </div>
     </>

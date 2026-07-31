@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAudioPrefs, type AudioControls, type InputMode, type PttKeybind } from '../lib/audioPrefs';
 import { keybindFromEvent } from '../lib/ptt';
 import { ToggleSwitch } from './ToggleSwitch';

@@ -5,7 +5,7 @@ import { AuthService } from '../auth/auth.service';
 import { TokenService } from '../auth/token.service';
 import { ChannelType } from '@prisma/client';
 
-export interface TestWorldFixtures {
+interface TestWorldFixtures {
   serverId: string;
   serverName: string;
   channels: { general: string; random: string; voice: string };

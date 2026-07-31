@@ -34,6 +34,7 @@ const mockSub = {
   subscribe: jest.fn().mockResolvedValue(undefined),
   unsubscribe: jest.fn().mockResolvedValue(undefined),
   on: jest.fn(),
+  off: jest.fn(),
 };
 const mockRedis = {
   getSubscriber: jest.fn().mockReturnValue(mockSub),
@@ -76,6 +77,11 @@ describe('PushDispatchService', () => {
     // Default: updateMany / deleteMany succeed
     mockPrisma.deviceToken.updateMany.mockResolvedValue({ count: 0 });
     mockPrisma.deviceToken.deleteMany.mockResolvedValue({ count: 0 });
+  });
+
+  it('removes its shared Redis listener during shutdown', () => {
+    service.onModuleDestroy();
+    expect(mockSub.off).toHaveBeenCalledWith('message', expect.any(Function));
   });
 
   // ── FR-NOTIF-001: MENTION → push ──────────────────────────

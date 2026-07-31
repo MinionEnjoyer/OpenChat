@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { ConfigService } from '@nestjs/config';
+import type { ConfigService } from '@nestjs/config';
 import { ShareService } from './share.service';
 
 describe('ShareService sticker upload path', () => {
