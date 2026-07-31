@@ -69,11 +69,8 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
     const session = await devLoginBearer('p5-01-svc-api-test');
     token = session.accessToken;
 
-    // Upload via POST /api/uploads — which internally tries Bearer token
-    // first (→ 404 today), then falls back to cookie-based upload.
-    // FR-MED-001: once OpenShare implements POST /api/assets, this will
-    // go through the Bearer path directly.
-    const attachments = await uploadFixture(token, FIXTURE_PATH, 'red-1x1.png');
+    const result = await uploadFixture(token, FIXTURE_PATH, 'red-1x1.png');
+    const attachments = result.attachments;
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments.length).toBe(1);
 
@@ -84,17 +81,15 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
   // ── FR-MED-001 core: upload succeeds (via fallback today) ─────────
 
   // @satisfies FR-MED-001
-  it('POST /api/uploads succeeds (service API attempted, cookie fallback used)', () => {
-    // The upload succeeded — the broker tried Bearer first, got 404,
-    // fell back to cookie-based /upload.
+  it('POST /api/uploads succeeds through the scoped service upload', () => {
     expect(typeof attachment.shareAssetId).toBe('string');
     expect(attachment.shareAssetId.length).toBeGreaterThan(0);
     expect(typeof attachment.filename).toBe('string');
     expect(attachment.filename).toBe('red-1x1.png');
     expect(typeof attachment.mimeType).toBe('string');
     expect(attachment.mimeType).toBe('image/png');
-    expect(typeof attachment.size).toBe('number');
-    expect(attachment.size).toBeGreaterThan(0);
+    expect(typeof attachment.size).toBe('string');
+    expect(Number(attachment.size)).toBeGreaterThan(0);
     expect(typeof attachment.url).toBe('string');
     expect(attachment.url).toBe(`/api/media/${assetId}/raw`);
     expect(attachment.thumbnailUrl).toBe(`/api/media/${assetId}/thumb`);

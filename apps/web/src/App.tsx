@@ -6,7 +6,7 @@ import { listDms } from './lib/social';
 import { getConfig, uploadToShare } from './lib/share';
 import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
-import { ChatOptionsTray, type ChatTool, type ChatToolAnchor } from './components/ChatOptionsTray';
+import { ChatOptionsTray, type ChatTool } from './components/ChatOptionsTray';
 import { Avatar } from './components/Avatar';
 import { FriendsView } from './components/FriendsView';
 import { ServerActions } from './components/ServerActions';
@@ -31,7 +31,7 @@ import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
-import { wsUrl, serverOrigin, getToken, setToken } from './lib/serverConfig';
+import { wsUrl, serverOrigin, mediaUrl, getToken, setToken } from './lib/serverConfig';
 import { TitleBar, isTauri, isMac } from './components/TitleBar';
 import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -1149,7 +1149,7 @@ export default function App() {
           title={sv.name}
           style={{ ...railBtn(!homeView && s.activeServerId === sv.id), overflow: 'hidden', padding: 0, boxShadow: hot ? '0 0 0 2px var(--accent)' : undefined }}>
           {sv.iconUrl
-            ? <img src={sv.iconUrl} alt={sv.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={mediaUrl(sv.iconUrl)} alt={sv.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : sv.name.slice(0, 2).toUpperCase()}
         </button>
         {svUnread > 0 && <span style={{ position: 'absolute', bottom: -2, right: -2 }}><UnreadBadge n={svUnread} /></span>}
@@ -1209,7 +1209,7 @@ export default function App() {
             onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, folderId: f.id }); }}
             style={{ width: 44, height: 44, borderRadius: 14, border: 'none', cursor: 'pointer', background: 'var(--bg)', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2, padding: 4, overflow: 'hidden', boxShadow: hot ? '0 0 0 2px var(--accent)' : undefined }}>
             {fservers.slice(0, 4).map((sv) => sv.iconUrl
-              ? <img key={sv.id} src={sv.iconUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 3 }} />
+              ? <img key={sv.id} src={mediaUrl(sv.iconUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 3 }} />
               : <span key={sv.id} style={{ fontSize: 8, background: 'var(--accent)', color: '#fff', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{sv.name.slice(0, 2).toUpperCase()}</span>)}
           </button>
           {f.collapsed && fUnread > 0 && <span style={{ position: 'absolute', bottom: -2, right: -2 }}><UnreadBadge n={fUnread} /></span>}
@@ -1639,14 +1639,13 @@ export default function App() {
           canManage={has(activeServer.myPermissions, Permission.MANAGE_CHANNELS)}
           shareBaseUrl={s.shareBaseUrl}
           audio={voice.audio}
-          onPlay={(url) => voice.playSound(url)}
+          onPlay={(url) => voice.playSound(mediaUrl(url))}
           onClose={() => setSoundboardOpen(false)}
         />
       )}
 
       {reactPickerFor && reactPickerAnchor && (
         <EmojiPicker
-          anchor={reactPickerAnchor}
           onSelect={(emoji) => {
             const mid = reactPickerFor;
             setReactPickerFor(null);
@@ -1719,7 +1718,6 @@ function Composer({
   const [dropActive, setDropActive] = useState(false);
   const [dropUploading, setDropUploading] = useState(false);
   const [activeTool, setActiveTool] = useState<ChatTool | null>(null);
-  const [toolAnchor, setToolAnchor] = useState<ChatToolAnchor | null>(null);
   const [pollOpen, setPollOpen] = useState(false);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -1792,14 +1790,10 @@ function Composer({
     doSend(content, attachments);
   }
 
-  function openTool(tool: ChatTool, anchor: ChatToolAnchor) {
-    setToolAnchor(anchor);
-    setActiveTool(tool);
-  }
+  function openTool(tool: ChatTool) { setActiveTool(tool); }
 
   function closeTool() {
     setActiveTool(null);
-    setToolAnchor(null);
   }
 
   // Drag-and-drop files anywhere in the window (while a channel is open) to upload + stage
@@ -1908,18 +1902,18 @@ function Composer({
           ➤
         </button>
       </div>
-      {activeTool === 'emoji' && toolAnchor && (
-        <EmojiPicker anchor={toolAnchor}
+      {activeTool === 'emoji' && (
+        <EmojiPicker
           onSelect={(em) => { setText((t) => t + em); closeTool(); inputRef.current?.focus(); }}
           onClose={closeTool} />
       )}
-      {activeTool === 'gif' && toolAnchor && (
-        <GifPicker anchor={toolAnchor}
+      {activeTool === 'gif' && (
+        <GifPicker
           onSelect={(gif) => { closeTool(); doSend(gif.url, []); }}
           onClose={closeTool} />
       )}
-      {activeTool === 'sticker' && toolAnchor && serverId && (
-        <StickerPicker anchor={toolAnchor} serverId={serverId} canManage={!!canManageStickers}
+      {activeTool === 'sticker' && serverId && (
+        <StickerPicker serverId={serverId} canManage={!!canManageStickers}
           onSelect={(url) => { closeTool(); doSend(stickerContent(url), []); }}
           onClose={closeTool} />
       )}

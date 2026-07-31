@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { TokenService } from './token.service';
 import { User } from '@prisma/client';
+import { requestToken } from './request-token';
 
 /**
  * P1-02 — Composite auth guard, a true superset of SessionGuard. A request is
@@ -24,11 +25,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    // Bearer header, or ?token= for requests that can't set headers (media elements).
-    const header: string | undefined = request.headers?.authorization;
-    const raw = (typeof header === 'string' && header.startsWith('Bearer '))
-      ? header.slice(7).trim()
-      : (typeof request.query?.token === 'string' ? request.query.token.trim() : '');
+    const raw = requestToken(request);
 
     if (raw) {
       // 1) native access JWT

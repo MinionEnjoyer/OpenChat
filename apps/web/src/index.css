@@ -217,8 +217,8 @@ button:disabled { cursor: default; }
 @keyframes msgFlash { 0% { background: var(--accent); } 100% { background: transparent; } }
 .msg-flash { animation: msgFlash 1.4s ease-out; border-radius: 6px; }
 
-/* One compact launch point for composer extras. Every picker receives this trigger's
-   top-right corner, so switching between GIFs, stickers, and emoji never jumps. */
+/* One compact launch point for composer extras. The tray stays a compact vertical
+   menu; the larger option windows open in the center. */
 .chat-options { position: relative; display: inline-flex; flex: 0 0 auto; }
 .chat-options-trigger {
   width: 30px;
@@ -278,6 +278,21 @@ button:disabled { cursor: default; }
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+}
+.chat-option-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+  background: rgba(0, 0, 0, 0.58);
+}
+.chat-option-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 200;
+  transform: translate(-50%, -50%);
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
 }
 
 /* incoming call prompt: gentle attention pulse */

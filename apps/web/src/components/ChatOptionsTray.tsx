@@ -5,7 +5,6 @@ import { OpenChatSpinner } from './OpenChatSpinner';
 import { SoundRecorder } from './SoundRecorder';
 
 export type ChatTool = 'emoji' | 'gif' | 'sticker';
-export type ChatToolAnchor = { x: number; y: number };
 
 export function ChatOptionsTray({
   shareBaseUrl,
@@ -20,7 +19,7 @@ export function ChatOptionsTray({
   active?: boolean;
   onUploaded: (attachments: Attachment[]) => void;
   onCreatePoll: () => void;
-  onOpenTool: (tool: ChatTool, anchor: ChatToolAnchor) => void;
+  onOpenTool: (tool: ChatTool) => void;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,11 +36,6 @@ export function ChatOptionsTray({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
-  function anchor(): ChatToolAnchor {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    return rect ? { x: rect.right, y: rect.top } : { x: window.innerWidth - 24, y: window.innerHeight - 72 };
-  }
-
   async function handleFiles(files: File[]) {
     if (!files.length || !shareBaseUrl) return;
     setUploading(true);
@@ -57,9 +51,8 @@ export function ChatOptionsTray({
   }
 
   function openTool(tool: ChatTool) {
-    const sharedAnchor = anchor();
     setOpen(false);
-    onOpenTool(tool, sharedAnchor);
+    onOpenTool(tool);
   }
 
   const item = (label: string, icon: string, action: () => void) => (

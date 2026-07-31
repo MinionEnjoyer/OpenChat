@@ -2,6 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { User } from '@prisma/client';
+import { requestToken } from './request-token';
 
 /**
  * Authenticates a request via either a bearer app token (Authorization: Bearer …,
@@ -15,12 +16,7 @@ export class SessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
-    // Bearer token from the Authorization header, or ?token= for requests that can't set
-    // headers (e.g. <img>/<video> streaming the watch-party media endpoints).
-    const header: string | undefined = request.headers?.authorization;
-    const raw = (typeof header === 'string' && header.startsWith('Bearer '))
-      ? header.slice(7).trim()
-      : (typeof request.query?.token === 'string' ? request.query.token.trim() : '');
+    const raw = requestToken(request);
     if (raw) {
       const tokenHash = createHash('sha256').update(raw).digest('hex');
       const token = await this.prisma.apiToken.findUnique({ where: { tokenHash }, include: { user: true } });

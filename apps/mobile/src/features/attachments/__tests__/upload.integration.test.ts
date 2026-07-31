@@ -116,7 +116,8 @@ describe('POST /api/uploads (integration)', () => {
     });
 
     expect(res.status).toBe(201);
-    const attachments = res.body as UploadedAttachment[];
+    const result = res.body as { attachments: UploadedAttachment[]; rejected: { name: string; reason: string }[] };
+    const attachments = result.attachments;
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments.length).toBe(1);
 
@@ -178,7 +179,7 @@ describe('POST /api/uploads (integration)', () => {
     });
 
     expect(res.status).toBe(201);
-    const attachments = res.body as UploadedAttachment[];
+    const attachments = (res.body as { attachments: UploadedAttachment[] }).attachments;
     expect(attachments.length).toBe(MAX_ATTACHMENTS);
   });
 });

@@ -97,7 +97,7 @@ function MessageRowInner({
             </p>
           )
         )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, marginTop: 4 }}>
           {(m.attachments || []).map((a) => (
             <Attachment key={a.id || a.shareAssetId} attachment={a} shareBaseUrl={shareBaseUrl} />
           ))}

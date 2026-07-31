@@ -1,4 +1,5 @@
 import type { User } from '../lib/types';
+import { mediaUrl } from '../lib/serverConfig';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -33,7 +34,7 @@ export function Avatar({
     objectFit: 'cover',
   };
   const inner = user?.avatarUrl ? (
-    <img src={user.avatarUrl} alt={name} style={common} />
+    <img src={mediaUrl(user.avatarUrl)} alt={name} style={common} />
   ) : (
     <div
       style={{

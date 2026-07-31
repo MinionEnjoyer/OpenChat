@@ -2,6 +2,7 @@ import { isTauri } from './TitleBar';
 import { serverOrigin } from '../lib/serverConfig';
 import { stickerUrl } from '../lib/messageContent';
 import { SpinnerImage } from './SpinnerImage';
+import { mediaUrl } from '../lib/serverConfig';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 
@@ -66,7 +67,7 @@ export function MessageEmbeds({ content }: { content: string }) {
   const st = stickerUrl(content);
   if (st) {
     const s = shareRef(st);
-    const src = s ? `${s.base}/raw/${s.id}` : st;
+    const src = s ? `${s.base}/raw/${s.id}` : mediaUrl(st);
     return <SpinnerImage src={src} alt="sticker" loading="lazy" spinnerSize={28}
       wrapperStyle={{ minWidth: 80, minHeight: 80 }} style={{ maxWidth: 160, maxHeight: 160, borderRadius: 8, display: 'block' }} />;
   }
@@ -126,5 +127,5 @@ export function MessageEmbeds({ content }: { content: string }) {
   }
 
   if (embeds.length === 0) return null;
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>{embeds}</div>;
+  return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, marginTop: 6 }}>{embeds}</div>;
 }

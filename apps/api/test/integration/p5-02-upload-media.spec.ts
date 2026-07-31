@@ -18,8 +18,8 @@
  *   height: number | null
  *   durationMs: number | null
  *
- * The broker (POST /api/uploads) returns UploadedAttachment[] matching this
- * shape but using /api/media/... proxy URLs and size as number.
+ * The broker returns `{attachments, rejected}`; each attachment uses authenticated
+ * /api/media proxy URLs and a decimal-string size.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -52,7 +52,7 @@ function bearer(token: string): { authorization: string } {
  * The characterisation helpers' apiFetch JSON-stringifies the body,
  * which corrupts binary multipart data, so we bypass it here.
  */
-async function uploadFixture(token: string, filePath: string, filename: string): Promise<any[]> {
+async function uploadFixture(token: string, filePath: string, filename: string): Promise<any> {
   const fileBuffer = fs.readFileSync(filePath);
   const blob = new Blob([new Uint8Array(fileBuffer)], { type: 'image/png' });
   const form = new FormData();
@@ -77,7 +77,8 @@ describe('P5-02 — upload broker + media proxy', () => {
     token = session.accessToken;
 
     // Upload the fixture
-    const attachments = await uploadFixture(token, FIXTURE_PATH, 'red-1x1.png');
+    const result = await uploadFixture(token, FIXTURE_PATH, 'red-1x1.png');
+    const attachments = result.attachments;
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments.length).toBe(1);
 
@@ -91,15 +92,16 @@ describe('P5-02 — upload broker + media proxy', () => {
   it('returns web-compatible attachment refs from POST /api/uploads', () => {
     // Keys from web Attachment shape (apps/web/src/lib/types.ts)
     // Web: id, shareAssetId, filename, mimeType, size, url, thumbnailUrl, width, height, durationMs
-    // Broker: shareAssetId (no id), filename, mimeType, size (number), url, thumbnailUrl, width, height, durationMs
+    // Broker: the same shape, wrapped with per-file rejection details.
+    expect(attachment.id).toBe(assetId);
     expect(typeof attachment.shareAssetId).toBe('string');
     expect(attachment.shareAssetId.length).toBeGreaterThan(0);
     expect(typeof attachment.filename).toBe('string');
     expect(attachment.filename).toBe('red-1x1.png');
     expect(typeof attachment.mimeType).toBe('string');
     expect(attachment.mimeType).toBe('image/png');
-    expect(typeof attachment.size).toBe('number');
-    expect(attachment.size).toBeGreaterThan(0);
+    expect(typeof attachment.size).toBe('string');
+    expect(Number(attachment.size)).toBeGreaterThan(0);
     expect(typeof attachment.url).toBe('string');
     expect(attachment.url).toBe(`/api/media/${assetId}/raw`);
     expect(attachment.thumbnailUrl).toBe(`/api/media/${assetId}/thumb`);
@@ -109,6 +111,7 @@ describe('P5-02 — upload broker + media proxy', () => {
 
     // Verify exact key set — no extra or missing keys
     const expectedKeys = [
+      'id',
       'shareAssetId',
       'filename',
       'mimeType',

@@ -6,28 +6,7 @@ import { ServersService } from '../servers/servers.service';
 import { PresenceService } from '../realtime/presence.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
-
-const CreateMessageSchema = z.object({
-  content: z.string(),
-  attachments: z.array(
-    z.object({
-      shareAssetId: z.string(),
-      filename: z.string(),
-      mimeType: z.string(),
-      size: z.coerce.bigint(),
-      url: z.string(),
-      thumbnailUrl: z.string().nullable().optional(),
-      width: z.number().int().nullable().optional(),
-      height: z.number().int().nullable().optional(),
-      durationMs: z.number().int().nullable().optional(),
-    })
-  ).default([]),
-  replyToId: z.string().uuid().nullable().optional(),
-});
-
-const EditMessageSchema = z.object({
-  content: z.string(),
-});
+import { CreateMessageSchema, EditMessageSchema } from './message.schemas';
 
 function contentPreview(content: string, maxLength = 80): string {
   if (content.trim().startsWith('sticker::')) return 'Sticker';
@@ -108,7 +87,7 @@ export class MessagesService {
    * Assert the user may access a channel: a ServerMember for server channels,
    * or a ChannelRecipient for DM channels (serverId = null). Throws otherwise.
    */
-  private async assertChannelAccess(channelId: string, userId: string): Promise<void> {
+  async assertChannelAccess(channelId: string, userId: string): Promise<{ serverId: string | null }> {
     const channel = await this.prisma.channel.findUnique({
       where: { id: channelId },
       select: { serverId: true },
@@ -126,6 +105,7 @@ export class MessagesService {
       });
       if (!recipient) throw new ForbiddenException('Not a participant of this DM');
     }
+    return { serverId: channel.serverId };
   }
 
   async list(channelId: string, userId: string, options?: { before?: string; around?: string; limit?: number }): Promise<MessageWithRelations[]> {

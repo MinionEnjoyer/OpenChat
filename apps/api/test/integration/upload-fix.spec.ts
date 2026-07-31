@@ -4,11 +4,8 @@
  * Verifies POST /api/uploads succeeds against the running OpenShare
  * (chat-dev-openshare on :8800) via the surviving controller.
  *
- * The broken upstream controller (share/uploads.controller.ts) sent
- * Authorization: Bearer <SHARE_API_KEY> to OpenShare's /upload, which
- * uses cookie/session auth and returned 401. The surviving controller
- * (uploads/uploads.controller.ts) uses cookie-session via ensureSession()
- * and returns 200.
+ * The registered controller forwards the authenticated user's identity to the
+ * scoped OpenShare service upload endpoint and returns one stable response shape.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -72,7 +69,8 @@ describe('E2E upload against OpenShare', () => {
   });
 
   it('POST /api/uploads succeeds against OpenShare and returns valid attachment', async () => {
-    const attachments = await uploadFixture(authToken, FIXTURE_PATH, 'red-1x1.png');
+    const result = await uploadFixture(authToken, FIXTURE_PATH, 'red-1x1.png');
+    const attachments = result.attachments;
 
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments.length).toBe(1);
@@ -90,7 +88,8 @@ describe('E2E upload against OpenShare', () => {
   });
 
   it('uploaded asset is retrievable via OpenShare raw endpoint', async () => {
-    const attachments = await uploadFixture(authToken, FIXTURE_PATH, 'red-1x1.png');
+    const result = await uploadFixture(authToken, FIXTURE_PATH, 'red-1x1.png');
+    const attachments = result.attachments;
     const assetId = attachments[0].shareAssetId;
 
     // Fetch directly from OpenShare (public /raw/{id})
@@ -104,7 +103,8 @@ describe('E2E upload against OpenShare', () => {
 
   it('OpenShare stores upload with chat source attribution', async () => {
     const uniqueName = `fix-upload-${Date.now()}.png`;
-    const attachments = await uploadFixture(authToken, FIXTURE_PATH, uniqueName);
+    const result = await uploadFixture(authToken, FIXTURE_PATH, uniqueName);
+    const attachments = result.attachments;
     const assetId = attachments[0].shareAssetId;
 
     const resp = await fetch(`${SHARE_BASE}/raw/${assetId}`);

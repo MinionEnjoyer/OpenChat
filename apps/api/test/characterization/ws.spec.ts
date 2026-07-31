@@ -1,5 +1,5 @@
 /** @characterizes ws — handshake, 4401/4404, subscribe gating, ready payload servers:[] */
-import { wsConnect, seed, apiFetch, assertWsReadyDataShape, WS_BASE } from './helpers';
+import { wsConnect, seed, apiFetch, assertWsReadyDataShape, WS_BASE, devLogin } from './helpers';
 let s: Awaited<ReturnType<typeof seed>>;
 beforeAll(async () => { s = await seed(); });
 
@@ -31,6 +31,24 @@ describe('ws — handshake', () => {
 });
 
 describe('ws — subscribe gating', () => {
+  it('rejects subscriptions and typing for channels the user cannot access', async () => {
+    const outsider = await devLogin(`ws-outsider-${Date.now()}`);
+    const client = await wsConnect(outsider.jar);
+    try {
+      client.send({ op: 'subscribe', d: { channelId: s.textChannelId } });
+      await client.waitFor((frame) => frame.op === 'error' && /member|access|participant/i.test(frame.d?.message ?? ''));
+
+      client.send({ op: 'typing.start', d: { channelId: s.textChannelId } });
+      await client.waitFor((frame) => frame.op === 'error' && /member|access|participant/i.test(frame.d?.message ?? ''));
+
+      await apiFetch(`/channels/${s.textChannelId}/messages`, {
+        method: 'POST', body: { content: 'private event' }, jar: s.alice.jar,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(client.frames.some((frame) => frame.op === 'message.created' && frame.d?.message?.content === 'private event')).toBe(false);
+    } finally { client.close(); }
+  });
+
   it('message.created only after subscribe', async () => {
     const client = await wsConnect(s.alice.jar);
     try {

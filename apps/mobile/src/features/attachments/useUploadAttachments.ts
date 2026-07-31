@@ -104,8 +104,11 @@ export function useUploadAttachments(): {
             throw new Error(`Upload failed: ${res.status} ${text}`);
           }
 
-          const uploaded: UploadedAttachment[] = await res.json();
-          results.push(...uploaded);
+          const uploaded: { attachments: UploadedAttachment[]; rejected: { name: string; reason: string }[] } = await res.json();
+          if (uploaded.rejected.length > 0 && uploaded.attachments.length === 0) {
+            throw new Error(uploaded.rejected.map((item) => `${item.name}: ${item.reason}`).join('; '));
+          }
+          results.push(...uploaded.attachments);
           setState((s) => ({ ...s, uploaded: s.uploaded + 1 }));
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Upload failed';

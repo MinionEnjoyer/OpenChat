@@ -47,9 +47,11 @@ export function wsUrl(path: string): string {
  * sessions without a token fall back to the same-origin cookie.
  */
 export function mediaUrl(path: string): string {
-  const url = `${serverOrigin()}${path}`;
+  const origin = serverOrigin();
+  const external = /^https?:\/\//i.test(path);
+  const url = external ? path : `${origin}${path}`;
   const token = getToken();
-  if (!token) return url;
+  if (!token || (external && origin && !url.startsWith(origin + '/'))) return url;
   return url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
 }
 

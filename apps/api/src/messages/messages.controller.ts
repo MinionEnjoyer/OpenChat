@@ -4,6 +4,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { MessagesService } from './messages.service';
+import { CreateMessageSchema, EditMessageSchema, MessageAttachmentSchema } from './message.schemas';
 import type { User } from '@prisma/client';
 
 const GetMessagesQuery = z.object({
@@ -17,25 +18,6 @@ const SearchMessagesQuery = z.object({
   limit: z.coerce.number().int().positive().max(100).default(50),
 });
 
-const AttachmentSchema = z.object({
-  shareAssetId: z.string(),
-  filename: z.string(),
-  mimeType: z.string(),
-  size: z.coerce.number(),
-  url: z.string().url(),
-  thumbnailUrl: z.string().url().nullable().optional(),
-  width: z.number().int().positive().nullable().optional(),
-  height: z.number().int().positive().nullable().optional(),
-  durationMs: z.number().int().nonnegative().nullable().optional(),
-});
-
-const CreateMessageDto = z.object({
-  content: z.string().min(1).max(4000),
-  attachments: z.array(AttachmentSchema).default([]),
-  nonce: z.string().optional(),
-});
-
-const UpdateMessageDto = z.object({ content: z.string().min(1).max(4000) });
 const ReadDto = z.object({ lastReadMessageId: z.string().uuid() });
 
 @Controller()
@@ -65,8 +47,8 @@ export class MessagesController {
   create(
     @Param('id') channelId: string,
     @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(CreateMessageDto))
-    body: { content: string; attachments?: any[]; nonce?: string },
+    @Body(new ZodValidationPipe(CreateMessageSchema))
+    body: { content: string; attachments?: z.input<typeof MessageAttachmentSchema>[]; nonce?: string; replyToId?: string | null },
   ) {
     return this.messages.create(channelId, user.id, body);
   }
@@ -75,7 +57,7 @@ export class MessagesController {
   edit(
     @Param('id') messageId: string,
     @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(UpdateMessageDto)) body: { content: string },
+    @Body(new ZodValidationPipe(EditMessageSchema)) body: { content: string },
   ) {
     return this.messages.edit(messageId, user.id, body);
   }

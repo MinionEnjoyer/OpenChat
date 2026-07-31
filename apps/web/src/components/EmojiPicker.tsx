@@ -11,11 +11,9 @@ const H = 440;
  * first open so they stay out of the initial bundle. Closes on outside click or Escape.
  */
 export function EmojiPicker({
-  anchor,
   onSelect,
   onClose,
 }: {
-  anchor: { x: number; y: number };
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }) {
@@ -39,13 +37,10 @@ export function EmojiPicker({
     return () => { clearTimeout(t); document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
-  const left = Math.max(8, Math.min(anchor.x - W, window.innerWidth - W - 8));
-  const top = anchor.y > window.innerHeight / 2
-    ? Math.max(8, anchor.y - H)
-    : Math.min(anchor.y + 8, window.innerHeight - H - 8);
-
   return (
-    <div ref={ref} style={{ position: 'fixed', left, top, zIndex: 200 }}>
+    <>
+    <div className="chat-option-backdrop" aria-hidden="true" />
+    <div ref={ref} className="chat-option-dialog" role="dialog" aria-modal="true" aria-label="Choose an emoji" style={{ width: W, height: `min(${H}px, calc(100dvh - 24px))` }}>
       {mod ? (
         <mod.Picker
           data={mod.data}
@@ -63,5 +58,6 @@ export function EmojiPicker({
         </div>
       )}
     </div>
+    </>
   );
 }

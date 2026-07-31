@@ -23,6 +23,15 @@ const envSchema = z.object({
   // uploads or custom avatars). The frontend hides upload UI when it's unset.
   SHARE_BASE_URL: z.string().url().optional(),
   SHARE_API_KEY: z.string().optional(),
+  // Upload limits are opt-in for self-hosted deployments. Unset means unlimited.
+  UPLOAD_MAX_FILES: z.coerce.number().int().positive().optional(),
+  UPLOAD_MAX_FILE_BYTES: z.coerce.number().int().positive().optional(),
+  WS_MAX_PAYLOAD_BYTES: z.coerce.number().int().positive().default(1_048_576),
+  WS_MAX_SOCKETS_PER_USER: z.coerce.number().int().positive().default(10),
+  WS_MAX_SUBSCRIPTIONS: z.coerce.number().int().positive().default(500),
+  WS_MAX_OPERATIONS_PER_WINDOW: z.coerce.number().int().positive().default(120),
+  WS_OPERATION_WINDOW_MS: z.coerce.number().int().positive().default(10_000),
+  WS_MAX_BUFFERED_BYTES: z.coerce.number().int().positive().default(1_048_576),
   JELLYFIN_URL: z.string().url(),
   JELLYFIN_API_KEY: z.string().optional(),
   LIVEKIT_URL: z.string().min(1),
@@ -38,6 +47,15 @@ const envSchema = z.object({
   // fails at boot rather than degrading to no-push at runtime.
   FCM_SERVICE_ACCOUNT: z.string().optional(),
   JWT_SECRET: z.string().min(1),
+  ENABLE_API_DOCS: z.enum(['0', '1']).optional().default('0'),
+}).superRefine((env, ctx) => {
+  if (env.SHARE_BASE_URL && !env.SHARE_API_KEY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SHARE_API_KEY'],
+      message: 'SHARE_API_KEY is required when SHARE_BASE_URL is configured',
+    });
+  }
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

@@ -3,6 +3,7 @@ import type { Attachment as AttachmentModel } from '../lib/types';
 import { AudioPlayer } from './AudioPlayer';
 import { Lightbox } from './Lightbox';
 import { SpinnerImage } from './SpinnerImage';
+import { mediaUrl } from '../lib/serverConfig';
 
 const formatSize = (bytes: number): string => {
   if (bytes === 0) return '0 B';
@@ -32,13 +33,15 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
   shareBaseUrl 
 }) => {
   const { mimeType, filename, size, url, thumbnailUrl, shareAssetId } = attachment;
+  const assetUrl = mediaUrl(url);
+  const assetThumbnailUrl = thumbnailUrl ? mediaUrl(thumbnailUrl) : null;
   const [zoomed, setZoomed] = useState(false);
 
   if (mimeType.startsWith('image/')) {
     return (
       <>
         <SpinnerImage
-          src={url}
+          src={assetUrl}
           alt={filename}
           loading="lazy"
           spinnerSize={32}
@@ -46,7 +49,7 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
           onClick={() => setZoomed(true)}
           style={{ maxWidth: '400px', maxHeight: '300px', objectFit: 'contain', cursor: 'zoom-in', borderRadius: 4 }}
         />
-        {zoomed && <Lightbox src={url} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
+        {zoomed && <Lightbox src={assetUrl} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
       </>
     );
   }
@@ -55,7 +58,7 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
     return (
       <>
         <div style={{ position: 'relative', display: 'inline-block', maxWidth: '400px' }}>
-          <video controls src={url} style={{ maxWidth: '400px', maxHeight: '300px', display: 'block', borderRadius: 4 }}>
+          <video controls src={assetUrl} style={{ maxWidth: '400px', maxHeight: '300px', display: 'block', borderRadius: 4 }}>
             Your browser does not support the video tag.
           </video>
           <button
@@ -66,13 +69,13 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
             ⛶
           </button>
         </div>
-        {zoomed && <Lightbox src={url} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
+        {zoomed && <Lightbox src={assetUrl} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
       </>
     );
   }
 
   if (mimeType.startsWith('audio/')) {
-    return <AudioPlayer src={url} filename={filename} peaksUrl={`${shareBaseUrl}/waveform/${shareAssetId}`} />;
+    return <AudioPlayer src={assetUrl} filename={filename} peaksUrl={`${shareBaseUrl}/waveform/${shareAssetId}`} />;
   }
 
   // File card for other types
@@ -96,9 +99,9 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
         maxWidth: '300px'
       }}
     >
-      {thumbnailUrl ? (
+      {assetThumbnailUrl ? (
         <SpinnerImage
-          src={thumbnailUrl} 
+          src={assetThumbnailUrl}
           alt=""
           spinnerSize={18}
           wrapperStyle={{ width: 48, height: 48, minWidth: 48, minHeight: 48 }}

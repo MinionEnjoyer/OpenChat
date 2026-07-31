@@ -6,6 +6,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PERMISSION_LIST } from '../permissions/permissions';
 import { OverwriteTargetType, type User } from '@prisma/client';
+import { MediaUrlSchema } from '../messages/message.schemas';
 
 const CreateServerDto = z.object({ name: z.string().min(1).max(100) });
 const UpdateServerDto = z.object({
@@ -88,7 +89,7 @@ export class ServersController {
     @CurrentUser() user: User,
     @Body(new ZodValidationPipe(z.object({
       name: z.string().min(1).max(40),
-      url: z.string().url(),
+      url: MediaUrlSchema,
       emoji: z.string().max(8).nullable().optional(),
     }))) body: { name: string; url: string; emoji?: string | null },
   ) {
@@ -126,7 +127,7 @@ export class ServersController {
   addSticker(
     @Param('id') serverId: string,
     @CurrentUser() user: User,
-    @Body(new ZodValidationPipe(z.object({ name: z.string().min(1).max(40), url: z.string().url() }))) body: { name: string; url: string },
+    @Body(new ZodValidationPipe(z.object({ name: z.string().min(1).max(40), url: MediaUrlSchema }))) body: { name: string; url: string },
   ) {
     return this.servers.addSticker(serverId, user.id, body);
   }

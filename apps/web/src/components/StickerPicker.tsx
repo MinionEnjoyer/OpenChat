@@ -4,15 +4,13 @@ import * as api from '../lib/api';
 import { uploadToShare } from '../lib/share';
 import { OpenChatSpinner } from './OpenChatSpinner';
 import { SpinnerImage } from './SpinnerImage';
-
-const MAX_MB = 4;
+import { mediaUrl } from '../lib/serverConfig';
 
 /**
  * Composer sticker popover: send one of the server's custom stickers (an uploaded image sent
  * as an image message, like a GIF). Users with Manage Channels can add/remove stickers here.
  */
-export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }: {
-  anchor: { x: number; y: number };
+export function StickerPicker({ serverId, canManage, onSelect, onClose }: {
   serverId: string;
   canManage: boolean;
   onSelect: (url: string) => void;
@@ -38,7 +36,6 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; e.target.value = '';
     if (!f) return;
-    if (f.size > MAX_MB * 1024 * 1024) { alert(`Stickers must be ${MAX_MB} MB or less.`); return; }
     const name = (prompt('Sticker name?', f.name.replace(/\.[^.]+$/, '').slice(0, 40)) || '').trim();
     if (!name) return;
     setUploading(true);
@@ -56,12 +53,11 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
     try { await api.deleteSticker(serverId, id); } catch { load(); }
   }
 
-  const top = Math.max(8, anchor.y - 350);
-  const left = Math.max(8, anchor.x - 300);
-
   return (
-    <div ref={ref}
-      style={{ position: 'fixed', top, left, width: 300, maxHeight: 340, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.35)', zIndex: 60, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <>
+    <div className="chat-option-backdrop" aria-hidden="true" />
+    <div ref={ref} className="chat-option-dialog" role="dialog" aria-modal="true" aria-label="Choose a sticker"
+      style={{ width: 320, height: 360, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
         <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-strong)' }}>Stickers</span>
         {canManage && <button onClick={() => setManage((m) => !m)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>{manage ? 'Done' : 'Manage'}</button>}
@@ -75,7 +71,7 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
         )}
         {stickers.map((s) => (
           <div key={s.id} title={s.name} style={{ position: 'relative' }}>
-            <SpinnerImage src={s.url} alt={s.name} spinnerSize={22} wrapperStyle={{ width: '100%', height: 60 }}
+            <SpinnerImage src={mediaUrl(s.url)} alt={s.name} spinnerSize={22} wrapperStyle={{ width: '100%', height: 60 }}
               onClick={() => { if (!manage) onSelect(s.url); }}
               style={{ width: '100%', height: 60, objectFit: 'contain', borderRadius: 6, cursor: manage ? 'default' : 'pointer', background: 'var(--input-bg)' }} />
             {manage && (
@@ -95,5 +91,6 @@ export function StickerPicker({ anchor, serverId, canManage, onSelect, onClose }
         </div>
       )}
     </div>
+    </>
   );
 }

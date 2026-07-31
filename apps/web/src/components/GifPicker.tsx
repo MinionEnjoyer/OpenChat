@@ -8,11 +8,9 @@ const W = 340;
 const H = 420;
 
 export function GifPicker({
-  anchor,
   onSelect,
   onClose,
 }: {
-  anchor: { x: number; y: number };
   onSelect: (gif: Gif) => void;
   onClose: () => void;
 }) {
@@ -46,11 +44,10 @@ export function GifPicker({
     return () => { cancelled = true; clearTimeout(t); };
   }, [q]);
 
-  const left = Math.max(8, Math.min(anchor.x - W, window.innerWidth - W - 8));
-  const top = Math.max(8, anchor.y - H);
-
   return (
-    <div ref={ref} style={{ position: 'fixed', left, top, width: W, height: H, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <>
+    <div className="chat-option-backdrop" aria-hidden="true" />
+    <div ref={ref} className="chat-option-dialog" role="dialog" aria-modal="true" aria-label="Choose a GIF" style={{ width: W, height: `min(${H}px, calc(100dvh - 24px))`, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ padding: 10 }}>
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search GIFs…"
           style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none' }} />
@@ -72,5 +69,6 @@ export function GifPicker({
       </div>
       <div style={{ padding: '4px 10px', fontSize: 10, color: 'var(--muted-2)', textAlign: 'right' }}>Powered by GIPHY</div>
     </div>
+    </>
   );
 }

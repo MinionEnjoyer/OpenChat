@@ -75,7 +75,8 @@ export function uploadAttachments(
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const results: UploadedAttachment[] = JSON.parse(xhr.responseText);
+          const response: { attachments: UploadedAttachment[]; rejected: { name: string; reason: string }[] } = JSON.parse(xhr.responseText);
+          const results = response.attachments;
           results.forEach((r, i) => {
             callbacks.onFileComplete?.(i, r);
           });

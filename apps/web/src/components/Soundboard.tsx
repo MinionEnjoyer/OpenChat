@@ -8,9 +8,6 @@ import { ToggleSwitch } from './ToggleSwitch';
 import type { AudioControls } from './VoiceSettings';
 import { OpenChatSpinner } from './OpenChatSpinner';
 
-const MAX_SOUND_MB = 5;
-const MAX_SOUND_BYTES = MAX_SOUND_MB * 1024 * 1024;
-
 /** In-call soundboard: click a clip to play it into the voice room; managers can add/remove. */
 export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, onClose }: {
   serverId: string;
@@ -60,16 +57,11 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
-    if (f.size > MAX_SOUND_BYTES) {
-      alert(`That file is ${(f.size / 1024 / 1024).toFixed(1)} MB — sounds must be ${MAX_SOUND_MB} MB or less.`);
-      return;
-    }
     setFile(f);
     if (!name.trim()) setName(f.name.replace(/\.[^.]+$/, '').slice(0, 40));
   }
   async function upload() {
     if (!file || !name.trim() || !shareBaseUrl) return;
-    if (file.size > MAX_SOUND_BYTES) { alert(`Sounds must be ${MAX_SOUND_MB} MB or less.`); return; }
     setUploading(true);
     try {
       const { attachments, rejected } = await uploadToShare([file]);
@@ -178,7 +170,7 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
                     style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
                     {file ? '🎵 ' + file.name.slice(0, 24) : 'Choose audio…'}
                   </button>
-                  <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>Audio, up to {MAX_SOUND_MB} MB</span>
+                  <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>Audio file</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" title="Pick emoji"
@@ -236,7 +228,6 @@ export function Soundboard({ serverId, canManage, shareBaseUrl, audio, onPlay, o
 
       {picker && (
         <EmojiPicker
-          anchor={{ x: picker.x, y: picker.y }}
           onSelect={(em) => { if (picker.target === 'add') setEmoji(em); else setEditEmoji(em); setPicker(null); }}
           onClose={() => setPicker(null)}
         />

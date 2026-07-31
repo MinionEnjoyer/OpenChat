@@ -48,8 +48,8 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
-  // OpenAPI spec + docs at /api/docs (JSON at /api/docs-json) for native SDK generation.
-  if (SwaggerModule) {
+  // API docs are opt-in in production to avoid advertising the full surface publicly.
+  if (SwaggerModule && (process.env.NODE_ENV !== 'production' || process.env.ENABLE_API_DOCS === '1')) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('OpenChat API')
       .setDescription('OpenChat REST API — versioned under /api/v1')
@@ -61,6 +61,22 @@ async function bootstrap() {
   }
 
   app.use(helmet({ crossOriginResourcePolicy: false }));
+
+  // Cookie-authenticated mutations must originate from a configured application origin.
+  // Bearer-authenticated native/service requests do not carry browser cookies and bypass this.
+  app.use((req: any, res: any, next: any) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    if (typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')) return next();
+    if (!String(req.headers.cookie ?? '').includes('chat.sid=')) return next();
+    let supplied = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+    if (!supplied && typeof req.headers.referer === 'string') {
+      try { supplied = new URL(req.headers.referer).origin; } catch { supplied = ''; }
+    }
+    if (!supplied || !allowedOrigins.includes(supplied)) {
+      return res.status(403).json({ statusCode: 403, message: 'Untrusted request origin' });
+    }
+    return next();
+  });
 
   const redis = app.get(RedisService);
   app.use(

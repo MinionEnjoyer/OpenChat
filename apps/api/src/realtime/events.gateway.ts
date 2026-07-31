@@ -6,9 +6,12 @@ import { AuthService } from '../auth/auth.service';
 import { MessagesService } from '../messages/messages.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PresenceService } from './presence.service';
+import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 
 const EVENTS_CHANNEL = 'chat:events';
 const HEARTBEAT_MS = 30_000;
+const CHANNEL_ID = z.string().uuid();
 
 /**
  * WebSocket protocol (path: /ws?ticket=<ws-ticket>). Envelope: { op, d, id? }.
@@ -59,12 +62,15 @@ type BusEvent =
 interface Client {
   socket: WebSocket;
   userId: string;
-  channels: Set<string>;
+  /** Subscribed channel ID -> owning server ID (null for DMs). */
+  channels: Map<string, string | null>;
   /** Server IDs this user belongs to — populated on connect, kept current by MEMBER_JOINED/LEFT events. */
   serverIds: Set<string>;
   alive: boolean;
   /** Which client this socket is: 'desktop' | 'mobile' | 'web'. Drives the presence platform badge. */
   platform: string;
+  opWindowStartedAt: number;
+  opCount: number;
 }
 
 @Injectable()
@@ -75,6 +81,12 @@ export class EventsGateway {
   // userId -> that user's open sockets, so presence flips offline only when the LAST one closes.
   private readonly userSockets = new Map<string, Set<WebSocket>>();
   private heartbeat?: NodeJS.Timeout;
+  private readonly maxPayloadBytes: number;
+  private readonly maxSocketsPerUser: number;
+  private readonly maxSubscriptionsPerSocket: number;
+  private readonly maxOperationsPerWindow: number;
+  private readonly operationWindowMs: number;
+  private readonly maxBufferedBytes: number;
 
   constructor(
     private readonly redis: RedisService,
@@ -82,7 +94,15 @@ export class EventsGateway {
     private readonly messages: MessagesService,
     private readonly prisma: PrismaService,
     private readonly presence: PresenceService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.maxPayloadBytes = config.get<number>('WS_MAX_PAYLOAD_BYTES') ?? 1_048_576;
+    this.maxSocketsPerUser = config.get<number>('WS_MAX_SOCKETS_PER_USER') ?? 10;
+    this.maxSubscriptionsPerSocket = config.get<number>('WS_MAX_SUBSCRIPTIONS') ?? 500;
+    this.maxOperationsPerWindow = config.get<number>('WS_MAX_OPERATIONS_PER_WINDOW') ?? 120;
+    this.operationWindowMs = config.get<number>('WS_OPERATION_WINDOW_MS') ?? 10_000;
+    this.maxBufferedBytes = config.get<number>('WS_MAX_BUFFERED_BYTES') ?? 1_048_576;
+  }
 
   /** Status as visible to OTHER users — invisible/appear-offline collapses to OFFLINE. */
   private masked(status: string): string {
@@ -121,7 +141,7 @@ export class EventsGateway {
 
   /** Called from main.ts after the HTTP server is listening. */
   attach(server: HttpServer): void {
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = new WebSocketServer({ noServer: true, maxPayload: this.maxPayloadBytes });
 
     server.on('upgrade', (req, socket, head) => {
       const { pathname } = new URL(req.url ?? '', `http://${req.headers.host}`);
@@ -146,6 +166,11 @@ export class EventsGateway {
       return;
     }
 
+    if ((this.userSockets.get(userId)?.size ?? 0) >= this.maxSocketsPerUser) {
+      socket.close(4429, 'Too many connections');
+      return;
+    }
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       socket.close(4404, 'User not found');
@@ -160,7 +185,16 @@ export class EventsGateway {
     const serverIds = new Set(memberships.map((m) => m.serverId));
 
     const platform = this.detectPlatform(searchParams, req.headers);
-    const client: Client = { socket, userId, channels: new Set(), serverIds, alive: true, platform };
+    const client: Client = {
+      socket,
+      userId,
+      channels: new Map(),
+      serverIds,
+      alive: true,
+      platform,
+      opWindowStartedAt: Date.now(),
+      opCount: 0,
+    };
     this.clients.set(socket, client);
 
     socket.on('message', (data) => { void this.onMessage(client, data); });
@@ -230,6 +264,17 @@ export class EventsGateway {
   }
 
   private async onMessage(client: Client, data: RawData): Promise<void> {
+    const now = Date.now();
+    if (now - client.opWindowStartedAt >= this.operationWindowMs) {
+      client.opWindowStartedAt = now;
+      client.opCount = 0;
+    }
+    client.opCount += 1;
+    if (client.opCount > this.maxOperationsPerWindow) {
+      client.socket.close(4429, 'Rate limit exceeded');
+      return;
+    }
+
     let env: Envelope;
     try {
       env = JSON.parse(data.toString());
@@ -245,7 +290,14 @@ export class EventsGateway {
         case 'ping':
           return this.send(client.socket, { op: 'pong', d: {} });
         case 'subscribe':
-          if (env.d?.channelId) client.channels.add(env.d.channelId);
+          if (env.d?.channelId) {
+            const channelId = CHANNEL_ID.parse(env.d.channelId);
+            if (!client.channels.has(channelId) && client.channels.size >= this.maxSubscriptionsPerSocket) {
+              return this.send(client.socket, { op: 'error', d: { message: 'Subscription limit reached' } });
+            }
+            const access = await this.messages.assertChannelAccess(channelId, client.userId);
+            client.channels.set(channelId, access.serverId);
+          }
           return;
         case 'unsubscribe':
           if (env.d?.channelId) client.channels.delete(env.d.channelId);
@@ -264,9 +316,11 @@ export class EventsGateway {
         }
         case 'typing.start':
           if (env.d?.channelId) {
+            const channelId = CHANNEL_ID.parse(env.d.channelId);
+            await this.messages.assertChannelAccess(channelId, client.userId);
             await this.redis.publish(EVENTS_CHANNEL, {
               type: 'TYPING_START',
-              channelId: env.d.channelId,
+              channelId,
               userId: client.userId,
             });
           }
@@ -374,6 +428,7 @@ export class EventsGateway {
             this.send(client.socket, { op: 'channel.created', d: { channel: event.channel } });
             break;
           case 'CHANNEL_DELETED':
+            client.channels.delete(event.channelId);
             this.send(client.socket, { op: 'channel.deleted', d: { channelId: event.channelId } });
             break;
           case 'ROLE_CREATED':
@@ -392,11 +447,21 @@ export class EventsGateway {
             break;
           case 'MEMBER_LEFT':
             // Update membership tracking: remove server from this user's other sockets.
-            if (client.userId === event.userId) client.serverIds.delete(serverId);
+            if (client.userId === event.userId) {
+              client.serverIds.delete(serverId);
+              for (const [channelId, channelServerId] of client.channels) {
+                if (channelServerId === serverId) client.channels.delete(channelId);
+              }
+            }
             this.send(client.socket, { op: 'member.left', d: { userId: event.userId } });
             break;
           case 'MEMBER_KICKED':
-            if (client.userId === event.userId) client.serverIds.delete(serverId);
+            if (client.userId === event.userId) {
+              client.serverIds.delete(serverId);
+              for (const [channelId, channelServerId] of client.channels) {
+                if (channelServerId === serverId) client.channels.delete(channelId);
+              }
+            }
             this.send(client.socket, { op: 'member.kicked', d: { userId: event.userId } });
             break;
           case 'SERVER_UPDATED':
@@ -466,6 +531,11 @@ export class EventsGateway {
   }
 
   private send(socket: WebSocket, env: Envelope): void {
-    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(env));
+    if (socket.readyState !== WebSocket.OPEN) return;
+    if (socket.bufferedAmount > this.maxBufferedBytes) {
+      socket.close(4413, 'Client is not consuming events');
+      return;
+    }
+    socket.send(JSON.stringify(env));
   }
 }

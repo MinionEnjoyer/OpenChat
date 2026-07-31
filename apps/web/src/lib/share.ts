@@ -62,9 +62,16 @@ export async function analyzeWaveform(
   shareBaseUrl: string,
 ): Promise<{ peaks: number[]; duration: number | null } | null> {
   try {
+    void shareBaseUrl;
+    const token = getToken();
     const form = new FormData();
     form.append('file', file);
-    const res = await fetch(`${shareBaseUrl}/waveform`, { method: 'POST', body: form });
+    const res = await fetch(`${apiBase()}/uploads/waveform`, {
+      method: 'POST',
+      body: form,
+      credentials: token ? 'omit' : 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (!Array.isArray(data?.peaks) || !data.peaks.length) return null;

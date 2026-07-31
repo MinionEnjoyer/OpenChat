@@ -72,6 +72,10 @@ jobs:
         working-directory: apps/api
         run: npx tsc --noEmit
 
+      - name: Production dependency audit
+        working-directory: apps/api
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Characterize (dev-against DB, no livekit/authentik required)
         working-directory: apps/api
         env:
@@ -115,11 +119,31 @@ jobs:
           }
           npx jest --config jest-char.config.js --forceExit
 
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
+      - name: Production dependency audit
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
+
   # ── Contract (provider + consumer) ─────────────────────────────────────
   contract:
     name: Contract
     runs-on: ubuntu-latest
-    needs: [verify]
+    needs: [verify, web]
     # Requires the dev stack running — use docker compose
     steps:
       - uses: actions/checkout@v4

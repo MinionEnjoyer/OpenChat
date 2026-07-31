@@ -36,6 +36,10 @@ fn handle_auth_url(app: &AppHandle, url: &str) {
 #[tauri::command]
 async fn open_external(app: AppHandle, url: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
+    let parsed = url::Url::parse(&url).map_err(|_| "Invalid URL".to_string())?;
+    if !matches!(parsed.scheme(), "https" | "http") {
+        return Err("Only HTTP(S) URLs may be opened externally".to_string());
+    }
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 

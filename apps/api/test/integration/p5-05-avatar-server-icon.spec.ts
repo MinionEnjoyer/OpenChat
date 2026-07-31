@@ -59,7 +59,8 @@ describe('P5-05 — avatar & server icon upload (FR-MED-020)', () => {
     userId = session.id;
 
     // Upload the fixture once — it'll be used for both avatar and server icon
-    const attachments = await uploadFixture(token, FIXTURE_PATH, 'avatar-test.png');
+    const result = await uploadFixture(token, FIXTURE_PATH, 'avatar-test.png');
+    const attachments = result.attachments;
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments.length).toBe(1);
     avatarUpload = attachments[0];
