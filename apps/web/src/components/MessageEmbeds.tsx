@@ -20,6 +20,18 @@ function youTubeId(url: string): string | null {
   return null;
 }
 
+function youTubeEmbedUrl(videoId: string): string {
+  const params = new URLSearchParams({ rel: '0' });
+  const pageOrigin = window.location.origin;
+  if (/^https?:\/\//i.test(pageOrigin)) {
+    // YouTube requires an HTTP referrer or equivalent client identity. Supplying both
+    // values keeps embeds identified even when an operator's proxy adjusts referrer headers.
+    params.set('origin', pageOrigin);
+    params.set('widget_referrer', `${pageOrigin}/`);
+  }
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+}
+
 // The Share service host is configured per deployment (set once from the backend config),
 // so embeds work for any instance instead of a hardcoded domain.
 let shareHost = '';
@@ -81,11 +93,12 @@ export function MessageEmbeds({ content }: { content: string }) {
       // player inside our own https shim page (valid referrer); web embeds directly.
       const src = isTauri() && serverOrigin()
         ? `${serverOrigin()}/yt.html?v=${yt}`
-        : `https://www.youtube-nocookie.com/embed/${yt}`;
+        : youTubeEmbedUrl(yt);
       embeds.push(
         <div key={`yt-${yt}`} style={{ maxWidth: 480, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
           <iframe src={src} title="YouTube video"
             style={{ width: '100%', height: '100%', border: 0 }}
+            referrerPolicy="strict-origin-when-cross-origin"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
         </div>,
       );

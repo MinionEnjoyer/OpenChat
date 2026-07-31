@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>YouTube</title>
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
@@ -20,7 +21,13 @@
     var id = new URLSearchParams(location.search).get('v') || '';
     if (/^[A-Za-z0-9_-]{6,20}$/.test(id)) {
       var f = document.createElement('iframe');
-      f.src = 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0';
+      var params = new URLSearchParams({
+        rel: '0',
+        origin: location.origin,
+        widget_referrer: location.origin + '/'
+      });
+      f.src = 'https://www.youtube-nocookie.com/embed/' + id + '?' + params.toString();
+      f.referrerPolicy = 'strict-origin-when-cross-origin';
       f.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
       f.setAttribute('allowfullscreen', 'true');
       document.body.appendChild(f);
