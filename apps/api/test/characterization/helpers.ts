@@ -14,6 +14,7 @@ import { WebSocket } from 'ws';
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
 export const WS_BASE = process.env.CHAR_WS_BASE ?? 'ws://localhost:3001/ws';
 const SHARE_BASE = process.env.CHAR_SHARE_BASE ?? 'http://localhost:8800';
+const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? process.env.WEB_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:5173';
 
 export interface ApiResponse<T = any> { status: number; headers: Record<string, string>; body: T; }
 
@@ -45,6 +46,12 @@ export async function apiFetch<T = any>(path: string, opts: FetchOptions = {}): 
   const jar = opts.jar;
   const headers: Record<string, string> = { ...opts.headers };
   if (jar && jar.toString()) headers['cookie'] = jar.toString();
+  // Cookie-authenticated browser mutations are origin-checked by the API.
+  // Model the configured first-party web client unless a test explicitly
+  // supplies its own Origin header (for example, a CSRF rejection probe).
+  if (jar?.toString() && method !== 'GET' && method !== 'HEAD' && headers.origin === undefined) {
+    headers.origin = WEB_ORIGIN;
+  }
   if (!headers['content-type'] && method !== 'GET' && opts.body !== undefined) headers['content-type'] = 'application/json';
   let reqBody: string | undefined;
   if (opts.body !== undefined) {
@@ -247,7 +254,7 @@ export function assertExactKeys(obj: Record<string, any>, expectedKeys: string[]
 
 // ── User shape (from auth.service getCurrentUser / devLogin / me / PATCH me) ──
 // Keys: id, username, displayName, avatarUrl, friendCode, status,
-// customStatus, bio, serverLayout, createdAt, updatedAt
+// customStatus, bio, serverLayout, bot metadata, createdAt, updatedAt
 // Explicitly absent: authSub
 
 const USER_KEYS = [
@@ -260,6 +267,10 @@ const USER_KEYS = [
   'customStatus',
   'bio',
   'serverLayout',
+  'isBot',
+  'botOwnerId',
+  'botDescription',
+  'botPublished',
   'createdAt',
   'updatedAt',
 ];
@@ -280,6 +291,10 @@ export function assertUserShape(user: any): void {
   if (user.bio !== null) expect(typeof user.bio).toBe('string');
   // serverLayout: JSON object or null
   if (user.serverLayout !== null && user.serverLayout !== undefined) expect(typeof user.serverLayout).toBe('object');
+  expect(typeof user.isBot).toBe('boolean');
+  if (user.botOwnerId !== null) assertUuid(user.botOwnerId);
+  if (user.botDescription !== null) expect(typeof user.botDescription).toBe('string');
+  expect(typeof user.botPublished).toBe('boolean');
   assertIsoDate(user.createdAt);
   assertIsoDate(user.updatedAt);
   // authSub must NEVER be exposed
