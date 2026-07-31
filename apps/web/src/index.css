@@ -217,6 +217,69 @@ button:disabled { cursor: default; }
 @keyframes msgFlash { 0% { background: var(--accent); } 100% { background: transparent; } }
 .msg-flash { animation: msgFlash 1.4s ease-out; border-radius: 6px; }
 
+/* One compact launch point for composer extras. Every picker receives this trigger's
+   top-right corner, so switching between GIFs, stickers, and emoji never jumps. */
+.chat-options { position: relative; display: inline-flex; flex: 0 0 auto; }
+.chat-options-trigger {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+.chat-options-trigger:hover,
+.chat-options-trigger[data-active='true'] {
+  background: var(--hover);
+  border-color: var(--border);
+  color: var(--text-strong);
+}
+.chat-options-backdrop { position: fixed; inset: 0; z-index: 190; }
+.chat-options-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 191;
+  min-width: 210px;
+  overflow: hidden;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.42);
+}
+.chat-options-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+}
+.chat-options-item:hover { background: var(--hover); color: var(--text-strong); }
+.chat-options-icon {
+  width: 24px;
+  min-width: 24px;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 /* incoming call prompt: gentle attention pulse */
 @keyframes callPulse { 0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.5); } 50% { box-shadow: 0 8px 32px rgba(67,181,129,0.55); } }
 .call-pop { animation: callPulse 1.6s ease-in-out infinite; }

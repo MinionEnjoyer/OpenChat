@@ -1,6 +1,7 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Message } from '../lib/types';
+import { isStickerContent } from '../lib/messageContent';
 import { renderMessageContent } from '../lib/renderMessageContent';
 import { Avatar } from './Avatar';
 import { Attachment } from './Attachment';
@@ -63,7 +64,7 @@ function MessageRowInner({
     { key: 'react', label: 'Add reaction', node: '😊', run: (e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); onOpenReactionPicker(m.id, { x: r.right, y: r.top }); } },
     { key: 'reply', label: 'Reply', node: '↩', run: () => onReply(m) },
   ];
-  if (m.authorId === meId) actions.push({ key: 'edit', label: 'Edit', node: '✏️', run: () => onStartEdit(m) });
+  if (m.authorId === meId && !isStickerContent(m.content)) actions.push({ key: 'edit', label: 'Edit', node: '✏️', run: () => onStartEdit(m) });
   if (canPin) actions.push({ key: 'pin', label: m.pinned ? 'Unpin' : 'Pin', node: <Icon name="pin" size={14} />, run: () => onPin(m, !m.pinned) });
   if (canDelete) actions.push({ key: 'delete', label: 'Delete', node: '🗑', danger: true, run: () => onDelete(m.channelId, m.id) });
 

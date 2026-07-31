@@ -29,6 +29,11 @@ const EditMessageSchema = z.object({
   content: z.string(),
 });
 
+function contentPreview(content: string, maxLength = 80): string {
+  if (content.trim().startsWith('sticker::')) return 'Sticker';
+  return content.replace(/\s+/g, ' ').trim().slice(0, maxLength) || '(attachment)';
+}
+
 const CreatePollSchema = z.object({
   question: z.string().trim().min(1).max(300),
   options: z.array(z.string().trim().min(1).max(100)).min(2).max(10),
@@ -450,7 +455,7 @@ export class MessagesService {
     }
 
     targets.delete(authorId);
-    const preview = content.replace(/\s+/g, ' ').slice(0, 80);
+    const preview = contentPreview(content);
     for (const uid of targets) {
       await this.redis.publish('chat:events', {
         type: 'MENTION',
@@ -484,7 +489,7 @@ export class MessagesService {
     });
     if (!channel) return;
 
-    const preview = content.replace(/\s+/g, ' ').slice(0, 80);
+    const preview = contentPreview(content);
     const targets = new Set<string>();
 
     if (channel.serverId) {
@@ -784,7 +789,7 @@ export class MessagesService {
         ? {
             id: msg.replyTo.id,
             authorName: msg.replyTo.author?.displayName || msg.replyTo.author?.username || 'user',
-            content: (msg.replyTo.content || '').slice(0, 120),
+            content: contentPreview(msg.replyTo.content || '', 120),
           }
         : null,
       poll: msg.poll

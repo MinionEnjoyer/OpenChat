@@ -1,5 +1,6 @@
 import { isTauri } from './TitleBar';
 import { serverOrigin } from '../lib/serverConfig';
+import { stickerUrl } from '../lib/messageContent';
 import { SpinnerImage } from './SpinnerImage';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
@@ -52,6 +53,7 @@ function directImage(url: string): boolean {
 
 /** Does this content consist of a single URL that renders as an embed (used to hide the raw text)? */
 export function isSingleEmbedUrl(content: string): boolean {
+  if (stickerUrl(content)) return true;
   const t = content.trim();
   if (!t || /\s/.test(t) || !/^https?:\/\//.test(t)) return false;
   return !!youTubeId(t) || !!shareRef(t) || directImage(t);
@@ -59,6 +61,15 @@ export function isSingleEmbedUrl(content: string): boolean {
 
 export function MessageEmbeds({ content }: { content: string }) {
   if (!content) return null;
+
+  // Sticker: render the image at ~160px (Discord-sticker size).
+  const st = stickerUrl(content);
+  if (st) {
+    const s = shareRef(st);
+    const src = s ? `${s.base}/raw/${s.id}` : st;
+    return <SpinnerImage src={src} alt="sticker" loading="lazy" spinnerSize={28}
+      wrapperStyle={{ minWidth: 80, minHeight: 80 }} style={{ maxWidth: 160, maxHeight: 160, borderRadius: 8, display: 'block' }} />;
+  }
   const urls = Array.from(new Set(content.match(URL_RE) ?? [])).slice(0, 4);
   const embeds: React.ReactNode[] = [];
 

@@ -6,7 +6,7 @@ import { listDms } from './lib/social';
 import { getConfig, uploadToShare } from './lib/share';
 import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
-import { AttachmentPicker } from './components/AttachmentPicker';
+import { ChatOptionsTray, type ChatTool, type ChatToolAnchor } from './components/ChatOptionsTray';
 import { Avatar } from './components/Avatar';
 import { FriendsView } from './components/FriendsView';
 import { ServerActions } from './components/ServerActions';
@@ -24,6 +24,7 @@ import { setShareHost } from './components/MessageEmbeds';
 import { Icon } from './components/Icon';
 import { GifPicker } from './components/GifPicker';
 import { StickerPicker } from './components/StickerPicker';
+import { messageSummary, stickerContent } from './lib/messageContent';
 import { PollModal } from './components/PollModal';
 import { Soundboard } from './components/Soundboard';
 import { MessageList } from './components/MessageList';
@@ -381,7 +382,7 @@ export default function App() {
                 && st.user?.status !== 'DND'
                 && notifyAllowed({ channelId: d.message.channelId, serverId: null, isMention: false })) {
               const name = d.message.author?.displayName || d.message.author?.username || 'New message';
-              const body = (d.message.content === '​' ? '(attachment)' : d.message.content || '').slice(0, 120);
+              const body = messageSummary(d.message.content || '');
               notifyNative(name, body, { channelId: d.message.channelId, kind: 'dm' });
             }
           }
@@ -943,7 +944,7 @@ export default function App() {
 
   // Stable handlers passed into the memoized message list.
   const handleReply = useCallback((m: Message) => {
-    setReplyingTo({ id: m.id, authorName: m.author?.displayName || m.author?.username || 'user', content: (m.content === '​' ? '(attachment)' : m.content).slice(0, 120) });
+    setReplyingTo({ id: m.id, authorName: m.author?.displayName || m.author?.username || 'user', content: messageSummary(m.content) });
   }, []);
   const handleStartEdit = useCallback((m: Message) => setEditingId(m.id), []);
   const handleSaveEdit = useCallback(async (messageId: string, content: string) => {
@@ -1393,7 +1394,7 @@ export default function App() {
                     <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>{new Date(p.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text)', wordBreak: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                    {p.content && p.content !== '​' ? p.content : '(attachment)'}
+                    {messageSummary(p.content)}
                   </div>
                   <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
                     <button onClick={() => jumpToMessage(p.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}>Jump</button>
@@ -1426,7 +1427,7 @@ export default function App() {
                     <span style={{ fontSize: 11, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text)', wordBreak: 'break-word', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
-                    {m.content && m.content !== '​' ? m.content : '(attachment)'}
+                    {messageSummary(m.content)}
                   </div>
                   <div style={{ marginTop: 4 }}>
                     <button onClick={() => jumpToMessage(m.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}>Jump</button>
@@ -1717,9 +1718,8 @@ function Composer({
   const [pending, setPending] = useState<Att[]>([]);
   const [dropActive, setDropActive] = useState(false);
   const [dropUploading, setDropUploading] = useState(false);
-  const [emojiAnchor, setEmojiAnchor] = useState<{ x: number; y: number } | null>(null);
-  const [gifAnchor, setGifAnchor] = useState<{ x: number; y: number } | null>(null);
-  const [stickerAnchor, setStickerAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [activeTool, setActiveTool] = useState<ChatTool | null>(null);
+  const [toolAnchor, setToolAnchor] = useState<ChatToolAnchor | null>(null);
   const [pollOpen, setPollOpen] = useState(false);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -1790,6 +1790,16 @@ function Composer({
     const content = text; const attachments = pending;
     setText(''); setPending([]); setMention(null);
     doSend(content, attachments);
+  }
+
+  function openTool(tool: ChatTool, anchor: ChatToolAnchor) {
+    setToolAnchor(anchor);
+    setActiveTool(tool);
+  }
+
+  function closeTool() {
+    setActiveTool(null);
+    setToolAnchor(null);
   }
 
   // Drag-and-drop files anywhere in the window (while a channel is open) to upload + stage
@@ -1872,7 +1882,6 @@ function Composer({
       )}
 
       <div style={{ background: 'var(--input-bg)', borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-        {shareBaseUrl && <AttachmentPicker shareBaseUrl={shareBaseUrl} onUploaded={(a) => setPending((p) => [...p, ...a])} />}
         <input ref={inputRef} value={text}
           onChange={(e) => { setText(e.target.value); notifyTyping(); updateMention(e.target.value, e.target.selectionStart ?? e.target.value.length); }}
           onClick={(e) => updateMention(text, (e.target as HTMLInputElement).selectionStart ?? text.length)}
@@ -1889,45 +1898,30 @@ function Composer({
           placeholder={`Message ${title ?? ''}`}
           enterKeyHint="send"
           style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: 'var(--text)', outline: 'none', fontSize: 15 }} />
-        <button title="Create poll" onClick={() => setPollOpen(true)}
-          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
-          POLL
-        </button>
-        <button title="GIF"
-          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setGifAnchor({ x: r.right, y: r.top }); }}
-          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
-          GIF
-        </button>
-        {serverId && <button title="Stickers"
-          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setStickerAnchor({ x: r.right, y: r.top }); }}
-          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, padding: '3px 6px' }}>
-          STK
-        </button>}
-        <button title="Emoji"
-          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor({ x: r.right, y: r.top }); }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--muted)', flexShrink: 0 }}>
-          😊
-        </button>
+        <ChatOptionsTray shareBaseUrl={shareBaseUrl} serverId={serverId} active={!!activeTool}
+          onUploaded={(attachments) => setPending((current) => [...current, ...attachments])}
+          onCreatePoll={() => { closeTool(); setPollOpen(true); }}
+          onOpenTool={openTool} />
         <button title="Send" onClick={send} disabled={!text.trim() && pending.length === 0}
           style={{ background: (text.trim() || pending.length) ? 'var(--accent)' : 'var(--panel)', border: 'none', borderRadius: 6, cursor: (text.trim() || pending.length) ? 'pointer' : 'default',
             color: (text.trim() || pending.length) ? 'var(--accent-text)' : 'var(--muted-2)', flexShrink: 0, padding: '6px 10px', fontSize: 15, lineHeight: 1 }}>
           ➤
         </button>
       </div>
-      {emojiAnchor && (
-        <EmojiPicker anchor={emojiAnchor}
-          onSelect={(em) => { setText((t) => t + em); setEmojiAnchor(null); }}
-          onClose={() => setEmojiAnchor(null)} />
+      {activeTool === 'emoji' && toolAnchor && (
+        <EmojiPicker anchor={toolAnchor}
+          onSelect={(em) => { setText((t) => t + em); closeTool(); inputRef.current?.focus(); }}
+          onClose={closeTool} />
       )}
-      {gifAnchor && (
-        <GifPicker anchor={gifAnchor}
-          onSelect={(gif) => { setGifAnchor(null); doSend(gif.url, []); }}
-          onClose={() => setGifAnchor(null)} />
+      {activeTool === 'gif' && toolAnchor && (
+        <GifPicker anchor={toolAnchor}
+          onSelect={(gif) => { closeTool(); doSend(gif.url, []); }}
+          onClose={closeTool} />
       )}
-      {stickerAnchor && serverId && (
-        <StickerPicker anchor={stickerAnchor} serverId={serverId} canManage={!!canManageStickers}
-          onSelect={(url) => { setStickerAnchor(null); doSend(url, []); }}
-          onClose={() => setStickerAnchor(null)} />
+      {activeTool === 'sticker' && toolAnchor && serverId && (
+        <StickerPicker anchor={toolAnchor} serverId={serverId} canManage={!!canManageStickers}
+          onSelect={(url) => { closeTool(); doSend(stickerContent(url), []); }}
+          onClose={closeTool} />
       )}
       {pollOpen && (
         <PollModal
