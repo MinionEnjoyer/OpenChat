@@ -25,8 +25,8 @@ function apiGet(path: string, jar: any) {
 async function fetchAllChannelMessages(
   jar: any,
   channelId: string,
-): Promise<Array<{ id: string; content: string; authorId: string; createdAt: string }>> {
-  const all: Array<{ id: string; content: string; authorId: string; createdAt: string }> = [];
+): Promise<Array<{ id: string; content: string; authorId: string; author: { username: string }; createdAt: string }>> {
+  const all: Array<{ id: string; content: string; authorId: string; author: { username: string }; createdAt: string }> = [];
   let cursor: string | undefined;
 
   while (true) {
@@ -39,6 +39,7 @@ async function fetchAllChannelMessages(
         id: m.id,
         content: m.content,
         authorId: m.authorId,
+        author: { username: m.author?.username || '' },
         createdAt: m.createdAt,
       });
     }
@@ -53,23 +54,21 @@ async function fetchAllChannelMessages(
 /**
  * Build an independent oracle for a search query:
  * 1. Fetch all messages via plain pagination
- * 2. Filter by content substring (case-insensitive)
- * 3. Sort by createdAt DESC (newest first — matches search ordering when
- *    ts_rank is uniform, which it is for simple single-word queries)
+ * 2. Filter by message content or author username substring (case-insensitive)
+ * 3. Sort by createdAt DESC (newest first)
  * 4. Return { total, ids }
  */
 async function buildOracle(
-  allMessages: Array<{ id: string; content: string; authorId: string; createdAt: string }>,
+  allMessages: Array<{ id: string; content: string; authorId: string; author: { username: string }; createdAt: string }>,
   q: string,
 ): Promise<{ total: number; ids: string[] }> {
   const qLower = q.toLowerCase();
 
   const filtered = allMessages.filter((m) =>
-    m.content.toLowerCase().includes(qLower),
+    m.content.toLowerCase().includes(qLower) || m.author.username.toLowerCase().includes(qLower),
   );
 
-  // Sort newest-first — matches the API's `ORDER BY ... m."createdAt" DESC`
-  // when all matches have equal ts_rank (true for simple single-word queries).
+  // Sort newest-first — matches the API query order.
   filtered.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
@@ -88,7 +87,7 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
   let fixtureServerId: string;
 
   // ── Full message corpus from #volume (fetched once) ──
-  let allVolumeMessages: Array<{ id: string; content: string; authorId: string; createdAt: string }>;
+  let allVolumeMessages: Array<{ id: string; content: string; authorId: string; author: { username: string }; createdAt: string }>;
 
   // ── Independent oracles (computed locally from the full message list) ──
   let expectedHackathon: string[];
@@ -155,6 +154,30 @@ describe('P7-05 — Message Search (FR-MSG-020)', () => {
     expect(Array.isArray(res.body)).toBe(true);
     const returnedIds: string[] = res.body.map((r: any) => r.id);
     expect(returnedIds).toEqual(expectedCoffee.slice(0, 100));
+  });
+
+  it('channel search matches author usernames independently of message content', async () => {
+    // @satisfies FR-MSG-020
+    const username = Array.from(new Set(allVolumeMessages.map((m) => m.author.username))).find((candidate) =>
+      candidate.length >= 2 && allVolumeMessages.some((m) =>
+        m.author.username.toLowerCase().includes(candidate.toLowerCase())
+        && !m.content.toLowerCase().includes(candidate.toLowerCase()),
+      ),
+    );
+    expect(username).toBeDefined();
+    const expected = await buildOracle(allVolumeMessages, username!);
+    expect(expected.total).toBeGreaterThan(0);
+
+    const res = await apiGet(
+      `/channels/${volumeChannelId}/messages/search?q=${encodeURIComponent(username!)}&limit=100`,
+      alice.jar,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.map((r: any) => r.id)).toEqual(expected.ids.slice(0, 100));
+    expect(res.body.some((r: any) =>
+      r.author.username.toLowerCase().includes(username!.toLowerCase())
+      && !r.content.toLowerCase().includes(username!.toLowerCase()),
+    )).toBe(true);
   });
 
   // ──── Pagination ────

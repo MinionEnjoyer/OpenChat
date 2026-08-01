@@ -178,7 +178,7 @@ export function SettingsModal({
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
-          {(([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens'], ['bots', '🤖 Bots'], ...(isTauri() ? [['servers', '🌐 Servers']] : [])]) as [typeof tab, string][]).map(([val, lbl]) => (
+          {(([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens'], ['bots', '🤖 Bots'], ['servers', '🌐 Servers']]) as [typeof tab, string][]).map(([val, lbl]) => (
             <button key={val} onClick={() => setTab(val)}
               style={{ padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
                 fontWeight: tab === val ? 700 : 500, color: tab === val ? 'var(--text-strong)' : 'var(--muted)',

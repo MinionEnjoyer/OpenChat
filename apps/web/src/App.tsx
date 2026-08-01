@@ -1499,7 +1499,7 @@ export default function App() {
         {openPanel === 'search' && !showFriends && (
           <HeaderPanel title={<>🔍 Search</>} onClose={() => setOpenPanel(null)}>
             <div style={{ padding: 12, borderBottom: '1px solid var(--border)', position: 'sticky', top: 45, background: 'var(--panel)' }}>
-              <input autoFocus value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search this channel…"
+              <input autoFocus value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search messages or usernames…"
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text)', outline: 'none', fontSize: 14 }} />
             </div>
             {searchBusy ? (

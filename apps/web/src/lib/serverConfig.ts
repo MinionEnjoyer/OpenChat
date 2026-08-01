@@ -8,10 +8,56 @@ const TOKEN_KEY = 'openchat.token';
 // Native clients can sign into multiple OpenChat servers; each remembered origin keeps its
 // own token family here so the user can switch between them without re-authenticating.
 const DOMAINS_KEY = 'openchat.domains';
+const WEB_DOMAINS_KEY = 'openchat.webDomains';
+const WEB_DOMAIN_HANDOFF = 'openchat-servers';
 
 function safeGet(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
 }
+
+function normalizeHttpOrigin(value: string): string | null {
+  try {
+    const input = value.trim();
+    if (!input) return null;
+    const url = new URL(/^https?:\/\//i.test(input) ? input : `https://${input}`);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return url.origin;
+  } catch { return null; }
+}
+
+function readWebDomains(): string[] {
+  try {
+    const parsed = JSON.parse(safeGet(WEB_DOMAINS_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((value) => normalizeHttpOrigin(String(value))).filter((value): value is string => !!value);
+  } catch { return []; }
+}
+
+function writeWebDomains(domains: string[]) {
+  const clean = Array.from(new Set(domains.map(normalizeHttpOrigin).filter((value): value is string => !!value)));
+  try { localStorage.setItem(WEB_DOMAINS_KEY, JSON.stringify(clean)); } catch { /* ignore */ }
+}
+
+/**
+ * Browser storage is isolated per origin, so a web client cannot copy sessions or settings
+ * between OpenChat domains. A switch carries only the non-secret server list in the URL
+ * fragment; the destination imports it locally and immediately removes the fragment.
+ */
+function importWebDomainHandoff() {
+  if (typeof window === 'undefined' || !window.location.hash) return;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const handoff = params.get(WEB_DOMAIN_HANDOFF);
+  if (!handoff) return;
+  try {
+    const incoming = JSON.parse(handoff);
+    if (Array.isArray(incoming)) writeWebDomains([window.location.origin, ...readWebDomains(), ...incoming]);
+  } catch { /* ignore malformed handoff */ }
+  params.delete(WEB_DOMAIN_HANDOFF);
+  const hash = params.toString();
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ''}`);
+}
+
+if (typeof window !== 'undefined') importWebDomainHandoff();
 
 /** '' = same-origin (web); otherwise 'https://host' (no trailing slash). */
 export function serverOrigin(): string {
@@ -143,4 +189,35 @@ export function switchDomain(origin: string) {
 export function beginAddServer() {
   clearTokens();
   setServerUrl('');
+}
+
+// ---- multi-domain (web clients) ----
+
+export function activeWebDomain(): string {
+  return typeof window === 'undefined' ? '' : window.location.origin;
+}
+
+export function listWebDomains(): string[] {
+  const active = activeWebDomain();
+  const domains = Array.from(new Set([active, ...readWebDomains()].filter(Boolean)));
+  writeWebDomains(domains);
+  return domains;
+}
+
+export function removeWebDomain(origin: string) {
+  const normalized = normalizeHttpOrigin(origin);
+  writeWebDomains(readWebDomains().filter((value) => value !== normalized));
+}
+
+/** Navigate the browser to another OpenChat origin. Session credentials never leave their origin. */
+export function switchWebDomain(value: string): boolean {
+  const target = normalizeHttpOrigin(value);
+  if (!target || typeof window === 'undefined') return false;
+  const domains = Array.from(new Set([window.location.origin, target, ...readWebDomains()]));
+  writeWebDomains(domains);
+  if (target === window.location.origin) return true;
+  const destination = new URL(target);
+  destination.hash = new URLSearchParams({ [WEB_DOMAIN_HANDOFF]: JSON.stringify(domains) }).toString();
+  window.location.assign(destination.toString());
+  return true;
 }

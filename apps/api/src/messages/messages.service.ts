@@ -686,13 +686,20 @@ export class MessagesService {
     return messages.map((m) => this.serializeMessage(m));
   }
 
-  /** Case-insensitive substring search over a channel's (non-deleted) messages. */
+  /** Case-insensitive substring search over message content or the author's username. */
   async search(channelId: string, userId: string, q: string, options?: { limit?: number }): Promise<MessageWithRelations[]> {
     await this.assertChannelAccess(channelId, userId);
     const query = q.trim();
     if (query.length < 2) return [];
     const messages = await this.prisma.message.findMany({
-      where: { channelId, deletedAt: null, content: { contains: query, mode: 'insensitive' } },
+      where: {
+        channelId,
+        deletedAt: null,
+        OR: [
+          { content: { contains: query, mode: 'insensitive' } },
+          { author: { username: { contains: query, mode: 'insensitive' } } },
+        ],
+      },
       include: MESSAGE_INCLUDE,
       orderBy: { createdAt: 'desc' },
       take: options?.limit ?? 50,

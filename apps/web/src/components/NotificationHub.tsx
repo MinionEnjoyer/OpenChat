@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Notifications, Server } from '../lib/types';
 import * as api from '../lib/api';
 import { acceptFriendRequest, declineFriendRequest } from '../lib/social';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { HeaderPanel } from './HeaderPanel';
 
 const EMPTY: Notifications = { friendRequests: [], serverInvites: [], count: 0 };
 
@@ -17,7 +18,6 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast,
 }) {
   const [data, setData] = useState<Notifications>(EMPTY);
   const [busy, setBusy] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
 
   async function load() {
     try {
@@ -33,16 +33,6 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast,
 
   // Reload immediately when a live 'notify' push arrives (friend request / server invite).
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [reloadKey]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onOpenChange(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   function dropFriendReq(id: string) {
     setData((d) => ({ ...d, friendRequests: d.friendRequests.filter((x) => x.id !== id), count: Math.max(0, d.count - 1) }));
@@ -64,7 +54,7 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast,
   const decline: React.CSSProperties = { ...btn, background: 'var(--danger)', color: '#fff' };
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }}>
       <button
         onClick={() => onOpenChange(!open)}
         title="Notifications"
@@ -82,12 +72,7 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast,
       </button>
 
       {open && (
-        <div style={{ position: 'fixed', top: 52, right: 16, width: 340, maxHeight: 440, overflowY: 'auto', zIndex: 60,
-          background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}>
-          <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--text-strong)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--panel)' }}>
-            <span>Notifications</span>
-            <button onClick={() => onOpenChange(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}>×</button>
-          </div>
+        <HeaderPanel title={<><Icon name="notify" size={16} /> Notifications</>} onClose={() => onOpenChange(false)}>
           <div style={{ padding: '10px 14px' }}>
 
           {data.count === 0 && <p style={{ color: 'var(--muted)', fontSize: 14, margin: '8px 0' }}>You're all caught up. 🎉</p>}
@@ -126,7 +111,7 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast,
             </div>
           )}
           </div>
-        </div>
+        </HeaderPanel>
       )}
     </div>
   );
