@@ -6,6 +6,7 @@ import { ServersService } from '../servers/servers.service';
 import { PresenceService } from '../realtime/presence.service';
 import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permissions';
 import { z } from 'zod';
+import { MessageKind } from '@prisma/client';
 import { CreateMessageSchema, EditMessageSchema } from './message.schemas';
 
 function contentPreview(content: string, maxLength = 80): string {
@@ -30,6 +31,7 @@ export interface MessageWithRelations {
   deletedAt: string | null;
   replyToId: string | null;
   pinned: boolean;
+  kind: MessageKind;
   author: {
     id: string;
     username: string;
@@ -533,6 +535,9 @@ export class MessagesService {
     if (!message) {
       throw new NotFoundException('Message not found');
     }
+    if (message.kind !== MessageKind.USER) {
+      throw new ForbiddenException('Server activity messages cannot be edited');
+    }
 
     // Author-only edit
     if (message.authorId !== userId) {
@@ -562,6 +567,9 @@ export class MessagesService {
 
     if (!message) {
       throw new NotFoundException('Message not found');
+    }
+    if (message.kind !== MessageKind.USER) {
+      throw new ForbiddenException('Server activity messages cannot be deleted');
     }
 
     // A message may be deleted by its author, or — in a server channel — by anyone with the
@@ -799,6 +807,7 @@ export class MessagesService {
       deletedAt: msg.deletedAt ? msg.deletedAt.toISOString() : null,
       replyToId: msg.replyToId,
       pinned: msg.pinned,
+      kind: msg.kind,
       author: {
         id: msg.author.id,
         username: msg.author.username,

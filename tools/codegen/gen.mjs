@@ -101,6 +101,7 @@ export interface Channel {
   categoryId: string | null;
   parentId: string | null;
   position: number;
+  isDefault: boolean;
 }
 
 export interface Role {
@@ -177,6 +178,7 @@ export interface Message {
   authorId: string;
   author?: AuthorBrief;
   content: string;
+  kind: 'USER' | 'MEMBER_JOINED' | 'MEMBER_LEFT';
   nonce: string | null;
   editedAt: string | null;
   deletedAt: string | null;

@@ -76,7 +76,7 @@ export class TestWorldService {
 
     // ── Channels ──
     const general = await this.prisma.channel.create({
-      data: { name: 'general', type: ChannelType.TEXT, serverId: server.id, position: 0 },
+      data: { name: 'general', type: ChannelType.TEXT, serverId: server.id, position: 0, isDefault: true },
     });
     const random = await this.prisma.channel.create({
       data: { name: 'random', type: ChannelType.TEXT, serverId: server.id, position: 1 },

@@ -1134,11 +1134,12 @@ export default function App() {
             {connectedHere && <span title="Connected" style={{ color: 'var(--success)', marginLeft: 6, fontSize: 10 }}>●</span>}
           </span>
           {c.type === 'TEXT' && !!s.unreadByChannel[c.id] && c.id !== s.activeChannelId && <UnreadBadge n={s.unreadByChannel[c.id]} />}
-          {canManageChannels && (
+          {canManageChannels && !c.isDefault && (
             <button className="msg-del" title="Delete channel"
               onClick={(e) => { e.stopPropagation(); removeChannel(activeServer!.id, c.id, c.name); }}
               style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0, marginLeft: 4 }}>✕</button>
           )}
+          {c.isDefault && <span title="Primary channel" style={{ color: 'var(--muted-2)', fontSize: 11, marginLeft: 4 }}>🔒</span>}
         </div>
         {vmembers.map((u) => (
           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 26px' }}>
@@ -1867,6 +1868,7 @@ function Composer({
     const replyToId = replyingTo?.id;
     const temp: Message = {
       id: `temp:${nonce}`, channelId, authorId: me.id, content: body,
+      kind: 'USER',
       createdAt: new Date().toISOString(), editedAt: null, deletedAt: null,
       replyToId: replyToId ?? null, pinned: false,
       author: { id: me.id, username: me.username, displayName: me.displayName, avatarUrl: me.avatarUrl, status: me.status },

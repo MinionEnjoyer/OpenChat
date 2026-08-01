@@ -211,6 +211,7 @@ model Channel {
   topic      String?
   position   Int         @default(0)
   parentId   String?
+  isDefault  Boolean     @default(false)
 
   server     Server?            @relation(fields: [serverId], references: [id], onDelete: Cascade)
   category   Category?          @relation(fields: [categoryId], references: [id])
@@ -272,6 +273,7 @@ model Message {
   deletedAt DateTime?
   replyToId String?
   pinned    Boolean   @default(false)
+  kind      MessageKind @default(USER)
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   author  User    @relation(fields: [authorId], references: [id])
@@ -285,6 +287,12 @@ model Message {
   poll        Poll?
 
   @@index([channelId, createdAt])
+}
+
+enum MessageKind {
+  USER
+  MEMBER_JOINED
+  MEMBER_LEFT
 }
 
 model MessageAttachment {

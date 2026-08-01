@@ -37,6 +37,7 @@ export interface SerializedChannel {
   topic: string | null;
   position: number;
   parentId: string | null;
+  isDefault: boolean;
 }
 
 @Injectable()
@@ -160,6 +161,7 @@ export class ServersService {
           name: 'general',
           type: ChannelType.TEXT,
           position: 0,
+          isDefault: true,
         },
       });
 
@@ -288,6 +290,7 @@ export class ServersService {
       topic: ch.topic,
       position: ch.position,
       parentId: ch.parentId ? ch.parentId.toString() : null,
+      isDefault: ch.isDefault,
     }));
   }
 
@@ -337,6 +340,7 @@ export class ServersService {
       topic: channel.topic,
       position: channel.position,
       parentId: channel.parentId ? channel.parentId.toString() : null,
+      isDefault: channel.isDefault,
     };
     this.redis.publish('chat:events', { type: 'CHANNEL_CREATED', serverId, channel: serializedChannel }).catch(() => {});
 
@@ -371,6 +375,7 @@ export class ServersService {
       topic: updated.topic,
       position: updated.position,
       parentId: updated.parentId ? updated.parentId.toString() : null,
+      isDefault: updated.isDefault,
     };
 
     this.redis.publish('chat:events', { type: 'CHANNEL_UPDATED', serverId, channel: serialized }).catch(() => {});
@@ -643,8 +648,12 @@ return { success: true };
 
   async deleteChannel(serverId: string, channelId: string, userId: string): Promise<{ success: true }> {
     await this.assertPermission(serverId, userId, Permission.MANAGE_CHANNELS);
-    const channel = await this.prisma.channel.findUnique({ where: { id: channelId }, select: { serverId: true } });
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { serverId: true, isDefault: true },
+    });
     if (!channel || channel.serverId !== serverId) throw new NotFoundException('Channel not found');
+    if (channel.isDefault) throw new BadRequestException("The server's primary channel cannot be deleted");
     await this.prisma.channel.delete({ where: { id: channelId } });
 
     await this.auditLog.write({

@@ -582,6 +582,36 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
             );
           }
 
+          const memberActivity = msg.kind === 'MEMBER_JOINED'
+            ? 'joined'
+            : msg.kind === 'MEMBER_LEFT'
+              ? 'left'
+              : null;
+          if (memberActivity) {
+            const authorName = resolveAuthorName(
+              msg.authorId,
+              msg.author,
+              user?.id,
+              user?.displayName,
+              user?.username,
+            );
+            return (
+              <View style={styles.systemRow} testID={`system-message-${msg.id}`}>
+                <MaterialIcons
+                  name={(memberActivity === 'joined'
+                    ? strings.messages.memberJoinedIcon
+                    : strings.messages.memberLeftIcon) as MI}
+                  size={16}
+                  color={palette.textMuted}
+                />
+                <Text style={styles.systemText}>
+                  <Text style={styles.systemAuthor}>{authorName}</Text>{' '}
+                  {memberActivity === 'joined' ? strings.messages.memberJoined : strings.messages.memberLeft}
+                </Text>
+              </View>
+            );
+          }
+
           // FR-SOC-007: collapse blocked users' messages
           if (blockedIds.has(msg.authorId) && !revealedIds.has(msg.id)) {
             return (
@@ -936,6 +966,12 @@ const styles = StyleSheet.create({
   row: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   rowPending: { opacity: 0.5 },
   rowDeleted: { opacity: 0.4 },
+  systemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
+  },
+  systemText: { ...typography.caption, color: palette.textMuted, flex: 1 },
+  systemAuthor: { color: palette.text, fontWeight: '700' },
   dayDivider: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, alignItems: 'center' as const },
   dayDividerText: { ...typography.caption, color: palette.textMuted },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },

@@ -2154,6 +2154,10 @@ components:
           $ref: '#/components/schemas/AuthorBrief'
         content:
           type: string
+        kind:
+          type: string
+          enum: [USER, MEMBER_JOINED, MEMBER_LEFT]
+          description: Server-assigned message class. Membership activity kinds cannot be created, edited, or deleted by clients.
         nonce:
           type: string
           nullable: true
@@ -2193,7 +2197,7 @@ components:
         createdAt:
           type: string
           format: date-time
-      required: [id, channelId, authorId, content]
+      required: [id, channelId, authorId, content, kind, attachments, reactions, pinned, createdAt]
 
     Attachment:
       type: object

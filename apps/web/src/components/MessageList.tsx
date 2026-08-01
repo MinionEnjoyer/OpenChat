@@ -145,8 +145,8 @@ function MessageListInner(props: MessageListProps) {
           shareBaseUrl={props.shareBaseUrl}
           mentionNames={props.mentionNames}
           isEditing={editingId === m.id}
-          canDelete={m.authorId === meId || canDeleteAny}
-          canPin={props.canPin}
+          canDelete={m.kind === 'USER' && (m.authorId === meId || canDeleteAny)}
+          canPin={m.kind === 'USER' && props.canPin}
           onToggleReaction={props.onToggleReaction}
           onReply={props.onReply}
           onStartEdit={props.onStartEdit}

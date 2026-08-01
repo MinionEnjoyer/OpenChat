@@ -65,6 +65,7 @@ export interface Channel {
   topic: string | null;
   position: number;
   parentId: string | null;
+  isDefault: boolean;
 }
 
 export interface Attachment {
@@ -90,6 +91,7 @@ export interface Message {
   deletedAt: string | null;
   replyToId: string | null;
   pinned: boolean;
+  kind: 'USER' | 'MEMBER_JOINED' | 'MEMBER_LEFT';
   author: Pick<User, 'id' | 'username' | 'displayName' | 'avatarUrl' | 'status' | 'isBot'>;
   attachments: Attachment[];
   reactions: { emoji: string; count: number; userIds: string[] }[];

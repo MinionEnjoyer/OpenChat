@@ -1,7 +1,4 @@
-import { ChannelType, Prisma } from '@prisma/client';
-
-export const MEMBER_JOINED_CONTENT = 'system::member_joined';
-export const MEMBER_LEFT_CONTENT = 'system::member_left';
+import { MessageKind, Prisma } from '@prisma/client';
 
 type MemberActivity = 'joined' | 'left';
 type MemberActivityDb = Pick<Prisma.TransactionClient, 'channel' | 'message'>;
@@ -22,11 +19,7 @@ export async function createMemberActivityMessage(
   activity: MemberActivity,
 ) {
   const channel = await db.channel.findFirst({
-    where: {
-      serverId,
-      type: { in: [ChannelType.TEXT, ChannelType.ANNOUNCEMENT] },
-    },
-    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    where: { serverId, isDefault: true },
     select: { id: true },
   });
   if (!channel) return null;
@@ -35,7 +28,8 @@ export async function createMemberActivityMessage(
     data: {
       channelId: channel.id,
       authorId: userId,
-      content: activity === 'joined' ? MEMBER_JOINED_CONTENT : MEMBER_LEFT_CONTENT,
+      content: '',
+      kind: activity === 'joined' ? MessageKind.MEMBER_JOINED : MessageKind.MEMBER_LEFT,
     },
     include: MEMBER_ACTIVITY_INCLUDE,
   });
@@ -48,6 +42,7 @@ export function serializeMemberActivityMessage(message: any) {
     channelId: message.channelId,
     authorId: message.authorId,
     content: message.content,
+    kind: message.kind,
     createdAt: message.createdAt.toISOString(),
     editedAt: null,
     deletedAt: null,

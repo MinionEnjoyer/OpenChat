@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Message } from '../lib/types';
-import { isStickerContent, memberActivity } from '../lib/messageContent';
+import { isStickerContent } from '../lib/messageContent';
 import { renderMessageContent } from '../lib/renderMessageContent';
 import { Avatar } from './Avatar';
 import { Attachment } from './Attachment';
@@ -51,7 +51,7 @@ function MessageRowInner({
   message: m, meId, myUsername, shareBaseUrl, mentionNames, isEditing, canDelete, canPin,
   onToggleReaction, onReply, onStartEdit, onSaveEdit, onCancelEdit, onPin, onDelete, onPollVote, onOpenReactionPicker,
 }: MessageRowProps) {
-  const activity = memberActivity(m.content);
+  const activity = m.kind === 'MEMBER_JOINED' ? 'joined' : m.kind === 'MEMBER_LEFT' ? 'left' : null;
   const showText = !!m.content && m.content !== '​' && !m.poll && !activity && !isSingleEmbedUrl(m.content);
   const content = useMemo(
     () => (showText ? renderMessageContent(m.content, mentionNames, myUsername) : null),
