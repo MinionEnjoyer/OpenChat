@@ -108,6 +108,10 @@ function MessageListInner(props: MessageListProps) {
       const target = resumePosition?.messageId
         ? el.querySelector<HTMLElement>(`[data-message-id="${resumePosition.messageId}"]`)
         : null;
+      // The resume state can resolve one render before the matching message page is
+      // committed. Do not mark the channel restored at the newest edge in that gap:
+      // doing so makes the later anchor row permanently ineffective.
+      if (resumePosition?.messageId && !target) return;
       if (target) {
         const viewport = el.getBoundingClientRect();
         const rect = target.getBoundingClientRect();
