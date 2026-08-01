@@ -31,6 +31,9 @@ coverage, and existing scenarios that do not have a current passing receipt.
 - The web client now has Vitest and React Testing Library in CI. Initial regression coverage
   checks the shared centered header panel, safe cross-domain server handoff, browser/native
   YouTube embed routing, and per-channel message-anchor/offset persistence.
+- Coverage wave 2 adds the sticker wire format, literal-payload image rendering, picker
+  selection and permission gating, upload success/rejection handling, plus API sticker
+  membership, permission, capacity, cross-server deletion, and persistence boundaries.
 - The remaining items below are still open unless explicitly narrowed by this status section.
 
 ## Priority gaps
@@ -61,10 +64,11 @@ coverage, and existing scenarios that do not have a current passing receipt.
    `UpdateGate`, `AppTokens`, `BotsManager`, and watch-party controls remain largely uncovered.
    Add sticker rendering/sending, option selection, updater state, and displayed-version tests
    next, followed by user-level browser flows.
-2. **Sticker lifecycle lacks route and UI coverage.** `GET`, `POST`, and `DELETE`
-   `/servers/:id/stickers` do not have lifecycle tests, and there is no automated assertion that
-   `sticker::/api/media/.../raw` renders as a sticker instead of literal chat text. Add API
-   authorization/lifecycle tests and web/mobile render-and-send scenarios.
+2. **Sticker coverage still lacks a real cross-service browser flow.** Unit/component coverage
+   now protects API authorization and persistence boundaries, picker upload outcomes, wire-format
+   validation, and `sticker::/api/media/.../raw` image rendering. A Compose-backed OpenShare
+   upload plus real browser send/read/delete scenario is still required before the full lifecycle
+   can be considered release-gated.
 3. **Watch-party behavior is effectively untested.** Current coverage only checks query-token
    extraction. Add tests for start/state/stop authorization, host changes, WebSocket
    synchronization, proxy byte ranges, expired media, Jellyfin sources, and YouTube sources.
