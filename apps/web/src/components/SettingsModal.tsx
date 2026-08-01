@@ -172,16 +172,17 @@ export function SettingsModal({
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 20, color: 'var(--text-strong)' }}>Settings</h2>
-          <button onClick={onClose}
+        <div className="settings-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 className="settings-title" style={{ margin: 0, fontSize: 20, color: 'var(--text-strong)' }}>Settings</h2>
+          <button className="settings-close" onClick={onClose} aria-label="Close settings"
             style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
 
         {/* Tabs */}
-        <div className="settings-tabs" style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
+        <div className="settings-tabs" role="tablist" aria-label="Settings sections" style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
           {(([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens'], ['bots', '🤖 Bots'], ['servers', '🌐 Servers']]) as [typeof tab, string][]).map(([val, lbl]) => (
-            <button key={val} onClick={() => setTab(val)}
+            <button className="settings-tab" key={val} role="tab" aria-selected={tab === val}
+              aria-controls={`settings-panel-${val}`} data-active={tab === val} onClick={() => setTab(val)}
               style={{ padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
                 fontWeight: tab === val ? 700 : 500, color: tab === val ? 'var(--text-strong)' : 'var(--muted)',
                 borderBottom: '2px solid ' + (tab === val ? 'var(--accent)' : 'transparent'), marginBottom: -1 }}>
@@ -190,10 +191,11 @@ export function SettingsModal({
           ))}
         </div>
 
+        <div className="settings-content">
         {tab === 'appearance' && (
-          <div style={{ marginBottom: 8 }}>
+          <div className="settings-panel" id="settings-panel-appearance" role="tabpanel" style={{ marginBottom: 8 }}>
             <span style={label}>Theme</span>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="settings-theme-grid" style={{ display: 'flex', gap: 10 }}>
               <button style={themeBtn(theme === 'dark')} onClick={() => onThemeChange('dark')}>🌙 Dark</button>
               <button style={themeBtn(theme === 'light')} onClick={() => onThemeChange('light')}>☀️ Light</button>
             </div>
@@ -201,22 +203,22 @@ export function SettingsModal({
           </div>
         )}
 
-        {tab === 'voice' && <VoiceSettings audio={audio} label={label} input={input} />}
+        {tab === 'voice' && <div className="settings-panel" id="settings-panel-voice" role="tabpanel"><VoiceSettings audio={audio} label={label} input={input} /></div>}
 
-        {tab === 'tokens' && <AppTokens label={label} input={input} />}
+        {tab === 'tokens' && <div className="settings-panel" id="settings-panel-tokens" role="tabpanel"><AppTokens label={label} input={input} /></div>}
 
-        {tab === 'bots' && <BotsManager label={label} input={input} />}
+        {tab === 'bots' && <div className="settings-panel" id="settings-panel-bots" role="tabpanel"><BotsManager label={label} input={input} /></div>}
 
-        {tab === 'servers' && <DomainSwitcher label={label} />}
+        {tab === 'servers' && <div className="settings-panel" id="settings-panel-servers" role="tabpanel"><DomainSwitcher label={label} /></div>}
 
         {tab === 'profile' && (
-          <>
+          <div className="settings-panel" id="settings-panel-profile" role="tabpanel">
             {shareBaseUrl && (
-              <div style={{ marginBottom: 24 }}>
+              <div className="settings-field" style={{ marginBottom: 24 }}>
                 <span style={label}>Profile Picture</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div className="settings-avatar-row" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <Avatar user={previewUser} size={64} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="settings-avatar-actions" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleAvatarFile} />
                     <button onClick={() => fileRef.current?.click()} disabled={uploading}
                       style={{ padding: '8px 14px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: uploading ? 'default' : 'pointer', fontWeight: 600 }}>
@@ -231,7 +233,7 @@ export function SettingsModal({
               </div>
             )}
 
-            <div style={{ marginBottom: 24 }}>
+            <div className="settings-field" style={{ marginBottom: 24 }}>
               <span style={label}>Username</span>
               <input style={input} value={username} maxLength={32} onChange={(e) => setUsername(e.target.value)} placeholder="your_handle" />
               <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>
@@ -239,28 +241,28 @@ export function SettingsModal({
               </p>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
+            <div className="settings-field" style={{ marginBottom: 24 }}>
               <span style={label}>Display Name <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></span>
               <input style={input} value={displayName} maxLength={80} onChange={(e) => setDisplayName(e.target.value)} placeholder={username} />
             </div>
 
-            <div style={{ marginBottom: 24 }}>
+            <div className="settings-field" style={{ marginBottom: 24 }}>
               <span style={label}>Custom Status <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></span>
               <input style={input} value={customStatus} maxLength={280}
                 onChange={(e) => setCustomStatus(e.target.value)} placeholder="What's on your mind?" />
               <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)', textAlign: 'right' }}>{customStatus.length}/280</p>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
+            <div className="settings-field" style={{ marginBottom: 24 }}>
               <span style={label}>About Me <span style={{ textTransform: 'none', fontWeight: 400 }}>(optional)</span></span>
               <textarea style={{ ...input, minHeight: 90, resize: 'vertical', fontFamily: 'inherit' }} value={bio} maxLength={500}
                 onChange={(e) => setBio(e.target.value)} placeholder="Tell people a bit about yourself…" />
               <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)', textAlign: 'right' }}>{bio.length}/500</p>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
+            <div className="settings-field" style={{ marginBottom: 24 }}>
               <span style={label}>Status</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="settings-status-grid" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {([
                   ['ONLINE', '🟢 Online'],
                   ['AWAY', '🟡 Away'],
@@ -278,9 +280,9 @@ export function SettingsModal({
             </div>
 
             {user.friendCode && (
-              <div style={{ marginBottom: 24 }}>
+              <div className="settings-field" style={{ marginBottom: 24 }}>
                 <span style={label}>Your Friend Code</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="settings-friend-code" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <code style={{ flex: 1, padding: '10px 12px', borderRadius: 4, background: 'var(--input-bg)', color: 'var(--text-strong)', fontSize: 20, letterSpacing: 3, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
                     {user.friendCode}
                   </code>
@@ -294,29 +296,32 @@ export function SettingsModal({
             )}
 
             {error && <p style={{ color: 'var(--danger)', marginTop: 0, marginBottom: 16 }}>{error}</p>}
-          </>
+          </div>
         )}
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-          {tab === 'profile' ? (
-            <>
-              <button onClick={onClose}
-                style={{ padding: '10px 16px', borderRadius: 4, border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSave} disabled={saving}
-                style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: saving ? 'default' : 'pointer', fontWeight: 600 }}>
-                {saving ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Saving profile" /> Saving…</span> : 'Save Changes'}
-              </button>
-            </>
-          ) : (
-            <button onClick={onClose}
-              style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 600 }}>Done</button>
-          )}
         </div>
-        <div
-          aria-label={`OpenChat version ${packageMetadata.version}`}
-          style={{ marginTop: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}
-        >
-          OpenChat v{packageMetadata.version}
+
+        <div className="settings-footer">
+          <div className="settings-footer-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            {tab === 'profile' ? (
+              <>
+                <button onClick={onClose}
+                  style={{ padding: '10px 16px', borderRadius: 4, border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleSave} disabled={saving}
+                  style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: saving ? 'default' : 'pointer', fontWeight: 600 }}>
+                  {saving ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><OpenChatSpinner size={18} label="Saving profile" /> Saving…</span> : 'Save Changes'}
+                </button>
+              </>
+            ) : (
+              <button onClick={onClose}
+                style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 600 }}>Done</button>
+            )}
+          </div>
+          <div className="settings-version"
+            aria-label={`OpenChat version ${packageMetadata.version}`}
+            style={{ marginTop: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}
+          >
+            OpenChat v{packageMetadata.version}
+          </div>
         </div>
       </div>
     </div>

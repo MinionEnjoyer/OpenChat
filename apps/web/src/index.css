@@ -317,6 +317,33 @@ button:disabled { cursor: default; }
   padding-left: max(16px, var(--safe-left)) !important;
 }
 
+.settings-dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+.settings-header,
+.settings-tabs,
+.settings-footer { flex: 0 0 auto; }
+.settings-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+.settings-close {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.settings-close:hover { background: var(--hover) !important; color: var(--text-strong) !important; }
+.settings-tab { white-space: nowrap; }
+.settings-tab:focus-visible,
+.settings-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-row-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+
 /* incoming call prompt: gentle attention pulse */
 @keyframes callPulse { 0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.5); } 50% { box-shadow: 0 8px 32px rgba(67,181,129,0.55); } }
 .call-pop { animation: callPulse 1.6s ease-in-out infinite; }
@@ -410,20 +437,83 @@ button:disabled { cursor: default; }
   em-emoji-picker { width: 100%; max-width: 100%; height: 100%; }
 
   .settings-dialog {
+    width: 100% !important;
+    height: calc(100dvh - max(8px, var(--safe-top)) - max(8px, var(--safe-bottom))) !important;
     max-width: none !important;
-    max-height: calc(100dvh - max(16px, var(--safe-top)) - max(16px, var(--safe-bottom))) !important;
-    padding: 16px !important;
+    max-height: none !important;
+    padding: 0 !important;
+    border-radius: 14px !important;
   }
+  .settings-backdrop {
+    padding-top: max(8px, var(--safe-top)) !important;
+    padding-right: max(8px, var(--safe-right)) !important;
+    padding-bottom: max(8px, var(--safe-bottom)) !important;
+    padding-left: max(8px, var(--safe-left)) !important;
+  }
+  .settings-header {
+    min-height: 56px;
+    margin: 0 !important;
+    padding: 8px 10px 8px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-title { font-size: 18px !important; }
+  .settings-close { width: 44px; height: 44px; }
+  .settings-content {
+    flex: 1 1 auto;
+    padding: 16px;
+  }
+  .settings-panel { min-width: 0; }
+  .settings-panel input:not([type='range']):not([type='checkbox']),
+  .settings-panel select,
+  .settings-panel textarea { font-size: 16px !important; }
+  .settings-panel input[type='range'] { min-height: 36px; }
   .settings-tabs {
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scrollbar-width: none;
-    margin-right: -16px;
-    margin-left: -16px;
-    padding: 0 16px;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-dark);
   }
   .settings-tabs::-webkit-scrollbar { display: none; }
-  .settings-tabs > button { min-height: 44px; flex: 0 0 auto; }
+  .settings-tabs > button {
+    min-height: 40px;
+    flex: 0 0 auto;
+    padding: 8px 12px !important;
+    border: 1px solid transparent !important;
+    border-radius: 999px;
+    margin: 0 !important;
+  }
+  .settings-tabs > button[data-active='true'] {
+    border-color: var(--accent) !important;
+    background: var(--hover) !important;
+    color: var(--text-strong) !important;
+  }
+  .settings-footer {
+    padding: 0 16px max(10px, var(--safe-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--panel-dark);
+  }
+  .settings-footer-actions {
+    min-height: 60px;
+    margin: 0 !important;
+    padding: 8px 0 !important;
+    border: 0 !important;
+  }
+  .settings-footer-actions > button { min-height: 44px; }
+  .settings-version { margin-top: 0 !important; padding-bottom: 2px; }
+  .settings-avatar-row { align-items: flex-start !important; }
+  .settings-avatar-actions > button { min-height: 40px; }
+  .settings-theme-grid > button,
+  .settings-status-grid > button,
+  .settings-segmented > button { min-height: 44px; }
+  .settings-friend-code code { min-width: 0; overflow-x: auto; white-space: nowrap; }
+  .settings-inline-form > button,
+  .settings-secret-row > button,
+  .settings-list-row > button,
+  .settings-row-actions > button { min-height: 40px; }
 
   .server-settings-dialog {
     height: calc(100dvh - max(16px, var(--safe-top)) - max(16px, var(--safe-bottom))) !important;
@@ -475,6 +565,33 @@ button:disabled { cursor: default; }
 }
 
 @media (max-width: 520px) {
+  .settings-content { padding: 14px 12px; }
+  .settings-field { margin-bottom: 18px !important; }
+  .settings-avatar-row { gap: 12px !important; }
+  .settings-avatar-actions { flex: 1; }
+  .settings-avatar-actions > button { width: 100%; }
+  .settings-status-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-status-grid > button { padding: 8px 6px !important; }
+  .settings-friend-code,
+  .settings-inline-form,
+  .settings-secret-row { flex-direction: column; align-items: stretch !important; }
+  .settings-friend-code > button,
+  .settings-inline-form > button,
+  .settings-secret-row > button { width: 100%; min-height: 44px; }
+  .settings-list-row { align-items: flex-start !important; flex-wrap: wrap; }
+  .settings-list-row > button { margin-left: auto; }
+  .settings-bot-row .settings-row-actions,
+  .settings-domain-row .settings-row-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  }
+  .settings-row-actions > button { min-height: 42px; }
+  .settings-footer-actions > button { flex: 1; }
+  .settings-footer-actions > button:only-child { flex: 1 1 100%; }
   .friends-form-row { flex-direction: column; }
   .friends-form-row > button { min-height: 44px; width: 100%; }
   .friend-row { align-items: flex-start !important; flex-wrap: wrap; }
@@ -483,6 +600,10 @@ button:disabled { cursor: default; }
 }
 
 @media (max-width: 380px) {
+  .settings-tabs { padding-right: 10px; padding-left: 10px; }
+  .settings-tabs > button { padding-right: 10px !important; padding-left: 10px !important; }
+  .settings-segmented { flex-direction: column; }
+  .settings-status-grid { grid-template-columns: 1fr; }
   .app-header-actions > button,
   .app-header-actions > div > button { width: 36px; min-width: 36px; }
   .app-header-title { font-size: 13px; }

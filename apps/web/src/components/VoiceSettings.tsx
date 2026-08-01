@@ -125,7 +125,7 @@ export function VoiceSettings({ audio, label, input }: {
     d.label || `${kind} ${i + 1}`;
 
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div className="settings-voice" style={{ marginBottom: 24 }}>
       <span style={label}>Voice &amp; Video</span>
 
       {permError && (
@@ -142,7 +142,7 @@ export function VoiceSettings({ audio, label, input }: {
       </select>
 
       {/* Mic test meter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <div className="settings-mic-test" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <button
           onClick={() => setTesting((t) => !t)}
           style={{
@@ -163,13 +163,13 @@ export function VoiceSettings({ audio, label, input }: {
 
       {/* Input mode: open mic (voice activity) vs push-to-talk */}
       <label style={{ fontSize: 13, color: 'var(--muted)', display: 'block', marginBottom: 6 }}>Input Mode</label>
-      <div style={{ display: 'flex', gap: 8, marginBottom: mode === 'ptt' ? 10 : 16 }}>
+      <div className="settings-segmented" style={{ display: 'flex', gap: 8, marginBottom: mode === 'ptt' ? 10 : 16 }}>
         <button style={modeBtn(mode === 'vad')} onClick={() => onMode('vad')}>🎙 Voice Activity</button>
         <button style={modeBtn(mode === 'ptt')} onClick={() => onMode('ptt')}>⌨️ Push to Talk</button>
       </div>
       {mode === 'ptt' && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="settings-keybind-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               onClick={() => setCapturing((c) => !c)}
               style={{

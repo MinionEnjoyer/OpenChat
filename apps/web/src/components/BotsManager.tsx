@@ -71,7 +71,7 @@ export function BotsManager({ label, input }: { label: React.CSSProperties; inpu
       {fresh && (
         <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: 'var(--input-bg)', border: '1px solid var(--accent)' }}>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>Bot token — copy it now, it won't be shown again:</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="settings-secret-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <code style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--text)' }}>{fresh.token}</code>
             <button onClick={copyToken} style={smallBtn}>{copied ? 'Copied' : 'Copy'}</button>
           </div>
@@ -81,18 +81,20 @@ export function BotsManager({ label, input }: { label: React.CSSProperties; inpu
       <span style={{ ...label, marginTop: 22, display: 'block' }}>Your Bots</span>
       {bots.length === 0 && <p style={{ fontSize: 13, color: 'var(--muted)' }}>No bots yet.</p>}
       {bots.map((b) => (
-        <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+        <div className="settings-list-row settings-bot-row" key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, color: 'var(--text-strong)' }}>{b.displayName || b.username}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               @{b.username}{b.botDescription ? ` — ${b.botDescription}` : ''}
             </div>
           </div>
-          <button onClick={() => togglePublish(b)} style={{ ...smallBtn, borderColor: b.botPublished ? 'var(--accent)' : 'var(--border)', color: b.botPublished ? 'var(--accent)' : 'var(--muted)' }}>
-            {b.botPublished ? 'Published' : 'Publish'}
-          </button>
-          <button onClick={() => regen(b.id)} style={smallBtn}>New token</button>
-          <button onClick={() => del(b.id)} style={{ ...smallBtn, color: 'var(--danger)', borderColor: 'var(--danger)' }}>Delete</button>
+          <div className="settings-row-actions">
+            <button onClick={() => togglePublish(b)} style={{ ...smallBtn, borderColor: b.botPublished ? 'var(--accent)' : 'var(--border)', color: b.botPublished ? 'var(--accent)' : 'var(--muted)' }}>
+              {b.botPublished ? 'Published' : 'Publish'}
+            </button>
+            <button onClick={() => regen(b.id)} style={smallBtn}>New token</button>
+            <button onClick={() => del(b.id)} style={{ ...smallBtn, color: 'var(--danger)', borderColor: 'var(--danger)' }}>Delete</button>
+          </div>
         </div>
       ))}
     </div>

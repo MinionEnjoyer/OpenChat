@@ -38,7 +38,7 @@ export function ScreenQualityControls({ audio, compact }: { audio: AudioControls
       <div style={{ ...lbl, display: 'flex', justifyContent: 'space-between' }}>
         <span>Quality</span><span style={{ color: 'var(--muted-2)' }}>{activePreset}</span>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div className="settings-segmented settings-quality-presets" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         {QUALITY_PRESETS.map((p) => (
           <button key={p.name} onClick={() => applyPreset(p)} style={seg(activePreset === p.name)}>{p.name}</button>
         ))}
@@ -53,7 +53,7 @@ export function ScreenQualityControls({ audio, compact }: { audio: AudioControls
       </select>
 
       <label style={lbl}>Framerate</label>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <div className="settings-segmented" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         {[30, 60, 120].map((f) => <button key={f} onClick={() => onFps(f)} style={seg(fps === f)}>{f} fps</button>)}
       </div>
 
