@@ -690,6 +690,9 @@ components:
           format: uuid
         content:
           type: string
+        kind:
+          type: string
+          enum: [USER, MEMBER_JOINED, MEMBER_LEFT]
         nonce:
           type: string
           nullable: true
@@ -716,7 +719,7 @@ components:
         createdAt:
           type: string
           format: date-time
-      required: [id, channelId, authorId, content]
+      required: [id, channelId, authorId, content, kind]
 
     Attachment:
       type: object

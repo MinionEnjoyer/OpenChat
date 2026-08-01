@@ -148,6 +148,7 @@ const Message = {
     channelId: { type: 'string', format: 'uuid' },
     authorId: { type: 'string', format: 'uuid' },
     content: { type: 'string' },
+    kind: { type: 'string', enum: ['USER', 'MEMBER_JOINED', 'MEMBER_LEFT'] },
     editedAt: { type: 'string', format: 'date-time', nullable: true },
     deletedAt: { type: 'string', format: 'date-time', nullable: true },
     attachments: { type: 'array', items: Attachment },
@@ -159,7 +160,7 @@ const Message = {
     replyTo: { type: 'object', nullable: true },
     replyToId: { type: 'string', nullable: true, format: 'uuid' },
   },
-  required: ['id', 'channelId', 'authorId', 'content'],
+  required: ['id', 'channelId', 'authorId', 'content', 'kind'],
 };
 
 const LogoutResponse = {

@@ -432,7 +432,7 @@ export function assertMessageShape(msg: any): void {
   assertUuid(msg.channelId);
   assertUuid(msg.authorId);
   expect(typeof msg.content).toBe('string');
-  expect(['USER', 'SERVER_ACTIVITY']).toContain(msg.kind);
+  expect(['USER', 'MEMBER_JOINED', 'MEMBER_LEFT']).toContain(msg.kind);
   assertIsoDate(msg.createdAt);
   // editedAt: ISO date or null
   if (msg.editedAt !== null) assertIsoDate(msg.editedAt);
