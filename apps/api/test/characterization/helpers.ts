@@ -316,7 +316,7 @@ export function assertServerShape(s: any): void {
 }
 
 // ── Channel shape ──
-const CHANNEL_KEYS = ['id', 'name', 'type', 'serverId', 'categoryId', 'topic', 'position', 'parentId'];
+const CHANNEL_KEYS = ['id', 'name', 'type', 'serverId', 'categoryId', 'topic', 'position', 'parentId', 'isDefault'];
 
 export function assertChannelShape(ch: any): void {
   assertExactKeys(ch, CHANNEL_KEYS, 'Channel');
@@ -332,6 +332,7 @@ export function assertChannelShape(ch: any): void {
   expect(typeof ch.position).toBe('number');
   // parentId: nullable UUID
   if (ch.parentId !== null) assertUuid(ch.parentId);
+  expect(typeof ch.isDefault).toBe('boolean');
 }
 
 // ── Author sub-shape (embedded in messages) ──
@@ -423,7 +424,7 @@ export function assertPollShape(poll: any): void {
 }
 
 // ── Message shape (EXHAUSTIVE) ──
-const MESSAGE_KEYS = ['id', 'channelId', 'authorId', 'content', 'createdAt', 'editedAt', 'deletedAt', 'replyToId', 'pinned', 'author', 'attachments', 'reactions', 'replyTo', 'poll'];
+const MESSAGE_KEYS = ['id', 'channelId', 'authorId', 'content', 'kind', 'createdAt', 'editedAt', 'deletedAt', 'replyToId', 'pinned', 'author', 'attachments', 'reactions', 'replyTo', 'poll'];
 
 export function assertMessageShape(msg: any): void {
   assertExactKeys(msg, MESSAGE_KEYS, 'Message');
@@ -431,6 +432,7 @@ export function assertMessageShape(msg: any): void {
   assertUuid(msg.channelId);
   assertUuid(msg.authorId);
   expect(typeof msg.content).toBe('string');
+  expect(['USER', 'SERVER_ACTIVITY']).toContain(msg.kind);
   assertIsoDate(msg.createdAt);
   // editedAt: ISO date or null
   if (msg.editedAt !== null) assertIsoDate(msg.editedAt);

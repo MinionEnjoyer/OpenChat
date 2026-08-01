@@ -26,6 +26,10 @@ export class RedisService implements OnModuleDestroy {
 
     // Dedicated subscriber client for pub/sub
     this.subscriber = new Redis(redisUrl, {
+      // A subscription may be queued during application bootstrap. Ioredis' default
+      // ready check sends INFO, which Redis rejects once that queued SUBSCRIBE has
+      // already put the connection into subscriber mode.
+      enableReadyCheck: false,
       maxRetriesPerRequest: null, // Pub/Sub connections shouldn't retry requests automatically in the same way
       retryStrategy: (times) => {
         if (times > 3) return null;
