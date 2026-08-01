@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "LiveKit audio verification probe",
+  "scripts": {
+    "test:rotation": "bash ./livekit-rotation-test.sh"
+  },
   "dependencies": {
     "@roamhq/wrtc": "^0.8.0",
     "livekit-client": "^2.21.0",

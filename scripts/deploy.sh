@@ -19,12 +19,11 @@ if [ ! -f .env ]; then
   echo "✗ .env is missing. Copy .env.example → .env and fill it in first."; exit 1
 fi
 
-# Re-render livekit.yaml only if it doesn't exist yet (never clobber a working one
-# unless you deleted it on purpose). Delete livekit.yaml and re-run to force a refresh.
-if [ ! -f livekit.yaml ]; then
-  echo "→ livekit.yaml missing — rendering from template…"
-  ./scripts/setup.sh || true
-fi
+# Always render from the authoritative environment. Rendering only when the
+# file was absent left LiveKit on old credentials after an operator rotated
+# LIVEKIT_API_KEY/LIVEKIT_API_SECRET in .env.
+echo "→ Rendering livekit.yaml from current environment…"
+./scripts/setup.sh
 
 echo "→ Building + restarting containers…"
 docker compose up -d --build

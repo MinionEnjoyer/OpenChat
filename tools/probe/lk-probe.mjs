@@ -6,6 +6,7 @@
  * Usage:
  *   node tools/probe/lk-probe.mjs --room <name> [--expect-participants N]
  *        [--min-packets N] [--duration seconds] [--min-audio-level N]
+ *        [--connect-only] [--peer-timeout seconds]
  *
  * Defaults:
  *   --expect-participants  2     (publisher + probe)
@@ -48,15 +49,22 @@ globalThis.RTCSessionDescription = wrtc.RTCSessionDescription;
 globalThis.RTCIceCandidate = wrtc.RTCIceCandidate;
 globalThis.MediaStream = wrtc.MediaStream;
 globalThis.MediaStreamTrack = wrtc.MediaStreamTrack;
+if (!globalThis.navigator) {
+  globalThis.navigator = {
+    userAgent: `Node.js/${process.version}`,
+    platform: process.platform,
+    product: 'Node',
+  };
+}
 
-if (!MediaStreamTrack.prototype.getConstraints) {
-  MediaStreamTrack.prototype.getConstraints = function () { return {}; };
+if (!wrtc.MediaStreamTrack.prototype.getConstraints) {
+  wrtc.MediaStreamTrack.prototype.getConstraints = function () { return {}; };
 }
-if (!MediaStreamTrack.prototype.getSettings) {
-  MediaStreamTrack.prototype.getSettings = function () { return {}; };
+if (!wrtc.MediaStreamTrack.prototype.getSettings) {
+  wrtc.MediaStreamTrack.prototype.getSettings = function () { return {}; };
 }
-if (!MediaStreamTrack.prototype.getCapabilities) {
-  MediaStreamTrack.prototype.getCapabilities = function () { return {}; };
+if (!wrtc.MediaStreamTrack.prototype.getCapabilities) {
+  wrtc.MediaStreamTrack.prototype.getCapabilities = function () { return {}; };
 }
 
 // suppress unhandled rejections from RTCRtpReceiver.getStats
@@ -79,6 +87,8 @@ const { values } = parseArgs({
     'min-audio-level':     { type: 'string', default: '0.01' },
     identity:              { type: 'string', default: 'lk-probe' },
     'settle-seconds':      { type: 'string', default: '2' },
+    'connect-only':        { type: 'boolean', default: false },
+    'peer-timeout':        { type: 'string', default: '15' },
   },
 });
 
@@ -93,6 +103,7 @@ const MIN_PACKETS = parseInt(values['min-packets'], 10);
 const DURATION_S = parseFloat(values.duration);
 const MIN_AUDIO_LEVEL = parseFloat(values['min-audio-level']);
 const SETTLE_S = parseFloat(values['settle-seconds']);
+const PEER_TIMEOUT_S = parseFloat(values['peer-timeout']);
 const IDENTITY = values.identity + '-' + process.pid;
 
 // ── Stats helpers ────────────────────────────────────────────────────────────
@@ -129,6 +140,81 @@ async function getSubscriberStats(room) {
   return null;
 }
 
+function addressScope(address) {
+  if (!address) return 'unknown';
+  const value = String(address).replace(/^\[|\]$/g, '').toLowerCase();
+  if (value === 'localhost' || value === '::1' || value.startsWith('127.')) return 'loopback';
+  if (
+    value.startsWith('10.') ||
+    value.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(value) ||
+    value.startsWith('169.254.') ||
+    value.startsWith('fc') ||
+    value.startsWith('fd') ||
+    value.startsWith('fe80:')
+  ) return 'private';
+  return 'public';
+}
+
+/**
+ * Return selected ICE metadata without exposing either endpoint address.
+ * Address scope helps identify direct/LAN paths when the WebRTC runtime makes
+ * candidate addresses available; runtimes may redact peer-reflexive addresses.
+ */
+async function getTransportDiagnostics(room) {
+  const transports = [
+    ['publisher', room.engine?.pcManager?.publisher],
+    ['subscriber', room.engine?.pcManager?.subscriber],
+  ];
+
+  for (const [transport, pc] of transports) {
+    if (!pc || typeof pc.getStats !== 'function') continue;
+    try {
+      const report = await pc.getStats();
+      const candidates = new Map();
+      const pairs = new Map();
+      let selectedPairId = '';
+
+      for (const [, stat] of report) {
+        if (stat.type === 'transport' && stat.selectedCandidatePairId) {
+          selectedPairId = stat.selectedCandidatePairId;
+        } else if (stat.type === 'candidate-pair') {
+          pairs.set(stat.id, stat);
+          if (!selectedPairId && (stat.selected || (stat.nominated && stat.state === 'succeeded'))) {
+            selectedPairId = stat.id;
+          }
+        } else if (stat.type === 'local-candidate' || stat.type === 'remote-candidate') {
+          candidates.set(stat.id, stat);
+        }
+      }
+
+      const pair = pairs.get(selectedPairId);
+      const local = pair ? candidates.get(pair.localCandidateId) : undefined;
+      const remote = pair ? candidates.get(pair.remoteCandidateId) : undefined;
+      if (pair) {
+        return {
+          transport,
+          connectionState: pc.getConnectionState?.() ?? 'unknown',
+          iceConnectionState: pc.getICEConnectionState?.() ?? 'unknown',
+          pairState: pair.state ?? 'unknown',
+          nominated: Boolean(pair.nominated || pair.selected),
+          protocol: local?.protocol ?? remote?.protocol ?? pair.protocol ?? 'unknown',
+          localCandidateType: local?.candidateType ?? 'unknown',
+          localAddressScope: addressScope(local?.address ?? local?.ip),
+          remoteCandidateType: remote?.candidateType ?? 'unknown',
+          remoteAddressScope: addressScope(remote?.address ?? remote?.ip),
+          remotePort: remote?.port ?? null,
+          currentRoundTripTimeMs: Number.isFinite(pair.currentRoundTripTime)
+            ? Math.round(pair.currentRoundTripTime * 1000)
+            : null,
+        };
+      }
+    } catch { /* stats are best-effort diagnostics */ }
+  }
+
+  return { transport: 'unknown', pairState: 'not-found' };
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   const { AccessToken } = await import('livekit-server-sdk');
@@ -138,13 +224,18 @@ async function main() {
   const API_SECRET = process.env.LIVEKIT_API_SECRET || 'secretsecretsecretsecretsecret12';
   const LIVEKIT_URL = process.env.LIVEKIT_URL || 'ws://localhost:7880';
 
-  // Mint token (subscriber-only)
-  const at = new AccessToken(API_KEY, API_SECRET, {
-    identity: IDENTITY,
-    name: 'LK Probe',
-  });
-  at.addGrant({ roomJoin: true, room: ROOM, canPublish: false, canSubscribe: true });
-  const token = await at.toJwt();
+  // Prefer a short-lived externally minted token for production-path probes so
+  // server credentials never need to leave the host. Dev probes can continue
+  // minting locally from the configured API key and secret.
+  let token = process.env.LIVEKIT_TOKEN;
+  if (!token) {
+    const at = new AccessToken(API_KEY, API_SECRET, {
+      identity: IDENTITY,
+      name: 'LK Probe',
+    });
+    at.addGrant({ roomJoin: true, room: ROOM, canPublish: false, canSubscribe: true });
+    token = await at.toJwt();
+  }
 
   const room = new Room();
 
@@ -156,8 +247,20 @@ async function main() {
   });
 
   // Connect
-  await room.connect(LIVEKIT_URL, token);
+  await room.connect(LIVEKIT_URL, token, {
+    peerConnectionTimeout: PEER_TIMEOUT_S * 1000,
+    websocketTimeout: PEER_TIMEOUT_S * 1000,
+  });
   console.error(`[probe] Connected to room ${ROOM} as ${IDENTITY}`);
+
+  const transportDiagnostics = await getTransportDiagnostics(room);
+  console.error(`[probe] Transport diagnostics: ${JSON.stringify(transportDiagnostics)}`);
+
+  if (values['connect-only']) {
+    console.log('PASS: LiveKit peer connection established');
+    await room.disconnect();
+    process.exit(0);
+  }
 
   // Settle — wait for tracks to arrive
   console.error(`[probe] Settling for ${SETTLE_S}s to allow tracks to arrive...`);
@@ -250,6 +353,9 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(`[probe] FATAL: ${e.message}`);
+  const safeMessage = String(e?.message ?? e)
+    .replace(/access_token=[^&\s]+/gi, 'access_token=REDACTED')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, 'REDACTED_JWT');
+  console.error(`[probe] FATAL: ${safeMessage}`);
   process.exit(2);
 });

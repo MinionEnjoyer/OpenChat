@@ -19,16 +19,23 @@ set -a; . ./.env; set +a
 : "${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY in .env}"
 : "${LIVEKIT_API_SECRET:?set LIVEKIT_API_SECRET in .env}"
 
-# Render livekit.yaml (only substitute the three LiveKit vars).
+# Render livekit.yaml atomically (only substitute the three LiveKit vars). A
+# deployment must never observe a partially written credential file.
+rendered="$(mktemp ./livekit.yaml.XXXXXX)"
+cleanup() { rm -f "$rendered"; }
+trap cleanup EXIT
 if command -v envsubst >/dev/null 2>&1; then
   envsubst '${LIVEKIT_NODE_IP} ${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' \
-    < livekit.yaml.tmpl > livekit.yaml
+    < livekit.yaml.tmpl > "$rendered"
 else
   sed -e "s|\${LIVEKIT_NODE_IP}|${LIVEKIT_NODE_IP}|g" \
       -e "s|\${LIVEKIT_API_KEY}|${LIVEKIT_API_KEY}|g" \
       -e "s|\${LIVEKIT_API_SECRET}|${LIVEKIT_API_SECRET}|g" \
-      livekit.yaml.tmpl > livekit.yaml
+      livekit.yaml.tmpl > "$rendered"
 fi
+chmod 600 "$rendered"
+mv "$rendered" livekit.yaml
+trap - EXIT
 
 echo "→ Rendered livekit.yaml from .env ✓"
 echo "→ Ready. Start the stack with:  docker compose up -d --build"
