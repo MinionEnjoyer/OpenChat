@@ -72,6 +72,10 @@ jobs:
         working-directory: apps/api
         run: npx tsc --noEmit
 
+      - name: Unit tests
+        working-directory: apps/api
+        run: npm test -- --runInBand
+
       - name: Production dependency audit
         working-directory: apps/api
         run: npm audit --omit=dev --audit-level=high
@@ -132,6 +136,9 @@ jobs:
       - name: Install dependencies
         working-directory: apps/web
         run: npm ci
+      - name: Unit and component tests
+        working-directory: apps/web
+        run: npm test
       - name: Build
         working-directory: apps/web
         run: npm run build
@@ -233,6 +240,25 @@ jobs:
           LIVEKIT_API_URL: http://localhost:7880
           JWT_SECRET: dev-jwt-secret-not-for-prod
         run: npx jest --config jest-contract.config.js --forceExit
+
+      - name: Seed integration fixtures
+        run: node tools/seed/seed.mjs
+
+      # This suite existed but was not executed by GitHub CI. Run it on every change and
+      # retain exact results while it earns promotion to a blocking trusted gate.
+      - name: API integration tests (probation)
+        id: integration-probation
+        continue-on-error: true
+        working-directory: apps/api
+        run: npx jest --config jest-integration.config.js --forceExit --json --outputFile=../../integration-results.json
+
+      - name: Upload integration probation results
+        if: always() && hashFiles('integration-results.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-integration-probation-${{ github.run_id }}
+          path: integration-results.json
+          retention-days: 14
 
       - name: Consumer contract tests (if available)
         if: hashFiles('apps/mobile/src/api/__tests__/contract/consumer.spec.ts') != ''

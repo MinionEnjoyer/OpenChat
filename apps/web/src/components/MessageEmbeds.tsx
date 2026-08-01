@@ -6,7 +6,7 @@ import { mediaUrl } from '../lib/serverConfig';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/g;
 
-function youTubeId(url: string): string | null {
+export function youTubeId(url: string): string | null {
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, '');
@@ -20,9 +20,8 @@ function youTubeId(url: string): string | null {
   return null;
 }
 
-function youTubeEmbedUrl(videoId: string): string {
+export function youTubeEmbedUrl(videoId: string, pageOrigin = window.location.origin): string {
   const params = new URLSearchParams({ rel: '0', playsinline: '1' });
-  const pageOrigin = window.location.origin;
   if (/^https?:\/\//i.test(pageOrigin)) {
     // YouTube requires an HTTP referrer or equivalent client identity. Supplying both
     // values keeps embeds identified even when an operator's proxy adjusts referrer headers.
@@ -30,6 +29,18 @@ function youTubeEmbedUrl(videoId: string): string {
     params.set('widget_referrer', `${pageOrigin}/`);
   }
   return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+}
+
+/** Native webviews use the HTTPS shim; regular browsers embed YouTube directly. */
+export function messageYouTubeEmbedUrl(
+  videoId: string,
+  native: boolean,
+  openChatOrigin: string,
+  pageOrigin = window.location.origin,
+): string {
+  return native && openChatOrigin
+    ? `${openChatOrigin}/yt.html?v=${encodeURIComponent(videoId)}`
+    : youTubeEmbedUrl(videoId, pageOrigin);
 }
 
 // The Share service host is configured per deployment (set once from the backend config),
@@ -91,9 +102,7 @@ export function MessageEmbeds({ content }: { content: string }) {
     if (yt) {
       // Native webviews (tauri://…) are rejected by YouTube's player, so nest the
       // player inside our own https shim page (valid referrer); web embeds directly.
-      const src = isTauri() && serverOrigin()
-        ? `${serverOrigin()}/yt.html?v=${yt}`
-        : youTubeEmbedUrl(yt);
+      const src = messageYouTubeEmbedUrl(yt, isTauri(), serverOrigin());
       embeds.push(
         <div key={`yt-${yt}`} style={{ width: 'min(480px, 100%)' }}>
           <div style={{ aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', background: '#000' }}>

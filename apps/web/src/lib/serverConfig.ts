@@ -15,7 +15,7 @@ function safeGet(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
 }
 
-function normalizeHttpOrigin(value: string): string | null {
+export function normalizeHttpOrigin(value: string): string | null {
   try {
     const input = value.trim();
     if (!input) return null;
@@ -209,15 +209,36 @@ export function removeWebDomain(origin: string) {
   writeWebDomains(readWebDomains().filter((value) => value !== normalized));
 }
 
-/** Navigate the browser to another OpenChat origin. Session credentials never leave their origin. */
-export function switchWebDomain(value: string): boolean {
+export interface WebDomainDestination {
+  target: string;
+  href: string;
+  domains: string[];
+}
+
+/** Build a cross-origin browser handoff without including credentials or settings. */
+export function webDomainDestination(
+  value: string,
+  currentOrigin: string,
+  rememberedDomains: string[],
+): WebDomainDestination | null {
   const target = normalizeHttpOrigin(value);
-  if (!target || typeof window === 'undefined') return false;
-  const domains = Array.from(new Set([window.location.origin, target, ...readWebDomains()]));
-  writeWebDomains(domains);
-  if (target === window.location.origin) return true;
+  const current = normalizeHttpOrigin(currentOrigin);
+  if (!target || !current) return null;
+  const domains = Array.from(new Set([current, target, ...rememberedDomains]
+    .map(normalizeHttpOrigin)
+    .filter((origin): origin is string => !!origin)));
   const destination = new URL(target);
   destination.hash = new URLSearchParams({ [WEB_DOMAIN_HANDOFF]: JSON.stringify(domains) }).toString();
-  window.location.assign(destination.toString());
+  return { target, href: destination.toString(), domains };
+}
+
+/** Navigate the browser to another OpenChat origin. Session credentials never leave their origin. */
+export function switchWebDomain(value: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const destination = webDomainDestination(value, window.location.origin, readWebDomains());
+  if (!destination) return false;
+  writeWebDomains(destination.domains);
+  if (destination.target === window.location.origin) return true;
+  window.location.assign(destination.href);
   return true;
 }

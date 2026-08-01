@@ -21,6 +21,18 @@ The mobile reachability and orphan checks pass. Mobile also has many unit tests 
 flows. The largest risks are therefore missing web/desktop coverage, disabled cross-service
 coverage, and existing scenarios that do not have a current passing receipt.
 
+## Coverage wave 1 status
+
+- The API's 16 source unit suites (98 tests at the time of this update) now run as a blocking CI
+  step instead of existing only in the repository.
+- The 26 API integration specs now execute against an explicitly seeded dev stack on every CI
+  run. Their first runs are **probationary and non-blocking**, with machine-readable results kept
+  as workflow artifacts until their baseline is known and the gate has earned promotion.
+- The web client now has Vitest and React Testing Library in CI. Initial regression coverage
+  checks the shared centered header panel, safe cross-domain server handoff, browser/native
+  YouTube embed routing, and per-channel message-anchor/offset persistence.
+- The remaining items below are still open unless explicitly narrowed by this status section.
+
 ## Priority gaps
 
 ### P0 — cross-service and release safety
@@ -42,12 +54,13 @@ coverage, and existing scenarios that do not have a current passing receipt.
 
 ### P1 — high-value feature behavior
 
-1. **The web client has no test runner or component tests.** Critical surfaces such as
+1. **The web client's behavioral coverage is still shallow.** The first Vitest/RTL seam tests
+   now cover centered header panels, server-domain handoff, YouTube embed routing, and channel
+   scroll storage. Critical surfaces such as
    `SettingsModal`, `ChatOptionsTray`, `StickerPicker`, `GifPicker`, `MessageEmbeds`,
-   `UpdateGate`, `AppTokens`, `BotsManager`, and watch-party controls are covered only by the
-   TypeScript production build. Add Vitest, React Testing Library, and a small set of seam tests
-   first: modal anchoring, option selection, sticker rendering/sending, YouTube embed URL
-   construction, updater state, and displayed version.
+   `UpdateGate`, `AppTokens`, `BotsManager`, and watch-party controls remain largely uncovered.
+   Add sticker rendering/sending, option selection, updater state, and displayed-version tests
+   next, followed by user-level browser flows.
 2. **Sticker lifecycle lacks route and UI coverage.** `GET`, `POST`, and `DELETE`
    `/servers/:id/stickers` do not have lifecycle tests, and there is no automated assertion that
    `sticker::/api/media/.../raw` renders as a sticker instead of literal chat text. Add API
@@ -86,8 +99,8 @@ coverage, and existing scenarios that do not have a current passing receipt.
 ## Recommended implementation order
 
 1. Re-enable a real OpenShare service in characterization CI and cover the three upload paths.
-2. Add the web Vitest/RTL foundation with sticker, YouTube, settings-version, and options-menu
-   seam tests.
+2. Expand the new web Vitest/RTL foundation with sticker, settings-version, updater, and
+   options-menu seam tests.
 3. Add sticker lifecycle, member-activity, bots, and watch-party API integration suites.
 4. Make existing Maestro flows produce required traceability receipts in CI.
 5. Add packaged desktop update smoke coverage and an ephemeral deployment/rollback test.
