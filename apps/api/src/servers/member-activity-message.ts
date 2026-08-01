@@ -1,4 +1,4 @@
-import { MessageKind, Prisma } from '@prisma/client';
+import { MessageKind, type Prisma } from '@prisma/client';
 
 type MemberActivity = 'joined' | 'left';
 type MemberActivityDb = Pick<Prisma.TransactionClient, 'channel' | 'message'>;
