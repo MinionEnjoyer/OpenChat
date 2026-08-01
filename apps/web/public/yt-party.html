@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>Watch Party</title>
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
@@ -48,6 +49,7 @@
           playerVars: {
             autoplay: 0, controls: host ? 1 : 0, rel: 0, modestbranding: 1,
             mute: host ? 0 : 1, playsinline: 1, fs: 1, iv_load_policy: 3,
+            origin: location.origin, widget_referrer: location.origin + '/',
           },
           events: {
             onReady: function () { ready = true; post({ type: 'ready' }); report('state'); },

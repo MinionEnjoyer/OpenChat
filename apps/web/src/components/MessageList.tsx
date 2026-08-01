@@ -6,9 +6,14 @@ import { OpenChatSpinner } from './OpenChatSpinner';
 export interface MessageListProps {
   messages: Message[];
   channelId: string | null;
+  resumeMessageId?: string | null;
   hasMore: boolean;
+  hasNewer: boolean;
   loadingOlder: boolean;
+  loadingNewer: boolean;
   onLoadOlder: () => void;
+  onLoadNewer: () => void;
+  onReadPosition: (channelId: string, messageId: string) => void;
   meId: string;
   myUsername: string;
   shareBaseUrl: string;
@@ -30,11 +35,36 @@ export interface MessageListProps {
 /** The scrollable message list. Memoized so it repaints only when its own inputs
  *  change — not on every presence/typing/unread event flowing through the store. */
 function MessageListInner(props: MessageListProps) {
-  const { messages, meId, canDeleteAny, editingId, channelId, hasMore, loadingOlder, onLoadOlder } = props;
+  const {
+    messages, meId, canDeleteAny, editingId, channelId, resumeMessageId,
+    hasMore, hasNewer, loadingOlder, loadingNewer, onLoadOlder, onLoadNewer,
+  } = props;
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevScrollHeight = useRef<number | null>(null); // set right before older messages prepend
+  const holdOnAppend = useRef(false);
   const prevChannel = useRef<string | null>(null);
+  const restoredChannel = useRef<string | null>(null);
+  const lastReported = useRef<{ channelId: string; messageId: string } | null>(null);
+  const wasLoadingNewer = useRef(false);
   const nearBottom = useRef(true);
+
+  function reportVisibleReadPosition() {
+    const el = scrollRef.current;
+    if (!el || !channelId) return;
+    const viewport = el.getBoundingClientRect();
+    const rows = el.querySelectorAll<HTMLElement>('[data-message-id]');
+    let visibleId: string | null = null;
+    for (const row of rows) {
+      const rect = row.getBoundingClientRect();
+      if (rect.top < viewport.bottom - 8 && rect.bottom > viewport.top + 8) {
+        visibleId = row.dataset.messageId || null;
+      }
+    }
+    if (!visibleId) return;
+    if (lastReported.current?.channelId === channelId && lastReported.current.messageId === visibleId) return;
+    lastReported.current = { channelId, messageId: visibleId };
+    props.onReadPosition(channelId, visibleId);
+  }
 
   function onScroll() {
     const el = scrollRef.current;
@@ -43,18 +73,44 @@ function MessageListInner(props: MessageListProps) {
     if (el.scrollTop < 120 && hasMore && !loadingOlder) {
       prevScrollHeight.current = el.scrollHeight;
       onLoadOlder();
+    } else if (nearBottom.current && hasNewer && !loadingNewer) {
+      holdOnAppend.current = true;
+      onLoadNewer();
     }
+    reportVisibleReadPosition();
   }
 
-  // Keep the viewport sensible: jump to newest on channel open, hold position when
-  // older history is prepended, and follow new messages only when already at the bottom.
+  // Restore the shared last-read marker at the lower edge (so opening a channel does
+  // not silently advance it), hold position when either history direction is loaded,
+  // and follow live messages only when already at the newest edge.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    const newerRequestFinished = wasLoadingNewer.current && !loadingNewer;
+    wasLoadingNewer.current = loadingNewer;
     if (prevChannel.current !== channelId) {
       prevChannel.current = channelId;
-      nearBottom.current = true;
-      el.scrollTop = el.scrollHeight;
+      restoredChannel.current = null;
+      lastReported.current = null;
+    }
+    if (restoredChannel.current !== channelId) {
+      // undefined means the read-state request is still in flight. null means there
+      // is no marker and the normal newest-message position should be used.
+      if (resumeMessageId === undefined) return;
+      const target = resumeMessageId
+        ? el.querySelector<HTMLElement>(`[data-message-id="${resumeMessageId}"]`)
+        : null;
+      if (target) {
+        const viewport = el.getBoundingClientRect();
+        const rect = target.getBoundingClientRect();
+        el.scrollTop += rect.bottom - viewport.bottom + 16;
+        nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      } else {
+        nearBottom.current = true;
+        el.scrollTop = el.scrollHeight;
+      }
+      restoredChannel.current = channelId;
+      requestAnimationFrame(reportVisibleReadPosition);
       return;
     }
     if (prevScrollHeight.current != null) {
@@ -62,8 +118,14 @@ function MessageListInner(props: MessageListProps) {
       prevScrollHeight.current = null;
       return;
     }
+    if (holdOnAppend.current && newerRequestFinished) {
+      holdOnAppend.current = false;
+      nearBottom.current = false;
+      return;
+    }
     if (nearBottom.current) el.scrollTop = el.scrollHeight;
-  }, [messages, channelId]);
+    requestAnimationFrame(reportVisibleReadPosition);
+  }, [messages, channelId, resumeMessageId, loadingNewer]);
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -96,6 +158,12 @@ function MessageListInner(props: MessageListProps) {
           onOpenReactionPicker={props.onOpenReactionPicker}
         />
       ))}
+      {loadingNewer && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted-2)', fontSize: 12, padding: 4 }}>
+          <OpenChatSpinner size={22} label="Loading newer messages" />
+          Loading newer messages…
+        </div>
+      )}
     </div>
   );
 }

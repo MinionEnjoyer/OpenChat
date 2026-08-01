@@ -21,7 +21,7 @@ function youTubeId(url: string): string | null {
 }
 
 function youTubeEmbedUrl(videoId: string): string {
-  const params = new URLSearchParams({ rel: '0' });
+  const params = new URLSearchParams({ rel: '0', playsinline: '1' });
   const pageOrigin = window.location.origin;
   if (/^https?:\/\//i.test(pageOrigin)) {
     // YouTube requires an HTTP referrer or equivalent client identity. Supplying both
@@ -29,7 +29,7 @@ function youTubeEmbedUrl(videoId: string): string {
     params.set('origin', pageOrigin);
     params.set('widget_referrer', `${pageOrigin}/`);
   }
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
 }
 
 // The Share service host is configured per deployment (set once from the backend config),
@@ -95,11 +95,17 @@ export function MessageEmbeds({ content }: { content: string }) {
         ? `${serverOrigin()}/yt.html?v=${yt}`
         : youTubeEmbedUrl(yt);
       embeds.push(
-        <div key={`yt-${yt}`} style={{ maxWidth: 480, aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
-          <iframe src={src} title="YouTube video"
-            style={{ width: '100%', height: '100%', border: 0 }}
-            referrerPolicy="strict-origin-when-cross-origin"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+        <div key={`yt-${yt}`} style={{ width: 'min(480px, 100%)' }}>
+          <div style={{ aspectRatio: '16 / 9', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
+            <iframe src={src} title="YouTube video"
+              style={{ width: '100%', height: '100%', border: 0 }}
+              referrerPolicy="strict-origin-when-cross-origin"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          </div>
+          <a href={`https://www.youtube.com/watch?v=${yt}`} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-block', marginTop: 4, fontSize: 11, color: 'var(--muted)' }}>
+            Open on YouTube
+          </a>
         </div>,
       );
       continue;

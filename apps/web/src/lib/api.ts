@@ -159,11 +159,23 @@ export const addSticker = (serverId: string, data: { name: string; url: string }
 export const deleteSticker = (serverId: string, stickerId: string) =>
   request<{ success: true }>(`/servers/${serverId}/stickers/${stickerId}`, { method: 'DELETE' });
 
-export const listMessages = (channelId: string, before?: string) => {
+export const listMessages = (
+  channelId: string,
+  cursors: { before?: string; after?: string; around?: string } = {},
+) => {
   const params = new URLSearchParams();
-  if (before) params.set('before', before);
+  if (cursors.before) params.set('before', cursors.before);
+  if (cursors.after) params.set('after', cursors.after);
+  if (cursors.around) params.set('around', cursors.around);
   return request<Message[]>(`/channels/${channelId}/messages?${params.toString()}`);
 };
+export const getReadState = (channelId: string) =>
+  request<{ lastReadMessageId: string | null; latestMessageId: string | null }>(`/channels/${channelId}/read`);
+export const markRead = (channelId: string, lastReadMessageId: string) =>
+  request<{ success: true; lastReadMessageId: string }>(`/channels/${channelId}/read`, {
+    method: 'POST',
+    body: JSON.stringify({ lastReadMessageId }),
+  });
 export const searchMessages = (channelId: string, q: string) =>
   request<Message[]>(`/channels/${channelId}/messages/search?q=${encodeURIComponent(q)}`);
 export const updateMessage = (messageId: string, data: { content: string }) =>

@@ -74,6 +74,7 @@ interface AppState {
   setChannels: (serverId: string, channels: Channel[]) => void;
   setMessages: (channelId: string, messages: Message[]) => void;
   prependMessages: (channelId: string, older: Message[]) => void;
+  appendMessages: (channelId: string, newer: Message[]) => void;
   addMessage: (m: Message) => void;
   updateMessage: (m: Message) => void;
   deleteMessage: (channelId: string, id: string) => void;
@@ -119,6 +120,14 @@ const useStore = create<AppState>((set) => ({
       const fresh = older.filter((m) => !seen.has(m.id));
       if (fresh.length === 0) return s;
       return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...fresh, ...cur] } };
+    }),
+  appendMessages: (channelId, newer) =>
+    set((s) => {
+      const cur = s.messagesByChannel[channelId] || [];
+      const seen = new Set(cur.map((m) => m.id));
+      const fresh = newer.filter((m) => !seen.has(m.id));
+      if (fresh.length === 0) return s;
+      return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...cur, ...fresh] } };
     }),
   addMessage: (m) =>
     set((s) => {
@@ -190,8 +199,13 @@ export default function App() {
   const [updateChecked, setUpdateChecked] = useState(() => !isTauri()); // desktop gates on an update check first
   const finishUpdateCheck = useCallback(() => setUpdateChecked(true), []);
   const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
+  const [hasNewerByChannel, setHasNewerByChannel] = useState<Record<string, boolean>>({});
   const [loadingOlder, setLoadingOlder] = useState(false);
   const loadingOlderRef = useRef(false);
+  const [loadingNewer, setLoadingNewer] = useState(false);
+  const loadingNewerRef = useRef(false);
+  const [resumeMessageByChannel, setResumeMessageByChannel] = useState<Record<string, string | null | undefined>>({});
+  const readSaveTimers = useRef<Map<string, number>>(new Map());
   const [homeView, setHomeView] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
   const [dmTitle, setDmTitle] = useState('');
@@ -376,7 +390,11 @@ export default function App() {
         for (const id of subscribedRef.current) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: id } }));
         // Catch up on anything missed while the socket was down.
         const active = st.activeChannelId;
-        if (active) api.listMessages(active).then((m) => useStore.getState().setMessages(active, m.reverse())).catch(() => {});
+        if (active) {
+          api.listMessages(active).then((page) => {
+            for (const message of page.reverse()) useStore.getState().addMessage(message);
+          }).catch(() => {});
+        }
       };
       ws.onclose = () => { if (wsRef.current === ws) wsRef.current = null; scheduleReconnect(); };
       ws.onerror = () => { try { ws.close(); } catch { /* onclose handles reconnect */ } };
@@ -706,14 +724,37 @@ export default function App() {
   }
 
   async function selectChannel(channelId: string, title?: string) {
+    setResumeMessageByChannel((positions) => ({ ...positions, [channelId]: undefined }));
     useStore.getState().set({ activeChannelId: channelId });
     useStore.getState().clearUnread(channelId);
     setOpenPanel(null);
     if (title !== undefined) setDmTitle(title);
     // Stay subscribed to previously-opened channels so their unread counts keep updating.
     wsSubscribe(channelId);
-    const msgs = await api.listMessages(channelId);
+    let resumeId: string | null = null;
+    let latestMessageId: string | null = null;
+    try {
+      const readState = await api.getReadState(channelId);
+      resumeId = readState.lastReadMessageId;
+      latestMessageId = readState.latestMessageId;
+    } catch { /* latest page is a safe fallback */ }
+    let msgs: Message[];
+    try {
+      msgs = await api.listMessages(channelId, resumeId ? { around: resumeId } : {});
+    } catch {
+      // A saved marker can become stale when its message is deleted. Reopen at the
+      // newest page instead of leaving the channel unusable.
+      resumeId = null;
+      msgs = await api.listMessages(channelId);
+    }
+    if (useStore.getState().activeChannelId !== channelId) return;
+    const containsResume = !!resumeId && msgs.some((message) => message.id === resumeId);
+    setResumeMessageByChannel((positions) => ({ ...positions, [channelId]: containsResume ? resumeId : null }));
     setHasMoreByChannel((h) => ({ ...h, [channelId]: msgs.length >= 50 }));
+    setHasNewerByChannel((h) => ({
+      ...h,
+      [channelId]: containsResume && !!latestMessageId && !msgs.some((message) => message.id === latestMessageId),
+    }));
     useStore.getState().setMessages(channelId, msgs.reverse());
     setNavOpen(false);
     // remember where we are for refresh-persistence
@@ -868,11 +909,45 @@ export default function App() {
     loadingOlderRef.current = true;
     setLoadingOlder(true);
     try {
-      const older = await api.listMessages(chId, cur[0].id);
+      const older = await api.listMessages(chId, { before: cur[0].id });
       useStore.getState().prependMessages(chId, older.slice().reverse());
       setHasMoreByChannel((h) => ({ ...h, [chId]: older.length >= 50 }));
     } catch { /* ignore */ }
     finally { loadingOlderRef.current = false; setLoadingOlder(false); }
+  }, []);
+
+  // Around-pagination can place the shared read marker in the middle of history.
+  // Fetch the next page when the reader reaches the lower edge until newest is reached.
+  const loadNewer = useCallback(async () => {
+    if (loadingNewerRef.current) return;
+    const st = useStore.getState();
+    const chId = st.activeChannelId;
+    if (!chId) return;
+    const cur = st.messagesByChannel[chId] || [];
+    if (cur.length === 0) return;
+    loadingNewerRef.current = true;
+    setLoadingNewer(true);
+    try {
+      const newer = await api.listMessages(chId, { after: cur[cur.length - 1].id });
+      useStore.getState().appendMessages(chId, newer.slice().reverse());
+      setHasNewerByChannel((h) => ({ ...h, [chId]: newer.length >= 50 }));
+    } catch { /* retry on the next edge visit */ }
+    finally { loadingNewerRef.current = false; setLoadingNewer(false); }
+  }, []);
+
+  const saveReadPosition = useCallback((channelId: string, messageId: string) => {
+    const pending = readSaveTimers.current.get(channelId);
+    if (pending !== undefined) window.clearTimeout(pending);
+    const timer = window.setTimeout(() => {
+      readSaveTimers.current.delete(channelId);
+      api.markRead(channelId, messageId).catch(() => {});
+    }, 450);
+    readSaveTimers.current.set(channelId, timer);
+  }, []);
+
+  useEffect(() => () => {
+    for (const timer of readSaveTimers.current.values()) window.clearTimeout(timer);
+    readSaveTimers.current.clear();
   }, []);
 
   function jumpToMessage(id: string) {
@@ -1511,9 +1586,14 @@ export default function App() {
             <MessageList
               messages={messages}
               channelId={s.activeChannelId}
+              resumeMessageId={resumeMessageByChannel[s.activeChannelId]}
               hasMore={!!(s.activeChannelId && hasMoreByChannel[s.activeChannelId])}
+              hasNewer={!!(s.activeChannelId && hasNewerByChannel[s.activeChannelId])}
               loadingOlder={loadingOlder}
+              loadingNewer={loadingNewer}
               onLoadOlder={loadOlder}
+              onLoadNewer={loadNewer}
+              onReadPosition={saveReadPosition}
               meId={s.user.id}
               myUsername={s.user.username}
               shareBaseUrl={s.shareBaseUrl}

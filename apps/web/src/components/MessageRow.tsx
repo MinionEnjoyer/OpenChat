@@ -69,7 +69,7 @@ function MessageRowInner({
   if (canDelete) actions.push({ key: 'delete', label: 'Delete', node: '🗑', danger: true, run: () => onDelete(m.channelId, m.id) });
 
   return (
-    <div id={'msg-' + m.id} className="msg-row" style={{ display: 'flex', gap: 12, position: 'relative', opacity: m.pending ? 0.55 : 1 }}>
+    <div id={'msg-' + m.id} data-message-id={m.pending ? undefined : m.id} className="msg-row" style={{ display: 'flex', gap: 12, position: 'relative', opacity: m.pending ? 0.55 : 1 }}>
       <Avatar user={m.author} size={40} />
       <div style={{ minWidth: 0, flex: 1 }}>
         {m.replyTo && (

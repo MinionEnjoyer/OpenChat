@@ -9,8 +9,11 @@ import type { User } from '@prisma/client';
 
 const GetMessagesQuery = z.object({
   before: z.string().uuid().optional(),
+  after: z.string().uuid().optional(),
   around: z.string().uuid().optional(),
   limit: z.coerce.number().int().positive().max(100).default(50),
+}).refine((query) => [query.before, query.after, query.around].filter(Boolean).length <= 1, {
+  message: 'before, after, and around are mutually exclusive',
 });
 
 const SearchMessagesQuery = z.object({
@@ -29,7 +32,7 @@ export class MessagesController {
   list(
     @Param('id') channelId: string,
     @CurrentUser() user: User,
-    @Query(new ZodValidationPipe(GetMessagesQuery)) query: { before?: string; around?: string; limit?: number },
+    @Query(new ZodValidationPipe(GetMessagesQuery)) query: { before?: string; after?: string; around?: string; limit?: number },
   ) {
     return this.messages.list(channelId, user.id, query);
   }
@@ -125,5 +128,10 @@ export class MessagesController {
     @Body(new ZodValidationPipe(ReadDto)) body: { lastReadMessageId: string },
   ) {
     return this.messages.markRead(channelId, user.id, body.lastReadMessageId);
+  }
+
+  @Get('channels/:id/read')
+  getReadState(@Param('id') channelId: string, @CurrentUser() user: User) {
+    return this.messages.getReadState(channelId, user.id);
   }
 }

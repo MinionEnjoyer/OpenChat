@@ -59,6 +59,16 @@ interface ShareUploadResult {
   rejected: { name: string; reason: string }[];
 }
 
+interface ShareAssetMetadata {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number | string;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+}
+
 const PROXY_RESPONSE_HEADERS = new Set([
   'accept-ranges',
   'cache-control',
@@ -159,40 +169,77 @@ export class ShareService {
    * through the API without holding Share credentials or a browser cookie.
    */
   async uploadForUser(userId: string, files: UploadInput[]): Promise<{ attachments: UploadedAttachment[]; rejected: { name: string; reason: string }[] }> {
-    if (!this.shareBaseUrl) throw new HttpException('File hosting is not configured', HttpStatus.SERVICE_UNAVAILABLE);
+    if (!this.shareBaseUrl || !this.shareApiKey) throw new HttpException('File hosting is not configured', HttpStatus.SERVICE_UNAVAILABLE);
     if (files.length === 0) return { attachments: [], rejected: [] };
 
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { authSub: true, username: true } });
     if (!user) throw new NotFoundException('User not found');
 
     try {
-      const multipart = multipartBody(files, 'files', { source: 'chat' });
-      const res = await fetch(`${this.shareBaseUrl}/upload`, {
-        method: 'POST',
-        headers: {
+      const attachments: UploadedAttachment[] = [];
+      const rejected: { name: string; reason: string }[] = [];
+
+      // /api/assets is the stable OpenChat/OpenShare service contract. Upload one
+      // asset per request because this endpoint returns authoritative metadata for
+      // that file. Older OpenShare installs can still accept the scoped /upload
+      // endpoint; neither path depends on the dev-only login route.
+      for (const file of files) {
+        let multipart = multipartBody([file], 'file', { source: 'chat' });
+        const headers = {
           Authorization: `Bearer ${this.shareApiKey}`,
           'X-Share-User-Sub': user.authSub,
           'X-Share-User-Name': user.username,
           'Content-Type': multipart.contentType,
-        },
-        body: multipart.body as any,
-        duplex: 'half',
-      } as RequestInit & { duplex: 'half' });
-      if (!res.ok) throw new HttpException('File hosting rejected the upload', HttpStatus.BAD_GATEWAY);
-
-      const data = (await res.json()) as ShareUploadResult;
-      const rejectedNames = new Set((data.rejected ?? []).map((r) => r.name));
-      const accepted = files.filter((f) => !rejectedNames.has(f.originalname));
-      const attachments: UploadedAttachment[] = (data.saved ?? []).map((sv, i) => {
-        const f = accepted[i] ?? files[i];
-        return {
-          id: sv.id, shareAssetId: sv.id, filename: f?.originalname ?? sv.id,
-          mimeType: f?.mimetype ?? '', size: String(f?.size ?? 0),
-          url: `/api/media/${sv.id}/raw`, thumbnailUrl: `/api/media/${sv.id}/thumb`,
-          width: null, height: null, durationMs: null,
         };
-      });
-      return { attachments, rejected: data.rejected ?? [] };
+        let response = await fetch(`${this.shareBaseUrl}/api/assets`, {
+          method: 'POST', headers, body: multipart.body as any, duplex: 'half',
+        } as RequestInit & { duplex: 'half' });
+
+        if (response.status === 404) {
+          multipart = multipartBody([file], 'files', { source: 'chat' });
+          response = await fetch(`${this.shareBaseUrl}/upload`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': multipart.contentType },
+            body: multipart.body as any,
+            duplex: 'half',
+          } as RequestInit & { duplex: 'half' });
+          if (response.ok) {
+            const legacy = (await response.json()) as ShareUploadResult;
+            if (!legacy.saved?.[0]) {
+              rejected.push(legacy.rejected?.[0] ?? { name: file.originalname, reason: 'upload rejected' });
+              continue;
+            }
+            const id = legacy.saved[0].id;
+            attachments.push({
+              id, shareAssetId: id, filename: file.originalname, mimeType: file.mimetype,
+              size: String(file.size), url: `/api/media/${id}/raw`, thumbnailUrl: `/api/media/${id}/thumb`,
+              width: null, height: null, durationMs: null,
+            });
+            continue;
+          }
+        }
+
+        if (!response.ok) {
+          const detail = (await response.text().catch(() => '')).slice(0, 200);
+          if (response.status === 422) {
+            rejected.push({ name: file.originalname, reason: detail || 'upload rejected' });
+            continue;
+          }
+          throw new HttpException(
+            `File hosting rejected the upload (${response.status})${detail ? `: ${detail}` : ''}`,
+            HttpStatus.BAD_GATEWAY,
+          );
+        }
+
+        const asset = (await response.json()) as ShareAssetMetadata;
+        attachments.push({
+          id: asset.id, shareAssetId: asset.id, filename: asset.filename || file.originalname,
+          mimeType: asset.mimeType || file.mimetype, size: String(asset.size ?? file.size),
+          url: `/api/media/${asset.id}/raw`, thumbnailUrl: `/api/media/${asset.id}/thumb`,
+          width: asset.width ?? null, height: asset.height ?? null, durationMs: asset.durationMs ?? null,
+        });
+      }
+      return { attachments, rejected };
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new HttpException('Could not reach file hosting', HttpStatus.BAD_GATEWAY);

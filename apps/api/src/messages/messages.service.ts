@@ -108,7 +108,7 @@ export class MessagesService {
     return { serverId: channel.serverId };
   }
 
-  async list(channelId: string, userId: string, options?: { before?: string; around?: string; limit?: number }): Promise<MessageWithRelations[]> {
+  async list(channelId: string, userId: string, options?: { before?: string; after?: string; around?: string; limit?: number }): Promise<MessageWithRelations[]> {
     await this.assertChannelAccess(channelId, userId);
 
     const limit = options?.limit ?? 50;
@@ -117,9 +117,9 @@ export class MessagesService {
     if (options?.around) {
       const target = await this.prisma.message.findUnique({
         where: { id: options.around },
-        select: { id: true, createdAt: true, channelId: true },
+        select: { id: true, createdAt: true, channelId: true, deletedAt: true },
       });
-      if (!target || target.channelId !== channelId) {
+      if (!target || target.channelId !== channelId || target.deletedAt) {
         throw new NotFoundException('Message not found');
       }
 
@@ -185,6 +185,22 @@ export class MessagesService {
 
     // ── before cursor pagination (original behaviour) ──
     const whereClause: any = { channelId, deletedAt: null };
+
+    if (options?.after) {
+      const cursor = await this.prisma.message.findUnique({
+        where: { id: options.after },
+        select: { createdAt: true, channelId: true },
+      });
+      if (!cursor || cursor.channelId !== channelId) throw new NotFoundException('Message not found');
+      const messages = await this.prisma.message.findMany({
+        where: { channelId, deletedAt: null, createdAt: { gt: cursor.createdAt } },
+        include: MESSAGE_INCLUDE,
+        orderBy: { createdAt: 'asc' },
+        take: limit + 1,
+      });
+      // Keep the endpoint's newest-first response convention; clients reverse each page.
+      return messages.reverse().map((message) => this.serializeMessage(message));
+    }
 
     if (options?.before) {
       const cursor = await this.prisma.message.findUnique({
@@ -677,7 +693,31 @@ export class MessagesService {
   }
 
   async markRead(channelId: string, userId: string, lastReadMessageId: string) {
-    // Update or create ReadState
+    await this.assertChannelAccess(channelId, userId);
+    const [target, current] = await Promise.all([
+      this.prisma.message.findFirst({
+        where: { id: lastReadMessageId, channelId, deletedAt: null },
+        select: { id: true, createdAt: true },
+      }),
+      this.prisma.readState.findUnique({
+        where: { userId_channelId: { userId, channelId } },
+        select: { lastReadMessageId: true },
+      }),
+    ]);
+    if (!target) throw new NotFoundException('Message not found');
+
+    // A read marker is monotonic. Browsing old history must not move the shared
+    // resume point backwards on this or another client.
+    if (current?.lastReadMessageId && current.lastReadMessageId !== lastReadMessageId) {
+      const previous = await this.prisma.message.findUnique({
+        where: { id: current.lastReadMessageId },
+        select: { createdAt: true, channelId: true },
+      });
+      if (previous?.channelId === channelId && previous.createdAt > target.createdAt) {
+        return { success: true, lastReadMessageId: current.lastReadMessageId };
+      }
+    }
+
     await this.prisma.readState.upsert({
       where: {
         userId_channelId: {
@@ -698,7 +738,23 @@ export class MessagesService {
     });
 
     // ReadState is persisted only; read receipts are out of scope (no WS broadcast).
-    return { success: true };
+    return { success: true, lastReadMessageId };
+  }
+
+  async getReadState(channelId: string, userId: string) {
+    await this.assertChannelAccess(channelId, userId);
+    const state = await this.prisma.readState.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+      select: { lastReadMessageId: true },
+    });
+    const lastReadMessageId = state?.lastReadMessageId ?? null;
+    if (!lastReadMessageId) return { lastReadMessageId: null, latestMessageId: null };
+    const latest = await this.prisma.message.findFirst({
+      where: { channelId, deletedAt: null },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { lastReadMessageId, latestMessageId: latest?.id ?? null };
   }
 
   async addReaction(messageId: string, userId: string, emoji: string) {
