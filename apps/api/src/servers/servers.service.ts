@@ -7,6 +7,7 @@ import { Server, ChannelType, Role } from '@prisma/client';
 import { OverwritesService } from '../overwrites/overwrites.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Permission, ALL_PERMISSIONS, hasPermission, resolveEffectivePermissions, DEFAULT_MEMBER_PERMISSIONS } from '../permissions/permissions';
+import { createMemberActivityMessage, serializeMemberActivityMessage } from './member-activity-message';
 
 export interface SerializedServer extends Omit<Server, 'id' | 'ownerId' | 'createdAt' | 'updatedAt'> {
   id: string;
@@ -579,14 +580,16 @@ return { success: true };
     const invitation = await this.prisma.serverInvitation.findUnique({ where: { id: invitationId } });
     if (!invitation || invitation.inviteeId !== userId) throw new NotFoundException('Invitation not found');
     if (invitation.status !== 'PENDING') throw new BadRequestException('Invitation is no longer pending');
-    const server = await this.prisma.$transaction(async (tx) => {
+    const { server, activityMessage } = await this.prisma.$transaction(async (tx) => {
       await tx.serverMember.upsert({
         where: { serverId_userId: { serverId: invitation.serverId, userId } },
         create: { serverId: invitation.serverId, userId },
         update: {},
       });
       await tx.serverInvitation.update({ where: { id: invitationId }, data: { status: 'ACCEPTED' } });
-      return tx.server.findUniqueOrThrow({ where: { id: invitation.serverId } });
+      const server = await tx.server.findUniqueOrThrow({ where: { id: invitation.serverId } });
+      const activityMessage = await createMemberActivityMessage(tx, invitation.serverId, userId, 'joined');
+      return { server, activityMessage };
     });
     const perms = await this.getMemberPermissions(server.id, userId);
     const memberRecord = await this.prisma.serverMember.findUnique({
@@ -607,6 +610,12 @@ return { success: true };
         status: memberRecord!.user.status,
       },
     };
+    if (activityMessage) {
+      await this.redis.publish('chat:events', {
+        type: 'MESSAGE_CREATED',
+        message: serializeMemberActivityMessage(activityMessage),
+      });
+    }
     this.redis.publish('chat:events', { type: 'MEMBER_JOINED', serverId: invitation.serverId, userId, member }).catch(() => {});
     return this.serializeServer(server, perms);
   }
@@ -902,8 +911,11 @@ return { success: true };
         'The owner cannot leave; delete the server or transfer ownership first',
       );
     }
-    await this.prisma.serverMember.delete({
-      where: { serverId_userId: { serverId, userId } },
+    const activityMessage = await this.prisma.$transaction(async (tx) => {
+      await tx.serverMember.delete({
+        where: { serverId_userId: { serverId, userId } },
+      });
+      return createMemberActivityMessage(tx, serverId, userId, 'left');
     });
 
       await this.auditLog.write({
@@ -914,6 +926,12 @@ return { success: true };
         targetId: userId,
       });
 
+    if (activityMessage) {
+      await this.redis.publish('chat:events', {
+        type: 'MESSAGE_CREATED',
+        message: serializeMemberActivityMessage(activityMessage),
+      });
+    }
     this.redis.publish('chat:events', { type: 'MEMBER_LEFT', serverId, userId }).catch(() => {});
     return { success: true };
   }

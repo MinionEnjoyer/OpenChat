@@ -1074,4 +1074,3 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.sm,
   },
 });
-

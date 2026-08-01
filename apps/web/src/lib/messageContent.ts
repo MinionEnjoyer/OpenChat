@@ -1,5 +1,17 @@
 const STICKER_PREFIX = 'sticker::';
 const STICKER_MEDIA_PATH = /^\/api\/media\/[A-Za-z0-9_-]+\/raw$/;
+const MEMBER_JOINED_CONTENT = 'system::member_joined';
+const MEMBER_LEFT_CONTENT = 'system::member_left';
+
+export type MemberActivity = 'joined' | 'left';
+
+export function memberActivity(content: string): MemberActivity | null {
+  switch (content.trim()) {
+    case MEMBER_JOINED_CONTENT: return 'joined';
+    case MEMBER_LEFT_CONTENT: return 'left';
+    default: return null;
+  }
+}
 
 /** Encode a sticker as a message while keeping the wire format backwards-compatible. */
 export function stickerContent(url: string): string {

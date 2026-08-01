@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { createMemberActivityMessage, serializeMemberActivityMessage } from '../servers/member-activity-message';
 
 @Injectable()
 export class InvitesService {
@@ -131,7 +132,7 @@ export class InvitesService {
       };
     }
 
-    const server = await this.prisma.$transaction(async (tx) => {
+    const { server, activityMessage } = await this.prisma.$transaction(async (tx) => {
       await tx.invite.update({
         where: { code },
         data: { uses: { increment: 1 } },
@@ -144,9 +145,11 @@ export class InvitesService {
         },
       });
 
-      return tx.server.findUniqueOrThrow({
+      const server = await tx.server.findUniqueOrThrow({
         where: { id: invite.serverId },
       });
+      const activityMessage = await createMemberActivityMessage(tx, invite.serverId, userId, 'joined');
+      return { server, activityMessage };
     });
 
     await this.auditLog.write({
@@ -175,6 +178,12 @@ export class InvitesService {
         status: memberRecord!.user.status,
       },
     };
+    if (activityMessage) {
+      await this.redis.publish('chat:events', {
+        type: 'MESSAGE_CREATED',
+        message: serializeMemberActivityMessage(activityMessage),
+      });
+    }
     this.redis.publish('chat:events', { type: 'MEMBER_JOINED', serverId: invite.serverId, userId, member }).catch(() => {});
 
     return {

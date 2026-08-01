@@ -1,7 +1,7 @@
 import { memo, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Message } from '../lib/types';
-import { isStickerContent } from '../lib/messageContent';
+import { isStickerContent, memberActivity } from '../lib/messageContent';
 import { renderMessageContent } from '../lib/renderMessageContent';
 import { Avatar } from './Avatar';
 import { Attachment } from './Attachment';
@@ -51,12 +51,27 @@ function MessageRowInner({
   message: m, meId, myUsername, shareBaseUrl, mentionNames, isEditing, canDelete, canPin,
   onToggleReaction, onReply, onStartEdit, onSaveEdit, onCancelEdit, onPin, onDelete, onPollVote, onOpenReactionPicker,
 }: MessageRowProps) {
-  const showText = !!m.content && m.content !== '​' && !m.poll && !isSingleEmbedUrl(m.content);
+  const activity = memberActivity(m.content);
+  const showText = !!m.content && m.content !== '​' && !m.poll && !activity && !isSingleEmbedUrl(m.content);
   const content = useMemo(
     () => (showText ? renderMessageContent(m.content, mentionNames, myUsername) : null),
     [showText, m.content, mentionNames, myUsername],
   );
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+
+  if (activity) {
+    const name = m.author?.displayName || m.author?.username || 'A user';
+    return (
+      <div id={'msg-' + m.id} data-message-id={m.id} data-system-message={activity} className="msg-row"
+        style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 0', color: 'var(--muted)', fontSize: 13 }}>
+        <span aria-hidden="true" style={{ width: 40, textAlign: 'center', fontSize: 17 }}>
+          {activity === 'joined' ? '👋' : '↩'}
+        </span>
+        <span><strong style={{ color: 'var(--text-strong)' }}>{name}</strong> {activity === 'joined' ? 'joined the server.' : 'left the server.'}</span>
+        <span style={{ color: 'var(--muted-2)', fontSize: 11 }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
+      </div>
+    );
+  }
 
   // One source of truth for the message actions — rendered as a hover row on
   // desktop and inside a tapped-open ⋯ tray on mobile.
