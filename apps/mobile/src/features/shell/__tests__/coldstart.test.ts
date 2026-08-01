@@ -8,7 +8,7 @@ function server(id: string, name = `Server ${id}`): Server {
 }
 
 function ch(id: string, serverId: string, name = `channel-${id}`, type: Channel['type'] = 'TEXT'): Channel {
-  return { id, serverId, name, type, topic: null, categoryId: null, parentId: null, position: 0 };
+  return { id, serverId, name, type, topic: null, categoryId: null, parentId: null, position: 0, isDefault: false };
 }
 
 describe('coldstart (FR-APP-002)', () => {

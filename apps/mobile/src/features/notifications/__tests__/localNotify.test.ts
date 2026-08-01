@@ -71,7 +71,9 @@ function makeMessageCreatedFrame(overrides: {
           displayName: overrides.authorName ?? OTHER_USER.displayName,
           avatarUrl: null,
           status: null,
+          isBot: false,
         },
+        kind: 'USER',
         content: overrides.content ?? 'Hello!',
         nonce: null,
         editedAt: null,
@@ -166,6 +168,7 @@ function makeChannel(overrides: Partial<Channel> = {}): Channel {
     categoryId: null,
     parentId: null,
     position: 0,
+    isDefault: false,
     ...overrides,
   };
 }
@@ -192,6 +195,15 @@ beforeEach(() => {
       avatarUrl: null,
       status: 'online',
       friendCode: null,
+      customStatus: null,
+      bio: null,
+      serverLayout: null,
+      isBot: false,
+      botOwnerId: null,
+      botDescription: null,
+      botPublished: false,
+      createdAt: '',
+      updatedAt: '',
     },
     tokens: null as any,
   });

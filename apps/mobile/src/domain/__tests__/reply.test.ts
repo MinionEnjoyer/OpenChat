@@ -16,6 +16,7 @@ import {
 function msg(over: Partial<Message> & { id: string; author?: Message['author'] }): Message {
   return {
     id: over.id,
+    kind: 'USER',
     channelId: over.channelId ?? 'c1',
     authorId: over.authorId ?? 'u1',
     author: over.author ?? undefined,
@@ -44,6 +45,7 @@ function cached(name: string, id?: string): Message {
       displayName: `Display ${name}`,
       avatarUrl: null,
       status: null,
+      isBot: false,
     },
   });
 }
@@ -83,7 +85,7 @@ describe('resolveReplyPreview (FR-MSG-005)', () => {
       replyTo: { id: 'target-1', authorName: 'Alice', content: 'from server' },
     });
     const cache = [
-      msg({ id: 'target-1', content: 'from cache', author: { id: 'a1', username: 'bob', displayName: 'Bob', avatarUrl: null, status: null } }),
+      msg({ id: 'target-1', content: 'from cache', author: { id: 'a1', username: 'bob', displayName: 'Bob', avatarUrl: null, status: null, isBot: false } }),
     ];
     const result = resolveReplyPreview(m, cache);
     expect(result).toEqual({
@@ -99,7 +101,7 @@ describe('resolveReplyPreview (FR-MSG-005)', () => {
     const target = msg({
       id: 'target-1',
       content: 'Hello from the cache!',
-      author: { id: 'a1', username: 'alice', displayName: 'Alice', avatarUrl: null, status: null },
+      author: { id: 'a1', username: 'alice', displayName: 'Alice', avatarUrl: null, status: null, isBot: false },
     });
     const result = resolveReplyPreview(m, [target]);
     expect(result).toEqual({
@@ -115,7 +117,7 @@ describe('resolveReplyPreview (FR-MSG-005)', () => {
     const target = msg({
       id: 'target-1',
       content: 'text',
-      author: { id: 'a1', username: 'alice99', displayName: 'Alice', avatarUrl: null, status: null },
+      author: { id: 'a1', username: 'alice99', displayName: 'Alice', avatarUrl: null, status: null, isBot: false },
     });
     const result = resolveReplyPreview(m, [target]);
     expect(result).toEqual({
@@ -131,7 +133,7 @@ describe('resolveReplyPreview (FR-MSG-005)', () => {
     const target = msg({
       id: 'target-1',
       content: 'text',
-      author: { id: 'a1', username: 'alice99', displayName: null, avatarUrl: null, status: null },
+      author: { id: 'a1', username: 'alice99', displayName: null, avatarUrl: null, status: null, isBot: false },
     });
     const result = resolveReplyPreview(m, [target]);
     expect(result).toEqual({

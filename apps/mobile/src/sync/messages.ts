@@ -27,6 +27,7 @@ export function makePending(input: {
 }): PendingMessage {
   return {
     id: `pending-${input.nonce}`,
+    kind: 'USER',
     channelId: input.channelId,
     authorId: input.authorId,
     content: input.content,

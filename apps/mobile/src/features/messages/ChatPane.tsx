@@ -556,12 +556,12 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
         ref={flatListRef}
         inverted
         data={enhancedMessages}
-        keyExtractor={(item, index) => 'kind' in item ? `div-${item.date}` : item.id}
+        keyExtractor={(item) => item.kind === 'day-divider' ? `div-${item.date}` : item.id}
         onEndReached={() => fetchOlder()}
         onEndReachedThreshold={0.5}
         renderItem={({ item, index }) => {
           // Day divider
-          if ('kind' in item && item.kind === 'day-divider') {
+          if (item.kind === 'day-divider') {
             return (
               <View style={styles.dayDivider}>
                 <Text style={styles.dayDividerText}>{item.date}</Text>

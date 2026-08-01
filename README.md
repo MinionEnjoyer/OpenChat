@@ -16,7 +16,7 @@ Jellyfin for watch parties — rather than reinvent them.
 Everything environment-specific
 (domains, IPs, keys, passwords) is supplied through a single local config file — see
 **[docs/SETUP.md](docs/SETUP.md)**.
-> **Current production release:** desktop/web UI **0.8.44**. The current desktop installers
+> **Current production release:** desktop/web UI **0.8.45**. The current desktop installers
 > for macOS, Linux, and Windows are on the
 > [Releases](https://github.com/MinionEnjoyer/OpenChat/releases/latest) page. The hosted web/API
 > deployment follows CI-passing `main`, so it can contain newer backend or test-only commits without

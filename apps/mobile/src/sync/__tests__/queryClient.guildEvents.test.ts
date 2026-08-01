@@ -37,6 +37,7 @@ function makeChannel(overrides: Partial<Channel> = {}): Channel {
     categoryId: null,
     parentId: null,
     position: 0,
+    isDefault: false,
     ...overrides,
   };
 }
@@ -266,7 +267,7 @@ describe('member.kicked', () => {
 
   it('invalidates servers when current user is the one kicked', () => {
     // Set up current user in session store.
-    useSession.setState({ status: 'signedIn', user: { id: 'user-me', username: 'me', displayName: null, avatarUrl: null, status: null, friendCode: null }, tokens: null as any });
+    useSession.setState({ status: 'signedIn', user: { id: 'user-me', username: 'me', displayName: null, avatarUrl: null, status: null, customStatus: null, bio: null, friendCode: null, serverLayout: null, isBot: false, botOwnerId: null, botDescription: null, botPublished: false, createdAt: '', updatedAt: '' }, tokens: null as any });
     queryClient.setQueryData<Server[]>(keys.servers, [makeServer({ id: 'srv-1' })]);
     queryClient.setQueryData<Member[]>(keys.members('srv-1'), [
       makeMember({ userId: 'user-me' }),

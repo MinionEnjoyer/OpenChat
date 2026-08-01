@@ -28,6 +28,7 @@ interface TestMsg {
 function msg(over: Partial<TestMsg> & { id: string }): Message {
   return {
     id: over.id,
+    kind: 'USER',
     channelId: over.channelId ?? 'c1',
     authorId: over.authorId ?? 'u1',
     content: over.content ?? 'hello',

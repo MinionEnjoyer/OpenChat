@@ -8,14 +8,35 @@
  * @satisfies FR-SOC-005
  */
 import { counts, validateNotificationsShape, findInviteByServer } from '../inboxHelpers';
-import type { NotificationsResponse } from '../../../api/schema';
+import type { NotificationsResponse, User } from '../../../api/schema';
 
 // ── Fixtures ──
+
+function user(overrides: Partial<User> = {}): User {
+  return {
+    id: 'u1',
+    username: 'alice',
+    displayName: 'Alice',
+    avatarUrl: null,
+    status: 'ONLINE',
+    customStatus: null,
+    bio: null,
+    friendCode: null,
+    serverLayout: null,
+    isBot: false,
+    botOwnerId: null,
+    botDescription: null,
+    botPublished: false,
+    createdAt: '',
+    updatedAt: '',
+    ...overrides,
+  };
+}
 
 /** A well-formed notification response. */
 const fullFixture: NotificationsResponse = {
   friendRequests: [
-    { id: 'fr-1', user: { id: 'u1', username: 'alice', displayName: 'Alice', avatarUrl: null, status: 'ONLINE', friendCode: null } },
+    { id: 'fr-1', user: user() },
   ],
   serverInvites: [
     {
@@ -43,7 +64,7 @@ const emptyFixture: NotificationsResponse = {
 
 /** Fixture where count is WRONG — naive code that trusts count would fail. */
 const brokenCountFixture: NotificationsResponse = {
-  friendRequests: [{ id: 'fr-1', user: { id: 'u1', username: 'alice', displayName: null, avatarUrl: null, status: 'ONLINE', friendCode: null } }],
+  friendRequests: [{ id: 'fr-1', user: user({ displayName: null }) }],
   serverInvites: [],
   count: 99, // WRONG — should be 1
 };
