@@ -34,6 +34,8 @@ coverage, and existing scenarios that do not have a current passing receipt.
 - Coverage wave 2 adds the sticker wire format, literal-payload image rendering, picker
   selection and permission gating, upload success/rejection handling, plus API sticker
   membership, permission, capacity, cross-server deletion, and persistence boundaries.
+- Coverage wave 3 adds context-sensitive chat option actions, Settings release-version identity,
+  and desktop updater current/progress/stall behavior.
 - The remaining items below are still open unless explicitly narrowed by this status section.
 
 ## Priority gaps
@@ -61,9 +63,9 @@ coverage, and existing scenarios that do not have a current passing receipt.
    now cover centered header panels, server-domain handoff, YouTube embed routing, and channel
    scroll storage. Critical surfaces such as
    `SettingsModal`, `ChatOptionsTray`, `StickerPicker`, `GifPicker`, `MessageEmbeds`,
-   `UpdateGate`, `AppTokens`, `BotsManager`, and watch-party controls remain largely uncovered.
-   Add sticker rendering/sending, option selection, updater state, and displayed-version tests
-   next, followed by user-level browser flows.
+   `AppTokens`, `BotsManager`, and watch-party controls remain largely uncovered. Sticker seams,
+   option availability/selection, updater state, and displayed version now have component tests;
+   user-level browser flows remain open.
 2. **Sticker coverage still lacks a real cross-service browser flow.** Unit/component coverage
    now protects API authorization and persistence boundaries, picker upload outcomes, wire-format
    validation, and `sticker::/api/media/.../raw` image rendering. A Compose-backed OpenShare
