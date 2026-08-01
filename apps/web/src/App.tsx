@@ -37,6 +37,7 @@ import { OpenChatSpinner } from './components/OpenChatSpinner';
 import { notifyNative } from './lib/notify';
 import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
+import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScrollPosition } from './lib/channelScroll';
 
 const SettingsModal = lazy(() =>
   import('./components/SettingsModal').then((module) => ({ default: module.SettingsModal })),
@@ -204,7 +205,7 @@ export default function App() {
   const loadingOlderRef = useRef(false);
   const [loadingNewer, setLoadingNewer] = useState(false);
   const loadingNewerRef = useRef(false);
-  const [resumeMessageByChannel, setResumeMessageByChannel] = useState<Record<string, string | null | undefined>>({});
+  const [resumePositionByChannel, setResumePositionByChannel] = useState<Record<string, ChannelScrollPosition | null | undefined>>({});
   const readSaveTimers = useRef<Map<string, number>>(new Map());
   const [homeView, setHomeView] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
@@ -724,32 +725,46 @@ export default function App() {
   }
 
   async function selectChannel(channelId: string, title?: string) {
-    setResumeMessageByChannel((positions) => ({ ...positions, [channelId]: undefined }));
+    setResumePositionByChannel((positions) => ({ ...positions, [channelId]: undefined }));
     useStore.getState().set({ activeChannelId: channelId });
     useStore.getState().clearUnread(channelId);
     setOpenPanel(null);
     if (title !== undefined) setDmTitle(title);
     // Stay subscribed to previously-opened channels so their unread counts keep updating.
     wsSubscribe(channelId);
-    let resumeId: string | null = null;
+    const savedScroll = getChannelScrollPosition(channelId);
+    let readMarkerId: string | null = null;
     let latestMessageId: string | null = null;
     try {
       const readState = await api.getReadState(channelId);
-      resumeId = readState.lastReadMessageId;
+      readMarkerId = readState.lastReadMessageId;
       latestMessageId = readState.latestMessageId;
     } catch { /* latest page is a safe fallback */ }
+    let resumeId = savedScroll?.messageId || readMarkerId;
+    let resumeOffset = savedScroll?.messageId === resumeId ? savedScroll.offset : null;
     let msgs: Message[];
     try {
       msgs = await api.listMessages(channelId, resumeId ? { around: resumeId } : {});
     } catch {
-      // A saved marker can become stale when its message is deleted. Reopen at the
-      // newest page instead of leaving the channel unusable.
-      resumeId = null;
-      msgs = await api.listMessages(channelId);
+      // A local viewport anchor can become stale when its message is deleted. Retry the
+      // shared read marker before falling back to the newest page.
+      resumeId = readMarkerId !== savedScroll?.messageId ? readMarkerId : null;
+      resumeOffset = null;
+      try {
+        msgs = await api.listMessages(channelId, resumeId ? { around: resumeId } : {});
+      } catch {
+        resumeId = null;
+        msgs = await api.listMessages(channelId);
+      }
     }
     if (useStore.getState().activeChannelId !== channelId) return;
     const containsResume = !!resumeId && msgs.some((message) => message.id === resumeId);
-    setResumeMessageByChannel((positions) => ({ ...positions, [channelId]: containsResume ? resumeId : null }));
+    setResumePositionByChannel((positions) => ({
+      ...positions,
+      [channelId]: containsResume
+        ? { messageId: resumeId!, offset: resumeOffset ?? 0, updatedAt: savedScroll?.updatedAt ?? 0 }
+        : null,
+    }));
     setHasMoreByChannel((h) => ({ ...h, [channelId]: msgs.length >= 50 }));
     setHasNewerByChannel((h) => ({
       ...h,
@@ -943,6 +958,10 @@ export default function App() {
       api.markRead(channelId, messageId).catch(() => {});
     }, 450);
     readSaveTimers.current.set(channelId, timer);
+  }, []);
+
+  const saveScrollPosition = useCallback((channelId: string, messageId: string, offset: number) => {
+    saveChannelScrollPosition(channelId, messageId, offset);
   }, []);
 
   useEffect(() => () => {
@@ -1586,7 +1605,7 @@ export default function App() {
             <MessageList
               messages={messages}
               channelId={s.activeChannelId}
-              resumeMessageId={resumeMessageByChannel[s.activeChannelId]}
+              resumePosition={resumePositionByChannel[s.activeChannelId]}
               hasMore={!!(s.activeChannelId && hasMoreByChannel[s.activeChannelId])}
               hasNewer={!!(s.activeChannelId && hasNewerByChannel[s.activeChannelId])}
               loadingOlder={loadingOlder}
@@ -1594,6 +1613,7 @@ export default function App() {
               onLoadOlder={loadOlder}
               onLoadNewer={loadNewer}
               onReadPosition={saveReadPosition}
+              onScrollPosition={saveScrollPosition}
               meId={s.user.id}
               myUsername={s.user.username}
               shareBaseUrl={s.shareBaseUrl}

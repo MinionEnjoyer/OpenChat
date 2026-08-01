@@ -2,11 +2,12 @@ import { memo, useLayoutEffect, useRef } from 'react';
 import type { Message } from '../lib/types';
 import { MessageRow } from './MessageRow';
 import { OpenChatSpinner } from './OpenChatSpinner';
+import type { ChannelScrollPosition } from '../lib/channelScroll';
 
 export interface MessageListProps {
   messages: Message[];
   channelId: string | null;
-  resumeMessageId?: string | null;
+  resumePosition?: ChannelScrollPosition | null;
   hasMore: boolean;
   hasNewer: boolean;
   loadingOlder: boolean;
@@ -14,6 +15,7 @@ export interface MessageListProps {
   onLoadOlder: () => void;
   onLoadNewer: () => void;
   onReadPosition: (channelId: string, messageId: string) => void;
+  onScrollPosition: (channelId: string, messageId: string, offset: number) => void;
   meId: string;
   myUsername: string;
   shareBaseUrl: string;
@@ -36,7 +38,7 @@ export interface MessageListProps {
  *  change — not on every presence/typing/unread event flowing through the store. */
 function MessageListInner(props: MessageListProps) {
   const {
-    messages, meId, canDeleteAny, editingId, channelId, resumeMessageId,
+    messages, meId, canDeleteAny, editingId, channelId, resumePosition,
     hasMore, hasNewer, loadingOlder, loadingNewer, onLoadOlder, onLoadNewer,
   } = props;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -53,14 +55,20 @@ function MessageListInner(props: MessageListProps) {
     if (!el || !channelId) return;
     const viewport = el.getBoundingClientRect();
     const rows = el.querySelectorAll<HTMLElement>('[data-message-id]');
+    let firstVisible: HTMLElement | null = null;
     let visibleId: string | null = null;
     for (const row of rows) {
       const rect = row.getBoundingClientRect();
       if (rect.top < viewport.bottom - 8 && rect.bottom > viewport.top + 8) {
+        if (!firstVisible) firstVisible = row;
         visibleId = row.dataset.messageId || null;
       }
     }
     if (!visibleId) return;
+    const firstId = firstVisible?.dataset.messageId;
+    if (firstVisible && firstId) {
+      props.onScrollPosition(channelId, firstId, firstVisible.getBoundingClientRect().top - viewport.top);
+    }
     if (lastReported.current?.channelId === channelId && lastReported.current.messageId === visibleId) return;
     lastReported.current = { channelId, messageId: visibleId };
     props.onReadPosition(channelId, visibleId);
@@ -96,14 +104,18 @@ function MessageListInner(props: MessageListProps) {
     if (restoredChannel.current !== channelId) {
       // undefined means the read-state request is still in flight. null means there
       // is no marker and the normal newest-message position should be used.
-      if (resumeMessageId === undefined) return;
-      const target = resumeMessageId
-        ? el.querySelector<HTMLElement>(`[data-message-id="${resumeMessageId}"]`)
+      if (resumePosition === undefined) return;
+      const target = resumePosition?.messageId
+        ? el.querySelector<HTMLElement>(`[data-message-id="${resumePosition.messageId}"]`)
         : null;
       if (target) {
         const viewport = el.getBoundingClientRect();
         const rect = target.getBoundingClientRect();
-        el.scrollTop += rect.bottom - viewport.bottom + 16;
+        if (resumePosition && resumePosition.updatedAt > 0) {
+          el.scrollTop += rect.top - viewport.top - resumePosition.offset;
+        } else {
+          el.scrollTop += rect.bottom - viewport.bottom + 16;
+        }
         nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
       } else {
         nearBottom.current = true;
@@ -125,7 +137,7 @@ function MessageListInner(props: MessageListProps) {
     }
     if (nearBottom.current) el.scrollTop = el.scrollHeight;
     requestAnimationFrame(reportVisibleReadPosition);
-  }, [messages, channelId, resumeMessageId, loadingNewer]);
+  }, [messages, channelId, resumePosition, loadingNewer]);
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
