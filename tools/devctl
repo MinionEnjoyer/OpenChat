@@ -848,7 +848,8 @@ cmd_selftest() {
   local contract_test="$ROOT/apps/api/test/contract/provider.spec.ts"
   if [ -f "$contract_test" ]; then
     cp "$contract_test" "$contract_test.selftest-bak"
-    sed -i '' 's/expect(r.status).toBe(200);$/expect(r.status).toBe(99999);/' "$contract_test"
+    sed -i.selftest-sed 's/expect(r.status).toBe(200);$/expect(r.status).toBe(99999);/' "$contract_test"
+    rm -f "$contract_test.selftest-sed"
     set +e
     (cd "$ROOT/apps/api" && npx jest --config jest-contract.config.js --forceExit 2>&1 > /dev/null)
     local contract_rc=$?
@@ -866,7 +867,8 @@ cmd_selftest() {
   local char_test="$ROOT/apps/api/test/characterization/auth.spec.ts"
   if [ -f "$char_test" ]; then
     cp "$char_test" "$char_test.selftest-bak"
-    sed -i '' 's/expect(res.status).toBe(200);$/expect(res.status).toBe(99999);/' "$char_test"
+    sed -i.selftest-sed 's/expect(res.status).toBe(200);$/expect(res.status).toBe(99999);/' "$char_test"
+    rm -f "$char_test.selftest-sed"
     set +e
     (cd "$ROOT/apps/api" && npx jest --config jest-char.config.js --forceExit 2>&1 > /dev/null)
     local char_rc=$?
@@ -887,7 +889,8 @@ cmd_selftest() {
   if [ -n "$trace_test" ]; then
     cp "$trace_test" "$trace_test.selftest-bak"
     # Remove the first @satisfies line
-    sed -i '' '/@satisfies/d' "$trace_test"
+    sed -i.selftest-sed '/@satisfies/d' "$trace_test"
+    rm -f "$trace_test.selftest-sed"
     if cmd_trace check > /dev/null 2>&1; then
       echo "  ✗ trace: did not catch deleted @satisfies annotation"
       failures=$((failures + 1))

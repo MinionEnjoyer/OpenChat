@@ -262,6 +262,7 @@ jobs:
           bash tools/devctl selftest
         env:
           NODE_ENV: development
+          WEB_ORIGIN: http://localhost:3000
           CHAR_CONFIG: jest-char.config.js
           CONTRACT_CONFIG: jest-contract.config.js
 
