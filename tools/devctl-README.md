@@ -3,6 +3,12 @@
 `tools/devctl` is the single entry point for all OpenChat dev environment operations:
 stack lifecycle, verification gates, artifact validation, and safe commits.
 
+This harness primarily covers the Compose/mobile specification lane. The repository's GitHub `CI`
+workflow additionally runs the maintained API unit/characterization suite, web component tests and
+build, LiveKit rotation/ICE probes, provider contracts, migration drift, dependency audits, and
+gate self-tests. The Compose-backed API integration suite is currently probation evidence rather
+than a trusted blocker.
+
 ## Invocation
 ```
 ./tools/devctl <command> [flags]

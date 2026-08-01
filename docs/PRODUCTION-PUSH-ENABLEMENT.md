@@ -5,10 +5,11 @@ This runbook enables remote push delivery for the production OpenChat service at
 described in [`DEPLOY.md`](DEPLOY.md), where the checkout lives at `/opt/chat`
 and exactly one `api` container runs.
 
-## Current release status
+## Release status
 
-As of 2026-07-29, the push implementation is on upstream
-`MinionEnjoyer/OpenChat:main`.
+Last reviewed 2026-08-01: the push implementation is part of upstream
+`MinionEnjoyer/OpenChat:main` and the current production line. The links below are historical
+merge provenance, not branches an operator should deploy directly.
 
 - Merged upstream implementation PR:
   <https://github.com/MinionEnjoyer/OpenChat/pull/4>

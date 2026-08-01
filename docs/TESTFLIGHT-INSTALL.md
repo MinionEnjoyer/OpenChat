@@ -1,5 +1,9 @@
 # Install OpenChat on an iPhone with TestFlight
 
+> Mobile/TestFlight builds are versioned and distributed separately from the desktop/web UI 0.8.44
+> release. TestFlight shows the authoritative build number and expiration date for the build you
+> were invited to test.
+
 You do not need a Mac, Xcode, a developer account, or any programming tools.
 You only need an iPhone, an Apple Account, and the OpenChat invitation.
 

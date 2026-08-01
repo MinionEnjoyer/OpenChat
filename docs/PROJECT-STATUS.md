@@ -1,18 +1,43 @@
 # OpenChat — Canonical Project Status
 
-**Canonical live-status document.** Last reconciled: **2026-07-27 00:27 PDT**
-by Codex from repository, session, log, worktree, commit, and gate evidence.
+**Canonical product-status document.** Last reconciled: **2026-08-01 PDT** from the production
+health boundary, published GitHub release, repository source, CI workflow, and local test receipts.
 
-This file exists so work can move between Codex, Claude, or a fresh operator
-without reconstructing the project from chat history. Update it whenever the
-active objective, integration HEAD, blocker set, or verification state changes.
-Do not create another competing current-status document.
+## Current production snapshot
+
+- **Published desktop/web UI release:** `desktop-v0.8.44`; GitHub publishes Windows NSIS, universal
+  macOS DMG/app updater, Linux AppImage/deb, signatures, and `latest.json`.
+- **Hosted web/API:** follows the latest CI-passing `main` through the systemd auto-deployer. Do not
+  infer an exact deployed SHA from the client version; verify the deployer journal/active release
+  pointer when SHA-level provenance is required.
+- **Public health on 2026-08-01:** `https://chat.creeger.com/api/health` reported the API healthy
+  with PostgreSQL and Redis up.
+- **Core integrations:** Authentik OIDC; OpenShare service-key uploads and authenticated media
+  proxy; LiveKit voice/video; optional Jellyfin, Giphy, and FCM/APNs.
+- **Recent release behavior:** stickers, server-owned join/leave activity in the default general
+  channel, centered option panels, multi-domain web/desktop switching, native YouTube shims, and
+  exact per-channel message/offset restoration.
+- **Maintained automated baseline:** API 17 suites / 102 tests and web 11 suites / 27 tests at the
+  last local receipt. CI also runs migration drift, characterization, web build, dependency audits,
+  provider contracts, LiveKit config/credential/ICE probes, and gate self-tests.
+- **Probation/open evidence:** the Compose-backed API integration suite emits retained JSON but is
+  not yet a trusted blocker; real browser OIDC, public-edge LiveKit, upload-through-real-OpenShare,
+  and full user-level browser/client flows still require deployment or acceptance evidence.
+
+For maintained operator guidance, start at [docs/README.md](README.md). Update this section when
+the release line, production deployment model, or verification baseline changes.
+
+## Archived orchestration record
+
+Everything below is the preserved 2026-07-27 multi-agent handoff and evidence record. It names old
+branches, SHAs, suite thresholds, owners, and other repositories; those facts are historical and do
+not override the current snapshot above.
 
 Ephemeral agent/session tracking lives in `docs/AGENT-FLEET.md`. It is the
 single fleet ledger for both native Codex agents and CodeWhale/DeepSeek
 wrappers; it does not replace this canonical project-status document.
 
-## 2026-07-27 handoff snapshot
+### 2026-07-27 handoff snapshot
 
 The owner is returning orchestration to Claude. Codex automation
 `openchat-continuous-execution-monitor` is **PAUSED**; it will not wake or poll.

@@ -1,8 +1,12 @@
-# Deploy & update
+# Deploy and update
 
-The workflow: **develop locally → clean → push to git → the server pulls and rebuilds.**
-After the one-time setup, every future change goes live with `git push` here + a deploy on the
-server.
+OpenChat supports a manual deployment and a CI-gated systemd deployer. The production pattern is:
+**develop locally → verify → push `main` → CI passes for that exact SHA → the server builds an
+immutable release and atomically activates it.** The manual `scripts/deploy.sh` path remains useful
+for a simple self-hosted instance.
+
+The current public desktop release is **0.8.44**. Desktop tags and installers are separate from the
+web/API deploy: the hosted stack may advance on `main` without changing the desktop version.
 
 For production mobile push credentials and the required Android/iOS acceptance
 test, follow [`PRODUCTION-PUSH-ENABLEMENT.md`](PRODUCTION-PUSH-ENABLEMENT.md).
@@ -52,7 +56,8 @@ git remote add origin git@github.com:<you>/openchat.git
 git push -u origin main
 ```
 
-Keep the repo **private** — it describes your infrastructure even though it holds no secrets.
+Private repositories reduce infrastructure exposure, but the repository can be public when all
+instance-specific values remain in ignored server configuration and secret scanning stays green.
 
 ## C. First-time server setup (once) — convert the live host to a git checkout
 
@@ -99,7 +104,7 @@ Then confirm the stack still builds from the checkout:
 docker compose up -d --build && docker compose ps
 ```
 
-## D. Ongoing updates — push here, deploy there
+## D. Ongoing manual updates — push here, deploy there
 
 **On your machine:**
 
@@ -124,7 +129,7 @@ To roll back, check out a previous commit on the server and re-run `deploy.sh`:
 git checkout <good-commit-sha> && ./scripts/deploy.sh
 ```
 
-## E. Optional — CI-gated auto-deploy
+## E. Recommended production path — CI-gated auto-deploy
 
 The systemd scaffold in `ops/systemd/` polls every five minutes. It deploys a new `main` SHA only
 when the GitHub Actions workflow named `CI` has completed successfully for that exact SHA. It uses
@@ -168,6 +173,11 @@ sudo bash -c 'set -a; . /etc/openchat/deploy.conf; exec /usr/local/sbin/openchat
 sudo systemctl start openchat-autodeploy.timer
 ```
 
+The GitHub `CI` workflow currently gates API lint/type-check/unit and characterization tests,
+database migration drift, web component tests/build, dependency audits, LiveKit credential and ICE
+probes, provider contracts, and self-tests. The larger Compose-backed API integration suite runs on
+probation and uploads its JSON result even while it is not yet a trusted blocker.
+
 For normal operation and diagnostics:
 
 ```bash
@@ -182,6 +192,19 @@ containers before atomically changing the inner `/opt/chat-releases/current` poi
 `/opt/chat-current` link resolves through it. On failure the deployer keeps the active pointer
 and database backup, and attempts to restore the prior application Compose definition. It never
 deletes volumes, releases, images, or backups.
+
+## Confirm the active service
+
+After either deployment path, verify the public boundary rather than relying only on container
+state:
+
+```bash
+curl -fsS https://<your-chat-domain>/api/health
+```
+
+A healthy response reports `status: ok` with database and Redis up. Confirm voice separately from
+an external client network with the procedure in [tools/probe/README.md](../tools/probe/README.md),
+because a LAN-only LiveKit check can hide edge routing failures.
 
 ## What survives a deploy
 

@@ -28,11 +28,10 @@ You need these services reachable (use your own instances — any equivalents wo
   (its README has full steps), then in **OpenChat's** `.env` set `SHARE_BASE_URL` to OpenShare's
   public URL and `SHARE_API_KEY` to a random secret (`openssl rand -hex 32`). Put the **same**
   `SHARE_API_KEY` in **OpenShare's** `.env` — uploads route through OpenChat's API, which stores
-  to OpenShare on the user's behalf using this shared key (so it works for users who've never
-  opened OpenShare directly). Also add your OpenChat origin (e.g. `https://<your-chat-domain>`)
-  to OpenShare's `ALLOWED_ORIGINS`, since the browser fetches media/thumbnails/waveforms straight
-  from OpenShare. Point both apps at the *same* OIDC provider. Leave `SHARE_*` blank to run
-  OpenChat without uploads.
+  to OpenShare on the user's behalf using the `/api/assets` service contract (with a legacy
+  `/upload` fallback). Raw media, thumbnails, and waveform analysis also pass through authenticated
+  OpenChat API routes, so clients do not need OpenShare credentials or a direct browser session.
+  Point both apps at the *same* OIDC provider. Leave `SHARE_*` blank to run OpenChat without uploads.
 - **Reverse proxy:** point `chat.<domain>` → the web container's host port (`WEB_PORT`, default
   `8810`), and `livekit.<domain>` → the LiveKit signaling port `7880` (WebSocket upgrade
   enabled). Forward LiveKit media to the host: **UDP 50000** and **TCP 7881**.
@@ -50,6 +49,11 @@ openssl rand -hex 32     # use for SESSION_SECRET, POSTGRES_PASSWORD, LIVEKIT_AP
 ```
 
 `.env` is the **only** file with your real values. It is gitignored — it never leaves the host.
+
+Upload limits are operator-controlled. `UPLOAD_MAX_FILES` and `UPLOAD_MAX_FILE_BYTES` are unset by
+default, so the API does not impose a file-count or per-file limit. The bundled nginx config accepts
+request bodies up to 100 MB; raise that value (and the external proxy's body limit) if your instance
+should accept larger requests.
 
 ## 2. Render the LiveKit config
 
@@ -91,7 +95,7 @@ npm run start:dev            # http://localhost:3001
 # frontend (separate terminal)
 cd apps/web
 npm install
-npm run dev                  # http://localhost:5173, proxied to the API
+npm run dev                  # http://localhost:3000, proxied to the API
 ```
 
 ## Troubleshooting
@@ -103,5 +107,8 @@ npm run dev                  # http://localhost:5173, proxied to the API
   sets `udp_port: 50000`) and that your edge forwards **UDP 50000** + **TCP 7881** to the host.
   See [DEPLOY.md](DEPLOY.md) and the media-topology notes.
 - **GIF button missing:** `GIPHY_API_KEY` is empty — set it and restart the API.
+- **Uploads return 502:** confirm OpenChat and OpenShare have the same `SHARE_API_KEY`, OpenChat can
+  reach `SHARE_BASE_URL` from the API container, and OpenShare supports `/api/assets` or the legacy
+  `/upload` endpoint. Clients never call OpenShare's dev-login route.
 
 Next: **[DEPLOY.md](DEPLOY.md)** — pushing to git and running live updates on the server.

@@ -1,5 +1,9 @@
 # Install OpenChat on Android
 
+> This guide is for the separately versioned private mobile build (`0.1.0` in the current mobile
+> package), not the desktop/web UI 0.8.44 release. Use the exact filename and fingerprint supplied
+> for the APK you receive.
+
 You do not need a computer, developer account, Android Studio, or any other
 developer tools. You only need an Android phone and the OpenChat APK file.
 
@@ -37,7 +41,8 @@ Only install the file if it came directly from the OpenChat distributor. If
 Google Play Protect specifically reports that the app is harmful, stop and
 contact the distributor instead of overriding the warning.
 
-For someone who wants to verify the exact file, its SHA-256 fingerprint is:
+For someone who wants to verify the specific `OpenChat-0.1.0-android.apk` described here, its
+SHA-256 fingerprint is:
 
 ```text
 272348670feb316482277464b327b23ad8ecf35fb715a56507780053eb62d4d7

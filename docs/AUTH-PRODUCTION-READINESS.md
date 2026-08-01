@@ -1,127 +1,80 @@
-# Auth Production Readiness
+# Auth production readiness
 
-**Date:** 2026-07-26
-**Question:** Can the OpenChat mobile app authenticate against production `chat.creeger.com` (Authentik-backed)?
+**Last reviewed:** 2026-08-01
 
-## Answer: CONDITIONAL YES
+**Production line:** OpenChat 0.8.44 and current `main`
 
-The backend code at `POST /auth/oauth/token` (grant `authorization_code`) is fully implemented and operates server-side with no cookie/session dependency. The mobile app's OIDC system-browser PKCE flow is **spec'd but not yet implemented in the shipped mobile code** (see Unknowns §5). Once that client code exists, auth will work **provided** the production Authentik is configured with the items below.
+## Answer: code-ready, deployment-dependent
 
----
+Web, desktop, and mobile authentication paths are implemented. Browser clients use an Authentik
+OIDC session; desktop and mobile clients use Authorization Code + PKCE and exchange the code for
+rotating bearer/refresh tokens through OpenChat. A real system-browser mobile OIDC flow against the
+production Authentik tenant is still an operator acceptance check rather than a trusted automated
+gate.
 
-## 1. How the native PKCE flow actually works (from code)
+## Authentication paths
 
-The flow has three stages:
+### Browser session
 
-### Stage A — Discovery (mobile → server, no auth)
-`GET /auth/oidc-metadata` returns `{issuer, clientId, nativeRedirectUri, scopes}`.
-- Controller: `AuthController.oidcMetadata()` (auth.controller.ts:62)
-- Service: `AuthService.oidcMetadata()` (auth.service.ts:150-157)
-- No secrets exposed; `client_secret` stays server-side.
+1. `GET /api/auth/login` generates state, nonce, and a PKCE verifier and redirects to the configured
+   OIDC provider.
+2. `GET /api/auth/callback` validates the response, upserts the OpenChat user, and establishes a
+   Redis-backed `chat.sid` session.
+3. Protected API calls and same-origin `/api/media/...` requests authenticate with that secure,
+   HTTP-only cookie.
 
-### Stage B — Authorization (mobile ↔ Authentik, server uninvolved)
-The mobile app opens the system browser to the Authentik authorization endpoint:
-- `client_id` from discovery
-- `redirect_uri` = `openchat://auth` (or `NATIVE_REDIRECT_URI` if overridden)
-- `response_type=code`
-- `code_challenge` + `code_challenge_method=S256` (PKCE)
-- `scope=openid profile email`
+### Native desktop/mobile PKCE
 
-After user approves, Authentik redirects to `openchat://auth?code=ABC...`. The mobile app catches the deep link and extracts the `code`.
+1. `GET /api/auth/oidc-metadata` returns the public issuer, client ID, native redirect URI, and
+   scopes. The client secret is never returned.
+2. The client creates a verifier/S256 challenge and opens the system browser. Production mobile
+   code uses `expo-web-browser`; desktop uses the registered `openchat://` handoff.
+3. Authentik redirects to `openchat://auth?code=...`.
+4. The client posts the code, verifier, and redirect URI to `POST /api/auth/oauth/token`.
+5. OpenChat performs the confidential-client exchange server-side and returns an access token plus
+   a rotating refresh-token family. Native API and WebSocket requests then use bearer auth.
 
-### Stage C — Token exchange (mobile → server, server → Authentik)
-`POST /auth/oauth/token` body: `{grantType:"authorization_code", code, codeVerifier, redirectUri}`.
-- Controller: `AuthController.token()` (auth.controller.ts:38-49)
-- Service: `AuthService.exchangeNativeCode()` (auth.service.ts:133-147)
+Development username login remains compile-time/environment gated and is not rendered by a normal
+production mobile build.
 
-The **server** performs the code exchange against Authentik using `client.callback()`, passing the `code`, `redirectUri`, and `code_verifier`. This `client` is the same **confidential client** (with `client_secret`) used for the web login flow — see `getClient()` at auth.service.ts:44-50:
+## Required server configuration
 
-```ts
-this.client = new issuer.Client({
-  client_id:    this.config.getOrThrow<string>('OIDC_CLIENT_ID'),
-  client_secret: this.config.getOrThrow<string>('OIDC_CLIENT_SECRET'),
-  redirect_uris: [this.config.getOrThrow<string>('OIDC_REDIRECT_URI')],
-  response_types: ['code'],
-});
-```
-
-**Implication:** The same Authentik client serves both the web cookie flow (redirect to `OIDC_REDIRECT_URI`) and the native PKCE flow (server finishes exchange for the `openchat://auth` code). The Authentik client **must** be confidential (it has a secret), and the secret lives on the server — never on the mobile device. This is correct architecture.
-
----
-
-## 2. Server env vars required for native auth
-
-| Env var | Required? | Validated? | Example for production | Purpose |
-|---|---|---|---|---|
-| `OIDC_ISSUER` | **yes** | URL (Zod) | `https://auth.creeger.com/application/o/chat/` | Authentik issuer; used for OIDC discovery at boot |
-| `OIDC_CLIENT_ID` | **yes** | non-empty string | (from Authentik's "chat" application) | Client ID shared by web + native flows |
-| `OIDC_CLIENT_SECRET` | **yes** | non-empty string | (from Authentik's "chat" application) | Server-side secret; used in every code exchange |
-| `OIDC_REDIRECT_URI` | **yes** | URL (Zod) | `https://chat.creeger.com/api/auth/callback` | Web callback; registered in Authentik for the browser flow |
-| `OIDC_POST_LOGOUT_REDIRECT_URI` | **yes** | URL (Zod) | `https://chat.creeger.com` | Post-logout landing; used by web session logout |
-| `NATIVE_REDIRECT_URI` | **no** (defaults) | **NO** (⚠️ missing from Zod schema) | `openchat://auth` | Custom URI scheme the mobile deep-link catches |
-| `JWT_SECRET` | **yes** | non-empty string | (generate with `openssl rand -hex 32`) | Signs the bearer access JWT returned by `/auth/oauth/token` |
-
-**⚠️ Gap:** `NATIVE_REDIRECT_URI` is read at runtime via `this.config.get<string>('NATIVE_REDIRECT_URI') ?? 'openchat://auth'` (auth.service.ts:134), but it is **not in the Zod validation schema** in `configuration.ts`. If it's ever set to a wrong value, the error surfaces only at runtime (HTTP 400 on token exchange) rather than at boot. This should be added to the schema as `z.string().optional().default('openchat://auth')`.
-
----
-
-## 3. Authentik client configuration required for production
-
-The **single** Authentik OAuth2/OpenID Provider + Application (already configured for the web flow, per SETUP.md) must also support the native flow. The following items must be verified/added in the Authentik admin panel for the `chat` application:
-
-### Required settings
-
-| Setting | Value | Notes |
+| Variable | Requirement | Purpose |
 |---|---|---|
-| **Client type** | **Confidential** | Server holds `OIDC_CLIENT_SECRET` and uses it in every exchange (auth.service.ts:47). Do NOT change to Public — that breaks both web and native flows. |
-| **Authorization grant types** | Authorization code (with PKCE) | PKCE (`code_challenge_method=S256`) is used in `beginLogin()` (auth.service.ts:71) and verified by Authentik. The server passes `code_verifier` in `exchangeNativeCode()` (auth.service.ts:142). |
-| **Redirect URIs** | **Both** of these: `https://chat.creeger.com/api/auth/callback` and `openchat://auth` | `OIDC_REDIRECT_URI` (web) + `NATIVE_REDIRECT_URI` (mobile deep-link). Authentik must accept the custom scheme `openchat://auth` as a valid redirect URI. |
-| **Scopes** | `openid profile email` | Hardcoded in `beginLogin()` (auth.service.ts:67) and `oidcMetadata()` (auth.service.ts:155). |
-| **Signing algorithm** | RS256 (default) | The server performs standard OIDC discovery; Authentik's default RS256 works. |
+| `OIDC_ISSUER` | URL, required | OIDC discovery issuer |
+| `OIDC_CLIENT_ID` | required | Public client identifier used by web and native flows |
+| `OIDC_CLIENT_SECRET` | required | Confidential secret held only by the API |
+| `OIDC_REDIRECT_URI` | URL, required | Browser callback, normally `https://<chat>/api/auth/callback` |
+| `OIDC_POST_LOGOUT_REDIRECT_URI` | URL, required | Browser post-logout destination |
+| `NATIVE_REDIRECT_URI` | optional; defaults to `openchat://auth` | Desktop/mobile deep-link callback |
+| `JWT_SECRET` | required | Signs native access tokens |
 
-### What the production owner must check
+All entries above are covered by the API's Zod environment schema. A configured
+`NATIVE_REDIRECT_URI` must exactly match the URI registered with the OIDC provider.
 
-1. **Does the Authentik `chat` application have `openchat://auth` registered as a redirect URI?** If the current setup only has the web callback URL (`https://chat.creeger.com/api/auth/callback`), native auth will fail at the authorization step — Authentik will reject the redirect.
-2. **Is PKCE (S256) enabled for the authorization code grant?** Most OIDC providers allow PKCE by default for confidential clients, but verify.
-3. **Is `NATIVE_REDIRECT_URI` set on the production server?** It defaults to `openchat://auth`, which is almost certainly correct. If the owner chose a different custom scheme, it must match what's registered in Authentik.
+## Authentik provider requirements
 
----
+The OpenChat OAuth2/OpenID provider must:
 
-## 4. Code changes needed for production
+- remain a confidential client with Authorization Code and S256 PKCE enabled;
+- register both the browser callback and `openchat://auth` (or the configured native URI);
+- grant `openid profile email`; and
+- remain reachable from both users' browsers and the OpenChat API container.
 
-### In our code (minor)
-- **Add `NATIVE_REDIRECT_URI` to the Zod env schema** in `apps/api/src/config/configuration.ts`:
-  ```ts
-  NATIVE_REDIRECT_URI: z.string().optional().default('openchat://auth'),
-  ```
-  Without this, a misconfigured `NATIVE_REDIRECT_URI` fails silently at runtime instead of at boot.
-- **Add `NATIVE_REDIRECT_URI` to `.env.example`** as a commented optional field, so deployers know it exists.
-- **Mobile OIDC flow is not yet implemented** — the current `LoginScreen.tsx` only has dev-login (see LoginScreen.tsx:13: "the OIDC system-browser flow … is the nightly lane and arrives once an Authentik fixture exists"). The mobile app needs the PKCE client code (expo-auth-session, code challenge generation, deep-link handling, then `POST /auth/oauth/token`).
+Do not place `OIDC_CLIENT_SECRET` in a desktop/mobile bundle. The API is the only component that
+uses it during the native code exchange.
 
-### No changes needed to the server token exchange
-`exchangeNativeCode()` is complete. It has no session/cookie dependency, validates the redirect URI, performs the code exchange server-side with the client secret, and returns JWT access + opaque refresh tokens. This path is production-ready.
+## Production acceptance check
 
----
+Use a non-admin test account and a release build:
 
-## 5. Cookie / session analysis
+1. Start signed out and select **Sign in**.
+2. Complete Authentik login in the system browser.
+3. Confirm the deep link returns to OpenChat and `GET /api/auth/me` succeeds with bearer auth.
+4. Restart the client and confirm the refresh family restores the session without a cookie.
+5. Reuse an old refresh token and confirm it is rejected/revokes the compromised family.
+6. Confirm logout clears local tokens and subsequent protected API calls return 401.
 
-**Native auth has no cookie or browser-session dependency.** The evidence:
-
-- `exchangeNativeCode(auth.service.ts:133)` takes `code`, `codeVerifier`, and `redirectUri` directly from the POST body — no `req.session`, no cookie.
-- The `AuthController.token()` handler (auth.controller.ts:28-49) is unguarded — no `@UseGuards(SessionGuard)`, no `@Req()`.
-- After exchange, the server returns `{accessToken, expiresIn, refreshToken, user}` as JSON. The mobile client stores these and attaches `Authorization: Bearer <accessToken>` to subsequent API calls.
-- All protected endpoints use `AuthGuard` (auth.guard.ts), which checks bearer token first, then falls back to session cookie for web clients.
-
-The web login path (`GET /auth/login` → `GET /auth/callback`) remains cookie-based and is completely separate.
-
----
-
-## 6. Unknowns — what the production owner must verify
-
-These cannot be determined from our code and require access to `chat.creeger.com`'s Authentik admin panel:
-
-1. **Does the Authentik `chat` application have `openchat://auth` as a registered redirect URI?** This is the single most likely blocker. Native auth will fail at the authorization redirect if it's missing.
-2. **Is PKCE (S256) allowed for this confidential client?** Should be default-on in modern Authentik, but verify.
-3. **Is `NATIVE_REDIRECT_URI` set on the production server?** Default `openchat://auth` is correct; but if the owner customized it, the custom value must also be registered in Authentik.
-4. **Is the Authentik issuer URL reachable from the API container?** The docker-compose pins AUTH_HOST via `extra_hosts`; verify the LAN_HOST_IP routing works for the `openid-client` library's discovery + token endpoint calls.
-5. **Is the mobile app's OIDC PKCE client code implemented?** The backend is ready, but the current mobile `LoginScreen.tsx` only has dev-login. The OIDC system-browser flow is spec'd as a "nightly lane" that "arrives once an Authentik fixture exists" (LoginScreen.tsx:13-14). The production owner needs the mobile app build that includes this OIDC flow.
+Never put live credentials, access tokens, refresh tokens, cookies, or Authentik secrets in test
+artifacts. The remaining evidence gap is the real-browser production OIDC traversal, not missing
+client or server implementation.

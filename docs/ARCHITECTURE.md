@@ -5,7 +5,7 @@ _As-built architecture of the OpenChat communication platform: a self-hosted, re
 [OpenShare](https://github.com/MinionEnjoyer/OpenShare) for files/media, Jellyfin for watch
 parties) rather than reinventing them._
 
-> Status: **as-built (v0.8.x)**. This document describes what actually runs — not a proposal.
+> Status: **as-built for the 0.8.44 production line**. This document describes what actually runs — not a proposal.
 > Setup and deploy details live in [SETUP.md](SETUP.md) and [DEPLOY.md](DEPLOY.md).
 
 ## Contents
@@ -42,7 +42,7 @@ parties) rather than reinventing them._
 | Layer | Choice |
 |---|---|
 | **Frontend** | React 18 + TypeScript, Vite, **Zustand** (single store), `livekit-client`, react-router, TanStack Query, emoji-mart. **Inline styles + CSS variables** (Discord-like theme, `--accent #5865F2`) — no component library. Static build served by nginx. |
-| **Backend** | **NestJS 10** (Express platform, Node 20), **Prisma 5**, raw **`ws`** gateway, `nestjs-pino` logging, Zod validation, Swagger at `/api/docs`. |
+| **Backend** | **NestJS 11** (Express platform, Node 20), **Prisma 5**, raw **`ws`** gateway, `nestjs-pino` logging, Zod validation, Swagger at `/api/docs` when enabled. |
 | **Database** | **PostgreSQL 16** via Prisma. |
 | **Cache / bus / sessions** | **Redis 7** (`ioredis`): session store, pub/sub event bus, single-use WS tickets. |
 | **Auth** | **Authentik** OIDC (Auth Code + PKCE) via `openid-client`; Redis-backed `express-session` cookies **and** bearer app tokens. |
@@ -65,6 +65,7 @@ graph TB
     subgraph Clients ["Clients"]
         Web["Web app<br/>React + Vite + Zustand"]
         Desktop["Desktop app<br/>Tauri (Win/macOS/Linux)"]
+        Mobile["Mobile app<br/>Expo / React Native"]
     end
     subgraph Edge ["Edge (host)"]
         NPM["Nginx Proxy Manager<br/>TLS + routing"]
@@ -84,6 +85,7 @@ graph TB
     end
     Web -->|HTTPS/WSS| NPM
     Desktop -->|HTTPS/WSS + bearer| NPM
+    Mobile -->|HTTPS/WSS + bearer| NPM
     NPM --> WebC
     WebC -->|/api, /ws| API
     NPM -->|WebRTC signaling| LK
@@ -91,8 +93,7 @@ graph TB
     API --> PG
     API <--> Redis
     API -->|OIDC| Auth
-    API -->|service-key upload| Share
-    Web -.->|/raw /thumb /waveform| Share
+    API -->|service-key upload, media proxy, waveform| Share
     API -->|library + stream proxy| Jelly
     API -->|GIF search| Giphy
 ```
@@ -101,8 +102,9 @@ graph TB
 
 - **`web`** — nginx serving the React SPA; also reverse-proxies `/api` and `/ws` to `api` and sets
   a `client_max_body_size 100m` so large uploads pass through.
-- **`api`** — the NestJS monolith. Modules: `auth`, `servers` (channels/roles/members/sounds),
-  `messages` (+reactions/pins/polls/read-state), `realtime` (the `ws` gateway), `share` (uploads),
+- **`api`** — the NestJS monolith. Modules: `auth`, `servers`
+  (channels/roles/members/sounds/stickers), `messages` (+reactions/pins/polls/read-state and
+  server-owned member activity), `realtime` (the `ws` gateway), `share`/`media` (uploads and proxy),
   `friends`, `dms`, `invites`, `notifications`, `voice`, `watchparty`, `gifs`, plus global
   `prisma`, `redis`, and `presence` modules and `health`/`config` controllers. Every route is
   served both unversioned (`/api/...`) and under `/api/v1/...`.
@@ -179,9 +181,10 @@ sequenceDiagram
     WS->>C: message.created (channel subscribers)
 ```
 
-`BusEvent` types: `MESSAGE_CREATED`, `MESSAGE_UPDATED`, `MESSAGE_DELETED`, `TYPING_START`,
-`PRESENCE_UPDATE`, `WATCHPARTY_SYNC`, `NOTIFY`, `MENTION`, `CALL_RING`. Producers span
-`messages`, `watchparty`, `voice`, `friends`, `servers`, and the gateway itself.
+`BusEvent` covers message create/update/delete, typing, presence, watch-party sync, targeted
+notification/mention/call events, voice occupancy, and granular server structure events for
+channels, roles, membership, and server updates/deletion. Producers span `messages`, `watchparty`,
+`voice`, `friends`, `servers`, `invites`, and the gateway itself.
 
 **Presence** lives in an **in-memory `PresenceService`** (a `Map<userId, status>`), not Redis — a
 deliberate single-instance choice (a multi-instance deploy would move it to a Redis presence set +
@@ -196,7 +199,8 @@ without overwriting the saved preference. Typing indicators are ephemeral `TYPIN
 
 The web client runs the live WS connection inline in `App.tsx` with exponential-backoff reconnect
 (capped 30s + jitter), re-subscribing to tracked channels and catching up missed history on
-reconnect.
+reconnect. Per-channel viewport state is stored locally as `{messageId, offset}` and restored once
+after channel history is available, including for the default `general` channel.
 
 ---
 
@@ -263,19 +267,21 @@ The player header shows a 👑 host badge and a 👁 viewers list (voice-channel
 
 ## 8. Files & external integrations
 
-**Uploads (OpenShare).** All uploads — message attachments, avatars, soundboard sounds, server
-icons — go through **`POST /api/uploads`** (`SessionGuard`, multipart, ≤10 files, ≤100 MB each).
-`ShareService.uploadForUser` re-posts them server-to-server to OpenShare's `/upload` with
-`Authorization: Bearer <SHARE_API_KEY>` + `X-Share-User-Sub: <authSub>`, so uploads work for users
-who've never opened OpenShare and no Share cookie/account is needed. There is **no presigned-URL /
-direct-to-storage / S3 path**. Returned attachments reference `${SHARE_BASE_URL}/raw/<id>` and
-`/thumb/<id>`.
+**Uploads (OpenShare).** All uploads — message attachments, avatars, soundboard sounds, stickers,
+and server icons — go through authenticated **`POST /api/uploads`**. API file-count and per-file
+limits are opt-in through `UPLOAD_MAX_FILES` and `UPLOAD_MAX_FILE_BYTES`; unset means unlimited at
+that layer. The bundled nginx still has a 100 MB request-body ceiling unless the operator changes
+it, and an external reverse proxy can impose its own ceiling.
 
-Because `<img>`/`<video>` elements can't send an `Authorization` header, `serverConfig.mediaUrl()`
-builds an **absolute** media URL and appends `?token=<bearer>` when a native token exists (web
-falls back to the same-origin cookie). The only remaining direct-to-Share client call is the
-recorder's `/waveform` analyze request, which stores nothing. OpenShare is a separate FastAPI
-service; its base URL (and the Jellyfin URL) reach clients via `GET /api/config`.
+`ShareService.uploadForUser` uploads one asset per server-to-server request to OpenShare's stable
+`/api/assets` contract with `Authorization: Bearer <SHARE_API_KEY>`, `X-Share-User-Sub`, and
+`X-Share-User-Name`. A `/upload` fallback supports older OpenShare installs; neither route uses
+OpenShare dev-login. There is **no presigned-URL / direct-to-storage / S3 path**.
+
+Attachments return same-origin `/api/media/<id>/raw` and `/api/media/<id>/thumb` URLs. Those
+authenticated endpoints stream OpenShare content and preserve Range/cache headers. Native clients
+use the configured server origin and bearer/query-token media authentication; browser clients use
+the same-origin session. Waveform analysis similarly goes through `POST /api/uploads/waveform`.
 
 **Jellyfin.** Library search maps the filter to `IncludeItemTypes` (`Movie` / `Episode` / `Audio`)
 and rewrites poster URLs to the API proxy; poster and stream endpoints both attach `X-Emby-Token`
@@ -295,8 +301,10 @@ Prisma over PostgreSQL. Enums: `ChannelType` (TEXT/VOICE/ANNOUNCEMENT/DM/GROUP_D
   `serverLayout` Json is the per-user server-rail layout), `ApiToken` (SHA-256 hashes only).
 - **Servers** — `Server`, `ServerMember` (m:n `Role[]`), `Role` (BigInt `permissions` bitfield),
   `Category`, `Channel` (self-relation for threads; `serverId = null` ⇒ DM/group DM), `ServerSound`,
+  `ServerSticker`,
   `Invite` (code-based) and `ServerInvitation` (direct user-to-user), `AuditLog`.
-- **Messaging** — `Message` (soft-delete, replies, pins), `MessageAttachment`, `Reaction`, `Poll`
+- **Messaging** — `Message` (soft-delete, replies, pins, and `MessageKind` system activity),
+  `MessageAttachment`, `Reaction`, `Poll`
   → `PollOption` → `PollVote`, `ReadState` (per-user-per-channel unread + mention counts).
 - **DMs & social** — `ChannelRecipient` (participants of DM/group-DM channels), `Friendship` (one
   directional row covers both request and accepted friendship).
@@ -318,8 +326,9 @@ services.
 and routes the chat domain → the `web` container, and the LiveKit domain → the SFU signaling port.
 Forwarded proto is passed through for Secure cookies. `apps/web/nginx.conf` serves the SPA
 (`try_files … /index.html`), proxies `/api` → `api:3001` and `/ws` (with WebSocket upgrade +
-long read timeout), and sets `client_max_body_size 100m`. Both this layer and the NPM host must
-allow the 100 MB body size for large uploads.
+long read timeout), and currently sets `client_max_body_size 100m`. The API itself has no default
+upload limit; adjust this nginx value and the external proxy together when an instance permits
+larger requests.
 
 **LiveKit config** (`livekit.yaml.tmpl`, rendered from `.env` by `scripts/setup.sh`): a
 **single-UDP-port mux** (`rtc.udp_port: 50000`, TCP fallback `7881`, signaling `7880`) for NAT
@@ -346,6 +355,10 @@ SSO** via `openchat://` deep links (with a manual app-token fallback), and signe
 (minisign-signed artifacts, `latest.json` on the GitHub release; AppImage updates in place, `.deb`
 is a manual install). Clients authenticate with a bearer app token against a configurable server
 URL — no browser cookie. See [apps/desktop/README.md](../apps/desktop/README.md).
+
+The web UI also exposes Settings → Servers, using the same remembered-domain/token store as the
+desktop shell. The mobile app uses the same HTTP/WebSocket contracts with a production
+system-browser OIDC Authorization Code + PKCE flow and rotating bearer/refresh tokens.
 
 ---
 
