@@ -46,7 +46,7 @@ function safeValue(value) {
 
 const history = execFileSync(
   'git',
-  ['log', '--all', '--full-history', '--no-renames', '--no-ext-diff', '--unified=0', '--format=commit %H', '-p'],
+  ['log', '--branches', '--remotes=origin', '--tags', '--full-history', '--no-renames', '--no-ext-diff', '--unified=0', '--format=commit %H', '-p'],
   { cwd: repo, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
 );
 
@@ -118,7 +118,7 @@ for (const pem of addedText.matchAll(pemPattern)) {
 
 const sensitivePaths = execFileSync(
   'git',
-  ['log', '--all', '--name-only', '--pretty=format:', '--'],
+  ['log', '--branches', '--remotes=origin', '--tags', '--name-only', '--pretty=format:', '--'],
   { cwd: repo, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
 ).split('\n').filter((name) => {
   if (!name || /\.example$/.test(name)) return false;
@@ -128,12 +128,14 @@ const uniqueSensitivePaths = [...new Set(sensitivePaths)];
 
 if (uniqueSensitivePaths.length) {
   console.error(`sensitive paths appeared in history: ${uniqueSensitivePaths.join(', ')}`);
+  console.error(`::error title=Secret history scan blocked::sensitive paths=${uniqueSensitivePaths.length}`);
 }
 if (findings.size) {
   console.error(`credential candidates=${findings.size}`);
   for (const finding of findings.values()) {
     console.error(`${finding.kind} digest=${finding.digest} commit=${finding.commit || '-'} path=${finding.file} line=${finding.lineNumber}`);
   }
+  console.error(`::error title=Secret history scan blocked::credential candidates=${findings.size}; see redacted metadata above`);
 }
 
 console.log(`history scan commits=${commits} candidates=${findings.size} sensitive_paths=${uniqueSensitivePaths.length}`);

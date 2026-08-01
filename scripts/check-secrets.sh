@@ -28,8 +28,10 @@ scan=$(git grep -nIE \
   | grep -viE 'CHANGE_ME|example|placeholder|unused|not-for-prod|ci-test-|dev-|devsecret|secretsecret|127\.0\.0\.1|0\.0\.0\.0|::1|192\.168\.|10\.[0-9]|172\.(1[6-9]|2[0-9]|3[01])\.|10\.106\.0\.0|subnet' \
   || true)
 if [ -n "$scan" ]; then
-  echo "⚠ Possible secret or public IP in tracked files — review each line:"
-  echo "$scan"
+  scan_count=$(printf '%s\n' "$scan" | wc -l | tr -d ' ')
+  scan_locations=$(printf '%s\n' "$scan" | awk -F: '{ print $1 ":" $2 }' | sort -u | paste -sd, -)
+  echo "⚠ Possible secret or public IP in tracked files: count=$scan_count locations=$scan_locations"
+  echo "::error title=Secret scan blocked::tracked candidates=$scan_count locations=$scan_locations"
   fail=1
 fi
 
