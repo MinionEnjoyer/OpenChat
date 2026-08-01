@@ -156,6 +156,9 @@ jobs:
         working-directory: tools/probe
         run: npm ci
 
+      - name: Test LiveKit config rendering
+        run: bash tools/probe/livekit-config-render-test.sh
+
       - name: Test LiveKit credential rotation and peer connectivity
         working-directory: tools/probe
         run: npm run test:rotation

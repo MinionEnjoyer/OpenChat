@@ -18,19 +18,21 @@ set -a; . ./.env; set +a
 : "${LIVEKIT_NODE_IP:?set LIVEKIT_NODE_IP in .env}"
 : "${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY in .env}"
 : "${LIVEKIT_API_SECRET:?set LIVEKIT_API_SECRET in .env}"
+LIVEKIT_RTC_INTERFACE_INCLUDES="${LIVEKIT_RTC_INTERFACE_INCLUDES:-[]}"
 
-# Render livekit.yaml atomically (only substitute the three LiveKit vars). A
+# Render livekit.yaml atomically (only substitute the declared LiveKit vars). A
 # deployment must never observe a partially written credential file.
 rendered="$(mktemp ./livekit.yaml.XXXXXX)"
 cleanup() { rm -f "$rendered"; }
 trap cleanup EXIT
 if command -v envsubst >/dev/null 2>&1; then
-  envsubst '${LIVEKIT_NODE_IP} ${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET}' \
+  envsubst '${LIVEKIT_NODE_IP} ${LIVEKIT_API_KEY} ${LIVEKIT_API_SECRET} ${LIVEKIT_RTC_INTERFACE_INCLUDES}' \
     < livekit.yaml.tmpl > "$rendered"
 else
   sed -e "s|\${LIVEKIT_NODE_IP}|${LIVEKIT_NODE_IP}|g" \
       -e "s|\${LIVEKIT_API_KEY}|${LIVEKIT_API_KEY}|g" \
       -e "s|\${LIVEKIT_API_SECRET}|${LIVEKIT_API_SECRET}|g" \
+      -e "s|\${LIVEKIT_RTC_INTERFACE_INCLUDES}|${LIVEKIT_RTC_INTERFACE_INCLUDES}|g" \
       livekit.yaml.tmpl > "$rendered"
 fi
 chmod 600 "$rendered"

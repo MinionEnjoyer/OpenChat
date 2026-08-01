@@ -8,6 +8,10 @@ rtc:
   tcp_port: 7881              # WebRTC-over-TCP fallback
   use_external_ip: false      # advertise node_ip below instead of STUN-detecting
   node_ip: ${LIVEKIT_NODE_IP} # public IP clients reach for media
+  # Optional explicit RTC interface allowlist, e.g. [wg0] for a WireGuard relay.
+  # [] preserves LiveKit's normal automatic interface selection.
+  interfaces:
+    includes: ${LIVEKIT_RTC_INTERFACE_INCLUDES}
 keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
 logging:

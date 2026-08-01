@@ -227,20 +227,43 @@ export function useVoice() {
       const prefs = getAudioPrefs();
       // Don't let a missing/blocked mic abort the whole join — connect muted so the
       // user can still hear the call (e.g. no mic permission in a desktop webview).
+      // Some webviews leave getUserMedia pending instead of rejecting when a permission
+      // prompt cannot be shown. Bound that wait so an established media connection does
+      // not remain stuck behind the "Connecting…" UI forever.
+      let micEnableTimedOut = false;
+      let micTimeoutId: ReturnType<typeof setTimeout> | undefined;
+      const enableMic = room.localParticipant.setMicrophoneEnabled(
+        true,
+        prefs.inputDeviceId ? { deviceId: { exact: prefs.inputDeviceId } } : undefined,
+      );
       try {
-        await room.localParticipant.setMicrophoneEnabled(
-          true,
-          prefs.inputDeviceId ? { deviceId: { exact: prefs.inputDeviceId } } : undefined,
-        );
+        await Promise.race([
+          enableMic,
+          new Promise<never>((_, reject) => {
+            micTimeoutId = setTimeout(() => {
+              micEnableTimedOut = true;
+              reject(new Error('Microphone permission timed out'));
+            }, 8_000);
+          }),
+        ]);
         mutedRef.current = false;
         setMuted(false);
         // Apply the input mode: in PTT the mic publishes but stays muted until the key is held.
         await syncMic();
       } catch (micErr) {
+        if (micEnableTimedOut) {
+          // getUserMedia cannot be cancelled. If the original request eventually resolves,
+          // undo its automatic enable unless the user has since left this room.
+          void enableMic.then(() => {
+            if (roomRef.current === room) return room.localParticipant.setMicrophoneEnabled(false);
+          }).catch(() => {});
+        }
         console.warn('[voice] microphone unavailable — joined muted', micErr);
         mutedRef.current = true;
         setMuted(true);
         setLastError('Microphone unavailable — joined muted. Grant mic access and unmute to talk.');
+      } finally {
+        clearTimeout(micTimeoutId);
       }
       setChannelId(chId);
       setStatus('connected');
