@@ -87,7 +87,9 @@ The updater signing keypair lives locally at `~/.tauri/openchat-updater.key` (pr
 > Keep the private key safe — losing it means installed clients can no longer receive signed updates.
 
 ### Cut a release
-1. Bump `version` in **all three**: `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`.
+1. Bump `version` in **all four**: `package.json`, `src-tauri/tauri.conf.json`,
+   `src-tauri/Cargo.toml`, and `../web/package.json` (including its lockfile). The web version
+   is shown in Settings for both browser and desktop builds.
 2. Tag + push, e.g. `git tag desktop-v0.8.2 && git push origin desktop-v0.8.2`.
 3. CI builds all three platforms, signs, and publishes a GitHub Release with the installers +
    `latest.json`. Installed clients auto-update on next launch.

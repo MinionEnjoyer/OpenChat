@@ -1,16 +1,15 @@
 {
-  "generated": "2026-07-29T04:21:13.504Z",
+  "generated": "2026-08-01T15:31:17.945Z",
   "tool": "tools/trace.mjs",
   "summary": {
     "total": 86,
     "satisfied": 69,
-    "missing": 17,
-    "errors": 34,
+    "missing": 0,
+    "errors": 33,
     "evidence_violations": 33,
     "manual": 0
   },
   "errors": [
-    "17 requirement(s) lack @satisfies annotation: FR-APP-004, FR-APP-005, FR-MSG-014, FR-SOC-003, FR-SOC-006, FR-VOX-060, NFR-01, NFR-02, NFR-03, NFR-04, NFR-05, NFR-06, NFR-08, NFR-09, NFR-10, NFR-11, NFR-12",
     "EVIDENCE: FR-APP-001 requires e2e evidence (flow has no passing receipt in artifacts/e2e/receipts/ — it has never been run) — claimed by apps/mobile/e2e/flows/p1-01-devlogin-shell.yaml:2",
     "EVIDENCE: FR-APP-002 requires e2e evidence (found unit) — claimed by apps/mobile/src/features/shell/__tests__/coldstart.test.ts:1",
     "EVIDENCE: FR-AUTH-001 requires e2e evidence (found unit) — claimed by apps/mobile/src/stores/__tests__/session.test.ts:101",
@@ -353,13 +352,13 @@
       "id": "FR-APP-004",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "FR-APP-005",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "FR-APP-006",
@@ -537,40 +536,28 @@
       "satisfied": true,
       "locations": [
         {
-          "file": "apps/api/src/share/share.service.ts",
-          "line": 149
-        },
-        {
-          "file": "apps/api/src/share/share.service.ts",
-          "line": 198
-        },
-        {
-          "file": "apps/api/src/share/share.service.ts",
-          "line": 290
-        },
-        {
           "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
           "line": 4
         },
         {
           "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
-          "line": 86
+          "line": 83
         },
         {
           "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
-          "line": 105
+          "line": 100
         },
         {
           "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
-          "line": 116
+          "line": 111
         },
         {
           "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
-          "line": 126
+          "line": 121
         },
         {
           "file": "apps/api/test/integration/p5-01-service-api.spec.ts",
-          "line": 158
+          "line": 153
         }
       ],
       "missing": false
@@ -580,16 +567,12 @@
       "satisfied": true,
       "locations": [
         {
-          "file": "apps/api/src/share/share.service.ts",
-          "line": 223
-        },
-        {
           "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
           "line": 4
         },
         {
           "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
-          "line": 90
+          "line": 91
         }
       ],
       "missing": false
@@ -604,15 +587,15 @@
         },
         {
           "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
-          "line": 128
+          "line": 131
         },
         {
           "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
-          "line": 151
+          "line": 154
         },
         {
           "file": "apps/api/test/integration/p5-02-upload-media.spec.ts",
-          "line": 178
+          "line": 181
         }
       ],
       "missing": false
@@ -821,19 +804,19 @@
         },
         {
           "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
-          "line": 79
+          "line": 80
         },
         {
           "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
-          "line": 108
+          "line": 109
         },
         {
           "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
-          "line": 134
+          "line": 135
         },
         {
           "file": "apps/api/test/integration/p5-05-avatar-server-icon.spec.ts",
-          "line": 161
+          "line": 162
         },
         {
           "file": "apps/mobile/e2e/flows/p5-01-avatar-upload.yaml",
@@ -872,15 +855,15 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 269
+          "line": 273
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 279
+          "line": 283
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 281
+          "line": 285
         }
       ],
       "missing": false
@@ -1300,7 +1283,7 @@
       "id": "FR-MSG-014",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "FR-MSG-015",
@@ -1472,127 +1455,123 @@
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 108
+          "line": 124
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 115
+          "line": 131
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 122
+          "line": 138
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 133
+          "line": 149
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 146
+          "line": 162
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 154
+          "line": 170
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 163
+          "line": 179
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 180
+          "line": 196
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 193
+          "line": 209
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 229
+          "line": 245
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 243
+          "line": 259
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 249
+          "line": 265
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 343
+          "line": 359
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 353
+          "line": 369
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 362
+          "line": 378
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 371
+          "line": 387
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 377
+          "line": 393
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 383
+          "line": 399
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 394
+          "line": 410
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 407
+          "line": 423
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 420
+          "line": 436
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 450
+          "line": 466
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 473
+          "line": 489
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 491
+          "line": 507
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 520
+          "line": 577
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 540
+          "line": 597
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 551
+          "line": 608
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 566
-        },
-        {
-          "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 649
+          "line": 623
         },
         {
           "file": "apps/mobile/src/features/notifications/push.ts",
-          "line": 20
+          "line": 12
         },
         {
           "file": "apps/mobile/src/features/notifications/push.ts",
-          "line": 414
+          "line": 432
         }
       ],
       "missing": false
@@ -1730,19 +1709,19 @@
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 270
+          "line": 286
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 279
+          "line": 295
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 307
+          "line": 323
         },
         {
           "file": "apps/mobile/src/features/notifications/__tests__/push.test.ts",
-          "line": 324
+          "line": 340
         },
         {
           "file": "apps/mobile/src/features/notifications/foregroundHandler.ts",
@@ -1750,7 +1729,7 @@
         },
         {
           "file": "apps/mobile/src/features/notifications/push.ts",
-          "line": 334
+          "line": 352
         },
         {
           "file": "apps/mobile/src/sync/__tests__/queryClient.test.ts",
@@ -1778,7 +1757,7 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 348
+          "line": 352
         }
       ],
       "missing": false
@@ -2047,7 +2026,7 @@
       "locations": [
         {
           "file": "apps/api/src/messages/messages.service.ts",
-          "line": 361
+          "line": 365
         },
         {
           "file": "apps/api/test/integration/p7-07-role-mentions.spec.ts",
@@ -2122,7 +2101,7 @@
       "id": "FR-SOC-003",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "FR-SOC-004",
@@ -2254,7 +2233,7 @@
       "id": "FR-SOC-006",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "FR-SOC-007",
@@ -2441,7 +2420,7 @@
       "locations": [
         {
           "file": "apps/api/src/servers/servers.controller.ts",
-          "line": 160
+          "line": 184
         },
         {
           "file": "apps/mobile/e2e/flows/p3-04-reorder-channels.yaml",
@@ -2740,7 +2719,7 @@
       "locations": [
         {
           "file": "apps/api/src/servers/servers.controller.ts",
-          "line": 318
+          "line": 342
         },
         {
           "file": "apps/api/test/integration/fr-srv-010-announce.spec.ts",
@@ -2910,15 +2889,15 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 490
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
-          "line": 492
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 494
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 496
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 498
         }
       ],
       "missing": false
@@ -2997,14 +2976,6 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 421
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
-          "line": 423
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 425
         },
         {
@@ -3042,6 +3013,14 @@
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 443
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 445
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 447
         }
       ],
       "missing": false
@@ -3115,14 +3094,6 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 462
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
-          "line": 464
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 466
         },
         {
@@ -3136,6 +3107,14 @@
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 472
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 474
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 476
         }
       ],
       "missing": false
@@ -3182,14 +3161,6 @@
         },
         {
           "file": "apps/mobile/src/ui/strings.ts",
-          "line": 476
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
-          "line": 478
-        },
-        {
-          "file": "apps/mobile/src/ui/strings.ts",
           "line": 480
         },
         {
@@ -3207,6 +3178,14 @@
         {
           "file": "apps/mobile/src/ui/strings.ts",
           "line": 488
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 490
+        },
+        {
+          "file": "apps/mobile/src/ui/strings.ts",
+          "line": 492
         }
       ],
       "missing": false
@@ -3242,43 +3221,43 @@
       "id": "FR-VOX-060",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-01",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-02",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-03",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-04",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-05",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-06",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-07",
@@ -3299,31 +3278,31 @@
       "id": "NFR-08",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-09",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-10",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-11",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     },
     {
       "id": "NFR-12",
       "satisfied": false,
       "locations": [],
-      "missing": true
+      "missing": false
     }
   ],
   "characterizes": {

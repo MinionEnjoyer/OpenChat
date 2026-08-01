@@ -10,6 +10,7 @@ import { AppTokens } from './AppTokens';
 import { BotsManager } from './BotsManager';
 import { DomainSwitcher } from './DomainSwitcher';
 import { OpenChatSpinner } from './OpenChatSpinner';
+import packageMetadata from '../../package.json';
 
 export function SettingsModal({
   user,
@@ -308,6 +309,12 @@ export function SettingsModal({
             <button onClick={onClose}
               style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontWeight: 600 }}>Done</button>
           )}
+        </div>
+        <div
+          aria-label={`OpenChat version ${packageMetadata.version}`}
+          style={{ marginTop: 14, textAlign: 'center', color: 'var(--muted)', fontSize: 11 }}
+        >
+          OpenChat v{packageMetadata.version}
         </div>
       </div>
     </div>
