@@ -1139,7 +1139,6 @@ export default function App() {
               onClick={(e) => { e.stopPropagation(); removeChannel(activeServer!.id, c.id, c.name); }}
               style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0, marginLeft: 4 }}>✕</button>
           )}
-          {c.isDefault && <span title="Primary channel" style={{ color: 'var(--muted-2)', fontSize: 11, marginLeft: 4 }}>🔒</span>}
         </div>
         {vmembers.map((u) => (
           <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 26px' }}>

@@ -187,12 +187,9 @@ function ChannelRow({ channel, isSelected, unread, onSelect, onEdit, onDelete }:
         </View>
       )}
       <View style={styles.channelInfo}>
-        <View style={styles.channelNameRow}>
-          <Text style={[styles.channelName, unread && unread.unread > 0 && unread.mentionCount === 0 && styles.channelNameUnread]}>
-            {channel.name}
-          </Text>
-          {channel.isDefault && <MaterialIcons name="lock" size={11} color={palette.textMuted} />}
-        </View>
+        <Text style={[styles.channelName, unread && unread.unread > 0 && unread.mentionCount === 0 && styles.channelNameUnread]}>
+          {channel.name}
+        </Text>
         {isVoice && participants.length > 0 && (
           <Text style={styles.voiceParticipants}>
             {participants.map((p) => p.displayName ?? p.username).join(', ')}
@@ -246,7 +243,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingLeft: spacing.xl,
   },
-  channelNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   channelRowActive: {
     backgroundColor: palette.bgElevated,
   },
