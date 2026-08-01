@@ -121,10 +121,10 @@ export function MessageEmbeds({ content }: { content: string }) {
     }
     if (directImage(url)) {
       if (/\.mp4$/i.test(url)) {
-        embeds.push(<video key={`gif-${url}`} src={url} autoPlay loop muted playsInline style={{ maxWidth: 320, maxHeight: 320, borderRadius: 8 }} />);
+        embeds.push(<video className="message-media" key={`gif-${url}`} src={url} autoPlay loop muted playsInline style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 8 }} />);
       } else {
-        embeds.push(<SpinnerImage key={`gif-${url}`} src={url} alt="" loading="lazy" spinnerSize={28}
-          wrapperStyle={{ minWidth: 96, minHeight: 72 }} style={{ maxWidth: 320, maxHeight: 320, borderRadius: 8, display: 'block' }} />);
+        embeds.push(<SpinnerImage className="message-media" key={`gif-${url}`} src={url} alt="" loading="lazy" spinnerSize={28}
+          wrapperStyle={{ minWidth: 96, minHeight: 72, maxWidth: '100%' }} style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 8, display: 'block' }} />);
       }
       continue;
     }
@@ -135,12 +135,12 @@ export function MessageEmbeds({ content }: { content: string }) {
       if (s.kind === 'i' || s.kind === 'raw') {
         embeds.push(
           <a key={`sh-${s.id}`} href={url} target="_blank" rel="noopener noreferrer">
-            <SpinnerImage src={raw} alt="" spinnerSize={30} wrapperStyle={{ minWidth: 96, minHeight: 72 }}
-              style={{ maxWidth: 400, maxHeight: 300, borderRadius: 8, display: 'block', objectFit: 'contain' }} />
+            <SpinnerImage className="message-media" src={raw} alt="" spinnerSize={30} wrapperStyle={{ minWidth: 96, minHeight: 72, maxWidth: '100%' }}
+              style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, display: 'block', objectFit: 'contain' }} />
           </a>,
         );
       } else if (s.kind === 'v') {
-        embeds.push(<video key={`sh-${s.id}`} src={raw} controls style={{ maxWidth: 400, maxHeight: 300, borderRadius: 8 }} />);
+        embeds.push(<video className="message-media" key={`sh-${s.id}`} src={raw} controls style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8 }} />);
       } else {
         embeds.push(
           <a key={`sh-${s.id}`} href={url} target="_blank" rel="noopener noreferrer"

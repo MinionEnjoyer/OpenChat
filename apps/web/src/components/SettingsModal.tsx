@@ -144,6 +144,7 @@ export function SettingsModal({
 
   return (
     <div
+      className="modal-backdrop settings-backdrop"
       onMouseDown={(e) => { pressedOnOverlay.current = e.target === e.currentTarget; }}
       onClick={(e) => { if (e.target === e.currentTarget && pressedOnOverlay.current) onClose(); }}
       style={{
@@ -158,6 +159,7 @@ export function SettingsModal({
       }}
     >
       <div
+        className="settings-dialog"
         style={{
           background: 'var(--panel)',
           color: 'var(--text)',
@@ -177,7 +179,7 @@ export function SettingsModal({
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
+        <div className="settings-tabs" style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
           {(([['profile', '👤 Profile'], ['appearance', '🎨 Theme'], ['voice', '🎙 Voice'], ['tokens', '🔑 Tokens'], ['bots', '🤖 Bots'], ['servers', '🌐 Servers']]) as [typeof tab, string][]).map(([val, lbl]) => (
             <button key={val} onClick={() => setTab(val)}
               style={{ padding: '8px 10px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,

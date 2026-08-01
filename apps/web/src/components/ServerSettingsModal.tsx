@@ -240,6 +240,7 @@ export function ServerSettingsModal({
 
   return (
     <div
+      className="modal-backdrop server-settings-backdrop"
       onMouseDown={(e) => { pressedOnOverlay.current = e.target === e.currentTarget; }}
       onClick={(e) => { if (e.target === e.currentTarget && pressedOnOverlay.current) onClose(); }}
       style={{
@@ -248,6 +249,7 @@ export function ServerSettingsModal({
       }}
     >
       <div
+        className="server-settings-dialog"
         style={{
           background: 'var(--panel)', color: 'var(--text)', borderRadius: 10, width: '100%',
           maxWidth: 720, height: '80vh', maxHeight: 620, display: 'flex', overflow: 'hidden',
@@ -255,8 +257,8 @@ export function ServerSettingsModal({
         }}
       >
         {/* sidebar tabs */}
-        <div style={{ width: 180, background: 'var(--panel-dark)', padding: 12, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-          <div style={{ fontWeight: 700, color: 'var(--text-strong)', padding: '4px 12px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className="server-settings-tabs" style={{ width: 180, background: 'var(--panel-dark)', padding: 12, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+          <div className="server-settings-name" style={{ fontWeight: 700, color: 'var(--text-strong)', padding: '4px 12px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {server.name}
           </div>
           {tabBtn('overview', 'Overview', canServer || isOwner)}
@@ -267,8 +269,8 @@ export function ServerSettingsModal({
         </div>
 
         {/* content */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div className="server-settings-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div className="server-settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <h2 style={{ margin: 0, fontSize: 18, color: 'var(--text-strong)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: 9 }}>
               {tab}
               {busy && <OpenChatSpinner size={20} label="Updating server settings" />}
@@ -276,7 +278,7 @@ export function ServerSettingsModal({
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+          <div className="server-settings-body" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
             {error && <p style={{ color: 'var(--danger)', marginTop: 0 }}>{error}</p>}
 
             {tab === 'bots' && <AddBotBrowser serverId={server.id} label={sectionLabel} />}
@@ -367,8 +369,8 @@ export function ServerSettingsModal({
             )}
 
             {tab === 'roles' && (
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ width: 180, flexShrink: 0 }}>
+              <div className="server-role-layout" style={{ display: 'flex', gap: 16 }}>
+                <div className="server-role-list" style={{ width: 180, flexShrink: 0 }}>
                   <button style={{ ...primaryBtn, width: '100%', marginBottom: 10 }} onClick={newRole} disabled={busy}>+ New Role</button>
                   {roles.map((r) => (
                     <div key={r.id} onClick={() => selectRole(r)}

@@ -1350,7 +1350,7 @@ export default function App() {
       <div className={'app-shell' + (navOpen ? ' nav-open' : '')} onClick={() => navOpen && setNavOpen(false)}>
       <div className="sidebars" onClick={(e) => e.stopPropagation()}>
         {/* server rail */}
-        <div style={{ width: 64, background: 'var(--panel-dark)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, paddingBottom: 12, overflowY: 'auto' }}>
+        <div className="server-rail" style={{ width: 64, background: 'var(--panel-dark)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 12, paddingBottom: 12, overflowY: 'auto' }}>
           <button onClick={goHome} title="Home / Friends" style={{ ...railBtn(homeView), overflow: 'hidden', padding: 0 }}>
             <img src="/logo.png" alt="Home" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6, boxSizing: 'border-box', display: 'block' }} />
           </button>
@@ -1367,7 +1367,7 @@ export default function App() {
         </div>
 
         {/* channel / DM list */}
-        <div style={{ width: 240, background: 'var(--panel)', display: 'flex', flexDirection: 'column' }}>
+        <div className="channel-sidebar" style={{ width: 240, background: 'var(--panel)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ height: 48, padding: '0 12px', fontWeight: 'bold', borderBottom: '1px solid var(--border)', color: 'var(--text-strong)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {homeView ? 'Home' : activeServer?.name ?? 'No server'}
@@ -1454,12 +1454,12 @@ export default function App() {
 
       {/* main view */}
       <div className="main-view">
-        <div style={{ height: 48, padding: '0 16px', borderBottom: '1px solid var(--border)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-strong)' }}>
-          <button className="mobile-only" onClick={() => setNavOpen((v) => !v)}
+        <div className="app-header" style={{ height: 48, padding: '0 16px', borderBottom: '1px solid var(--border)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-strong)' }}>
+          <button className="mobile-only mobile-nav-button" onClick={() => setNavOpen((v) => !v)}
             style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: 20, cursor: 'pointer' }}>☰</button>
-          {!showFriends && <span>{homeView ? '@' : '#'} {headerTitle}</span>}
-          {showFriends && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="friends" size={20} /> Friends</span>}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {!showFriends && <span className="app-header-title">{homeView ? '@' : '#'} {headerTitle}</span>}
+          {showFriends && <span className="app-header-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="friends" size={20} /> Friends</span>}
+          <div className="app-header-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             {dmChannel && voice.channelId !== dmChannel.id && (
               <button title="Start voice call" onClick={() => startCall(dmChannel.id)}
                 style={{ background: 'none', border: 'none', color: 'var(--success)', cursor: 'pointer', fontSize: 17 }}>📞</button>
@@ -1576,7 +1576,7 @@ export default function App() {
         ) : s.activeChannelId ? (
           <>
             {dmChannel && voice.channelId === dmChannel.id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: 'var(--panel-dark)', borderBottom: '1px solid var(--border)' }}>
+              <div className="dm-call-banner" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: 'var(--panel-dark)', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>📞 In call</span>
                 <div style={{ display: 'flex', gap: 8, flex: 1, minWidth: 0, overflowX: 'auto' }}>
                   {voice.participants.map((sp) => {
@@ -1631,7 +1631,7 @@ export default function App() {
               onPollVote={handlePollVote}
               onOpenReactionPicker={handleOpenReactionPicker}
             />
-            {typingText && <div style={{ padding: '0 16px 2px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', height: 16 }}>{typingText}</div>}
+            {typingText && <div className="typing-indicator" style={{ padding: '0 16px 2px', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', height: 16 }}>{typingText}</div>}
             <Composer channelId={s.activeChannelId} shareBaseUrl={s.shareBaseUrl} wsRef={wsRef} title={headerTitle}
               me={s.user} replyingTo={replyingTo} onClearReply={() => setReplyingTo(null)} mentionCandidates={mentionCandidates}
               serverId={s.activeServerId} canManageStickers={canManageChannels} />
@@ -1957,7 +1957,7 @@ function Composer({
   }, [shareBaseUrl]);
 
   return (
-    <div style={{ padding: 16, position: 'relative' }}>
+    <div className="composer-shell" style={{ padding: 16, position: 'relative' }}>
       {(dropActive || dropUploading) && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 350, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <div style={{ border: '2px dashed var(--accent)', borderRadius: 16, padding: '36px 56px', background: 'var(--panel)', color: 'var(--text-strong)', fontSize: 18, fontWeight: 600, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
@@ -1984,7 +1984,7 @@ function Composer({
       )}
 
       {mention && mentionMatches.length > 0 && (
-        <div style={{ position: 'absolute', bottom: 'calc(100% - 8px)', left: 16, right: 16, maxWidth: 320, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 -4px 16px rgba(0,0,0,0.3)', overflow: 'hidden', zIndex: 40 }}>
+        <div className="mention-menu" style={{ position: 'absolute', bottom: 'calc(100% - 8px)', left: 16, right: 16, maxWidth: 320, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 -4px 16px rgba(0,0,0,0.3)', overflow: 'hidden', zIndex: 40 }}>
           {mentionMatches.map((c, i) => (
             <div key={c.id} onMouseDown={(e) => { e.preventDefault(); insertMention(c); }}
               onMouseEnter={() => setMentionIndex(i)}
@@ -1997,7 +1997,7 @@ function Composer({
         </div>
       )}
 
-      <div style={{ background: 'var(--input-bg)', borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="composer-box" style={{ background: 'var(--input-bg)', borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
         <input ref={inputRef} value={text}
           onChange={(e) => { setText(e.target.value); notifyTyping(); updateMention(e.target.value, e.target.selectionStart ?? e.target.value.length); }}
           onClick={(e) => updateMention(text, (e.target as HTMLInputElement).selectionStart ?? text.length)}
@@ -2013,12 +2013,13 @@ function Composer({
           }}
           placeholder={`Message ${title ?? ''}`}
           enterKeyHint="send"
+          className="composer-input"
           style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', color: 'var(--text)', outline: 'none', fontSize: 15 }} />
         <ChatOptionsTray shareBaseUrl={shareBaseUrl} serverId={serverId} active={!!activeTool}
           onUploaded={(attachments) => setPending((current) => [...current, ...attachments])}
           onCreatePoll={() => { closeTool(); setPollOpen(true); }}
           onOpenTool={openTool} />
-        <button title="Send" onClick={send} disabled={!text.trim() && pending.length === 0}
+        <button className="composer-send" title="Send" onClick={send} disabled={!text.trim() && pending.length === 0}
           style={{ background: (text.trim() || pending.length) ? 'var(--accent)' : 'var(--panel)', border: 'none', borderRadius: 6, cursor: (text.trim() || pending.length) ? 'pointer' : 'default',
             color: (text.trim() || pending.length) ? 'var(--accent-text)' : 'var(--muted-2)', flexShrink: 0, padding: '6px 10px', fontSize: 15, lineHeight: 1 }}>
           ➤

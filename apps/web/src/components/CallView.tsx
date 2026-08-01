@@ -244,7 +244,7 @@ export function CallView({
   );
 
   const screensGrid = (
-    <div style={{ width: '100%', minHeight: 0, flex: theater ? 1 : undefined, display: 'grid', gridTemplateColumns: screens.length > 1 ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: 12, alignContent: 'center' }}>
+    <div className="call-screens-grid" style={{ width: '100%', minHeight: 0, flex: theater ? 1 : undefined, display: 'grid', gridTemplateColumns: screens.length > 1 ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr', gap: 12, alignContent: 'center' }}>
       {screens.map((sh) => (
         !sh.isMe && hidden.has(sh.id)
           ? <HiddenScreen key={sh.id} share={sh} onShow={() => toggleHidden(sh.id)} />
@@ -258,7 +258,7 @@ export function CallView({
   );
 
   const controls = (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+    <div className="call-controls" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
       <button onClick={onToggleMute} style={{ ...btn, background: muted ? 'var(--danger)' : 'var(--input-bg)', color: muted ? '#fff' : 'var(--text)' }}>
         <Icon name={muted ? 'mute' : 'unmute'} size={17} /> {muted ? 'Unmute' : 'Mute'}
       </button>
@@ -290,12 +290,12 @@ export function CallView({
   );
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div className="call-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {party && (
         <WatchPartyPlayer party={party} isHost={party.hostId === meId} viewers={participants.map((p) => p.name)} onState={onWatchState} onStop={onStopWatch} />
       )}
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: theater ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', alignItems: theater ? 'stretch' : 'center', justifyContent: theater ? 'flex-start' : 'center', padding: theater ? 16 : 24, gap: theater ? 14 : 20 }}>
+      <div className="call-view-content" style={{ flex: 1, minHeight: 0, overflowY: theater ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', alignItems: theater ? 'stretch' : 'center', justifyContent: theater ? 'flex-start' : 'center', padding: theater ? 16 : 24, gap: theater ? 14 : 20 }}>
         <div style={{ fontSize: theater ? 16 : 22, fontWeight: 700, color: 'var(--text-strong)', textAlign: 'center', flexShrink: 0 }}>🔊 {channelName}</div>
 
         {connected ? (

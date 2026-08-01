@@ -197,14 +197,14 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
   };
 
   return (
-    <div style={styles.container}>
+    <div className="friends-view" style={styles.container}>
       
       {/* Add Friend Section */}
-      <div style={styles.section}>
+      <div className="friends-section" style={styles.section}>
         <h2 style={styles.header}>Add Friend</h2>
 
         <label style={{ ...styles.mutedText, display: 'block', marginBottom: 6 }}>By username</label>
-        <div style={{ display: 'flex', marginBottom: 14 }}>
+        <div className="friends-form-row" style={{ display: 'flex', marginBottom: 14 }}>
           <input
             type="text"
             placeholder="Username"
@@ -217,7 +217,7 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
         </div>
 
         <label style={{ ...styles.mutedText, display: 'block', marginBottom: 6 }}>By friend code</label>
-        <div style={{ display: 'flex' }}>
+        <div className="friends-form-row" style={{ display: 'flex' }}>
           <input
             type="text"
             inputMode="numeric"
@@ -247,7 +247,7 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
       </div>
 
       {/* Pending Requests Section */}
-      <div style={styles.section}>
+      <div className="friends-section" style={styles.section}>
         <h2 style={styles.header}>Friend Requests</h2>
         
         {/* Incoming */}
@@ -256,9 +256,9 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
           <p style={styles.mutedText}>No incoming requests.</p>
         ) : (
           requests.incoming.map(req => (
-            <div key={req.id} style={styles.row}>
+            <div className="friend-row" key={req.id} style={styles.row}>
               <span>{req.user.username}</span>
-              <div>
+              <div className="friend-row-actions">
                 <button onClick={() => handleAccept(req.id)} style={{ ...styles.button, marginRight: '5px', backgroundColor: 'var(--success)' }}>Accept</button>
                 <button onClick={() => handleDecline(req.id)} style={styles.dangerButton}>Decline</button>
               </div>
@@ -272,7 +272,7 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
           <p style={styles.mutedText}>No outgoing requests.</p>
         ) : (
           requests.outgoing.map(req => (
-            <div key={req.id} style={styles.row}>
+            <div className="friend-row" key={req.id} style={styles.row}>
               <span>{req.user.username}</span>
               <span style={{ ...styles.mutedText, fontStyle: 'italic' }}>Pending</span>
             </div>
@@ -281,13 +281,14 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
       </div>
 
       {/* Friends Section — click a friend to open the chat with them */}
-      <div style={styles.section}>
+      <div className="friends-section" style={styles.section}>
         <h2 style={styles.header}>Friends — {onlineCount}/{friends.length} online</h2>
         {friends.length === 0 ? (
           <p style={styles.mutedText}>No friends yet. Add someone above to start chatting.</p>
         ) : (
           sortedFriends.map(({ friend, status, online }) => (
             <div
+              className="friend-row"
               key={friend.id}
               style={{ ...styles.row, cursor: 'pointer', opacity: online ? 1 : 0.55 }}
               onClick={() => handleOpenDm(friend)}
@@ -304,7 +305,7 @@ export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: Use
                   <div style={styles.mutedText}>@{friend.username}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+              <div className="friend-row-actions" style={{ display: 'flex', gap: 6 }} onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => handleBlock(friend.id)} style={{ ...styles.button, backgroundColor: 'var(--panel-dark)', color: 'var(--muted)' }}>Block</button>
                 <button onClick={() => handleRemoveFriend(friend.id)} style={styles.dangerButton}>Remove</button>
               </div>

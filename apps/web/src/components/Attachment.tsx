@@ -41,13 +41,14 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
     return (
       <>
         <SpinnerImage
+          className="message-media"
           src={assetUrl}
           alt={filename}
           loading="lazy"
           spinnerSize={32}
           wrapperStyle={{ maxWidth: '400px', minWidth: 96, minHeight: 72 }}
           onClick={() => setZoomed(true)}
-          style={{ maxWidth: '400px', maxHeight: '300px', objectFit: 'contain', cursor: 'zoom-in', borderRadius: 4 }}
+          style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain', cursor: 'zoom-in', borderRadius: 4 }}
         />
         {zoomed && <Lightbox src={assetUrl} mimeType={mimeType} filename={filename} onClose={() => setZoomed(false)} />}
       </>
@@ -57,8 +58,8 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
   if (mimeType.startsWith('video/')) {
     return (
       <>
-        <div style={{ position: 'relative', display: 'inline-block', maxWidth: '400px' }}>
-          <video controls src={assetUrl} style={{ maxWidth: '400px', maxHeight: '300px', display: 'block', borderRadius: 4 }}>
+        <div className="message-media-wrap" style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
+          <video className="message-media" controls src={assetUrl} style={{ maxWidth: '100%', maxHeight: '300px', display: 'block', borderRadius: 4 }}>
             Your browser does not support the video tag.
           </video>
           <button
@@ -96,7 +97,7 @@ export const Attachment: React.FC<{ attachment: AttachmentModel; shareBaseUrl: s
         borderRadius: '4px',
         textDecoration: 'none',
         color: 'inherit',
-        maxWidth: '300px'
+        maxWidth: '100%'
       }}
     >
       {assetThumbnailUrl ? (

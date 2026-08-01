@@ -1,4 +1,8 @@
 :root, .theme-dark {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   color-scheme: dark;
   --bg: #36393f;
   --panel: #2f3136;
@@ -196,6 +200,16 @@ button:disabled { cursor: default; }
 .app-shell { display: flex; height: 100%; width: 100%; overflow: hidden; position: relative; }
 .sidebars { display: flex; height: 100%; flex-shrink: 0; }
 .main-view { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.app-header { flex: 0 0 auto; min-width: 0; }
+.app-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-header-actions { flex: 0 0 auto; }
+.message-media-wrap,
+.message-media { max-width: 100%; }
 
 /* Skip layout/paint for off-screen messages — big scroll win on long lists / mobile.
    The intrinsic-size hint keeps the scrollbar stable before a row is rendered. */
@@ -211,6 +225,7 @@ button:disabled { cursor: default; }
   .msg-del { display: none !important; }
   .msg-actions-trigger { display: inline-flex !important; }
   .msg-scroll { padding: 10px 8px !important; }
+  button, [role='button'], [role='menuitem'] { touch-action: manipulation; }
 }
 
 /* jump-to-message highlight (when opening a pinned message) */
@@ -295,6 +310,13 @@ button:disabled { cursor: default; }
   max-height: calc(100dvh - 24px);
 }
 
+.modal-backdrop {
+  padding-top: max(16px, var(--safe-top)) !important;
+  padding-right: max(16px, var(--safe-right)) !important;
+  padding-bottom: max(16px, var(--safe-bottom)) !important;
+  padding-left: max(16px, var(--safe-left)) !important;
+}
+
 /* incoming call prompt: gentle attention pulse */
 @keyframes callPulse { 0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.5); } 50% { box-shadow: 0 8px 32px rgba(67,181,129,0.55); } }
 .call-pop { animation: callPulse 1.6s ease-in-out infinite; }
@@ -314,9 +336,22 @@ button:disabled { cursor: default; }
   .mobile-only { display: inline-flex; }
   .sidebars {
     position: absolute; left: 0; top: 0; bottom: 0; z-index: 20;
+    width: min(304px, calc(100vw - 44px));
+    max-width: calc(100vw - 44px);
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+  }
+  .server-rail {
+    width: 60px !important;
+    padding-top: max(10px, var(--safe-top)) !important;
+    padding-bottom: max(10px, var(--safe-bottom)) !important;
+  }
+  .channel-sidebar {
+    width: calc(100% - 60px) !important;
+    min-width: 0;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
   }
   .app-shell.nav-open .sidebars { transform: translateX(0); }
   .app-shell.nav-open::after {
@@ -324,4 +359,131 @@ button:disabled { cursor: default; }
     position: absolute; inset: 0; z-index: 10;
     background: rgba(0, 0, 0, 0.5);
   }
+
+  .app-header {
+    min-height: 52px;
+    height: auto !important;
+    gap: 4px !important;
+    padding: max(4px, var(--safe-top)) max(6px, var(--safe-right)) 4px max(6px, var(--safe-left)) !important;
+  }
+  .mobile-nav-button,
+  .app-header-actions > button,
+  .app-header-actions > div > button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .app-header-title { flex: 1 1 auto; font-size: 14px; }
+  .app-header-actions { margin-left: 0 !important; gap: 0 !important; }
+
+  .composer-shell {
+    padding: 8px max(8px, var(--safe-right)) max(8px, var(--safe-bottom)) max(8px, var(--safe-left)) !important;
+  }
+  .composer-box { min-height: 48px; gap: 4px !important; padding: 4px 6px !important; }
+  .composer-input { min-height: 40px; font-size: 16px !important; }
+  .composer-send,
+  .chat-options-trigger {
+    width: 40px !important;
+    min-width: 40px;
+    height: 40px !important;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mention-menu { left: 8px !important; right: 8px !important; max-width: none !important; }
+  .typing-indicator { padding-left: max(8px, var(--safe-left)) !important; }
+
+  .chat-options-menu {
+    right: 0;
+    min-width: min(240px, calc(100vw - 32px));
+  }
+  .chat-options-item { min-height: 44px; font-size: 15px; }
+  .chat-option-dialog {
+    width: calc(100vw - max(16px, var(--safe-left)) - max(16px, var(--safe-right))) !important;
+    max-width: 420px !important;
+    max-height: calc(100dvh - max(16px, var(--safe-top)) - max(16px, var(--safe-bottom))) !important;
+  }
+  em-emoji-picker { width: 100%; max-width: 100%; height: 100%; }
+
+  .settings-dialog {
+    max-width: none !important;
+    max-height: calc(100dvh - max(16px, var(--safe-top)) - max(16px, var(--safe-bottom))) !important;
+    padding: 16px !important;
+  }
+  .settings-tabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin-right: -16px;
+    margin-left: -16px;
+    padding: 0 16px;
+  }
+  .settings-tabs::-webkit-scrollbar { display: none; }
+  .settings-tabs > button { min-height: 44px; flex: 0 0 auto; }
+
+  .server-settings-dialog {
+    height: calc(100dvh - max(16px, var(--safe-top)) - max(16px, var(--safe-bottom))) !important;
+    max-height: none !important;
+    max-width: none !important;
+    flex-direction: column;
+  }
+  .server-settings-tabs {
+    width: 100% !important;
+    flex-direction: row !important;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding: 6px !important;
+  }
+  .server-settings-tabs::-webkit-scrollbar { display: none; }
+  .server-settings-tabs > button { min-height: 42px; flex: 0 0 auto; }
+  .server-settings-name { display: none; }
+  .server-settings-content { min-height: 0; }
+  .server-settings-header { padding: 10px 14px !important; }
+  .server-settings-body { padding: 14px !important; }
+  .server-role-layout { flex-direction: column; }
+  .server-role-list { width: 100% !important; }
+
+  .friends-view { padding: 10px !important; }
+  .friends-section { padding: 12px !important; margin-bottom: 12px !important; }
+  .friends-form-row { gap: 8px; }
+  .friends-form-row input { min-width: 0; margin-right: 0 !important; }
+  .friend-row { gap: 10px; min-width: 0; }
+  .friend-row-actions { flex: 0 0 auto; }
+
+  .dm-call-banner {
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    overflow-x: auto;
+  }
+  .dm-call-banner > button { min-height: 40px; padding: 6px 10px !important; }
+  .call-view-content { padding: 10px !important; gap: 10px !important; }
+  .call-screens-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  .call-controls { gap: 8px !important; width: 100%; }
+  .call-controls > button { min-height: 44px; flex: 1 1 140px; justify-content: center; }
+
+  .call-pop {
+    left: max(10px, var(--safe-left)) !important;
+    right: max(10px, var(--safe-right)) !important;
+    bottom: max(10px, var(--safe-bottom)) !important;
+    width: auto !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .friends-form-row { flex-direction: column; }
+  .friends-form-row > button { min-height: 44px; width: 100%; }
+  .friend-row { align-items: flex-start !important; flex-wrap: wrap; }
+  .friend-row-actions { width: 100%; display: flex; gap: 8px; }
+  .friend-row-actions > button { min-height: 42px; flex: 1; margin-right: 0 !important; }
+}
+
+@media (max-width: 380px) {
+  .app-header-actions > button,
+  .app-header-actions > div > button { width: 36px; min-width: 36px; }
+  .app-header-title { font-size: 13px; }
 }
