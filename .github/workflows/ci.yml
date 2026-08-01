@@ -245,6 +245,10 @@ jobs:
         working-directory: apps/api
         run: npx prisma generate
 
+      - name: Build API for subprocess contract guards
+        working-directory: apps/api
+        run: npm run build
+
       - name: Prepare dev stack configuration
         run: cp .env.dev.example .env.dev
 
@@ -263,6 +267,7 @@ jobs:
         env:
           NODE_ENV: development
           WEB_ORIGIN: http://localhost:3000
+          CHAR_SKIP_OPENSHARE: '1'
           CHAR_CONFIG: jest-char.config.js
           CONTRACT_CONFIG: jest-contract.config.js
 

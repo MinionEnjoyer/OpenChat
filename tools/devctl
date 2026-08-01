@@ -885,7 +885,7 @@ cmd_selftest() {
   # ── Trace: delete an existing @satisfies annotation, assert trace check fails ──
   # Find a file with @satisfies; if none exist yet (Phase 0), this layer is untestable
   local trace_test=""
-  trace_test=$(grep -rl '@satisfies' "$ROOT" --include='*.ts' --include='*.mjs' --include='*.js' --include='*.md' 2>/dev/null | grep -v node_modules | grep -v '.git/' | head -n1)
+  trace_test=$(grep -rl '@satisfies' "$ROOT" --include='*.ts' --include='*.mjs' --include='*.js' --include='*.md' 2>/dev/null | grep -v node_modules | grep -v '.git/' | head -n1 || true)
   if [ -n "$trace_test" ]; then
     cp "$trace_test" "$trace_test.selftest-bak"
     # Remove the first @satisfies line
