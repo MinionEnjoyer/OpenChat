@@ -38,6 +38,7 @@ import { notifyNative } from './lib/notify';
 import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
 import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScrollPosition } from './lib/channelScroll';
+import { activateServerChannels } from './lib/channelNavigation';
 
 const SettingsModal = lazy(() =>
   import('./components/SettingsModal').then((module) => ({ default: module.SettingsModal })),
@@ -286,9 +287,7 @@ export default function App() {
         // Restore the last-viewed location so a refresh doesn't dump the user back Home.
         const saved = loadView();
         if (saved?.type === 'channel' && servers.some((sv) => sv.id === saved.serverId)) {
-          await selectServer(saved.serverId);
-          const chans = useStore.getState().channelsByServer[saved.serverId] || [];
-          if (chans.some((c) => c.id === saved.channelId)) selectChannel(saved.channelId);
+          await selectServer(saved.serverId, saved.channelId);
         } else if (saved?.type === 'dm' && dms.some((d) => d.id === saved.channelId)) {
           const dm = dms.find((d) => d.id === saved.channelId)!;
           const title = dm.recipients.filter((u) => u.id !== user.id).map((u) => u.displayName || u.username).join(', ') || 'Direct Message';
@@ -318,7 +317,7 @@ export default function App() {
       if (!target?.channelId) return;
       const st = useStore.getState();
       if (target.serverId) {
-        selectServer(target.serverId).then(() => selectChannel(target.channelId!)).catch(() => {});
+        selectServer(target.serverId, target.channelId).catch(() => {});
       } else {
         const dm = st.dms.find((d) => d.id === target.channelId);
         const title = dm
@@ -703,15 +702,16 @@ export default function App() {
     saveView({ type: 'friends' });
   }
 
-  async function selectServer(serverId: string) {
+  async function selectServer(serverId: string, requestedChannelId?: string) {
     setHomeView(false);
     useStore.getState().set({ activeServerId: serverId });
-    const channels = await api.listChannels(serverId);
-    useStore.getState().setChannels(serverId, channels);
-    // subscribe to every channel in this server so unread counts track background channels too
-    for (const c of channels) wsSubscribe(c.id);
-    const first = channels.find((c) => c.type === 'TEXT') || channels[0];
-    if (first) selectChannel(first.id);
+    await activateServerChannels(serverId, requestedChannelId, {
+      listChannels: api.listChannels,
+      setChannels: (id, channels) => useStore.getState().setChannels(id, channels),
+      // Subscribe to every channel so unread counts track background channels too.
+      subscribe: wsSubscribe,
+      selectChannel,
+    });
     // load the member list for the right-hand online panel
     api.listMembers(serverId)
       .then((members) => useStore.getState().set({ membersByServer: { ...useStore.getState().membersByServer, [serverId]: members } }))
