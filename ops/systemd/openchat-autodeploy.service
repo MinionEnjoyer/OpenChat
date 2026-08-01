@@ -1,0 +1,29 @@
+[Unit]
+Description=Deploy CI-passed OpenChat main to production
+Documentation=https://github.com/MinionEnjoyer/OpenChat/blob/main/docs/DEPLOY.md
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+EnvironmentFile=/etc/openchat/deploy.conf
+Environment=DOCKER_CONFIG=/opt/openchat-deployer/docker-config
+ExecStart=/usr/local/sbin/openchat-autodeploy
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/openchat-deployer /opt/chat-releases /opt/chat/backups /run
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictRealtime=true
+LockPersonality=true
+TimeoutStartSec=45min
+
+[Install]
+WantedBy=multi-user.target

@@ -124,19 +124,64 @@ To roll back, check out a previous commit on the server and re-run `deploy.sh`:
 git checkout <good-commit-sha> && ./scripts/deploy.sh
 ```
 
-## E. Optional — auto-deploy on push
+## E. Optional — CI-gated auto-deploy
 
-If you want a `git push` to go live with no manual step, run a tiny poller on the server (cron
-every minute) that deploys only when the remote advanced:
+The systemd scaffold in `ops/systemd/` polls every five minutes. It deploys a new `main` SHA only
+when the GitHub Actions workflow named `CI` has completed successfully for that exact SHA. It uses
+a separate HTTPS mirror and immutable release directories, so it never pulls into the active or a
+dirty checkout.
+
+On the server, install the protected runtime configuration once:
 
 ```bash
-# /opt/chat/scripts/auto-deploy.sh  (cron: * * * * * /opt/chat/scripts/auto-deploy.sh)
-cd /opt/chat
-git fetch origin main --quiet
-[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || ./scripts/deploy.sh
+sudo install -d -m 0750 /etc/openchat /opt/openchat-deployer /opt/chat-releases
+sudo install -m 0640 /opt/chat/.env /etc/openchat/.env
+sudo install -m 0640 /opt/chat/livekit.yaml /etc/openchat/livekit.yaml
+sudo install -m 0640 ops/systemd/deploy.conf.example /etc/openchat/deploy.conf
 ```
 
-Keep it manual until you trust the pipeline — an auto-deploy will happily ship a broken build.
+Review `/etc/openchat/deploy.conf`, particularly the repository, health URLs, and paths. Then
+create the stable public pointer. The deployer only writes the inner pointer under its narrowly
+writable release directory; `/opt/chat-current` itself never needs to be writable by the service:
+
+```bash
+sudo ln -sfn "$(readlink -f /opt/chat-current)" /opt/chat-releases/current
+sudo ln -sfn /opt/chat-releases/current /opt/chat-current
+```
+
+Then install the script and units:
+
+```bash
+sudo install -m 0755 ops/systemd/openchat-autodeploy.sh /usr/local/sbin/openchat-autodeploy
+sudo install -m 0644 ops/systemd/openchat-autodeploy.service /etc/systemd/system/
+sudo install -m 0644 ops/systemd/openchat-autodeploy.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now openchat-autodeploy.timer
+```
+
+The safe check mode resolves `main`, checks the exact workflow result, and reports whether it would
+deploy without changing containers or files:
+
+```bash
+sudo systemctl stop openchat-autodeploy.timer
+sudo bash -c 'set -a; . /etc/openchat/deploy.conf; exec /usr/local/sbin/openchat-autodeploy --check'
+sudo systemctl start openchat-autodeploy.timer
+```
+
+For normal operation and diagnostics:
+
+```bash
+systemctl list-timers openchat-autodeploy.timer
+sudo systemctl start openchat-autodeploy.service
+sudo journalctl -u openchat-autodeploy.service --since today
+```
+
+Before changing containers, the deployer creates a validated custom-format PostgreSQL backup in
+`/opt/chat/backups`. It requires API/database/Redis health, a 200 web response, and all five
+containers before atomically changing the inner `/opt/chat-releases/current` pointer. The stable
+`/opt/chat-current` link resolves through it. On failure the deployer keeps the active pointer
+and database backup, and attempts to restore the prior application Compose definition. It never
+deletes volumes, releases, images, or backups.
 
 ## What survives a deploy
 

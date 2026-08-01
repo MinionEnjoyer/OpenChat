@@ -1,0 +1,13 @@
+# Copy to /etc/openchat/deploy.conf and adjust for the deployment.
+OPENCHAT_REPO_URL=https://github.com/MinionEnjoyer/OpenChat.git
+OPENCHAT_GITHUB_REPOSITORY=MinionEnjoyer/OpenChat
+OPENCHAT_BRANCH=main
+OPENCHAT_WORKFLOW_NAME=CI
+OPENCHAT_DEPLOY_ROOT=/opt/openchat-deployer
+OPENCHAT_RELEASES_DIR=/opt/chat-releases
+OPENCHAT_CONFIG_DIR=/etc/openchat
+OPENCHAT_BACKUP_DIR=/opt/chat/backups
+OPENCHAT_CURRENT_LINK=/opt/chat-releases/current
+OPENCHAT_COMPOSE_PROJECT=chat
+OPENCHAT_HEALTH_URL=http://127.0.0.1:8810/api/health
+OPENCHAT_WEB_URL=http://127.0.0.1:8810/
