@@ -1,7 +1,8 @@
-import { ConfigService } from '@nestjs/config';
+import type { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { FederationService } from './federation.service';
-import { FederationEnvelope, signFederationEnvelope } from './federation.types';
+import { signFederationEnvelope } from './federation.types';
+import type { FederationEnvelope } from './federation.types';
 
 function enabledConfig(): ConfigService {
   const values: Record<string, string> = {

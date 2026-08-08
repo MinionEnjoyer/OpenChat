@@ -1,6 +1,7 @@
 import {
-  canonicalJson, FederationEnvelope, signFederationEnvelope, signaturesMatch,
+  canonicalJson, signFederationEnvelope, signaturesMatch,
 } from './federation.types';
+import type { FederationEnvelope } from './federation.types';
 
 const envelope: FederationEnvelope = {
   id: '6c02a6be-c63f-447a-8eca-4793690937bd',
