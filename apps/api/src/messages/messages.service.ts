@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -8,6 +8,7 @@ import { Permission, hasPermission, ALL_PERMISSIONS } from '../permissions/permi
 import { z } from 'zod';
 import { MessageKind } from '@prisma/client';
 import { CreateMessageSchema, EditMessageSchema } from './message.schemas';
+import { FederationService } from '../federation/federation.service';
 
 function contentPreview(content: string, maxLength = 80): string {
   if (content.trim().startsWith('sticker::')) return 'Sticker';
@@ -81,6 +82,7 @@ export class MessagesService {
     private readonly auditLog: AuditLogService,
     private readonly servers: ServersService,
     private readonly presence: PresenceService,
+    @Optional() private readonly federation?: FederationService,
   ) {}
 
   private readonly logger = new Logger(MessagesService.name);
@@ -283,6 +285,9 @@ export class MessagesService {
     // Publish serialized event to Redis for cross-instance fan-out
     const dto = this.serializeMessage(message);
     await this.redis.publish('chat:events', { type: 'MESSAGE_CREATED', message: dto, nonce: data.nonce });
+    this.federation?.recordLocalEvent('MESSAGE_CREATED', dto.id, dto as unknown as Record<string, unknown>).catch((err) => {
+      this.logger.error('federation message create enqueue failed', err);
+    });
 
     const authorName = message.author.displayName || message.author.username || 'Someone';
     const content = validated.content;
@@ -555,6 +560,9 @@ export class MessagesService {
 
     const dto = this.serializeMessage(updated);
     await this.redis.publish('chat:events', { type: 'MESSAGE_UPDATED', message: dto });
+    this.federation?.recordLocalEvent('MESSAGE_UPDATED', dto.id, dto as unknown as Record<string, unknown>).catch((err) => {
+      this.logger.error('federation message update enqueue failed', err);
+    });
 
     return dto;
   }
@@ -620,6 +628,7 @@ export class MessagesService {
       select: {
         id: true,
         channelId: true,
+        deletedAt: true,
       },
     });
 
@@ -627,6 +636,13 @@ export class MessagesService {
       type: 'MESSAGE_DELETED',
       id: deleted.id,
       channelId: deleted.channelId,
+    });
+    this.federation?.recordLocalEvent('MESSAGE_DELETED', deleted.id, {
+      id: deleted.id,
+      channelId: deleted.channelId,
+      deletedAt: deleted.deletedAt?.toISOString(),
+    }).catch((err) => {
+      this.logger.error('federation message delete enqueue failed', err);
     });
 
     return deleted;

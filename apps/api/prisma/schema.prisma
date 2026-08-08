@@ -289,6 +289,38 @@ model Message {
   @@index([channelId, createdAt])
 }
 
+model FederationEvent {
+  id           String   @id
+  originNodeId String
+  eventType    String
+  aggregateId  String
+  payload      Json
+  occurredAt   DateTime
+  receivedAt   DateTime @default(now())
+  appliedAt    DateTime?
+  applyError   String?
+
+  deliveries FederationDelivery[]
+
+  @@index([originNodeId, occurredAt])
+  @@index([eventType, aggregateId])
+}
+
+model FederationDelivery {
+  id            String   @id @default(uuid())
+  eventId       String
+  peerNodeId    String
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  deliveredAt   DateTime?
+  lastError     String?
+
+  event FederationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, peerNodeId])
+  @@index([deliveredAt, nextAttemptAt])
+}
+
 enum MessageKind {
   USER
   MEMBER_JOINED

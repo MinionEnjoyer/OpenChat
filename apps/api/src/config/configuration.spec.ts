@@ -81,3 +81,36 @@ describe('Schema rejects completely unknown keys', () => {
     expect(env.NATIVE_REDIRECT_URI).toBe('openchat://auth');
   });
 });
+
+describe('trusted mirror cluster configuration', () => {
+  it('is disabled without requiring cluster secrets', () => {
+    expect(validateEnv(minValid()).FEDERATION_ENABLED).toBe('0');
+  });
+
+  it('accepts a complete HTTPS peer mesh', () => {
+    const env = validateEnv({
+      ...minValid(),
+      FEDERATION_ENABLED: '1',
+      FEDERATION_NODE_ID: 'west',
+      FEDERATION_SHARED_SECRET: 'a'.repeat(32),
+      FEDERATION_PEERS: JSON.stringify([{ id: 'east', url: 'https://east.chat.example.com' }]),
+    });
+    expect(env.FEDERATION_NODE_ID).toBe('west');
+  });
+
+  it.each([
+    { FEDERATION_NODE_ID: undefined, label: 'missing node identity' },
+    { FEDERATION_SHARED_SECRET: 'short', label: 'short secret' },
+    { FEDERATION_PEERS: JSON.stringify([{ id: 'east', url: 'http://east.local' }]), label: 'non-HTTPS peer' },
+    { FEDERATION_PEERS: JSON.stringify([{ id: 'west', url: 'https://west.example.com' }]), label: 'self peer' },
+  ])('rejects $label', (change) => {
+    expect(() => validateEnv({
+      ...minValid(),
+      FEDERATION_ENABLED: '1',
+      FEDERATION_NODE_ID: 'west',
+      FEDERATION_SHARED_SECRET: 'a'.repeat(32),
+      FEDERATION_PEERS: JSON.stringify([{ id: 'east', url: 'https://east.example.com' }]),
+      ...change,
+    })).toThrow('Invalid environment configuration');
+  });
+});

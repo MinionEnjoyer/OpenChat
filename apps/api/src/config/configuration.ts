@@ -48,6 +48,11 @@ const envSchema = z.object({
   FCM_SERVICE_ACCOUNT: z.string().optional(),
   JWT_SECRET: z.string().min(1),
   ENABLE_API_DOCS: z.enum(['0', '1']).optional().default('0'),
+  // Trusted, operator-managed active-active mirror cluster. Disabled by default.
+  FEDERATION_ENABLED: z.enum(['0', '1']).optional().default('0'),
+  FEDERATION_NODE_ID: z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/).optional(),
+  FEDERATION_SHARED_SECRET: z.string().min(32).optional(),
+  FEDERATION_PEERS: z.string().optional(),
 }).superRefine((env, ctx) => {
   if (env.SHARE_BASE_URL && !env.SHARE_API_KEY) {
     ctx.addIssue({
@@ -55,6 +60,28 @@ const envSchema = z.object({
       path: ['SHARE_API_KEY'],
       message: 'SHARE_API_KEY is required when SHARE_BASE_URL is configured',
     });
+  }
+  if (env.FEDERATION_ENABLED === '1') {
+    if (!env.FEDERATION_NODE_ID) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FEDERATION_NODE_ID'], message: 'required when federation is enabled' });
+    }
+    if (!env.FEDERATION_SHARED_SECRET) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FEDERATION_SHARED_SECRET'], message: 'required when federation is enabled' });
+    }
+    let peers: unknown;
+    try { peers = JSON.parse(env.FEDERATION_PEERS ?? ''); } catch { peers = null; }
+    const parsedPeers = z.array(z.object({
+      id: z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/),
+      url: z.string().url().refine((url) => new URL(url).protocol === 'https:', 'peer URL must use HTTPS'),
+    })).min(1).safeParse(peers);
+    if (!parsedPeers.success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FEDERATION_PEERS'], message: 'must be a non-empty JSON array of unique HTTPS peers' });
+    } else {
+      const ids = parsedPeers.data.map((peer) => peer.id);
+      if (new Set(ids).size !== ids.length || ids.includes(env.FEDERATION_NODE_ID ?? '')) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FEDERATION_PEERS'], message: 'peer IDs must be unique and cannot match this node' });
+      }
+    }
   }
 });
 

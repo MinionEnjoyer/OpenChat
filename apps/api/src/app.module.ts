@@ -25,6 +25,7 @@ import { TestWorldModule } from './test-world/test-world.module';
 import { HealthController } from './health/health.controller';
 import { ConfigController } from './config/config.controller';
 import { validateEnv } from './config/configuration';
+import { FederationModule } from './federation/federation.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { validateEnv } from './config/configuration';
     LoggerModule.forRoot(),
     PrismaModule,
     RedisModule,
+    FederationModule,
     PresenceModule,
     AuthModule,
     AuditLogModule,
