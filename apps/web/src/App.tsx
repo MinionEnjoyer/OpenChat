@@ -1,6 +1,5 @@
 import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { create } from 'zustand';
-import type { User, Server, Channel, Message, Attachment as Att, DmChannel, ServerMemberInfo } from './lib/types';
+import type { User, Server, Channel, Message, Attachment as Att, DmChannel } from './lib/types';
 import * as api from './lib/api';
 import { acceptInvite, listDms } from './lib/social';
 import { getConfig, uploadToShare } from './lib/share';
@@ -31,7 +30,8 @@ import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScroll
 import { activateServerChannels } from './lib/channelNavigation';
 import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
 import { clearPatreonCallbackUrl, readPatreonCallback } from './lib/patreonInvite';
-import { indexServerChannels, serverIdForChannel } from './lib/channelOwnership';
+import { serverIdForChannel } from './lib/channelOwnership';
+import { useAppStore as useStore } from './lib/appStore';
 
 const FriendsView = lazy(() => import('./components/FriendsView').then((module) => ({ default: module.FriendsView })));
 const CallView = lazy(() => import('./components/CallView').then((module) => ({ default: module.CallView })));
@@ -61,122 +61,6 @@ function DeferredToolFallback() {
     </div>
   );
 }
-
-interface AppState {
-  user: User | null;
-  shareBaseUrl: string;
-  servers: Server[];
-  channelsByServer: Record<string, Channel[]>;
-  serverIdByChannel: Record<string, string>;
-  messagesByChannel: Record<string, Message[]>;
-  dms: DmChannel[];
-  membersByServer: Record<string, ServerMemberInfo[]>;
-  presenceById: Record<string, string>;
-  platformsById: Record<string, string[]>; // userId -> live client platforms (['desktop'|'mobile'|'web'])
-  unreadByChannel: Record<string, number>;
-  notifyTick: number;
-  activeServerId: string | null;
-  activeChannelId: string | null;
-  set: (p: Partial<AppState>) => void;
-  setChannels: (serverId: string, channels: Channel[]) => void;
-  setMessages: (channelId: string, messages: Message[]) => void;
-  prependMessages: (channelId: string, older: Message[]) => void;
-  appendMessages: (channelId: string, newer: Message[]) => void;
-  addMessage: (m: Message) => void;
-  updateMessage: (m: Message) => void;
-  deleteMessage: (channelId: string, id: string) => void;
-  replacePending: (channelId: string, nonce: string, real: Message) => void;
-  markFailed: (channelId: string, id: string) => void;
-  setPresence: (userId: string, status: string) => void;
-  bumpUnread: (channelId: string) => void;
-  clearUnread: (channelId: string) => void;
-}
-
-const useStore = create<AppState>((set) => ({
-  user: null,
-  shareBaseUrl: '',
-  servers: [],
-  channelsByServer: {},
-  serverIdByChannel: {},
-  messagesByChannel: {},
-  dms: [],
-  membersByServer: {},
-  presenceById: {},
-  platformsById: {},
-  unreadByChannel: {},
-  notifyTick: 0,
-  activeServerId: null,
-  activeChannelId: null,
-  set: (p) => set(p),
-  setChannels: (serverId, channels) =>
-    set((s) => ({
-      channelsByServer: { ...s.channelsByServer, [serverId]: channels },
-      serverIdByChannel: indexServerChannels(s.serverIdByChannel, serverId, channels),
-    })),
-  setMessages: (channelId, messages) =>
-    set((s) => ({ messagesByChannel: { ...s.messagesByChannel, [channelId]: messages } })),
-  prependMessages: (channelId, older) =>
-    set((s) => {
-      const cur = s.messagesByChannel[channelId] || [];
-      const seen = new Set(cur.map((m) => m.id));
-      const fresh = older.filter((m) => !seen.has(m.id));
-      if (fresh.length === 0) return s;
-      return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...fresh, ...cur] } };
-    }),
-  appendMessages: (channelId, newer) =>
-    set((s) => {
-      const cur = s.messagesByChannel[channelId] || [];
-      const seen = new Set(cur.map((m) => m.id));
-      const fresh = newer.filter((m) => !seen.has(m.id));
-      if (fresh.length === 0) return s;
-      return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...cur, ...fresh] } };
-    }),
-  addMessage: (m) =>
-    set((s) => {
-      const cur = s.messagesByChannel[m.channelId] || [];
-      if (cur.some((x) => x.id === m.id)) return s;
-      return { messagesByChannel: { ...s.messagesByChannel, [m.channelId]: [...cur, m] } };
-    }),
-  updateMessage: (m) =>
-    set((s) => ({
-      messagesByChannel: {
-        ...s.messagesByChannel,
-        [m.channelId]: (s.messagesByChannel[m.channelId] || []).map((x) => (x.id === m.id ? m : x)),
-      },
-    })),
-  deleteMessage: (channelId, id) =>
-    set((s) => ({
-      messagesByChannel: {
-        ...s.messagesByChannel,
-        [channelId]: (s.messagesByChannel[channelId] || []).filter((x) => x.id !== id),
-      },
-    })),
-  replacePending: (channelId, nonce, real) =>
-    set((s) => {
-      const cur = s.messagesByChannel[channelId] || [];
-      // drop the optimistic temp for this nonce, and any dup of the real, then append the real
-      const filtered = cur.filter((x) => x.nonce !== nonce && x.id !== real.id);
-      return { messagesByChannel: { ...s.messagesByChannel, [channelId]: [...filtered, real] } };
-    }),
-  markFailed: (channelId, id) =>
-    set((s) => ({
-      messagesByChannel: {
-        ...s.messagesByChannel,
-        [channelId]: (s.messagesByChannel[channelId] || []).map((x) => (x.id === id ? { ...x, pending: false, failed: true } : x)),
-      },
-    })),
-  setPresence: (userId, status) =>
-    set((s) => ({ presenceById: { ...s.presenceById, [userId]: status } })),
-  bumpUnread: (channelId) =>
-    set((s) => ({ unreadByChannel: { ...s.unreadByChannel, [channelId]: (s.unreadByChannel[channelId] || 0) + 1 } })),
-  clearUnread: (channelId) =>
-    set((s) => {
-      if (!s.unreadByChannel[channelId]) return s;
-      const next = { ...s.unreadByChannel };
-      delete next[channelId];
-      return { unreadByChannel: next };
-    }),
-}));
 
 export default function App() {
   const s = useStore();
