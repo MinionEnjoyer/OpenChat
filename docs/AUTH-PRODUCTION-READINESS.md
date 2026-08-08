@@ -2,7 +2,7 @@
 
 **Last reviewed:** 2026-08-01
 
-**Production line:** OpenChat 0.8.45 and current `main`
+**Production line:** OpenChat 0.8.46 and current `main`
 
 ## Answer: code-ready, deployment-dependent
 

@@ -1,4 +1,5 @@
 import { memo, useLayoutEffect, useRef } from 'react';
+import type { MutableRefObject } from 'react';
 import type { Message } from '../lib/types';
 import { MessageRow } from './MessageRow';
 import { OpenChatSpinner } from './OpenChatSpinner';
@@ -16,6 +17,7 @@ export interface MessageListProps {
   onLoadNewer: () => void;
   onReadPosition: (channelId: string, messageId: string) => void;
   onScrollPosition: (channelId: string, messageId: string, offset: number) => void;
+  scrollCaptureRef: MutableRefObject<(() => void) | null>;
   meId: string;
   myUsername: string;
   shareBaseUrl: string;
@@ -50,9 +52,9 @@ function MessageListInner(props: MessageListProps) {
   const wasLoadingNewer = useRef(false);
   const nearBottom = useRef(true);
 
-  function reportVisibleReadPosition() {
+  function visibleBounds() {
     const el = scrollRef.current;
-    if (!el || !channelId) return;
+    if (!el) return null;
     const viewport = el.getBoundingClientRect();
     const rows = el.querySelectorAll<HTMLElement>('[data-message-id]');
     let firstVisible: HTMLElement | null = null;
@@ -64,15 +66,43 @@ function MessageListInner(props: MessageListProps) {
         visibleId = row.dataset.messageId || null;
       }
     }
-    if (!visibleId) return;
-    const firstId = firstVisible?.dataset.messageId;
-    if (firstVisible && firstId) {
-      props.onScrollPosition(channelId, firstId, firstVisible.getBoundingClientRect().top - viewport.top);
+    return { viewport, firstVisible, visibleId };
+  }
+
+  function reportVisibleScrollPosition(targetChannelId: string | null = channelId) {
+    if (!targetChannelId) return null;
+    const visible = visibleBounds();
+    if (!visible?.visibleId) return null;
+    const firstId = visible.firstVisible?.dataset.messageId;
+    if (visible.firstVisible && firstId) {
+      props.onScrollPosition(
+        targetChannelId,
+        firstId,
+        visible.firstVisible.getBoundingClientRect().top - visible.viewport.top,
+      );
     }
+    return visible.visibleId;
+  }
+
+  function reportVisibleReadPosition() {
+    if (!channelId) return;
+    const visibleId = reportVisibleScrollPosition(channelId);
+    if (!visibleId) return;
     if (lastReported.current?.channelId === channelId && lastReported.current.messageId === visibleId) return;
     lastReported.current = { channelId, messageId: visibleId };
     props.onReadPosition(channelId, visibleId);
   }
+
+  // App navigation invokes this before changing the active channel, while the old
+  // rows and their exact pixel offsets are still mounted.
+  useLayoutEffect(() => {
+    const capture = () => reportVisibleScrollPosition(channelId);
+    props.scrollCaptureRef.current = capture;
+    return () => {
+      if (props.scrollCaptureRef.current === capture) props.scrollCaptureRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelId, props.scrollCaptureRef]);
 
   function onScroll() {
     const el = scrollRef.current;

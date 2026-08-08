@@ -1,23 +1,23 @@
 # OpenChat — Canonical Project Status
 
-**Canonical product-status document.** Last reconciled: **2026-08-01 PDT** from the production
+**Canonical product-status document.** Last reconciled: **2026-08-08 PDT** from the production
 health boundary, published GitHub release, repository source, CI workflow, and local test receipts.
 
 ## Current production snapshot
 
-- **Published desktop/web UI release:** `desktop-v0.8.45`; GitHub publishes Windows NSIS, universal
+- **Published desktop/web UI release:** `desktop-v0.8.46`; GitHub publishes Windows NSIS, universal
   macOS DMG/app updater, Linux AppImage/deb, signatures, and `latest.json`.
 - **Hosted web/API:** follows the latest CI-passing `main` through the systemd auto-deployer. Do not
   infer an exact deployed SHA from the client version; verify the deployer journal/active release
   pointer when SHA-level provenance is required.
-- **Public health on 2026-08-01:** `https://chat.creeger.com/api/health` reported the API healthy
+- **Public health on 2026-08-08:** `https://chat.creeger.com/api/health` reported the API healthy
   with PostgreSQL and Redis up.
 - **Core integrations:** Authentik OIDC; OpenShare service-key uploads and authenticated media
   proxy; LiveKit voice/video; optional Jellyfin, Giphy, and FCM/APNs.
 - **Recent release behavior:** stickers, server-owned join/leave activity in the default general
-  channel, centered option panels, multi-domain web/desktop switching, native YouTube shims, and
-  exact per-channel message/offset restoration.
-- **Maintained automated baseline:** API 17 suites / 102 tests and web 11 suites / 27 tests at the
+  channel, centered option and server-action panels, multi-domain web/desktop switching, native
+  YouTube shims, and synchronous per-channel message/offset capture before navigation.
+- **Maintained automated baseline:** API 17 suites / 102 tests and web 19 suites / 45 tests at the
   last local receipt. CI also runs migration drift, characterization, web build, dependency audits,
   provider contracts, LiveKit config/credential/ICE probes, and gate self-tests.
 - **Probation/open evidence:** the Compose-backed API integration suite emits retained JSON but is

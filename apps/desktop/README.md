@@ -9,7 +9,7 @@ tray, OS notifications, global push-to-talk, drag-and-drop uploads, and signed a
   built fresh in `beforeBuildCommand`.
 - On first launch a setup screen collects the **server URL** and signs you in — one-click
   **browser SSO** with an `openchat://` deep-link token handoff, or a manual **app token**
-  (web app → Settings → 🔑 Tokens). The app authenticates with a bearer token against the
+  (web app → Settings → Tokens). The app authenticates with a bearer token against the
   configured server, so no browser cookie is needed.
 - `withGlobalTauri` exposes `window.__TAURI__`; the web layer calls a few custom Rust commands
   through it (`open_external`, `notify`, `run_update`, `register_ptt`/`unregister_ptt`) — there
@@ -20,7 +20,7 @@ tray, OS notifications, global push-to-talk, drag-and-drop uploads, and signed a
 - **System tray** + close-to-tray (notifications keep flowing when the window is closed).
 - **Native notifications** for DMs, mentions, and incoming calls when unfocused — see below.
 - **Global push-to-talk** — a system-wide hotkey that works even when the app is unfocused
-  (global-shortcut plugin); pick it in Settings → 🎙 Voice.
+  (global-shortcut plugin); pick it in Settings → Voice.
 - **Drag-and-drop** file uploads onto the window (Tauri's own drop capture is disabled via
   `dragDropEnabled: false` so the webview's HTML5 handler runs).
 - **Auto-update** — checks the release's `latest.json` on launch and updates in place behind a
@@ -44,7 +44,7 @@ mentions, and incoming calls whenever the window isn't focused.
   command (focuses the window, returns the stashed target). Note: delivery of a *body* click to
   `onAction` is platform-dependent across desktop DEs; if a platform doesn't deliver it, the
   notification still shows — it just won't auto-navigate.
-- **Launch at login** (Settings → 🎨 Theme → *Startup*) uses the autostart plugin to keep the app
+- **Launch at login** (Settings → Theme → *Startup*) uses the autostart plugin to keep the app
   running in the tray after a reboot, so the live-notification path is always available.
 
 **Delivery after a full quit** (true OS push to a *not-running* app) is intentionally **not**
@@ -91,12 +91,12 @@ The updater signing keypair lives locally at `~/.tauri/openchat-updater.key` (pr
    `src-tauri/Cargo.toml`, and `../web/package.json` (including its lockfile). The web version
    is shown in Settings for both browser and desktop builds.
 2. Tag + push using the synchronized version, e.g.
-   `git tag desktop-v0.8.45 && git push origin desktop-v0.8.45`.
+   `git tag desktop-v0.8.46 && git push origin desktop-v0.8.46`.
 3. CI builds all three platforms, signs, and publishes a GitHub Release with the installers +
    `latest.json`. Installed clients auto-update on next launch.
 
 The current published production release is
-[`desktop-v0.8.45`](https://github.com/MinionEnjoyer/OpenChat/releases/tag/desktop-v0.8.45).
+[`desktop-v0.8.46`](https://github.com/MinionEnjoyer/OpenChat/releases/tag/desktop-v0.8.46).
 
 ## Local dev
 Needs the Rust toolchain + your OS's Tauri prerequisites. On Linux, install the WebKitGTK/GTK/xdo

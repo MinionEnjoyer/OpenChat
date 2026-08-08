@@ -1,6 +1,7 @@
 import React from 'react';
 import { createInvite, acceptInvite, getInvite } from '../lib/social';
 import { createServer } from '../lib/api';
+import { HeaderPanel } from './HeaderPanel';
 
 export function ServerActions({
   activeServerId,
@@ -11,6 +12,12 @@ export function ServerActions({
 }) {
   const [open, setOpen] = React.useState(false);
   const [inviteCode, setInviteCode] = React.useState<string | null>(null);
+  const [action, setAction] = React.useState<'create' | 'join' | null>(null);
+  const [serverName, setServerName] = React.useState('');
+  const [joinCode, setJoinCode] = React.useState('');
+  const [joinPreview, setJoinPreview] = React.useState<{ server: { name: string } } | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [actionError, setActionError] = React.useState('');
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -22,30 +29,51 @@ export function ServerActions({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
 
-  const handleCreateServer = async () => {
+  const openAction = (next: 'create' | 'join') => {
     setOpen(false);
-    const name = window.prompt('Name your server:');
-    if (!name) return;
+    setAction(next);
+    setActionError('');
+    setJoinPreview(null);
+  };
+
+  const handleCreateServer = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = serverName.trim();
+    if (!name || submitting) return;
+    setSubmitting(true);
+    setActionError('');
     try {
       await createServer(name);
+      setAction(null);
+      setServerName('');
       onChanged();
-    } catch {
-      alert('Failed to create server.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Failed to create server.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleJoinServer = async () => {
-    setOpen(false);
-    const code = window.prompt('Enter an invite code:');
-    if (!code) return;
+  const handleJoinServer = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const code = joinCode.trim();
+    if (!code || submitting) return;
+    setSubmitting(true);
+    setActionError('');
     try {
-      // Preview the server before committing to join.
-      const preview = await getInvite(code.trim());
-      if (!window.confirm(`Join "${preview.server.name}"?`)) return;
-      await acceptInvite(code.trim());
-      onChanged();
-    } catch {
-      alert('Invalid or expired invite code.');
+      if (!joinPreview) {
+        setJoinPreview(await getInvite(code));
+      } else {
+        await acceptInvite(code);
+        setAction(null);
+        setJoinCode('');
+        setJoinPreview(null);
+        onChanged();
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Invalid or expired invite code.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -134,12 +162,12 @@ export function ServerActions({
             zIndex: 30,
           }}
         >
-          <button style={menuItem} onClick={handleCreateServer}
+          <button style={menuItem} onClick={() => openAction('create')}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}>
             ✨ Create a Server
           </button>
-          <button style={menuItem} onClick={handleJoinServer}
+          <button style={menuItem} onClick={() => openAction('join')}
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}>
             🔗 Join a Server
@@ -152,6 +180,41 @@ export function ServerActions({
             </button>
           )}
         </div>
+      )}
+
+      {action === 'create' && (
+        <HeaderPanel title="Create a server" onClose={() => setAction(null)}>
+          <form onSubmit={handleCreateServer} style={{ padding: 16, display: 'grid', gap: 12 }}>
+            <label style={{ display: 'grid', gap: 6, color: 'var(--muted)', fontSize: 13 }}>
+              Server name
+              <input autoFocus value={serverName} onChange={(event) => setServerName(event.target.value)} maxLength={80}
+                style={{ padding: '10px 11px', border: '1px solid var(--border)', borderRadius: 7, background: 'var(--input-bg)', color: 'var(--text)', font: 'inherit' }} />
+            </label>
+            {actionError && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{actionError}</div>}
+            <button type="submit" disabled={!serverName.trim() || submitting}
+              style={{ padding: 10, border: 0, borderRadius: 7, background: 'var(--accent)', color: 'var(--accent-text)', fontWeight: 700, cursor: 'pointer' }}>
+              {submitting ? 'Creating…' : 'Create server'}
+            </button>
+          </form>
+        </HeaderPanel>
+      )}
+
+      {action === 'join' && (
+        <HeaderPanel title="Join a server" onClose={() => setAction(null)}>
+          <form onSubmit={handleJoinServer} style={{ padding: 16, display: 'grid', gap: 12 }}>
+            <label style={{ display: 'grid', gap: 6, color: 'var(--muted)', fontSize: 13 }}>
+              Invite code
+              <input autoFocus value={joinCode} onChange={(event) => { setJoinCode(event.target.value); setJoinPreview(null); }}
+                style={{ padding: '10px 11px', border: '1px solid var(--border)', borderRadius: 7, background: 'var(--input-bg)', color: 'var(--text)', font: 'inherit' }} />
+            </label>
+            {joinPreview && <div style={{ padding: 12, border: '1px solid var(--border)', borderRadius: 7 }}><strong>{joinPreview.server.name}</strong><div style={{ color: 'var(--muted)', fontSize: 13 }}>Confirm that this is the server you want to join.</div></div>}
+            {actionError && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{actionError}</div>}
+            <button type="submit" disabled={!joinCode.trim() || submitting}
+              style={{ padding: 10, border: 0, borderRadius: 7, background: 'var(--accent)', color: 'var(--accent-text)', fontWeight: 700, cursor: 'pointer' }}>
+              {submitting ? 'Checking…' : joinPreview ? 'Join server' : 'Review server'}
+            </button>
+          </form>
+        </HeaderPanel>
       )}
     </div>
   );

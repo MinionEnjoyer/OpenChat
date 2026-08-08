@@ -1,7 +1,7 @@
 # OpenChat documentation
 
 This index separates maintained guidance from evidence that intentionally describes an earlier
-commit or release. The current public desktop/web UI release is **0.8.45**; the web/API production
+commit or release. The current public desktop/web UI release is **0.8.46**; the web/API production
 deployment follows CI-passing `main`.
 
 ## Maintained guides
@@ -15,7 +15,7 @@ deployment follows CI-passing `main`.
 - [Authentication readiness](AUTH-PRODUCTION-READINESS.md) — web, desktop, and mobile OIDC/PKCE.
 - [Production push enablement](PRODUCTION-PUSH-ENABLEMENT.md) — FCM/APNs server configuration.
 - [Android install](ANDROID-INSTALL.md) and [TestFlight install](TESTFLIGHT-INSTALL.md) — private
-  mobile distribution. Mobile artifacts use their own version line and are not desktop 0.8.45.
+  mobile distribution. Mobile artifacts use their own version line and are not desktop 0.8.46.
 
 Component-specific guides also live at
 [apps/desktop/README.md](../apps/desktop/README.md),

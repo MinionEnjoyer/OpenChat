@@ -254,6 +254,7 @@ export default function App() {
     window.setTimeout(() => setToast((cur) => (cur === t ? null : cur)), action ? 8000 : 2800);
   }, []);
   const knownStreams = useRef<Set<string>>(new Set());
+  const activeScrollCaptureRef = useRef<(() => void) | null>(null);
 
   // Track + (re)send channel subscriptions so they survive WebSocket reconnects.
   const wsSubscribe = useCallback((channelId: string) => {
@@ -716,6 +717,7 @@ export default function App() {
   }
 
   function goHome() {
+    activeScrollCaptureRef.current?.();
     setHomeView(true);
     setDmTitle('');
     useStore.getState().set({ activeChannelId: null, activeServerId: null });
@@ -746,6 +748,7 @@ export default function App() {
   }
 
   async function selectChannel(channelId: string, title?: string) {
+    activeScrollCaptureRef.current?.();
     setResumePositionByChannel((positions) => ({ ...positions, [channelId]: undefined }));
     useStore.getState().set({ activeChannelId: channelId });
     useStore.getState().clearUnread(channelId);
@@ -1637,6 +1640,7 @@ export default function App() {
               onLoadNewer={loadNewer}
               onReadPosition={saveReadPosition}
               onScrollPosition={saveScrollPosition}
+              scrollCaptureRef={activeScrollCaptureRef}
               meId={s.user.id}
               myUsername={s.user.username}
               shareBaseUrl={s.shareBaseUrl}

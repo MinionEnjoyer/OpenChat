@@ -5,7 +5,7 @@ _As-built architecture of the OpenChat communication platform: a self-hosted, re
 [OpenShare](https://github.com/MinionEnjoyer/OpenShare) for files/media, Jellyfin for watch
 parties) rather than reinventing them._
 
-> Status: **as-built for the 0.8.45 production line**. This document describes what actually runs — not a proposal.
+> Status: **as-built for the 0.8.46 production line**. This document describes what actually runs — not a proposal.
 > Setup and deploy details live in [SETUP.md](SETUP.md) and [DEPLOY.md](DEPLOY.md).
 
 ## Contents
@@ -132,7 +132,7 @@ production.
   cookie `chat.sid` (`httpOnly`, `secure` in prod, `sameSite lax`, 7-day). `trust proxy` is set for
   TLS behind NPM.
 - **Bearer app tokens** — the `ApiToken` table stores only the **SHA-256 hash** of `oc_…` tokens
-  (raw value shown once, in Settings → 🔑 Tokens). Native/desktop clients authenticate with these.
+  (raw value shown once, in Settings → Tokens). Native/desktop clients authenticate with these.
   `GET /api/auth/desktop` mints one and hands it to the app via an `openchat://auth?token=…`
   deep link.
 
@@ -266,7 +266,7 @@ change): `yt:<id>` = YouTube, `ja:<id>` = Jellyfin **audio**, anything else = Je
   (no controls) that starts muted for reliable autoplay, with a custom Unmute button; the host
   drives playback.
 
-The player header shows a 👑 host badge and a 👁 viewers list (voice-channel participants).
+The player header shows a host badge and a viewers list (voice-channel participants).
 
 ---
 

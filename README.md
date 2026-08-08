@@ -16,7 +16,7 @@ Jellyfin for watch parties — rather than reinvent them.
 Everything environment-specific
 (domains, IPs, keys, passwords) is supplied through a single local config file — see
 **[docs/SETUP.md](docs/SETUP.md)**.
-> **Current production release:** desktop/web UI **0.8.45**. The current desktop installers
+> **Current production release:** desktop/web UI **0.8.46**. The current desktop installers
 > for macOS, Linux, and Windows are on the
 > [Releases](https://github.com/MinionEnjoyer/OpenChat/releases/latest) page. The hosted web/API
 > deployment follows CI-passing `main`, so it can contain newer backend or test-only commits without
@@ -33,8 +33,9 @@ If OpenChat is useful to you, project support is available through
   drag-to-create folders in the sidebar, persisted per user.
 - **Messaging** — optimistic send, replies, edits, reactions, emoji, GIFs (Giphy), stickers,
   link/image/YouTube/Share embeds, polls, and **pinned messages** with a per-channel pins panel.
-- **Conversation continuity** — each channel restores the last-read message and exact viewport
-  offset locally; the default `general` channel also carries server-owned join/leave activity.
+- **Conversation continuity** — each channel synchronously records the visible message and exact
+  pixel offset before navigation, then restores that viewport on return; the default `general`
+  channel also carries server-owned join/leave activity.
 - **Files & media** — attach files via a menu or **drag-and-drop onto the window**, record a
   **voice clip** in-app, click images to **enlarge** in a lightbox, and a custom **audio player**
   with a waveform + scrubbing (analysis is brokered through the OpenChat API to OpenShare).
@@ -49,13 +50,15 @@ If OpenChat is useful to you, project support is available through
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
 - **Watch parties** — host-synced **Jellyfin or YouTube** playback inside a voice channel:
-  host-only controls, a 👑 host badge + viewers list, and a Jellyfin browser filtered by
+  host-only controls, a host badge and viewers list, and a Jellyfin browser filtered by
   movies / shows / music.
 - **Desktop apps** — native **Windows, macOS, and Linux** clients (Tauri) with tray,
   notifications, global push-to-talk, drag-and-drop, and signed auto-updates. See
   **[apps/desktop/README.md](apps/desktop/README.md)**.
 - **Multi-domain clients** — the web and desktop Settings → Servers tab remembers authenticated
   OpenChat domains and switches the entire client between them.
+- **Centered client actions** — channel tools, media pickers, message actions, and server
+  create/join flows share a keyboard-accessible centered dialog surface on desktop and web mobile.
 - **Creator membership invitations** — server owners can optionally verify a supporter&apos;s current
   Patreon membership and share a one-use, expiring OpenChat invitation without retaining Patreon
   access tokens.

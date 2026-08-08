@@ -5,7 +5,7 @@ OpenChat supports a manual deployment and a CI-gated systemd deployer. The produ
 immutable release and atomically activates it.** The manual `scripts/deploy.sh` path remains useful
 for a simple self-hosted instance.
 
-The current public desktop release is **0.8.45**. Desktop tags and installers are separate from the
+The current public desktop release is **0.8.46**. Desktop tags and installers are separate from the
 web/API deploy: the hosted stack may advance on `main` without changing the desktop version.
 
 For production mobile push credentials and the required Android/iOS acceptance

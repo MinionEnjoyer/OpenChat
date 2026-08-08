@@ -57,6 +57,7 @@ function props(overrides: Partial<MessageListProps>): MessageListProps {
     onLoadNewer: vi.fn(),
     onReadPosition: vi.fn(),
     onScrollPosition: vi.fn(),
+    scrollCaptureRef: { current: null },
     meId: 'user-1',
     myUsername: 'tester',
     shareBaseUrl: '',
@@ -115,5 +116,22 @@ describe('MessageList channel scroll restoration', () => {
     rerender(<MessageList {...initial} resumePosition={null} messages={[message('message-50')]} />);
 
     expect(scroller.scrollTop).toBe(1000);
+  });
+
+  it('captures the visible anchor synchronously before switching channels', () => {
+    const onScrollPosition = vi.fn();
+    const scrollCaptureRef = { current: null as (() => void) | null };
+    const general = props({
+      channelId: 'general',
+      resumePosition: null,
+      messages: [message('message-40')],
+      onScrollPosition,
+      scrollCaptureRef,
+    });
+    render(<MessageList {...general} />);
+
+    scrollCaptureRef.current?.();
+
+    expect(onScrollPosition).toHaveBeenCalledWith('general', 'message-40', 74);
   });
 });
