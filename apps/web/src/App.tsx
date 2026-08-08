@@ -10,6 +10,7 @@ import { Avatar } from './components/Avatar';
 import { ServerActions } from './components/ServerActions';
 import { UserPanel } from './components/UserPanel';
 import { NotificationHub } from './components/NotificationHub';
+import { IconAlertBadge } from './components/IconAlertBadge';
 import { HeaderPanel } from './components/HeaderPanel';
 import { MemberListPanel } from './components/MemberListPanel';
 import { setShareHost } from './components/MessageEmbeds';
@@ -889,7 +890,7 @@ export default function App() {
             ? <img src={mediaUrl(sv.iconUrl)} alt={sv.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : sv.name.slice(0, 2).toUpperCase()}
         </button>
-        {svUnread > 0 && <span style={{ position: 'absolute', bottom: -2, right: -2 }}><UnreadBadge n={svUnread} /></span>}
+        {svUnread > 0 && <IconAlertBadge className="server-rail-alert-badge" style={{ bottom: -2, right: -2 }}><UnreadBadge n={svUnread} /></IconAlertBadge>}
       </div>
     );
   };
@@ -949,7 +950,7 @@ export default function App() {
               ? <img key={sv.id} src={mediaUrl(sv.iconUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 3 }} />
               : <span key={sv.id} style={{ fontSize: 8, background: 'var(--accent)', color: '#fff', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{sv.name.slice(0, 2).toUpperCase()}</span>)}
           </button>
-          {f.collapsed && fUnread > 0 && <span style={{ position: 'absolute', bottom: -2, right: -2 }}><UnreadBadge n={fUnread} /></span>}
+          {f.collapsed && fUnread > 0 && <IconAlertBadge className="server-rail-alert-badge" style={{ bottom: -2, right: -2 }}><UnreadBadge n={fUnread} /></IconAlertBadge>}
         </div>
         {!f.collapsed && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 52, background: 'var(--panel)', borderRadius: 16, padding: '2px 0', marginTop: 4 }}>
@@ -1439,7 +1440,7 @@ export default function App() {
 
 function UnreadBadge({ n }: { n: number }) {
   return (
-    <span style={{
+    <span className="unread-badge" style={{
       background: 'var(--danger)', color: '#fff', borderRadius: 10, fontSize: 10, fontWeight: 700,
       padding: '1px 6px', minWidth: 18, textAlign: 'center', flexShrink: 0, lineHeight: '16px',
       border: '2px solid var(--panel-dark)',
