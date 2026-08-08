@@ -26,12 +26,12 @@ import { OpenChatSpinner } from './components/OpenChatSpinner';
 import { notifyNative } from './lib/notify';
 import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
-import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScrollPosition } from './lib/channelScroll';
 import { activateServerChannels } from './lib/channelNavigation';
 import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
 import { clearPatreonCallbackUrl, readPatreonCallback } from './lib/patreonInvite';
 import { serverIdForChannel } from './lib/channelOwnership';
 import { useAppStore as useStore } from './lib/appStore';
+import { useMessageHistory } from './lib/useMessageHistory';
 
 const FriendsView = lazy(() => import('./components/FriendsView').then((module) => ({ default: module.FriendsView })));
 const CallView = lazy(() => import('./components/CallView').then((module) => ({ default: module.CallView })));
@@ -84,14 +84,20 @@ export default function App() {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [updateChecked, setUpdateChecked] = useState(() => !isTauri()); // desktop gates on an update check first
   const finishUpdateCheck = useCallback(() => setUpdateChecked(true), []);
-  const [hasMoreByChannel, setHasMoreByChannel] = useState<Record<string, boolean>>({});
-  const [hasNewerByChannel, setHasNewerByChannel] = useState<Record<string, boolean>>({});
-  const [loadingOlder, setLoadingOlder] = useState(false);
-  const loadingOlderRef = useRef(false);
-  const [loadingNewer, setLoadingNewer] = useState(false);
-  const loadingNewerRef = useRef(false);
-  const [resumePositionByChannel, setResumePositionByChannel] = useState<Record<string, ChannelScrollPosition | null | undefined>>({});
-  const readSaveTimers = useRef<Map<string, number>>(new Map());
+  const {
+    activeScrollCaptureRef,
+    beginChannelSelection,
+    hasMoreByChannel,
+    hasNewerByChannel,
+    loadInitialPage,
+    loadingNewer,
+    loadingOlder,
+    loadNewer,
+    loadOlder,
+    resumePositionByChannel,
+    saveReadPosition,
+    saveScrollPosition,
+  } = useMessageHistory();
   const [homeView, setHomeView] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
   const [dmTitle, setDmTitle] = useState('');
@@ -136,7 +142,6 @@ export default function App() {
     window.setTimeout(() => setToast((cur) => (cur === t ? null : cur)), action ? 8000 : 2800);
   }, []);
   const knownStreams = useRef<Set<string>>(new Set());
-  const activeScrollCaptureRef = useRef<(() => void) | null>(null);
 
   // Track + (re)send channel subscriptions so they survive WebSocket reconnects.
   const wsSubscribe = useCallback((channelId: string) => {
@@ -630,53 +635,14 @@ export default function App() {
   }
 
   async function selectChannel(channelId: string, title?: string) {
-    activeScrollCaptureRef.current?.();
-    setResumePositionByChannel((positions) => ({ ...positions, [channelId]: undefined }));
+    beginChannelSelection(channelId);
     useStore.getState().set({ activeChannelId: channelId });
     useStore.getState().clearUnread(channelId);
     setOpenPanel(null);
     if (title !== undefined) setDmTitle(title);
     // Stay subscribed to previously-opened channels so their unread counts keep updating.
     wsSubscribe(channelId);
-    const savedScroll = getChannelScrollPosition(channelId);
-    let readMarkerId: string | null = null;
-    let latestMessageId: string | null = null;
-    try {
-      const readState = await api.getReadState(channelId);
-      readMarkerId = readState.lastReadMessageId;
-      latestMessageId = readState.latestMessageId;
-    } catch { /* latest page is a safe fallback */ }
-    let resumeId = savedScroll?.messageId || readMarkerId;
-    let resumeOffset = savedScroll?.messageId === resumeId ? savedScroll.offset : null;
-    let msgs: Message[];
-    try {
-      msgs = await api.listMessages(channelId, resumeId ? { around: resumeId } : {});
-    } catch {
-      // A local viewport anchor can become stale when its message is deleted. Retry the
-      // shared read marker before falling back to the newest page.
-      resumeId = readMarkerId !== savedScroll?.messageId ? readMarkerId : null;
-      resumeOffset = null;
-      try {
-        msgs = await api.listMessages(channelId, resumeId ? { around: resumeId } : {});
-      } catch {
-        resumeId = null;
-        msgs = await api.listMessages(channelId);
-      }
-    }
-    if (useStore.getState().activeChannelId !== channelId) return;
-    const containsResume = !!resumeId && msgs.some((message) => message.id === resumeId);
-    setResumePositionByChannel((positions) => ({
-      ...positions,
-      [channelId]: containsResume
-        ? { messageId: resumeId!, offset: resumeOffset ?? 0, updatedAt: savedScroll?.updatedAt ?? 0 }
-        : null,
-    }));
-    setHasMoreByChannel((h) => ({ ...h, [channelId]: msgs.length >= 50 }));
-    setHasNewerByChannel((h) => ({
-      ...h,
-      [channelId]: containsResume && !!latestMessageId && !msgs.some((message) => message.id === latestMessageId),
-    }));
-    useStore.getState().setMessages(channelId, msgs.reverse());
+    if (!await loadInitialPage(channelId)) return;
     setNavOpen(false);
     // remember where we are for refresh-persistence
     const serverId = useStore.getState().activeServerId;
@@ -818,62 +784,6 @@ export default function App() {
     }
     knownStreams.current = ids;
   }, [voice.screens, showToast, goToCall]);
-
-  // Load a page of older messages (scroll-up history) for the active channel.
-  const loadOlder = useCallback(async () => {
-    if (loadingOlderRef.current) return;
-    const st = useStore.getState();
-    const chId = st.activeChannelId;
-    if (!chId) return;
-    const cur = st.messagesByChannel[chId] || [];
-    if (cur.length === 0) return;
-    loadingOlderRef.current = true;
-    setLoadingOlder(true);
-    try {
-      const older = await api.listMessages(chId, { before: cur[0].id });
-      useStore.getState().prependMessages(chId, older.slice().reverse());
-      setHasMoreByChannel((h) => ({ ...h, [chId]: older.length >= 50 }));
-    } catch { /* ignore */ }
-    finally { loadingOlderRef.current = false; setLoadingOlder(false); }
-  }, []);
-
-  // Around-pagination can place the shared read marker in the middle of history.
-  // Fetch the next page when the reader reaches the lower edge until newest is reached.
-  const loadNewer = useCallback(async () => {
-    if (loadingNewerRef.current) return;
-    const st = useStore.getState();
-    const chId = st.activeChannelId;
-    if (!chId) return;
-    const cur = st.messagesByChannel[chId] || [];
-    if (cur.length === 0) return;
-    loadingNewerRef.current = true;
-    setLoadingNewer(true);
-    try {
-      const newer = await api.listMessages(chId, { after: cur[cur.length - 1].id });
-      useStore.getState().appendMessages(chId, newer.slice().reverse());
-      setHasNewerByChannel((h) => ({ ...h, [chId]: newer.length >= 50 }));
-    } catch { /* retry on the next edge visit */ }
-    finally { loadingNewerRef.current = false; setLoadingNewer(false); }
-  }, []);
-
-  const saveReadPosition = useCallback((channelId: string, messageId: string) => {
-    const pending = readSaveTimers.current.get(channelId);
-    if (pending !== undefined) window.clearTimeout(pending);
-    const timer = window.setTimeout(() => {
-      readSaveTimers.current.delete(channelId);
-      api.markRead(channelId, messageId).catch(() => {});
-    }, 450);
-    readSaveTimers.current.set(channelId, timer);
-  }, []);
-
-  const saveScrollPosition = useCallback((channelId: string, messageId: string, offset: number) => {
-    saveChannelScrollPosition(channelId, messageId, offset);
-  }, []);
-
-  useEffect(() => () => {
-    for (const timer of readSaveTimers.current.values()) window.clearTimeout(timer);
-    readSaveTimers.current.clear();
-  }, []);
 
   function jumpToMessage(id: string) {
     setOpenPanel(null);
