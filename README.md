@@ -101,6 +101,22 @@ cp .env.example .env      # fill in every CHANGE_ME
 docker compose up -d --build
 ```
 
+### Public containers
+
+Release images for AMD64 and ARM64 are published to the GitHub Container Registry only after the
+exact `main` commit passes CI. After configuring `.env` and rendering `livekit.yaml`, start the
+published API and web images with:
+
+```bash
+docker compose -f docker-compose.public.yml pull
+docker compose -f docker-compose.public.yml up -d
+```
+
+The Compose file defaults to `ghcr.io/minionenjoyer/openchat-api:latest` and
+`ghcr.io/minionenjoyer/openchat-web:latest`. Set `OPENCHAT_VERSION=0.8.46` to pin the current
+client-compatible release, or use a published `sha-<commit>` tag for an immutable deployment.
+PostgreSQL, Redis, and LiveKit remain standard upstream images.
+
 Full instructions — including OIDC/Share/LiveKit prerequisites, local dev, pushing to git,
 and git-based redeploys — are in **[docs/SETUP.md](docs/SETUP.md)** and
 **[docs/DEPLOY.md](docs/DEPLOY.md)**.

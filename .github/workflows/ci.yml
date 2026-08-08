@@ -55,6 +55,9 @@ jobs:
       - name: Scan tracked tree and Git history for secrets
         run: ./scripts/check-secrets.sh
 
+      - name: Verify public container release scaffold
+        run: bash tools/verify-public-containers.sh
+
       - name: Install dependencies
         working-directory: apps/api
         run: npm ci

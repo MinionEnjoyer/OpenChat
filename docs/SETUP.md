@@ -81,6 +81,19 @@ gitignored too. Re-run this any time you change a `LIVEKIT_*` value.
 docker compose up -d --build
 ```
 
+To run the prebuilt multi-platform API and web images instead of building them on the host:
+
+```bash
+docker compose -f docker-compose.public.yml pull
+docker compose -f docker-compose.public.yml up -d
+```
+
+This defaults to the public `latest` images on `ghcr.io/minionenjoyer`. Set
+`OPENCHAT_VERSION=0.8.46` in the shell or `.env` to pin that release. The same version tag is
+published for both OpenChat images after CI passes; `sha-<commit>` tags provide immutable pins.
+The public Compose stack uses the same `.env`, persistent volumes, LiveKit configuration, ports,
+and reverse-proxy topology as the source-build stack.
+
 The API applies database migrations automatically on start (`prisma migrate deploy`). Check it:
 
 ```bash

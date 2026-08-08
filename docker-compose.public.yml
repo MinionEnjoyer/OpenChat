@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chat}
+      POSTGRES_DB: ${POSTGRES_DB:-chat}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [app_net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [app_net]
+
+  api:
+    image: ghcr.io/minionenjoyer/openchat-api:${OPENCHAT_VERSION:-latest}
+    container_name: chat-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chat}:${POSTGRES_PASSWORD:-chat}@postgres:5432/${POSTGRES_DB:-chat}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "3001"
+    extra_hosts:
+      - "${AUTH_HOST:-auth.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+      - "${WATCH_HOST:-watch.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+      - "${SHARE_HOST:-share.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+      - "${CHAT_HOST:-chat.example.com}:${LAN_HOST_IP:-192.168.1.10}"
+    networks: [app_net]
+
+  web:
+    image: ghcr.io/minionenjoyer/openchat-web:${OPENCHAT_VERSION:-latest}
+    container_name: chat-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8810}:80"
+    networks: [app_net]
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: chat-livekit
+    restart: unless-stopped
+    network_mode: host
+    command: --config /etc/livekit/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit/livekit.yaml:ro
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.106.0.0/24
+
+volumes:
+  pg_data:
+  redis_data:
