@@ -150,6 +150,7 @@ button, input, textarea { font-family: inherit; }
   .oc-spinner { animation-duration: 4.8s; }
   .oc-spinner::before { animation-duration: 2.4s, 3.6s; }
   .oc-spinner::after { animation-duration: 2.4s; }
+  .server-rail-item--selected::before { animation: none; }
 }
 
 /* Desktop (Tauri) shell: stack the custom title bar above the app shell. */
@@ -200,6 +201,38 @@ button:disabled { cursor: default; }
 .app-shell { display: flex; height: 100%; width: 100%; overflow: hidden; position: relative; }
 .sidebars { display: flex; height: 100%; flex-shrink: 0; }
 .main-view { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.server-rail-item {
+  position: relative;
+  flex-shrink: 0;
+  isolation: isolate;
+}
+.server-rail-item > button { position: relative; z-index: 1; }
+@property --server-ring-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes server-ring-orbit { to { --server-ring-angle: 360deg; } }
+.server-rail-item--selected::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: 0;
+  border-radius: 17px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--server-ring-angle),
+    #14e3ba 0deg,
+    #11cda8 82deg,
+    #07836f 170deg,
+    #0756a8 190deg,
+    #117ee9 268deg,
+    #2fb7ff 350deg,
+    #14e3ba 360deg
+  );
+  box-shadow: 0 0 9px rgba(47, 183, 255, 0.3), 0 0 12px rgba(20, 227, 186, 0.22);
+  animation: server-ring-orbit 2.4s linear infinite;
+}
 .app-header { flex: 0 0 auto; min-width: 0; }
 .app-header-title {
   min-width: 0;

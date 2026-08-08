@@ -39,6 +39,7 @@ import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
 import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScrollPosition } from './lib/channelScroll';
 import { activateServerChannels } from './lib/channelNavigation';
+import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
 
 const SettingsModal = lazy(() =>
   import('./components/SettingsModal').then((module) => ({ default: module.SettingsModal })),
@@ -1241,8 +1242,9 @@ export default function App() {
     const dragging = dragKey === sv.id;
     const canMerge = !!dragKey && dragKey !== sv.id && !dragKey.startsWith('f:');
     const hot = dropHint === 'srv:' + sv.id;
+    const active = !homeView && s.activeServerId === sv.id;
     return (
-      <div key={sv.id} draggable
+      <div className={serverRailItemClass(active)} key={sv.id} draggable
         onDragStart={(e) => { setDragKey(sv.id); e.dataTransfer.effectAllowed = 'move'; }}
         onDragEnd={() => { setDragKey(null); setDropHint(null); }}
         onDragOver={(e) => { if (canMerge) { e.preventDefault(); setDropHint('srv:' + sv.id); } }}
@@ -1256,7 +1258,8 @@ export default function App() {
         <button onClick={() => selectServer(sv.id)}
           onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, serverId: sv.id }); }}
           title={sv.name}
-          style={{ ...railBtn(!homeView && s.activeServerId === sv.id), overflow: 'hidden', padding: 0, boxShadow: hot ? '0 0 0 2px var(--accent)' : undefined }}>
+          aria-current={serverRailAriaCurrent(active)}
+          style={{ ...railBtn(active), overflow: 'hidden', padding: 0, boxShadow: hot ? '0 0 0 2px var(--accent)' : undefined }}>
           {sv.iconUrl
             ? <img src={mediaUrl(sv.iconUrl)} alt={sv.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : sv.name.slice(0, 2).toUpperCase()}
