@@ -114,3 +114,35 @@ describe('trusted mirror cluster configuration', () => {
     })).toThrow('Invalid environment configuration');
   });
 });
+
+describe('Patreon invitation configuration', () => {
+  it('is disabled without requiring OAuth credentials', () => {
+    expect(validateEnv(minValid()).PATREON_ENABLED).toBe('0');
+  });
+
+  it('accepts a complete Patreon OAuth configuration', () => {
+    const env = validateEnv({
+      ...minValid(),
+      PATREON_ENABLED: '1',
+      PATREON_CLIENT_ID: 'client-id',
+      PATREON_CLIENT_SECRET: 'client-secret',
+      PATREON_REDIRECT_URI: 'https://chat.example.com/api/patreon/callback',
+    });
+    expect(env.PATREON_ENABLED).toBe('1');
+  });
+
+  it.each(['PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET', 'PATREON_REDIRECT_URI'] as const)(
+    'rejects enabled Patreon invitations without %s',
+    (key) => {
+      const config = {
+        ...minValid(),
+        PATREON_ENABLED: '1',
+        PATREON_CLIENT_ID: 'client-id',
+        PATREON_CLIENT_SECRET: 'client-secret',
+        PATREON_REDIRECT_URI: 'https://chat.example.com/api/patreon/callback',
+      };
+      delete config[key];
+      expect(() => validateEnv(config)).toThrow('Invalid environment configuration');
+    },
+  );
+});

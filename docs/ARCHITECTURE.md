@@ -34,6 +34,8 @@ parties) rather than reinventing them._
   No cloud dependencies, no managed queues, no separate observability stack.
 - **Real-time first.** A WebSocket gateway + Redis pub/sub fan-out drives messaging, presence,
   typing, mentions, watch-party sync, and call signaling; the UI is optimistic throughout.
+- **Private reliability boundaries.** Optional mirror clusters use explicit peer configuration,
+  HTTPS, a shared cluster key, and a PostgreSQL delivery ledger. They are not a public federation.
 
 ---
 
@@ -51,10 +53,10 @@ parties) rather than reinventing them._
 | **Deploy** | Docker Compose (postgres, redis, api, web, livekit) behind an external **Nginx Proxy Manager**. |
 
 **Deliberately not part of the stack** (to keep it lean): no BullMQ / background-job workers, no
-Redis Streams / outbox, no presigned-URL or direct-to-storage upload path, no gRPC, no
-Prometheus / Grafana / Loki observability stack, no PWA service worker, and no UI component
-library. Async fan-out is fire-and-forget Redis pub/sub in the request path; uploads are plain
-multipart through the API.
+Redis Streams or general-purpose job queue, no presigned-URL or direct-to-storage upload path, no
+gRPC, no Prometheus / Grafana / Loki observability stack, no PWA service worker, and no UI
+component library. Local real-time fan-out is fire-and-forget Redis pub/sub in the request path;
+the optional mirror cluster has its own narrow PostgreSQL event and delivery ledger.
 
 ---
 
@@ -82,6 +84,7 @@ graph TB
         Share["OpenShare<br/>files, media, waveforms"]
         Jelly["Jellyfin<br/>watch-party media"]
         Giphy["Giphy API"]
+        Patreon["Patreon API<br/>membership verification"]
     end
     Web -->|HTTPS/WSS| NPM
     Desktop -->|HTTPS/WSS + bearer| NPM
@@ -96,6 +99,7 @@ graph TB
     API -->|service-key upload, media proxy, waveform| Share
     API -->|library + stream proxy| Jelly
     API -->|GIF search| Giphy
+    API -->|OAuth + current membership| Patreon
 ```
 
 **Component breakdown.**
@@ -105,7 +109,8 @@ graph TB
 - **`api`** — the NestJS monolith. Modules: `auth`, `servers`
   (channels/roles/members/sounds/stickers), `messages` (+reactions/pins/polls/read-state and
   server-owned member activity), `realtime` (the `ws` gateway), `share`/`media` (uploads and proxy),
-  `friends`, `dms`, `invites`, `notifications`, `voice`, `watchparty`, `gifs`, plus global
+  `friends`, `dms`, `invites`, `notifications`, `voice`, `watchparty`, `gifs`, `patreon`, and
+  `federation`, plus global
   `prisma`, `redis`, and `presence` modules and `health`/`config` controllers. Every route is
   served both unversioned (`/api/...`) and under `/api/v1/...`.
 - **`livekit`** — the SFU, on the host network for WebRTC media.
@@ -289,6 +294,18 @@ server-side and stream back (with HTTP Range support).
 
 **Giphy.** `GET /api/gifs/search` proxies Giphy search/trending with the server-held `GIPHY_API_KEY`.
 
+**Patreon.** When the host opts in, a server owner stores a campaign ID and minimum current support
+amount in `PatreonGate`. A public join URL begins Patreon OAuth with a random, ten-minute Redis
+state. The callback performs a live membership lookup, does not persist the Patreon access token,
+and issues an atomic one-use OpenChat invite that expires after one hour. This is initial-access
+verification, not continuous entitlement enforcement. See [PATREON_INVITES.md](PATREON_INVITES.md).
+
+**Trusted mirror cluster.** An operator can explicitly configure private HTTPS peers with a shared
+32-or-more-character cluster secret. Message create/edit/delete events are HMAC-authenticated,
+idempotently persisted in `FederationEvent`, and retried from `FederationDelivery` with bounded
+backoff. This is separate from the local Redis real-time bus and is not public federation. See
+[TRUSTED_MIRROR_CLUSTER.md](TRUSTED_MIRROR_CLUSTER.md).
+
 ---
 
 ## 9. Data model
@@ -302,7 +319,7 @@ Prisma over PostgreSQL. Enums: `ChannelType` (TEXT/VOICE/ANNOUNCEMENT/DM/GROUP_D
 - **Servers** — `Server`, `ServerMember` (m:n `Role[]`), `Role` (BigInt `permissions` bitfield),
   `Category`, `Channel` (self-relation for threads; `serverId = null` ⇒ DM/group DM), `ServerSound`,
   `ServerSticker`,
-  `Invite` (code-based) and `ServerInvitation` (direct user-to-user), `AuditLog`.
+  `Invite` (code-based), `ServerInvitation` (direct user-to-user), `PatreonGate`, and `AuditLog`.
 - **Messaging** — `Message` (soft-delete, replies, pins, and `MessageKind` system activity),
   `MessageAttachment`, `Reaction`, `Poll`
   → `PollOption` → `PollVote`, `ReadState` (per-user-per-channel unread + mention counts).
@@ -310,6 +327,8 @@ Prisma over PostgreSQL. Enums: `ChannelType` (TEXT/VOICE/ANNOUNCEMENT/DM/GROUP_D
   directional row covers both request and accepted friendship).
 - **Voice & watch party** — `VoiceSession`, `WatchParty` (the `jellyfinItemId` ref column encodes
   the source via `yt:`/`ja:` prefixes).
+- **Private replication** — `FederationEvent` stores the signed event ledger and
+  `FederationDelivery` stores durable per-peer retry state.
 
 ---
 
@@ -368,8 +387,10 @@ system-browser OIDC Authorization Code + PKCE flow and rotating bearer/refresh t
   is designed to run as one instance. Horizontal scaling would need a Redis presence set (with
   heartbeat TTL) and is not implemented.
 - **No message replay / outbox.** Bus events aren't persisted; missed real-time events are
-  reconciled by re-fetching on reconnect, not replayed.
+  reconciled by re-fetching on reconnect, not replayed. The optional mirror cluster persists only
+  cross-host message replication and does not turn the local WebSocket bus into a replay stream.
 - **Optional integrations degrade gracefully.** With OpenShare unset, upload UI hides; without
-  Jellyfin, watch parties fall back to YouTube; without Giphy, the GIF picker hides.
+  Jellyfin, watch parties fall back to YouTube; without Giphy, the GIF picker hides; without
+  Patreon OAuth, membership-gate controls explain that host configuration is required.
 - **Not code-signed.** Desktop builds aren't OS-code-signed (updater signing is separate), so
   first launch shows a trust prompt per platform.

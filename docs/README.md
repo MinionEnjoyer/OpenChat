@@ -9,6 +9,8 @@ deployment follows CI-passing `main`.
 - [Setup](SETUP.md) — service prerequisites, configuration, networking, and local development.
 - [Deploy and update](DEPLOY.md) — manual and CI-gated production deployment.
 - [Architecture](ARCHITECTURE.md) — the current production design and integration boundaries.
+- [Patreon invitations](PATREON_INVITES.md) — optional membership verification and creator setup.
+- [Trusted mirror cluster](TRUSTED_MIRROR_CLUSTER.md) — private, authenticated host replication.
 - [Project status](PROJECT-STATUS.md) — current release, health, verification, and open risks.
 - [Authentication readiness](AUTH-PRODUCTION-READINESS.md) — web, desktop, and mobile OIDC/PKCE.
 - [Production push enablement](PRODUCTION-PUSH-ENABLEMENT.md) — FCM/APNs server configuration.

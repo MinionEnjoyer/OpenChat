@@ -22,7 +22,10 @@ Everything environment-specific
 > deployment follows CI-passing `main`, so it can contain newer backend or test-only commits without
 > changing the desktop version.
 
-## If you found this project useful, consider supporting me here: https://buymeacoffee.com/minionenjoyer Thank you!
+## Support
+
+If OpenChat is useful to you, project support is available through
+[Buy Me a Coffee](https://buymeacoffee.com/minionenjoyer).
 
 ## Features
 
@@ -53,6 +56,11 @@ Everything environment-specific
   **[apps/desktop/README.md](apps/desktop/README.md)**.
 - **Multi-domain clients** — the web and desktop Settings → Servers tab remembers authenticated
   OpenChat domains and switches the entire client between them.
+- **Creator membership invitations** — server owners can optionally verify a supporter&apos;s current
+  Patreon membership and share a one-use, expiring OpenChat invitation without retaining Patreon
+  access tokens.
+- **Trusted mirror clusters** — operators can opt into authenticated, persistent message
+  replication across a private group of OpenChat hosts for self-hosted service continuity.
 - **Roles & permissions** — bitfield permissions with a data-driven role editor.
 - **Real-time everything** — WebSocket gateway + Redis pub/sub; presence, typing,
   notifications, and friend/member lists update live (optimistic UI throughout).
@@ -93,6 +101,10 @@ docker compose up -d --build
 Full instructions — including OIDC/Share/LiveKit prerequisites, local dev, pushing to git,
 and git-based redeploys — are in **[docs/SETUP.md](docs/SETUP.md)** and
 **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+Optional integrations are documented in
+**[docs/PATREON_INVITES.md](docs/PATREON_INVITES.md)** and
+**[docs/TRUSTED_MIRROR_CLUSTER.md](docs/TRUSTED_MIRROR_CLUSTER.md)**.
 
 The maintained-document index in **[docs/README.md](docs/README.md)** distinguishes current
 operator guidance from dated audits, signoffs, decisions, and handoff records that intentionally

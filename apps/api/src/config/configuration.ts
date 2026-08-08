@@ -53,6 +53,11 @@ const envSchema = z.object({
   FEDERATION_NODE_ID: z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/).optional(),
   FEDERATION_SHARED_SECRET: z.string().min(32).optional(),
   FEDERATION_PEERS: z.string().optional(),
+  // Optional Patreon membership gate for creator-managed server invitations.
+  PATREON_ENABLED: z.enum(['0', '1']).optional().default('0'),
+  PATREON_CLIENT_ID: z.string().min(1).optional(),
+  PATREON_CLIENT_SECRET: z.string().min(1).optional(),
+  PATREON_REDIRECT_URI: z.string().url().optional(),
 }).superRefine((env, ctx) => {
   if (env.SHARE_BASE_URL && !env.SHARE_API_KEY) {
     ctx.addIssue({
@@ -80,6 +85,13 @@ const envSchema = z.object({
       const ids = parsedPeers.data.map((peer) => peer.id);
       if (new Set(ids).size !== ids.length || ids.includes(env.FEDERATION_NODE_ID ?? '')) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FEDERATION_PEERS'], message: 'peer IDs must be unique and cannot match this node' });
+      }
+    }
+  }
+  if (env.PATREON_ENABLED === '1') {
+    for (const key of ['PATREON_CLIENT_ID', 'PATREON_CLIENT_SECRET', 'PATREON_REDIRECT_URI'] as const) {
+      if (!env[key]) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'required when Patreon invitations are enabled' });
       }
     }
   }

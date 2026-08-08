@@ -2,7 +2,7 @@ import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useS
 import { create } from 'zustand';
 import type { User, Server, Channel, Message, Attachment as Att, DmChannel, ServerMemberInfo } from './lib/types';
 import * as api from './lib/api';
-import { listDms } from './lib/social';
+import { acceptInvite, listDms } from './lib/social';
 import { getConfig, uploadToShare } from './lib/share';
 import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
@@ -40,6 +40,7 @@ import { canManageServer, has, Permission } from './lib/permissions';
 import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScrollPosition } from './lib/channelScroll';
 import { activateServerChannels } from './lib/channelNavigation';
 import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
+import { clearPatreonCallbackUrl, readPatreonCallback } from './lib/patreonInvite';
 
 const SettingsModal = lazy(() =>
   import('./components/SettingsModal').then((module) => ({ default: module.SettingsModal })),
@@ -277,11 +278,27 @@ export default function App() {
         // Load notification prefs so the desktop shell can suppress muted/level-gated OS
         // notifications (mirrors the server push gate). Fire-and-forget; defaults to notify.
         loadNotifyPrefs();
-        const [cfg, servers, dms] = await Promise.all([
+        const [cfg, initialServers, dms] = await Promise.all([
           getConfig().catch(() => ({ shareBaseUrl: '', jellyfinUrl: '' })),
           api.listServers().catch(() => [] as Server[]),
           listDms().catch(() => [] as DmChannel[]),
         ]);
+        let servers = initialServers;
+        const patreonCallback = readPatreonCallback(window.location.search);
+        if (patreonCallback.inviteCode) {
+          try {
+            const joined = await acceptInvite(patreonCallback.inviteCode);
+            servers = await api.listServers();
+            showToast(`Joined ${joined.name} through Patreon.`);
+          } catch {
+            showToast('The Patreon invitation is invalid or has expired.');
+          } finally {
+            window.history.replaceState(null, '', clearPatreonCallbackUrl(window.location));
+          }
+        } else if (patreonCallback.error) {
+          showToast(patreonCallback.error);
+          window.history.replaceState(null, '', clearPatreonCallbackUrl(window.location));
+        }
         useStore.getState().set({ shareBaseUrl: cfg.shareBaseUrl, servers, dms });
         setShareHost(cfg.shareBaseUrl); // configure Share embed detection for this deployment
 
@@ -298,7 +315,10 @@ export default function App() {
         if (e?.status === 401) {
           // Invalid/expired auth. Desktop (token): clear it and return to setup.
           if (isTauri()) { setToken(null); window.location.reload(); }
-          else window.location.href = `${serverOrigin()}/api/auth/login`;
+          else {
+            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            window.location.href = `${serverOrigin()}/api/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+          }
         } else {
           console.error('init failed', e);
           setConnectError(`Couldn't connect to ${serverOrigin() || 'the server'}. Check the address and your connection.`);

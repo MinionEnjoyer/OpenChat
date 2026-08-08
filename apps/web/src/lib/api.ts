@@ -109,6 +109,24 @@ export const updateServer = (id: string, data: { name?: string; iconUrl?: string
 export const deleteServer = (id: string) =>
   request<{ success: true }>(`/servers/${id}`, { method: 'DELETE' });
 
+export type PatreonGateConfig = {
+  available: boolean;
+  gate: { campaignId: string; minimumCents: number; enabled: boolean } | null;
+  joinUrl: string | null;
+};
+
+export const getPatreonGate = (serverId: string) =>
+  request<PatreonGateConfig>(`/servers/${serverId}/patreon`);
+export const updatePatreonGate = (
+  serverId: string,
+  data: { campaignId: string; minimumCents: number; enabled: boolean },
+) => request<PatreonGateConfig>(`/servers/${serverId}/patreon`, {
+  method: 'PUT',
+  body: JSON.stringify(data),
+});
+export const deletePatreonGate = (serverId: string) =>
+  request<{ success: true }>(`/servers/${serverId}/patreon`, { method: 'DELETE' });
+
 export const listMembers = (serverId: string) =>
   request<ServerMemberInfo[]>(`/servers/${serverId}/members`);
 export const kickMember = (serverId: string, userId: string) =>

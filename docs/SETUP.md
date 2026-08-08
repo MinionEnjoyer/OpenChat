@@ -17,6 +17,7 @@ You need these services reachable (use your own instances — any equivalents wo
 | **Jellyfin** *(optional)* | watch parties | `JELLYFIN_*` |
 | **A public IP / edge** | LiveKit media reachability | `LIVEKIT_NODE_IP` |
 | **Giphy API key** *(optional)* | GIF picker | `GIPHY_API_KEY` |
+| **Patreon OAuth client** *(optional)* | membership-gated server invitations | `PATREON_*` |
 | **A reverse proxy (e.g. Nginx Proxy Manager)** | TLS + routing the domain to the web container and `wss://` to LiveKit | — |
 
 ### Provider notes
@@ -32,6 +33,11 @@ You need these services reachable (use your own instances — any equivalents wo
   `/upload` fallback). Raw media, thumbnails, and waveform analysis also pass through authenticated
   OpenChat API routes, so clients do not need OpenShare credentials or a direct browser session.
   Point both apps at the *same* OIDC provider. Leave `SHARE_*` blank to run OpenChat without uploads.
+- **Patreon:** create a Patreon OAuth client with
+  `https://<your-chat-domain>/api/patreon/callback` as its exact redirect URI. Set
+  `PATREON_ENABLED=1`, the client ID and secret, and `PATREON_REDIRECT_URI`. Server owners can then
+  configure a campaign and support threshold in Server Settings → Patreon. See
+  [PATREON_INVITES.md](PATREON_INVITES.md) for the security model and complete flow.
 - **Reverse proxy:** point `chat.<domain>` → the web container's host port (`WEB_PORT`, default
   `8810`), and `livekit.<domain>` → the LiveKit signaling port `7880` (WebSocket upgrade
   enabled). Forward LiveKit media to the host: **UDP 50000** and **TCP 7881**.
@@ -54,6 +60,10 @@ Upload limits are operator-controlled. `UPLOAD_MAX_FILES` and `UPLOAD_MAX_FILE_B
 default, so the API does not impose a file-count or per-file limit. The bundled nginx config accepts
 request bodies up to 100 MB; raise that value (and the external proxy's body limit) if your instance
 should accept larger requests.
+
+Patreon invitations and trusted mirror clustering are also disabled by default. Their credentials
+belong only in `.env`. Follow [PATREON_INVITES.md](PATREON_INVITES.md) or
+[TRUSTED_MIRROR_CLUSTER.md](TRUSTED_MIRROR_CLUSTER.md) before enabling either integration.
 
 ## 2. Render the LiveKit config
 
@@ -110,5 +120,7 @@ npm run dev                  # http://localhost:3000, proxied to the API
 - **Uploads return 502:** confirm OpenChat and OpenShare have the same `SHARE_API_KEY`, OpenChat can
   reach `SHARE_BASE_URL` from the API container, and OpenShare supports `/api/assets` or the legacy
   `/upload` endpoint. Clients never call OpenShare's dev-login route.
+- **Patreon option says the host is not configured:** confirm every `PATREON_*` value is present,
+  the redirect URI exactly matches the Patreon OAuth client, and the API was restarted.
 
 Next: **[DEPLOY.md](DEPLOY.md)** — pushing to git and running live updates on the server.

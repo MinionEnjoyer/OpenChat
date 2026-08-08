@@ -26,6 +26,7 @@ import { HealthController } from './health/health.controller';
 import { ConfigController } from './config/config.controller';
 import { validateEnv } from './config/configuration';
 import { FederationModule } from './federation/federation.module';
+import { PatreonModule } from './patreon/patreon.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { FederationModule } from './federation/federation.module';
     PrismaModule,
     RedisModule,
     FederationModule,
+    PatreonModule,
     PresenceModule,
     AuthModule,
     AuditLogModule,

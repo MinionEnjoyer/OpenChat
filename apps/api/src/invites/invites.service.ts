@@ -133,10 +133,17 @@ export class InvitesService {
     }
 
     const { server, activityMessage } = await this.prisma.$transaction(async (tx) => {
-      await tx.invite.update({
-        where: { code },
+      // Claim the invite atomically. The preview checks above keep friendly errors,
+      // while this conditional write prevents two concurrent requests from both
+      // consuming a one-use Patreon (or ordinary) invite.
+      const claimed = await tx.invite.updateMany({
+        where: {
+          id: invite.id,
+          ...(invite.maxUses === null ? {} : { uses: { lt: invite.maxUses } }),
+        },
         data: { uses: { increment: 1 } },
       });
+      if (claimed.count !== 1) throw new BadRequestException('Invite usage limit reached');
 
       await tx.serverMember.create({
         data: {

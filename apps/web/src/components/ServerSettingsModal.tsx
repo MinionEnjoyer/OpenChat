@@ -7,8 +7,9 @@ import { Permission, PERMISSION_LIST, has, toBig } from '../lib/permissions';
 import { Avatar } from './Avatar';
 import { AddBotBrowser } from './AddBotBrowser';
 import { OpenChatSpinner } from './OpenChatSpinner';
+import { PatreonGateSettings } from './PatreonGateSettings';
 
-type Tab = 'overview' | 'roles' | 'members' | 'invite' | 'bots';
+type Tab = 'overview' | 'roles' | 'members' | 'invite' | 'bots' | 'patreon';
 
 function extractError(err: any): string {
   const raw = String(err?.message ?? 'Something went wrong.');
@@ -266,6 +267,7 @@ export function ServerSettingsModal({
           {tabBtn('roles', 'Roles', canRoles)}
           {tabBtn('members', 'Members', true)}
           {tabBtn('bots', 'Bots', canServer)}
+          {tabBtn('patreon', 'Patreon', isOwner)}
         </div>
 
         {/* content */}
@@ -282,6 +284,8 @@ export function ServerSettingsModal({
             {error && <p style={{ color: 'var(--danger)', marginTop: 0 }}>{error}</p>}
 
             {tab === 'bots' && <AddBotBrowser serverId={server.id} label={sectionLabel} />}
+
+            {tab === 'patreon' && <PatreonGateSettings serverId={server.id} />}
 
             {tab === 'overview' && (
               <div>
