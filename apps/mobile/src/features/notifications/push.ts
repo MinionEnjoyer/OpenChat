@@ -312,12 +312,6 @@ async function handleAndroidTokenRotation(newToken: DevicePushToken): Promise<vo
   }
 }
 
-/** iOS FCM token rotation handler — called by Firebase onTokenRefresh. */
-async function handleIosTokenRotation(newToken: string): Promise<void> {
-  await deleteTokenOnServer();
-  await registerTokenOnServer(newToken);
-}
-
 /**
  * Sign-out hook: DELETE the device token from the server.
  * This is a correctness requirement (FR-NOTIF-002): a signed-out device

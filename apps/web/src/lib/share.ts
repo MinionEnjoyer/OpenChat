@@ -26,13 +26,10 @@ export async function getConfig(): Promise<ShareConfig> {
  * Share session or account, so it works for users who have never opened OpenShare (the old
  * web path posted straight to Share with a browser cookie, which such users don't have).
  * Web authenticates with the session cookie; native clients send a bearer app token.
- * `shareBaseUrl` is unused now (the API builds the returned URLs) but kept for call sites.
  */
 export async function uploadToShare(
   files: File[],
-  shareBaseUrl?: string,
 ): Promise<{ attachments: Attachment[]; rejected: { name: string; reason: string }[] }> {
-  void shareBaseUrl;
   const token = getToken();
   const form = new FormData();
   for (const f of files) form.append('files', f);
@@ -59,10 +56,8 @@ export async function uploadToShare(
  */
 export async function analyzeWaveform(
   file: File,
-  shareBaseUrl: string,
 ): Promise<{ peaks: number[]; duration: number | null } | null> {
   try {
-    void shareBaseUrl;
     const token = getToken();
     const form = new FormData();
     form.append('file', file);

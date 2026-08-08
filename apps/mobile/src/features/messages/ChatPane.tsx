@@ -57,7 +57,6 @@ import {
   detectMentionTrigger,
   filterMentionCandidates,
   insertMention,
-  parseMentionSegments,
   canMentionEveryone,
   buildMemberUsernameSet,
   type MentionCandidate,
@@ -517,37 +516,6 @@ export function ChatPane({ channelId, serverId, channelType, members, myPermissi
     return actions;
   }, [actionTarget, user?.id, canManage, openEdit, confirmDelete, copyText, copyLink, doPin]);
 
-  // ── Mention-aware content rendering ───────────────────────────────
-
-  /**
-   * Render message content with highlighted mentions.
-   * Parses text into segments; mention segments get styled highlight;
-   * the current user's own mentions get a distinct (accent-background) style.
-   */
-  const renderSegmentedContent = useCallback(
-    (content: string): React.ReactNode => {
-      const current = user?.username?.toLowerCase();
-      const segments = parseMentionSegments(content, memberUsernameSet, current);
-
-      if (segments.length === 0) return content;
-
-      return segments.map((seg, i) => {
-        if (seg.kind === 'plain') {
-          return <Text key={i}>{seg.text}</Text>;
-        }
-        return (
-          <Text
-            key={i}
-            style={seg.isSelf ? styles.mentionSelf : styles.mentionHighlight}
-          >
-            {seg.display}
-          </Text>
-        );
-      });
-    },
-    [memberUsernameSet, user?.username],
-  );
-
   // ── Render ────────────────────────────────────────────────────────
 
   return (
@@ -982,21 +950,6 @@ const styles = StyleSheet.create({
   deletedText: { ...typography.caption, color: palette.textMuted, fontStyle: 'italic' },
   empty: { ...typography.caption, color: palette.textMuted, textAlign: 'center', padding: spacing.lg },
   typing: { ...typography.caption, color: palette.textMuted, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
-  // Mention rendering
-  mentionHighlight: {
-    backgroundColor: 'var(--hover)',
-    color: palette.accent,
-    borderRadius: 4,
-    paddingHorizontal: 3,
-    fontWeight: '600' as const,
-  },
-  mentionSelf: {
-    backgroundColor: palette.accent,
-    color: palette.text,
-    borderRadius: 4,
-    paddingHorizontal: 3,
-    fontWeight: '600' as const,
-  },
   // Mention autocomplete picker
   mentionPicker: {
     maxHeight: 200,

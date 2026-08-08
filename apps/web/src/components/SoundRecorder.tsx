@@ -63,7 +63,7 @@ function encodeWav(buffer: AudioBuffer, gain: number): Blob {
  * Record a short mic clip and hand it back as a File (posted like any other attachment).
  * Records → preview (with re-record) → Post.
  */
-export function SoundRecorder({ shareBaseUrl, onRecorded, onClose }: { shareBaseUrl: string; onRecorded: (file: File) => void; onClose: () => void }) {
+export function SoundRecorder({ onRecorded, onClose }: { onRecorded: (file: File) => void; onClose: () => void }) {
   const [phase, setPhase] = useState<'idle' | 'recording' | 'review'>('idle');
   const [elapsed, setElapsed] = useState(0);
   const [level, setLevel] = useState(0);
@@ -133,7 +133,7 @@ export function SoundRecorder({ shareBaseUrl, onRecorded, onClose }: { shareBase
       stopStream();
       // Bake the waveform on the server right away so the preview matches the posted clip.
       const { mime, ext } = fmtRef.current;
-      analyzeWaveform(new File([blob], `clip.${ext}`, { type: mime }), shareBaseUrl)
+      analyzeWaveform(new File([blob], `clip.${ext}`, { type: mime }))
         .then((r) => { if (r) setPreviewPeaks(r.peaks); })
         .catch(() => {});
     };

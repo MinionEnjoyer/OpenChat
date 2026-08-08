@@ -1,13 +1,8 @@
 /**
  * @characterizes share — ShareService behavior AS IT IS TODAY
  *
- * NOTE: /api/assets/upload-url is dead code (G2 confirmed).
- * The ShareService in OpenChat calls POST {SHARE_BASE_URL}/api/assets/upload-url
- * and GET {SHARE_BASE_URL}/api/assets/{id}, which don't exist in OpenShare.
- *
- * This test characterizes the dead path's failure mode so Phase 5's repoint is visible.
- * The web client bypasses ShareService entirely — it uploads browser→OpenShare /upload
- * with the user's Share session cookie.
+ * OpenChat now brokers uploads through its authenticated /uploads route, which calls
+ * OpenShare's service-authenticated POST /api/assets contract.
  */
 
 import { shareFetch, createJar } from './helpers';
@@ -41,40 +36,12 @@ describe('share — OpenShare public endpoints (per E4/E5)', () => {
   });
 });
 
-describe('share — ShareService dead path (G2)', () => {
-  // These tests call the non-existent /api/assets/* routes on OpenShare
-  // to characterize the dead path's failure mode.
-
-  it('POST OpenShare /api/assets/upload-url returns 404 (route does not exist)', async () => {
-    // characterizes: ShareService.requestUploadUrl() calls this, but it's dead code.
-    // The route /api/assets/upload-url does not exist in OpenShare.
-    const res = await shareFetch('/api/assets/upload-url', {
+describe('share — OpenChat service upload contract', () => {
+  it('POST OpenShare /api/assets requires service authentication', async () => {
+    const res = await shareFetch('/api/assets', {
       method: 'POST',
-      body: { filename: 'test.png', mimeType: 'image/png', size: 1024 },
     });
-    // characterizes: the dead path returns 404 — Phase 5 must implement this route
-    expect(res.status).toBe(404);
-  });
-
-  it('GET OpenShare /api/assets/:id returns 404 (route does not exist)', async () => {
-    // characterizes: ShareService.getAssetMetadata() calls this, also dead code.
-    const res = await shareFetch('/api/assets/test123');
-    // characterizes: the dead path returns 404 — Phase 5 must implement this route
-    expect(res.status).toBe(404);
-  });
-
-  it('ShareService calls are NOT invoked by the web client (browser uses direct OpenShare upload)', async () => {
-    // characterizes: The web client uses browser→OpenShare /upload with session cookie.
-    // The ShareService in apps/api/src/share/share.service.ts is dead code (G2).
-    // We verify by checking there's no REST endpoint on OpenChat's API that proxies uploads.
-    // The only asset-related routes in OpenChat are the message attachment shape (E9),
-    // which stores shareAssetId but doesn't proxy bytes.
-    //
-    // This is a documentation assertion — the proof is in the source code:
-    // - OpenChat ShareService calls non-existent OpenShare endpoints
-    // - The web client's lib/share.ts uses fetch() directly to OpenShare /upload
-    // - No OpenChat API route marshals uploads through ShareService
-    expect(true).toBe(true);
+    expect(res.status).toBe(401);
   });
 });
 

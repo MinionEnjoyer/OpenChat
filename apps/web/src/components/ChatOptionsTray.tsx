@@ -40,7 +40,7 @@ export function ChatOptionsTray({
     if (!files.length || !shareBaseUrl) return;
     setUploading(true);
     try {
-      const { attachments, rejected } = await uploadToShare(files, shareBaseUrl);
+      const { attachments, rejected } = await uploadToShare(files);
       if (rejected.length) alert('Rejected: ' + rejected.map((r) => `${r.name} (${r.reason})`).join(', '));
       if (attachments.length) onUploaded(attachments);
     } catch (error) {
@@ -94,7 +94,7 @@ export function ChatOptionsTray({
       )}
 
       {recording && (
-        <SoundRecorder shareBaseUrl={shareBaseUrl}
+        <SoundRecorder
           onRecorded={(file) => handleFiles([file])}
           onClose={() => setRecording(false)} />
       )}

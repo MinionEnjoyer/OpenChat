@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Room, RoomEvent, Track, createLocalScreenTracks, type RemoteTrack, type RemoteTrackPublication, type RemoteParticipant, type LocalTrack } from 'livekit-client';
+import type { Room, RemoteTrack, RemoteTrackPublication, RemoteParticipant, LocalTrack } from 'livekit-client';
 import * as api from './api';
 import { getAudioPrefs, saveAudioPrefs, type AudioPrefs, type InputMode, type PttKeybind } from './audioPrefs';
 import { keybindToAccelerator, registerDesktopPtt } from './ptt';
+
+type LiveKitModule = typeof import('livekit-client');
+let liveKitPromise: Promise<LiveKitModule> | null = null;
+
+function loadLiveKit(): Promise<LiveKitModule> {
+  liveKitPromise ??= import('livekit-client');
+  return liveKitPromise;
+}
 
 export interface VoiceParticipant {
   identity: string;
@@ -133,6 +141,7 @@ export function useVoice() {
   const syncMic = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
+    const { Track } = await loadLiveKit();
     const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
     if (!track) return;
     const transmit = !mutedRef.current && (inputModeRef.current === 'vad' || pttHeldRef.current);
@@ -161,6 +170,7 @@ export function useVoice() {
     setStatus('requesting token');
     try {
       const { url, token } = await api.voiceJoin(chId);
+      const { Room, RoomEvent, Track } = await loadLiveKit();
       console.debug('[voice] token ok, connecting to', url);
       setStatus('connecting');
       const room = new Room({ adaptiveStream: true, dynacast: true });
@@ -320,6 +330,7 @@ export function useVoice() {
   const startScreenShare = useCallback(async () => {
     const room = roomRef.current;
     if (!room) return;
+    const { createLocalScreenTracks, Track } = await loadLiveKit();
     const prefs = getAudioPrefs();
     const fps = prefs.screenShareFps >= 120 ? 120 : prefs.screenShareFps >= 60 ? 60 : 30;
     const RES: Record<string, { width: number; height: number }> = {

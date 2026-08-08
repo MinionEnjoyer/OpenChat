@@ -512,14 +512,3 @@ describe('Health + Config', () => {
     expect(r.status).toBe(200);
   });
 });
-
-describe('Excluded routes (named reasons)', () => {
-  it('assets routes — OpenShare, not OpenChat API', () => { expect(true).toBe(true); });
-  it('DELETE /friends/:userId — covered by characterization', () => { expect(true).toBe(true); });
-  it('POST /friends/requests/:id/decline — covered by characterization', () => { expect(true).toBe(true); });
-  it('POST /block/:userId — covered by characterization; BACKLOG', () => { expect(true).toBe(true); });
-  it('PUT /auth/server-layout — no response schema in contract', () => { expect(true).toBe(true); });
-  it('server-invitation accept/decline — exercised via characterization', () => { expect(true).toBe(true); });
-  it('GET /gifs/search — requires external API key', () => { expect(true).toBe(true); });
-  it('Watchparty routes — deferred to Phase 7', () => { expect(true).toBe(true); });
-});

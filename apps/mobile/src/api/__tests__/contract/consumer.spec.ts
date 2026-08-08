@@ -147,10 +147,3 @@ describe('P0-09 consumer — Server shape contract', () => {
     }
   });
 });
-
-describe('P0-09 consumer — share-assets planned endpoints skip', () => {
-  it('consumer does not call planned upload-url endpoint', () => {
-    // Until Phase 5, this route returns 404. Consumer code should not call it.
-    expect(true).toBe(true);
-  });
-});

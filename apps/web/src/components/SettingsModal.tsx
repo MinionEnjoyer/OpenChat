@@ -78,7 +78,7 @@ export function SettingsModal({
     setError(null);
     setUploading(true);
     try {
-      const { attachments } = await uploadToShare([file], shareBaseUrl);
+      const { attachments } = await uploadToShare([file]);
       if (attachments[0]) setAvatarUrl(attachments[0].url);
       else setError('Upload was rejected.');
     } catch (err: any) {

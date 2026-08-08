@@ -119,7 +119,7 @@ export function ServerSettingsModal({
     setIconUploading(true);
     setError(null);
     try {
-      const { attachments } = await uploadToShare([file], shareBaseUrl);
+      const { attachments } = await uploadToShare([file]);
       if (attachments[0]) setIconUrl(attachments[0].url);
     } catch (err) {
       setError(extractError(err));

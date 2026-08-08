@@ -8,31 +8,21 @@ import { getTheme, applyTheme, type Theme } from './lib/theme';
 import { saveView, loadView } from './lib/lastView';
 import { ChatOptionsTray, type ChatTool } from './components/ChatOptionsTray';
 import { Avatar } from './components/Avatar';
-import { FriendsView } from './components/FriendsView';
 import { ServerActions } from './components/ServerActions';
 import { UserPanel } from './components/UserPanel';
 import { NotificationHub } from './components/NotificationHub';
 import { HeaderPanel } from './components/HeaderPanel';
 import { MemberListPanel } from './components/MemberListPanel';
-import { CallView } from './components/CallView';
-import { CreateChannelModal } from './components/CreateChannelModal';
-import { WatchPartyPicker } from './components/WatchPartyPicker';
-import { EmojiPicker } from './components/EmojiPicker';
 import { setShareHost } from './components/MessageEmbeds';
 import { Icon } from './components/Icon';
-import { GifPicker } from './components/GifPicker';
-import { StickerPicker } from './components/StickerPicker';
 import { messageSummary, stickerContent } from './lib/messageContent';
-import { PollModal } from './components/PollModal';
 import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
 import { wsUrl, serverOrigin, mediaUrl, getToken, setToken } from './lib/serverConfig';
 import { TitleBar, isTauri, isMac } from './components/TitleBar';
-import { DesktopSetup } from './components/DesktopSetup';
 import { LoadingScreen } from './components/LoadingScreen';
-import { UpdateGate } from './components/UpdateGate';
 import { OpenChatSpinner } from './components/OpenChatSpinner';
 import { notifyNative } from './lib/notify';
 import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
@@ -41,6 +31,18 @@ import { getChannelScrollPosition, saveChannelScrollPosition, type ChannelScroll
 import { activateServerChannels } from './lib/channelNavigation';
 import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
 import { clearPatreonCallbackUrl, readPatreonCallback } from './lib/patreonInvite';
+import { indexServerChannels, serverIdForChannel } from './lib/channelOwnership';
+
+const FriendsView = lazy(() => import('./components/FriendsView').then((module) => ({ default: module.FriendsView })));
+const CallView = lazy(() => import('./components/CallView').then((module) => ({ default: module.CallView })));
+const CreateChannelModal = lazy(() => import('./components/CreateChannelModal').then((module) => ({ default: module.CreateChannelModal })));
+const WatchPartyPicker = lazy(() => import('./components/WatchPartyPicker').then((module) => ({ default: module.WatchPartyPicker })));
+const EmojiPicker = lazy(() => import('./components/EmojiPicker').then((module) => ({ default: module.EmojiPicker })));
+const GifPicker = lazy(() => import('./components/GifPicker').then((module) => ({ default: module.GifPicker })));
+const StickerPicker = lazy(() => import('./components/StickerPicker').then((module) => ({ default: module.StickerPicker })));
+const PollModal = lazy(() => import('./components/PollModal').then((module) => ({ default: module.PollModal })));
+const DesktopSetup = lazy(() => import('./components/DesktopSetup').then((module) => ({ default: module.DesktopSetup })));
+const UpdateGate = lazy(() => import('./components/UpdateGate').then((module) => ({ default: module.UpdateGate })));
 
 const SettingsModal = lazy(() =>
   import('./components/SettingsModal').then((module) => ({ default: module.SettingsModal })),
@@ -65,6 +67,7 @@ interface AppState {
   shareBaseUrl: string;
   servers: Server[];
   channelsByServer: Record<string, Channel[]>;
+  serverIdByChannel: Record<string, string>;
   messagesByChannel: Record<string, Message[]>;
   dms: DmChannel[];
   membersByServer: Record<string, ServerMemberInfo[]>;
@@ -89,20 +92,12 @@ interface AppState {
   clearUnread: (channelId: string) => void;
 }
 
-// Which server a channel belongs to, from the loaded channel lists. Returns null for a DM
-// or a server whose channels aren't loaded yet (notify prefs then fall back to channel scope).
-function serverIdForChannel(st: { channelsByServer: Record<string, { id: string }[]> }, channelId: string): string | null {
-  for (const sid in st.channelsByServer) {
-    if (st.channelsByServer[sid]?.some((c) => c.id === channelId)) return sid;
-  }
-  return null;
-}
-
 const useStore = create<AppState>((set) => ({
   user: null,
   shareBaseUrl: '',
   servers: [],
   channelsByServer: {},
+  serverIdByChannel: {},
   messagesByChannel: {},
   dms: [],
   membersByServer: {},
@@ -114,7 +109,10 @@ const useStore = create<AppState>((set) => ({
   activeChannelId: null,
   set: (p) => set(p),
   setChannels: (serverId, channels) =>
-    set((s) => ({ channelsByServer: { ...s.channelsByServer, [serverId]: channels } })),
+    set((s) => ({
+      channelsByServer: { ...s.channelsByServer, [serverId]: channels },
+      serverIdByChannel: indexServerChannels(s.serverIdByChannel, serverId, channels),
+    })),
   setMessages: (channelId, messages) =>
     set((s) => ({ messagesByChannel: { ...s.messagesByChannel, [channelId]: messages } })),
   prependMessages: (channelId, older) =>
@@ -448,7 +446,7 @@ export default function App() {
         else if (op === 'mention') {
           if (d.channelId !== st.activeChannelId) st.bumpUnread(d.channelId);
           showToast(`💬 ${d.authorName} mentioned you in #${d.channelName}`);
-          const serverId: string | null = d.serverId ?? serverIdForChannel(st, d.channelId);
+          const serverId: string | null = d.serverId ?? serverIdForChannel(st.serverIdByChannel, d.channelId);
           if (st.user?.status !== 'DND'
               && notifyAllowed({ channelId: d.channelId, serverId, isMention: true })) {
             notifyNative(`Mention in #${d.channelName}`, `${d.authorName} mentioned you`,

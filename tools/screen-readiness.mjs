@@ -3,7 +3,7 @@
 //
 // Uses Maestro flows for navigation (reusing existing selectors and idioms),
 // then captures uiautomator hierarchy + screenshot via adb and runs the same
-// four mechanical assertions as screen-readiness-legacy.mjs:
+// four mechanical assertions from the original screen-readiness harness:
 //   1. ZERO BOUNDS — any element with 0-area bounds (collapsed/invisible)
 //   2. OFF SCREEN — any element entirely outside the viewport
 //   3. KEYBOARD OCCLUSION — interactive elements covered by the IME
