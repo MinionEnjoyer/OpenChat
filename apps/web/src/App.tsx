@@ -19,19 +19,18 @@ import { MessageList } from './components/MessageList';
 import type { ServerLayout, ServerFolder } from './lib/types';
 import type { WatchPartyState, LibraryItem } from './lib/types';
 import { useVoice } from './lib/useVoice';
-import { wsUrl, serverOrigin, mediaUrl, getToken, setToken } from './lib/serverConfig';
+import { serverOrigin, mediaUrl, getToken, setToken } from './lib/serverConfig';
 import { TitleBar, isTauri, isMac } from './components/TitleBar';
 import { LoadingScreen } from './components/LoadingScreen';
 import { OpenChatSpinner } from './components/OpenChatSpinner';
-import { notifyNative } from './lib/notify';
-import { loadNotifyPrefs, notifyAllowed } from './lib/notifyPrefs';
+import { loadNotifyPrefs } from './lib/notifyPrefs';
 import { canManageServer, has, Permission } from './lib/permissions';
 import { activateServerChannels } from './lib/channelNavigation';
 import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
 import { clearPatreonCallbackUrl, readPatreonCallback } from './lib/patreonInvite';
-import { serverIdForChannel } from './lib/channelOwnership';
 import { useAppStore as useStore } from './lib/appStore';
 import { useMessageHistory } from './lib/useMessageHistory';
+import { useRealtimeConnection } from './lib/useRealtimeConnection';
 
 const FriendsView = lazy(() => import('./components/FriendsView').then((module) => ({ default: module.FriendsView })));
 const CallView = lazy(() => import('./components/CallView').then((module) => ({ default: module.CallView })));
@@ -66,21 +65,6 @@ export default function App() {
   const s = useStore();
   // Custom title bar on Windows/Linux desktop only; macOS keeps native chrome.
   const showChrome = isTauri() && !isMac;
-  const wsRef = useRef<WebSocket | null>(null);
-  const subscribedRef = useRef<Set<string>>(new Set()); // channels to (re)subscribe on every WS (re)connect
-  const manualStatusRef = useRef<string>('ONLINE'); // the user's chosen status (drives auto-away restore)
-  const autoAwayRef = useRef(false); // true while we've auto-flipped to AWAY on idle
-
-  // Broadcast a presence change over WS. transient=true (auto-away) updates live presence
-  // only; a manual change (settings) also persists as the user's saved preference.
-  const sendPresence = useCallback((status: string, transient: boolean) => {
-    if (!transient) autoAwayRef.current = false;
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ op: 'presence.update', d: { status, transient } }));
-    }
-  }, []);
-  const [wsDown, setWsDown] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [updateChecked, setUpdateChecked] = useState(() => !isTauri()); // desktop gates on an update check first
   const finishUpdateCheck = useCallback(() => setUpdateChecked(true), []);
@@ -109,13 +93,10 @@ export default function App() {
   const voice = useVoice();
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
-  const ringTimer = useRef<number | undefined>(undefined);
   const [partyByChannel, setPartyByChannel] = useState<Record<string, WatchPartyState | null>>({});
   const [watchPickerOpen, setWatchPickerOpen] = useState(false);
   // participants per voice channel (server-tracked), for the nested sidebar lists
   const [voiceMembers, setVoiceMembers] = useState<Record<string, { id: string; username: string; displayName: string | null; avatarUrl: string | null }[]>>({});
-  // channelId -> { userId -> expiresAt(ms) }
-  const [typing, setTyping] = useState<Record<string, Record<string, number>>>({});
   const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string; content: string } | null>(null);
   // Only one header dropdown (pins / notifications) is open at a time.
   const [openPanel, setOpenPanel] = useState<'pins' | 'notify' | 'search' | null>(null);
@@ -126,7 +107,6 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
   const [pins, setPins] = useState<Message[]>([]);
-  const [incomingCall, setIncomingCall] = useState<{ channelId: string; callerId: string; callerName: string; callerAvatar: string | null } | null>(null);
   const [soundboardOpen, setSoundboardOpen] = useState(false);
   const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
   const [reactPickerAnchor, setReactPickerAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -141,14 +121,27 @@ export default function App() {
     setToast(t);
     window.setTimeout(() => setToast((cur) => (cur === t ? null : cur)), action ? 8000 : 2800);
   }, []);
-  const knownStreams = useRef<Set<string>>(new Set());
-
-  // Track + (re)send channel subscriptions so they survive WebSocket reconnects.
-  const wsSubscribe = useCallback((channelId: string) => {
-    subscribedRef.current.add(channelId);
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId } }));
+  const handleWatchPartySync = useCallback((channelId: string, state: WatchPartyState | null) => {
+    setPartyByChannel((current) => ({ ...current, [channelId]: state }));
   }, []);
+  const {
+    clearIncomingCall,
+    incomingCall,
+    sendPresence,
+    subscribe: wsSubscribe,
+    typing,
+    wsDown,
+    wsRef,
+  } = useRealtimeConnection({
+    activeVoiceChannelId: voice.channelId,
+    dms: s.dms,
+    onToast: showToast,
+    onWatchPartySync: handleWatchPartySync,
+    platform: isTauri() ? 'desktop' : 'web',
+    userId: s.user?.id ?? null,
+    userStatus: s.user?.status ?? null,
+  });
+  const knownStreams = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     applyTheme(theme);
@@ -265,168 +258,6 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [s.user, connectError]);
 
-  useEffect(() => {
-    if (!s.user) return;
-    let closedByUs = false;
-    let attempt = 0;
-    let reconnectTimer: number | undefined;
-
-    function scheduleReconnect() {
-      if (closedByUs) return;
-      setWsDown(true);
-      attempt += 1;
-      const delay = Math.min(30000, 1000 * 2 ** Math.min(attempt, 5)) + Math.floor(Math.random() * 500);
-      reconnectTimer = window.setTimeout(connect, delay);
-    }
-
-    async function connect() {
-      if (closedByUs) return;
-      let ticket: string;
-      try { ({ ticket } = await api.getWsTicket()); }
-      catch { scheduleReconnect(); return; }
-      if (closedByUs) return;
-      const ws = new WebSocket(wsUrl(`/ws?ticket=${ticket}&platform=${isTauri() ? 'desktop' : 'web'}`));
-      wsRef.current = ws;
-      ws.onopen = () => {
-        attempt = 0;
-        setWsDown(false);
-        autoAwayRef.current = false; // a fresh connection starts active
-        const st = useStore.getState();
-        const status = st.user?.status && st.user.status !== 'OFFLINE' ? st.user.status : 'ONLINE';
-        ws.send(JSON.stringify({ op: 'presence.update', d: { status } }));
-        // Re-subscribe to every tracked channel (DMs + opened server channels).
-        for (const dm of st.dms) subscribedRef.current.add(dm.id);
-        for (const id of subscribedRef.current) ws.send(JSON.stringify({ op: 'subscribe', d: { channelId: id } }));
-        // Catch up on anything missed while the socket was down.
-        const active = st.activeChannelId;
-        if (active) {
-          api.listMessages(active).then((page) => {
-            for (const message of page.reverse()) useStore.getState().addMessage(message);
-          }).catch(() => {});
-        }
-      };
-      ws.onclose = () => { if (wsRef.current === ws) wsRef.current = null; scheduleReconnect(); };
-      ws.onerror = () => { try { ws.close(); } catch { /* onclose handles reconnect */ } };
-      ws.onmessage = (ev) => {
-        const { op, d } = JSON.parse(ev.data);
-        const st = useStore.getState();
-        if (op === 'message.created') {
-          if (d.nonce) st.replacePending(d.message.channelId, d.nonce, d.message);
-          else st.addMessage(d.message);
-          if (d.message.channelId !== st.activeChannelId && d.message.authorId !== st.user?.id) {
-            st.bumpUnread(d.message.channelId);
-          }
-          // Bubble the DM to the top of the list on new activity.
-          const isDm = st.dms.some((dm) => dm.id === d.message.channelId);
-          if (isDm) {
-            st.set({ dms: st.dms.map((dm) => (dm.id === d.message.channelId ? { ...dm, lastMessageAt: d.message.createdAt } : dm)) });
-            if (d.message.authorId !== st.user?.id
-                && st.user?.status !== 'DND'
-                && notifyAllowed({ channelId: d.message.channelId, serverId: null, isMention: false })) {
-              const name = d.message.author?.displayName || d.message.author?.username || 'New message';
-              const body = messageSummary(d.message.content || '');
-              notifyNative(name, body, { channelId: d.message.channelId, kind: 'dm' });
-            }
-          }
-        } else if (op === 'message.updated') st.updateMessage(d.message);
-        else if (op === 'message.deleted') st.deleteMessage(d.channelId, d.id);
-        else if (op === 'watchparty.sync') setPartyByChannel((prev) => ({ ...prev, [d.channelId]: d.state }));
-        else if (op === 'notify') useStore.getState().set({ notifyTick: useStore.getState().notifyTick + 1 });
-        else if (op === 'mention') {
-          if (d.channelId !== st.activeChannelId) st.bumpUnread(d.channelId);
-          showToast(`💬 ${d.authorName} mentioned you in #${d.channelName}`);
-          const serverId: string | null = d.serverId ?? serverIdForChannel(st.serverIdByChannel, d.channelId);
-          if (st.user?.status !== 'DND'
-              && notifyAllowed({ channelId: d.channelId, serverId, isMention: true })) {
-            notifyNative(`Mention in #${d.channelName}`, `${d.authorName} mentioned you`,
-              { channelId: d.channelId, serverId: serverId ?? undefined, kind: 'mention' });
-          }
-        }
-        else if (op === 'call.ring') {
-          // Ignore if we're already in this call; otherwise ring for ~30s.
-          if (voiceRef.current?.channelId !== d.channelId) {
-            setIncomingCall({ channelId: d.channelId, callerId: d.callerId, callerName: d.callerName, callerAvatar: d.callerAvatar });
-            if (ringTimer.current) window.clearTimeout(ringTimer.current);
-            ringTimer.current = window.setTimeout(() => setIncomingCall(null), 30000);
-            // Calls are high-signal: only Do-Not-Disturb suppresses the OS notification.
-            if (st.user?.status !== 'DND') {
-              notifyNative('Incoming call', `${d.callerName} is calling`, { channelId: d.channelId, kind: 'call' });
-            }
-          }
-        }
-        else if (op === 'presence.snapshot') {
-          // Authoritative online set on (re)connect — replace, dropping stale entries.
-          const map: Record<string, string> = {};
-          const pmap: Record<string, string[]> = {};
-          for (const u of d.users || []) { map[u.userId] = u.status; pmap[u.userId] = u.platforms || []; }
-          st.set({ presenceById: map, platformsById: pmap });
-        }
-        // Our own status is authoritative locally (settings/invisible); ignore echoes for self.
-        else if (op === 'presence') {
-          if (d.userId !== st.user?.id) {
-            st.setPresence(d.userId, d.status);
-            const cur = useStore.getState().platformsById;
-            st.set({ platformsById: { ...cur, [d.userId]: d.status === 'OFFLINE' ? [] : (d.platforms || []) } });
-          }
-        }
-        else if (op === 'typing' && d.userId !== st.user?.id) {
-          setTyping((prev) => ({ ...prev, [d.channelId]: { ...(prev[d.channelId] || {}), [d.userId]: Date.now() + 5000 } }));
-        }
-      };
-    }
-
-    connect();
-    return () => {
-      closedByUs = true;
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      wsRef.current?.close();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.user?.id]);
-
-  // Mirror the user's chosen status into a ref so auto-away can restore it.
-  useEffect(() => {
-    manualStatusRef.current = (s.user?.status as string) || 'ONLINE';
-  }, [s.user?.status]);
-
-  // Auto-away: after 5 min with no activity, flip ONLINE → AWAY (transient); restore on
-  // the next activity. Only auto-aways from a plain ONLINE status — Away/DND/Invisible are
-  // explicit choices we leave alone.
-  useEffect(() => {
-    if (!s.user) return;
-    const IDLE_MS = 5 * 60 * 1000;
-    let last = Date.now();
-    const markActive = () => {
-      last = Date.now();
-      if (autoAwayRef.current) {
-        autoAwayRef.current = false;
-        sendPresence(manualStatusRef.current, true);
-      }
-    };
-    const onVisibility = () => { if (document.visibilityState === 'visible') markActive(); };
-    const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'focus'];
-    events.forEach((e) => window.addEventListener(e, markActive, { passive: true }));
-    document.addEventListener('visibilitychange', onVisibility);
-    const iv = window.setInterval(() => {
-      if (autoAwayRef.current || manualStatusRef.current !== 'ONLINE') return;
-      if (Date.now() - last >= IDLE_MS) {
-        autoAwayRef.current = true;
-        sendPresence('AWAY', true);
-      }
-    }, 30000);
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, markActive));
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.clearInterval(iv);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.user?.id, sendPresence]);
-
-  // Keep DM subscriptions current as the conversation list loads/changes.
-  useEffect(() => {
-    for (const dm of s.dms) wsSubscribe(dm.id);
-  }, [s.dms, wsSubscribe]);
-
   // Keep the member panel fresh: on any notify + periodically while a server is open.
   useEffect(() => {
     if (!s.activeServerId) return;
@@ -435,26 +266,6 @@ export default function App() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.activeServerId, s.notifyTick]);
-
-  // Expire stale typing indicators.
-  useEffect(() => {
-    const t = setInterval(() => {
-      setTyping((prev) => {
-        const now = Date.now();
-        let changed = false;
-        const next: Record<string, Record<string, number>> = {};
-        for (const [ch, users] of Object.entries(prev)) {
-          const keep: Record<string, number> = {};
-          for (const [uid, exp] of Object.entries(users)) {
-            if (exp > now) keep[uid] = exp; else changed = true;
-          }
-          if (Object.keys(keep).length) next[ch] = keep;
-        }
-        return changed ? next : prev;
-      });
-    }, 2000);
-    return () => clearInterval(t);
-  }, []);
 
   // Poll who's in each voice channel of the active server (for the nested sidebar lists).
   useEffect(() => {
@@ -698,8 +509,7 @@ export default function App() {
   }
 
   function acceptCall(call: { channelId: string; callerName: string }) {
-    if (ringTimer.current) window.clearTimeout(ringTimer.current);
-    setIncomingCall(null);
+    clearIncomingCall();
     openDm(call.channelId, call.callerName);
     voice.join(call.channelId).then(() => refreshVoiceMembers(call.channelId)).catch((e) => showToast('Call failed: ' + (e?.message || 'could not connect')));
   }
@@ -1494,7 +1304,7 @@ export default function App() {
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => acceptCall(incomingCall)}
               style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, background: 'var(--success)', color: '#fff' }}>Accept</button>
-            <button onClick={() => { if (ringTimer.current) window.clearTimeout(ringTimer.current); setIncomingCall(null); }}
+            <button onClick={clearIncomingCall}
               style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, background: 'var(--danger)', color: '#fff' }}>Decline</button>
           </div>
         </div>
