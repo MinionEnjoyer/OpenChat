@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { PollView } from './PollView';
 import { MessageEmbeds, isSingleEmbedUrl } from './MessageEmbeds';
 import { OpenChatSpinner } from './OpenChatSpinner';
+import { formatFullMessageTimestamp, formatMessageTimestamp } from '../lib/messageTimestamp';
 
 export interface MessageRowProps {
   message: Message;
@@ -57,7 +58,9 @@ function MessageRowInner({
     () => (showText ? renderMessageContent(m.content, mentionNames, myUsername) : null),
     [showText, m.content, mentionNames, myUsername],
   );
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const timestamp = formatMessageTimestamp(m.createdAt);
+  const fullTimestamp = formatFullMessageTimestamp(m.createdAt);
 
   if (activity) {
     const name = m.author?.displayName || m.author?.username || 'A user';
@@ -68,7 +71,7 @@ function MessageRowInner({
           {activity === 'joined' ? '👋' : '↩'}
         </span>
         <span><strong style={{ color: 'var(--text-strong)' }}>{name}</strong> {activity === 'joined' ? 'joined the server.' : 'left the server.'}</span>
-        <span style={{ color: 'var(--muted-2)', fontSize: 11 }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
+        <time dateTime={m.createdAt} title={fullTimestamp} style={{ color: 'var(--muted-2)', fontSize: 11 }}>{timestamp}</time>
       </div>
     );
   }
@@ -97,7 +100,7 @@ function MessageRowInner({
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontWeight: 'bold', color: 'var(--text-strong)' }}>{m.author?.displayName || m.author?.username || 'user'}</span>
           {m.author?.isBot && <BotBadge />}
-          <span style={{ fontSize: 12, color: 'var(--muted-2)' }}>{new Date(m.createdAt).toLocaleTimeString()}</span>
+          <time dateTime={m.createdAt} title={fullTimestamp} style={{ fontSize: 12, color: 'var(--muted-2)' }}>{timestamp}</time>
           {m.pending && <span style={{ fontSize: 11, color: 'var(--muted-2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><OpenChatSpinner size={14} label="Sending message" /> sending…</span>}
           {m.failed && <span style={{ fontSize: 11, color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="error" size={12} /> failed to send</span>}
           {m.pinned && <span title="Pinned" style={{ fontSize: 11, color: 'var(--muted-2)' }}>· 📌 pinned</span>}
@@ -149,17 +152,14 @@ function MessageRowInner({
           {/* Mobile: single ⋯ trigger that opens an action tray (portaled out of the
               row, whose content-visibility paint-containment would otherwise clip it) */}
           <button className="msg-actions-trigger" title="Message actions"
-            onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.right, y: r.bottom }); }}
+            aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}
             style={{ position: 'absolute', top: 0, right: 0, background: 'var(--panel)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 4, cursor: 'pointer', padding: '2px 9px', fontSize: 15, lineHeight: 1, alignItems: 'center' }}>⋯</button>
-          {menu && createPortal(
+          {menuOpen && createPortal(
             <>
-              <div onClick={() => setMenu(null)} style={{ position: 'fixed', inset: 0, zIndex: 300 }} />
-              <div style={{ position: 'fixed', zIndex: 301, minWidth: 170,
-                left: Math.max(8, Math.min(menu.x - 170, window.innerWidth - 178)),
-                top: Math.min(menu.y + 4, window.innerHeight - 8 - 48 * actions.length),
-                background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.45)', overflow: 'hidden' }}>
+              <div className="chat-option-backdrop" onClick={() => setMenuOpen(false)} />
+              <div className="chat-option-dialog message-actions-dialog" role="dialog" aria-modal="true" aria-label="Message actions">
                 {actions.map((a) => (
-                  <button key={a.key} onClick={(e) => { a.run(e); setMenu(null); }}
+                  <button key={a.key} onClick={(e) => { a.run(e); setMenuOpen(false); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '12px 14px', background: 'none', border: 'none', color: a.danger ? 'var(--danger)' : 'var(--text)', cursor: 'pointer', fontSize: 15 }}>
                     <span style={{ width: 18, display: 'inline-flex', justifyContent: 'center' }}>{a.node}</span> {a.label}
                   </button>

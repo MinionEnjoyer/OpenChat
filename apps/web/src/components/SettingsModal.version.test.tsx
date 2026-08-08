@@ -49,5 +49,10 @@ describe('SettingsModal release identity', () => {
     fireEvent.click(screen.getByRole('tab', { name: '🎨 Theme' }));
     expect(screen.getByRole('tab', { name: '🎨 Theme' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'settings-panel-appearance');
+
+    fireEvent.click(screen.getByRole('tab', { name: '🌐 Servers' }));
+    expect(screen.getByRole('tab', { name: '🌐 Servers' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'settings-panel-servers');
+    expect(screen.getByText(/Switch this browser to another OpenChat domain/i)).toBeInTheDocument();
   });
 });

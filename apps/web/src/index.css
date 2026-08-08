@@ -342,6 +342,20 @@ button:disabled { cursor: default; }
   max-width: calc(100vw - 24px);
   max-height: calc(100dvh - 24px);
 }
+.message-actions-dialog {
+  z-index: 301;
+  width: min(280px, calc(100vw - 24px));
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.48);
+}
+.message-actions-dialog > button:hover,
+.message-actions-dialog > button:focus-visible {
+  background: var(--hover) !important;
+  outline: none;
+}
 
 .modal-backdrop {
   padding-top: max(16px, var(--safe-top)) !important;
@@ -372,7 +386,15 @@ button:disabled { cursor: default; }
   border-radius: 8px;
 }
 .settings-close:hover { background: var(--hover) !important; color: var(--text-strong) !important; }
-.settings-tab { white-space: nowrap; }
+.settings-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: visible;
+}
+.settings-tab {
+  min-width: 0;
+  white-space: nowrap;
+}
 .settings-tab:focus-visible,
 .settings-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .settings-row-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
@@ -501,9 +523,7 @@ button:disabled { cursor: default; }
   .settings-panel textarea { font-size: 16px !important; }
   .settings-panel input[type='range'] { min-height: 36px; }
   .settings-tabs {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px !important;
     margin: 0 !important;
     padding: 8px 12px;
@@ -513,8 +533,8 @@ button:disabled { cursor: default; }
   .settings-tabs::-webkit-scrollbar { display: none; }
   .settings-tabs > button {
     min-height: 40px;
-    flex: 0 0 auto;
-    padding: 8px 12px !important;
+    min-width: 0;
+    padding: 8px 6px !important;
     border: 1px solid transparent !important;
     border-radius: 999px;
     margin: 0 !important;
@@ -634,7 +654,7 @@ button:disabled { cursor: default; }
 
 @media (max-width: 380px) {
   .settings-tabs { padding-right: 10px; padding-left: 10px; }
-  .settings-tabs > button { padding-right: 10px !important; padding-left: 10px !important; }
+  .settings-tabs > button { padding-right: 4px !important; padding-left: 4px !important; font-size: 12px !important; }
   .settings-segmented { flex-direction: column; }
   .settings-status-grid { grid-template-columns: 1fr; }
   .app-header-actions > button,
