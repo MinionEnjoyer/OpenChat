@@ -63,7 +63,8 @@ If OpenChat is useful to you, project support is available through
   status picker (Online / Away / Do Not Disturb / Invisible), and **auto-away** after idle.
 - **OpenShare contact links** — a contact card in a configured OpenShare companion can open the
   Friends screen with an OpenChat username or 8-digit friend code prefilled. The user still
-  confirms the request, and no address-book fields are transferred to OpenChat.
+  confirms the request, and no address-book fields are transferred to OpenChat. See
+  [OpenShare contact links](docs/OPENSHARE_CONTACT_LINKS.md) for configuration and security details.
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
 - **Watch parties** — host-synced **Jellyfin or YouTube** playback inside a voice channel:

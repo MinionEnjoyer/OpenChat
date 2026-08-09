@@ -11,6 +11,8 @@ deployment follows CI-passing `main`.
 - [Architecture](ARCHITECTURE.md) — the current production design and integration boundaries.
 - [Patreon invitations](PATREON_INVITES.md) — optional membership verification and creator setup.
 - [Trusted mirror cluster](TRUSTED_MIRROR_CLUSTER.md) — private, authenticated host replication.
+- [OpenShare contact links](OPENSHARE_CONTACT_LINKS.md) — privacy-preserving contact-to-Friends
+  handoff and companion configuration.
 - [Project status](PROJECT-STATUS.md) — current release, health, verification, and open risks.
 - [Authentication readiness](AUTH-PRODUCTION-READINESS.md) — web, desktop, and mobile OIDC/PKCE.
 - [Production push enablement](PRODUCTION-PUSH-ENABLEMENT.md) — FCM/APNs server configuration.
