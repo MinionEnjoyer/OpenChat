@@ -7,7 +7,11 @@
  */
 import { validateEnv } from './configuration';
 import apiPackage from '../../package.json';
-import webPackage from '../../../web/package.json';
+
+// Keep this cross-workspace assertion out of the API container's static module graph.
+// Jest executes the spec from the monorepo, where the web package is available; the
+// API-only Docker build compiles specs but intentionally does not copy sibling apps.
+const webPackage = require('../../../web/package.json') as { version: string };
 
 // Minimum valid config — all required fields present.
 function minValid(): Record<string, unknown> {
