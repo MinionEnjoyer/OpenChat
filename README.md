@@ -22,6 +22,20 @@ Everything environment-specific
 > deployment follows CI-passing `main`, so it can contain newer backend or test-only commits without
 > changing the desktop version.
 
+## Screenshots
+
+The feature captures below are generated from the development showcase harness using the same
+React message, call, watch-party, and screen-share components shipped by the web and desktop
+clients. Realtime state changes are exercised by the web test suite before capture.
+
+| Public server activity | Private call |
+|---|---|
+| ![OpenChat public server receiving realtime messages](docs/screenshots/public-server-realtime.png) | ![OpenChat private call](docs/screenshots/private-call-realtime.png) |
+
+| Synchronized watch party | Multiple shared windows |
+|---|---|
+| ![OpenChat synchronized watch party with four viewers](docs/screenshots/watch-party-realtime.png) | ![OpenChat sharing two selected windows](docs/screenshots/multi-window-screen-share.png) |
+
 ## Support
 
 If OpenChat is useful to you, project support is available through

@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef } from 'react';
-import type { MutableRefObject } from 'react';
+import type { MutableRefObject, ReactNode } from 'react';
 import type { Message } from '../lib/types';
 import { MessageRow } from './MessageRow';
 import { OpenChatSpinner } from './OpenChatSpinner';
@@ -13,6 +13,7 @@ export interface MessageListProps {
   hasNewer: boolean;
   loadingOlder: boolean;
   loadingNewer: boolean;
+  conversationIntro?: ReactNode;
   onLoadOlder: () => void;
   onLoadNewer: () => void;
   onReadPosition: (channelId: string, messageId: string) => void;
@@ -181,6 +182,7 @@ function MessageListInner(props: MessageListProps) {
           Loading older messages…
         </div>
       )}
+      {props.conversationIntro}
       {messages.length === 0 && <div style={{ color: 'var(--muted-2)', fontStyle: 'italic' }}>No messages yet.</div>}
       {messages.map((m) => (
         <MessageRow

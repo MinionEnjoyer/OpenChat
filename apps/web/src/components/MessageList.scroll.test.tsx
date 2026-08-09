@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Message } from '../lib/types';
 import { MessageList, type MessageListProps } from './MessageList';
@@ -133,5 +133,17 @@ describe('MessageList channel scroll restoration', () => {
     scrollCaptureRef.current?.();
 
     expect(onScrollPosition).toHaveBeenCalledWith('general', 'message-40', 74);
+  });
+
+  it('keeps the private-conversation introduction inside the scrollable history', () => {
+    render(<MessageList
+      {...props({ messages: [message('message-1', 'dm-1')], channelId: 'dm-1', resumePosition: null })}
+      conversationIntro={<section aria-label="Beginning of conversation with Morgan">Private conversation</section>}
+    />);
+
+    const intro = screen.getByLabelText('Beginning of conversation with Morgan');
+    const row = screen.getByText('message-1');
+    expect(intro.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(intro.closest('.msg-scroll')).not.toBeNull();
   });
 });

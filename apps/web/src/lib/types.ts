@@ -155,6 +155,8 @@ export interface WatchPartyState {
   positionMs: number;
   paused: boolean;
   streamUrl: string | null;
+  /** Optional artwork displayed while a self-hosted stream is loading or paused. */
+  posterUrl?: string | null;
 }
 
 export interface LibraryItem {

@@ -797,16 +797,16 @@ export default function App() {
   };
   const isServerOwner = !!activeServer && activeServer.ownerId === s.user.id;
 
-  // Right-hand member/online panel: server members when in a server, DM recipients when in a DM.
+  // Keep the member rail for server text channels. Voice and DM views use the full-width
+  // canvas shown in the product previews, with participant presence carried in-view.
   const dmChannel = homeView && s.activeChannelId ? s.dms.find((d) => d.id === s.activeChannelId) : null;
+  const activeChannel = channels.find((c) => c.id === s.activeChannelId);
   // Pinning: server channels need MANAGE_MESSAGES; DM participants may always pin.
   const canPin = canDeleteAny || !!dmChannel;
   const rightPanelUsers = !homeView && activeServer
     ? (s.membersByServer[activeServer.id] || []).map((m) => m.user)
-    : dmChannel
-      ? dmChannel.recipients.filter((u) => u.id !== s.user!.id)
-      : [];
-  const showRightPanel = (!homeView && !!activeServer) || !!dmChannel;
+    : [];
+  const showRightPanel = !homeView && !!activeServer && activeChannel?.type !== 'VOICE';
   const voiceChName = voice.channelId
     ? (Object.values(s.channelsByServer).flat().find((c) => c.id === voice.channelId)?.name
         || (() => {
@@ -839,6 +839,16 @@ export default function App() {
   const withPresence = <T extends { id: string; status?: string }>(u: T): T & { platforms: string[] } =>
     ({ ...u, status: u.id === s.user?.id ? (s.user?.status ?? 'OFFLINE') : (s.presenceById[u.id] ?? 'OFFLINE'),
       platforms: u.id === s.user?.id ? [] : (s.platformsById[u.id] ?? []) });
+  const dmPeer = dmChannel?.recipients.find((u) => u.id !== s.user!.id) ?? null;
+  const dmPeerWithPresence = dmPeer ? withPresence(dmPeer) : null;
+  const dmPeerName = dmPeer?.displayName || dmPeer?.username || dmTitle || 'Direct Message';
+  const dmStatusLabel = dmPeerWithPresence?.status === 'DND'
+    ? 'Do Not Disturb'
+    : dmPeerWithPresence?.status === 'AWAY'
+      ? 'Away'
+      : dmPeerWithPresence?.status === 'ONLINE'
+        ? 'Online'
+        : 'Offline';
 
   // resolve a display name for a userId (for typing indicators)
   const nameById: Record<string, string> = {};
@@ -853,7 +863,6 @@ export default function App() {
   const typingText = typingUsers.length
     ? `${typingUsers.join(', ')} ${typingUsers.length > 1 ? 'are' : 'is'} typing…`
     : '';
-  const activeChannel = channels.find((c) => c.id === s.activeChannelId);
   const headerTitle = homeView ? dmTitle || 'Friends' : activeChannel?.name || '—';
   const showFriends = homeView && !s.activeChannelId;
 
@@ -1086,7 +1095,13 @@ export default function App() {
         <div className="app-header" style={{ height: 48, padding: '0 16px', borderBottom: '1px solid var(--border)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-strong)' }}>
           <button className="mobile-only mobile-nav-button" onClick={() => setNavOpen((v) => !v)}
             style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: 20, cursor: 'pointer' }}>☰</button>
-          {!showFriends && <span className="app-header-title">{homeView ? '@' : '#'} {headerTitle}</span>}
+          {!showFriends && dmChannel && (
+            <span className="app-header-title dm-header-identity">
+              <Avatar user={dmPeerWithPresence} size={28} showStatus />
+              <span className="dm-header-copy"><strong>{dmPeerName}</strong><small>{dmStatusLabel}</small></span>
+            </span>
+          )}
+          {!showFriends && !dmChannel && <span className="app-header-title">{activeChannel?.type === 'VOICE' ? '◉' : '#'} {headerTitle}</span>}
           {showFriends && <span className="app-header-title" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="friends" size={20} /> Friends</span>}
           <div className="app-header-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             {dmChannel && voice.channelId !== dmChannel.id && (
@@ -1239,6 +1254,13 @@ export default function App() {
               hasNewer={!!(s.activeChannelId && hasNewerByChannel[s.activeChannelId])}
               loadingOlder={loadingOlder}
               loadingNewer={loadingNewer}
+              conversationIntro={dmChannel ? (
+                <section className="dm-conversation-intro" aria-label={`Beginning of conversation with ${dmPeerName}`}>
+                  <Avatar user={dmPeerWithPresence} size={68} showStatus />
+                  <h1>{dmPeerName}</h1>
+                  <p>This is the beginning of your private conversation with {dmPeerName}.</p>
+                </section>
+              ) : null}
               onLoadOlder={loadOlder}
               onLoadNewer={loadNewer}
               onReadPosition={saveReadPosition}
