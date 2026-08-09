@@ -239,8 +239,15 @@ jobs:
             echo "Waiting for OpenChat and OpenShare… ($i/30)"
             sleep 2
           done
-          curl -f http://localhost:3001/api/health || { echo "API failed to start"; exit 1; }
-          curl -f http://localhost:8800/health || { echo "OpenShare failed to start"; exit 1; }
+          if ! curl -f http://localhost:3001/api/health \
+            || ! curl -f http://localhost:8800/health; then
+            echo "OpenChat/OpenShare dev stack failed to become healthy"
+            docker compose -f docker-compose.dev.yml ps
+            # These development services use inert CI credentials. Keep the tail bounded
+            # so startup exceptions are visible without flooding or retaining full logs.
+            docker compose -f docker-compose.dev.yml logs --no-color --tail=300 api openshare postgres redis
+            exit 1
+          fi
 
       - name: Provider contract tests
         working-directory: apps/api
