@@ -18,6 +18,10 @@ export function useMessageHistory() {
   const [resumePositionByChannel, setResumePositionByChannel] = useState<
     Record<string, ChannelScrollPosition | null | undefined>
   >({});
+  // Channel selection changes the Zustand store synchronously, while React state updates
+  // may commit on the next render. Keep an imperative loading marker so MessageList never
+  // sees a stale anchor from the previous visit during that one-render handoff.
+  const pendingInitialChannels = useRef<Set<string>>(new Set());
   const loadingOlderRef = useRef(false);
   const loadingNewerRef = useRef(false);
   const readSaveTimers = useRef<Map<string, number>>(new Map());
@@ -25,8 +29,14 @@ export function useMessageHistory() {
 
   const beginChannelSelection = useCallback((channelId: string) => {
     activeScrollCaptureRef.current?.();
+    pendingInitialChannels.current.add(channelId);
     setResumePositionByChannel((positions) => ({ ...positions, [channelId]: undefined }));
   }, []);
+
+  const resumePositionForChannel = useCallback((channelId: string): ChannelScrollPosition | null | undefined => {
+    if (pendingInitialChannels.current.has(channelId)) return undefined;
+    return resumePositionByChannel[channelId];
+  }, [resumePositionByChannel]);
 
   const loadInitialPage = useCallback(async (channelId: string): Promise<boolean> => {
     const savedScroll = getChannelScrollPosition(channelId);
@@ -56,8 +66,12 @@ export function useMessageHistory() {
       }
     }
 
-    if (useAppStore.getState().activeChannelId !== channelId) return false;
+    if (useAppStore.getState().activeChannelId !== channelId) {
+      pendingInitialChannels.current.delete(channelId);
+      return false;
+    }
     const containsResume = !!resumeId && messages.some((message) => message.id === resumeId);
+    pendingInitialChannels.current.delete(channelId);
     setResumePositionByChannel((positions) => ({
       ...positions,
       [channelId]: containsResume
@@ -145,6 +159,7 @@ export function useMessageHistory() {
     loadNewer,
     loadOlder,
     resumePositionByChannel,
+    resumePositionForChannel,
     saveReadPosition,
     saveScrollPosition,
   };

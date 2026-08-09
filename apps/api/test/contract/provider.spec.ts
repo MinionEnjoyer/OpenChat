@@ -512,3 +512,46 @@ describe('Health + Config', () => {
     expect(r.status).toBe(200);
   });
 });
+
+describe('Deployment telemetry', () => {
+  const heartbeat = {
+    product: 'openshare',
+    installId: '6b507574-f7ce-4f4f-8897-9244eb8b0090',
+    version: '0.2.36',
+    deploymentType: 'test',
+  };
+
+  it('accepts the strict shared heartbeat over the real HTTP stack', async () => {
+    cookies = [];
+    const r = await api('/telemetry/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify(heartbeat),
+    });
+    cookies = [aliceJar];
+    expect(r.status).toBe(202);
+    expect(r.body).toEqual({ accepted: true });
+  });
+
+  it('rejects unexpected identifying fields', async () => {
+    cookies = [];
+    const r = await api('/telemetry/heartbeat', {
+      method: 'POST',
+      body: JSON.stringify({ ...heartbeat, hostname: 'private-host' }),
+    });
+    cookies = [aliceJar];
+    expect(r.status).toBe(400);
+  });
+
+  it('protects the aggregate active-installation report', async () => {
+    cookies = [];
+    const denied = await api('/telemetry/summary');
+    expect(denied.status).toBe(401);
+    const allowed = await api('/telemetry/summary', {
+      headers: { 'x-telemetry-admin-token': 'dev-telemetry-admin-token-32-characters' },
+    });
+    cookies = [aliceJar];
+    expect(allowed.status).toBe(200);
+    expect(allowed.body).toHaveProperty('installations.active7d');
+    expect(allowed.body).toHaveProperty('installations.active30d');
+  });
+});

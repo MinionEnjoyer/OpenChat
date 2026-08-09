@@ -65,10 +65,27 @@ describe('useMessageHistory', () => {
     expect(loaded).toBe(true);
     expect(api.listMessages).toHaveBeenCalledWith('general', { around: 'middle' });
     expect(result.current.resumePositionByChannel.general).toMatchObject({ messageId: 'middle', offset: 18 });
+    expect(result.current.resumePositionForChannel('general')).toMatchObject({ messageId: 'middle', offset: 18 });
     expect(result.current.hasMoreByChannel.general).toBe(false);
     expect(result.current.hasNewerByChannel.general).toBe(false);
     expect(useAppStore.getState().messagesByChannel.general.map(({ id }) => id))
       .toEqual(['old', 'middle', 'new']);
+  });
+
+  it('hides a previous visit anchor synchronously while a fresh page is loading', async () => {
+    saveChannelScrollPosition('general', 'middle', 18);
+    vi.mocked(api.getReadState).mockResolvedValue({ lastReadMessageId: 'middle', latestMessageId: 'new' });
+    vi.mocked(api.listMessages).mockResolvedValue([message('new'), message('middle')]);
+    useAppStore.getState().set({ activeChannelId: 'general' });
+    const { result } = renderHook(() => useMessageHistory());
+
+    await act(async () => {
+      await result.current.loadInitialPage('general');
+    });
+    expect(result.current.resumePositionForChannel('general')?.messageId).toBe('middle');
+
+    act(() => result.current.beginChannelSelection('general'));
+    expect(result.current.resumePositionForChannel('general')).toBeUndefined();
   });
 
   it('falls back from a stale local anchor to the shared read marker', async () => {

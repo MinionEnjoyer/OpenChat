@@ -27,6 +27,8 @@ import { ConfigController } from './config/config.controller';
 import { validateEnv } from './config/configuration';
 import { FederationModule } from './federation/federation.module';
 import { PatreonModule } from './patreon/patreon.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
+import { HTTP_LOGGER_OPTIONS } from './config/http-logger';
 
 @Module({
   imports: [
@@ -35,11 +37,14 @@ import { PatreonModule } from './patreon/patreon.module';
       envFilePath: '.env',
       validate: validateEnv,
     }),
-    LoggerModule.forRoot(),
+    LoggerModule.forRoot({
+      pinoHttp: HTTP_LOGGER_OPTIONS,
+    }),
     PrismaModule,
     RedisModule,
     FederationModule,
     PatreonModule,
+    TelemetryModule,
     PresenceModule,
     AuthModule,
     AuditLogModule,

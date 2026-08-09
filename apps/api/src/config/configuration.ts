@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import apiPackage from '../../package.json';
 
 /**
  * Validates process.env at boot. Wired via ConfigModule.forRoot({ validate }).
@@ -48,6 +49,10 @@ const envSchema = z.object({
   FCM_SERVICE_ACCOUNT: z.string().optional(),
   JWT_SECRET: z.string().min(1),
   ENABLE_API_DOCS: z.enum(['0', '1']).optional().default('0'),
+  OPENCHAT_VERSION: z.string().regex(/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/).default(apiPackage.version),
+  OPENCHAT_DEPLOYMENT_TYPE: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/).default('docker-compose'),
+  DEPLOYMENT_HEARTBEAT_ENDPOINT: z.string().url().default('https://chat.creeger.com/api/telemetry/heartbeat'),
+  TELEMETRY_ADMIN_TOKEN: z.string().min(32).optional(),
   // Trusted, operator-managed active-active mirror cluster. Disabled by default.
   FEDERATION_ENABLED: z.enum(['0', '1']).optional().default('0'),
   FEDERATION_NODE_ID: z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/).optional(),

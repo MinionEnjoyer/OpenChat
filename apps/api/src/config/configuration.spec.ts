@@ -6,6 +6,8 @@
  * instead of silently degrading at runtime.
  */
 import { validateEnv } from './configuration';
+import apiPackage from '../../package.json';
+import webPackage from '../../../web/package.json';
 
 // Minimum valid config — all required fields present.
 function minValid(): Record<string, unknown> {
@@ -63,6 +65,26 @@ describe('FCM_SERVICE_ACCOUNT', () => {
     expect(() => validateEnv({ ...minValid(), FCM_SERVICE_ACCOUNT: 42 })).toThrow(
       'Invalid environment configuration',
     );
+  });
+});
+
+describe('deployment heartbeat configuration', () => {
+  it('has a mandatory collector and 24-hour deployment classification defaults', () => {
+    const env = validateEnv(minValid());
+    expect(env.DEPLOYMENT_HEARTBEAT_ENDPOINT).toBe('https://chat.creeger.com/api/telemetry/heartbeat');
+    expect(env.OPENCHAT_DEPLOYMENT_TYPE).toBe('docker-compose');
+    expect(env.OPENCHAT_VERSION).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  it('keeps the backend heartbeat version aligned with the released web client', () => {
+    expect(apiPackage.version).toBe(webPackage.version);
+  });
+
+  it('rejects invalid deployment types and short admin tokens', () => {
+    expect(() => validateEnv({ ...minValid(), OPENCHAT_DEPLOYMENT_TYPE: 'Docker Compose' }))
+      .toThrow('Invalid environment configuration');
+    expect(() => validateEnv({ ...minValid(), TELEMETRY_ADMIN_TOKEN: 'short' }))
+      .toThrow('Invalid environment configuration');
   });
 });
 

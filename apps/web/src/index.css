@@ -62,6 +62,10 @@ body {
 
 button, input, textarea { font-family: inherit; }
 
+/* MessageList owns viewport anchoring across history-page replacement. Native browser
+   scroll anchoring would apply a second adjustment when the around-anchor page swaps in. */
+.msg-scroll { overflow-anchor: none; }
+
 /* Branded connecting spinner: mathematically concentric CSS rings rotate around
    a fixed center while the OpenChat mark stays anchored. The blurred duplicate
    produces color-matched light without changing the crisp orbit geometry. */

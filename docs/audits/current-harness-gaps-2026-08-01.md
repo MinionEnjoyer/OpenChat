@@ -31,23 +31,55 @@ coverage, and existing scenarios that do not have a current passing receipt.
 - The web client now has Vitest and React Testing Library in CI. Initial regression coverage
   checks the shared centered header panel, safe cross-domain server handoff, browser/native
   YouTube embed routing, and per-channel message-anchor/offset persistence.
+- Playwright now runs the production React app in desktop and mobile Chromium with a deterministic
+  API/WebSocket boundary. It covers server switching, exact channel anchor restoration, centered
+  search/notification/sticker surfaces, username search, notification badge layering and actions,
+  attachment upload staging, sticker sending, YouTube iframe generation, mobile containment, and
+  the voice/watch-party/screen-share showcase. The exact-scroll browser regression also protects
+  against native scroll anchoring, transient top-edge history loads, and late embed resizing.
 - Coverage wave 2 adds the sticker wire format, literal-payload image rendering, picker
   selection and permission gating, upload success/rejection handling, plus API sticker
   membership, permission, capacity, cross-server deletion, and persistence boundaries.
 - Coverage wave 3 adds context-sensitive chat option actions, Settings release-version identity,
   and desktop updater current/progress/stall behavior.
+- The API harness now covers bot ownership, token rotation/redaction, publication, permission,
+  idempotent server installation, and scoped removal. Deployment telemetry has unit, HTTP-contract,
+  migration, exact-window, failure-recovery, and logger privacy coverage.
+- Voice service coverage now exercises server/DM authorization, scoped token creation, DM ringing,
+  leave notifications, LiveKit roster reconciliation, stale-session cleanup, and database fallback.
+  Watch-party service coverage exercises start/state/stop authorization, YouTube and Jellyfin
+  sources, ranged stream and poster proxies, synchronization publication, and failure handling.
+  Direct-message service coverage now protects friendship gating, exact-recipient channel reuse,
+  creation, DTO projection, and activity ordering.
+- Social and push-preference service coverage now protects friend lookup/request/accept/decline,
+  reverse-request auto-acceptance, removal, blocking, pending-list projection, notification
+  aggregation/settings ownership, and device-token creation, transfer, listing, and deletion.
+- Channel-overwrite coverage now protects membership and management authorization, server/channel
+  scoping, role/member target validation, BigInt parsing and serialization, upsert defaults, and
+  scoped deletion. Presence coverage protects status lifecycle, `@here` activity, invisibility,
+  and connect-time snapshots.
+- The API unit gate now enforces a 75% global line threshold. Server lifecycle coverage protects
+  permissions, creation, channels, soundboard/stickers, roles, invitations, member management,
+  timeouts, bans, leave/delete, and overwrite resolution. Auth coverage protects OIDC/native PKCE,
+  profiles, desktop handoff, WebSocket tickets, personal tokens, refresh rotation/reuse, and both
+  guards. Messaging coverage protects access, cursor/around pagination, creation/attachments,
+  polls, edits/deletes, pins, reactions, reads, search, notifications, and federation publication.
+  Controller contract tests cover authenticated identity and parameter mapping across the principal
+  server, message, social, bot, notification, media, voice, watch-party, and test-world routes.
+- A blocking Compose-backed inter-app suite now builds OpenChat and OpenShare together and covers
+  service-key rejection/acceptance, multi-class uploads, byte-identical direct and proxied reads,
+  ranges, thumbnails, missing-asset errors, sticker messages, and soundboard waveform/registration.
 - The remaining items below are still open unless explicitly narrowed by this status section.
 
 ## Priority gaps
 
 ### P0 — cross-service and release safety
 
-1. **OpenChat-to-OpenShare uploads are skipped in CI.** The characterization job sets
-   `CHAR_SKIP_OPENSHARE=1`, so a broken Share URL, credential, route, or response contract can
-   pass CI. `apps/api/test/characterization/share.spec.ts` also describes an older architecture
-   and needs to be brought in line with the current proxy flow. Add a Compose-backed contract
-   suite for file, sticker, and soundboard upload, raw retrieval, deletion, authentication
-   failures, and useful upstream error propagation.
+1. **OpenShare asset deletion is not integrated with OpenChat lifecycle cleanup.** The blocking
+   inter-app gate now covers file, sticker, and soundboard creation, retrieval, authentication,
+   registration removal, and useful upstream errors. OpenChat still removes sticker/sound records
+   without deleting the underlying OpenShare asset because no scoped service deletion contract is
+   implemented. Design that ownership-safe contract before adding destructive lifecycle tests.
 2. **No deployment/update smoke test exists.** There is no automated check that a GitHub-passed
    revision can be installed on a clean host, migrate a preserved database, become healthy, and
    roll back. Add an ephemeral Compose deployment test plus a production runbook check that
@@ -59,31 +91,34 @@ coverage, and existing scenarios that do not have a current passing receipt.
 
 ### P1 — high-value feature behavior
 
-1. **The web client's behavioral coverage is still shallow.** The first Vitest/RTL seam tests
-   now cover centered header panels, server-domain handoff, YouTube embed routing, and channel
-   scroll storage. Critical surfaces such as
-   `SettingsModal`, `ChatOptionsTray`, `StickerPicker`, `GifPicker`, `MessageEmbeds`,
-   `AppTokens`, `BotsManager`, and watch-party controls remain largely uncovered. Sticker seams,
-   option availability/selection, updater state, and displayed version now have component tests;
-   user-level browser flows remain open.
-2. **Sticker coverage still lacks a real cross-service browser flow.** Unit/component coverage
-   now protects API authorization and persistence boundaries, picker upload outcomes, wire-format
-   validation, and `sticker::/api/media/.../raw` image rendering. A Compose-backed OpenShare
-   upload plus real browser send/read/delete scenario is still required before the full lifecycle
-   can be considered release-gated.
-3. **Watch-party behavior is effectively untested.** Current coverage only checks query-token
-   extraction. Add tests for start/state/stop authorization, host changes, WebSocket
-   synchronization, proxy byte ranges, expired media, Jellyfin sources, and YouTube sources.
-4. **Bots API has no tests.** Create/list/directory/update/reset-token/delete and server
-   add/remove operations need authorization, ownership, token-redaction, and rotation tests.
+1. **The web browser harness does not yet exercise every management surface.** Deterministic
+   Chromium coverage now protects the principal chat/navigation/upload/notification flows, while
+   unit and component coverage protects additional seams. Settings, application-token management,
+   bot management, server administration, GIF selection, polls, and failure-state accessibility
+   still need browser-level workflows.
+2. **Sticker coverage is split across deterministic browser and real service-boundary tests.** The
+   browser suite proves tray selection, centered picker rendering, and the outgoing sticker wire
+   payload. The blocking inter-app suite proves real OpenShare upload, server registration, message
+   creation, listing, and registration removal. A single browser flow against the Compose-backed
+   OpenChat/OpenShare boundary remains open.
+3. **Watch-party multi-client realtime integration behavior remains open.** Unit coverage now
+   protects start/state/stop authorization, host-only controls, synchronization publication,
+   proxy byte ranges, missing posters, Jellyfin sources, and YouTube sources. Add a multi-client
+   deterministic Chromium rendering covers the connected watch-party and viewer roster. Add a
+   multi-client browser flow that proves WebSocket synchronization, host departure behavior, and
+   playback against a real configured provider.
+4. **Bots API browser and live HTTP coverage remains open.** Unit coverage now protects
+   create/list/directory/update/reset-token and server add/remove authorization, ownership,
+   token-redaction, rotation, role restrictions, idempotency, and scoped removal. Add a real HTTP
+   lifecycle and browser-level management flow before promoting this surface to a release gate.
 5. **Server member activity is only partially covered.** Unit tests validate message helpers,
    but no end-to-end or characterization test proves that accepting an invite and leaving a
    server create `MEMBER_JOINED`/`MEMBER_LEFT` server-owned messages in the default channel and
    publish the correct realtime event.
-6. **External media regressions are not exercised.** GIF provider search is explicitly excluded
-   from provider-contract coverage, and YouTube coverage stops at URL classification. Add mocked
-   provider-contract tests and a browser-level assertion for the generated YouTube iframe/shim
-   policy so a “content blocked” regression is caught.
+6. **External media provider behavior remains partially exercised.** Browser coverage now asserts
+   the generated YouTube iframe URL and policy, while unit coverage protects browser/native shim
+   selection. GIF provider search and real YouTube playback are still excluded from blocking
+   provider-contract coverage; add controlled provider contracts and a deployment smoke check.
 
 ### P2 — evidence and maintenance quality
 
@@ -104,10 +139,11 @@ coverage, and existing scenarios that do not have a current passing receipt.
 
 ## Recommended implementation order
 
-1. Re-enable a real OpenShare service in characterization CI and cover the three upload paths.
-2. Expand the new web Vitest/RTL foundation with sticker, settings-version, updater, and
-   options-menu seam tests.
-3. Add sticker lifecycle, member-activity, bots, and watch-party API integration suites.
+1. Add a real browser flow on top of the blocking OpenChat/OpenShare upload boundary.
+2. Extend the Playwright app harness into settings, tokens, bots, server administration, GIFs,
+   polls, and explicit failure-state accessibility.
+3. Add member-activity and bots API integration suites, then a multi-client watch-party browser
+   flow on top of the now-covered service boundary.
 4. Make existing Maestro flows produce required traceability receipts in CI.
 5. Add packaged desktop update smoke coverage and an ephemeral deployment/rollback test.
 
