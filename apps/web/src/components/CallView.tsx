@@ -103,6 +103,7 @@ function ScreenTile({ share, showStats, audio, onStop, onHide, onReshare }: {
         onClick={expand}
         style={{ width: '100%', height: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', cursor: 'zoom-in' }}
       />
+      {share.previewUrl && <img src={share.previewUrl} alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />}
       <div style={{ position: 'absolute', left: 8, bottom: 8, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 12, fontWeight: 600 }}>
         🖥️ {share.isMe ? 'You' : share.name}
       </div>
@@ -286,7 +287,7 @@ export function CallView({
   );
 
   return (
-    <div className={`call-view${theater ? ' is-theater' : ''}`}>
+    <div className={`call-view${theater ? ' is-theater' : ''}${party ? ' has-party' : ''}`}>
       {party && (
         <WatchPartyPlayer party={party} isHost={party.hostId === meId} viewers={participants.map((p) => p.name)} onState={onWatchState} onStop={onStopWatch} />
       )}

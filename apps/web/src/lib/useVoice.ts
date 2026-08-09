@@ -28,6 +28,8 @@ export interface ScreenShare {
   isMe: boolean;
   track: MediaStreamTrack;
   getStats?: () => Promise<RTCStatsReport | undefined>; // for the live health overlay
+  /** Deterministic fallback artwork used by capture/test harnesses before a track paints. */
+  previewUrl?: string;
 }
 
 /**

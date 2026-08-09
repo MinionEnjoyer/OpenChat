@@ -24,9 +24,17 @@ Everything environment-specific
 
 ## Screenshots
 
-| Server voice call | Private conversation |
+The feature captures below are generated from the development showcase harness using the same
+React message, call, watch-party, and screen-share components shipped by the web and desktop
+clients. Realtime state changes are exercised by the web test suite before capture.
+
+| Public server activity | Private call |
 |---|---|
-| ![OpenChat server voice call](docs/screenshots/server-call.png) | ![OpenChat private conversation](docs/screenshots/private-chat.png) |
+| ![OpenChat public server receiving realtime messages](docs/screenshots/public-server-realtime.png) | ![OpenChat private call](docs/screenshots/private-call-realtime.png) |
+
+| Synchronized watch party | Multiple shared windows |
+|---|---|
+| ![OpenChat synchronized watch party with four viewers](docs/screenshots/watch-party-realtime.png) | ![OpenChat sharing two selected windows](docs/screenshots/multi-window-screen-share.png) |
 
 ## Support
 

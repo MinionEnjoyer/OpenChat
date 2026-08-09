@@ -98,6 +98,7 @@ function JellyfinInner({ party, isHost, onState }: { party: WatchPartyState; isH
       <video
         ref={videoRef}
         src={party.streamUrl ? mediaUrl(party.streamUrl) : undefined}
+        poster={party.posterUrl ? mediaUrl(party.posterUrl) : undefined}
         controls={isHost}
         autoPlay={!party.paused}
         playsInline

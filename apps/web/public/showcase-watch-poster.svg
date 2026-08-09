@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#09131f"/><stop offset="1" stop-color="#17283a"/></linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2fb7ff"/><stop offset="1" stop-color="#14e3ba"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="800" cy="430" r="210" fill="none" stroke="url(#ring)" stroke-width="34" stroke-dasharray="590 110" filter="url(#glow)"/>
+  <circle cx="800" cy="430" r="116" fill="#101a26" stroke="#2a394b" stroke-width="2"/>
+  <text x="800" y="445" fill="#eaf3ff" text-anchor="middle" font-family="system-ui,sans-serif" font-size="52" font-weight="700">OpenChat</text>
+  <text x="800" y="715" fill="#90a0b4" text-anchor="middle" font-family="system-ui,sans-serif" font-size="28">Release Night Watch Party</text>
+</svg>
