@@ -32,7 +32,9 @@ You need these services reachable (use your own instances — any equivalents wo
   to OpenShare on the user's behalf using the `/api/assets` service contract (with a legacy
   `/upload` fallback). Raw media, thumbnails, and waveform analysis also pass through authenticated
   OpenChat API routes, so clients do not need OpenShare credentials or a direct browser session.
-  Point both apps at the *same* OIDC provider. Leave `SHARE_*` blank to run OpenChat without uploads.
+  Point both apps at the *same* OIDC provider. Optionally set OpenShare's `OPENCHAT_PUBLIC_URL` to
+  the OpenChat web address so contact cards can open the Friends screen with a username or friend
+  code prefilled. Leave `SHARE_*` blank to run OpenChat without uploads.
 - **Patreon:** create a Patreon OAuth client with
   `https://<your-chat-domain>/api/patreon/callback` as its exact redirect URI. Set
   `PATREON_ENABLED=1`, the client ID and secret, and `PATREON_REDIRECT_URI`. Server owners can then

@@ -25,13 +25,13 @@ const COLORS = {
 
 const ACTIVE_STATUSES = ['ONLINE', 'AWAY', 'DND'];
 
-export function FriendsView({ me, onOpenDm, reloadKey, presenceById }: { me: User; onOpenDm: (channelId: string, title: string) => void; reloadKey?: number; presenceById?: Record<string, string> }) {
+export function FriendsView({ me, onOpenDm, reloadKey, presenceById, initialFriendCode = '', initialUsername = '' }: { me: User; onOpenDm: (channelId: string, title: string) => void; reloadKey?: number; presenceById?: Record<string, string>; initialFriendCode?: string; initialUsername?: string }) {
   const [friends, setFriends] = useState<User[]>([]);
   const [requests, setRequests] = useState<{ incoming: { id: string; user: User }[], outgoing: { id: string; user: User }[] }>({ incoming: [], outgoing: [] });
 
   // Add Friend State
-  const [usernameInput, setUsernameInput] = useState('');
-  const [codeInput, setCodeInput] = useState('');
+  const [usernameInput, setUsernameInput] = useState(initialUsername);
+  const [codeInput, setCodeInput] = useState(initialFriendCode);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const loadData = async () => {

@@ -61,6 +61,9 @@ If OpenChat is useful to you, project support is available through
   desktop), and per-user **mic + speaker + output-volume** settings.
 - **Presence & status** — live online/offline for friends and server members, a one-click
   status picker (Online / Away / Do Not Disturb / Invisible), and **auto-away** after idle.
+- **OpenShare contact links** — a contact card in a configured OpenShare companion can open the
+  Friends screen with an OpenChat username or 8-digit friend code prefilled. The user still
+  confirms the request, and no address-book fields are transferred to OpenChat.
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
 - **Watch parties** — host-synced **Jellyfin or YouTube** playback inside a voice channel:

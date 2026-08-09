@@ -29,6 +29,7 @@ import { canManageServer, has, Permission } from './lib/permissions';
 import { activateServerChannels } from './lib/channelNavigation';
 import { serverRailAriaCurrent, serverRailItemClass } from './lib/serverRail';
 import { clearPatreonCallbackUrl, readPatreonCallback } from './lib/patreonInvite';
+import { clearContactLinkUrl, readContactLink } from './lib/contactLink';
 import { useAppStore as useStore } from './lib/appStore';
 import { useMessageHistory } from './lib/useMessageHistory';
 import { useRealtimeConnection } from './lib/useRealtimeConnection';
@@ -64,6 +65,8 @@ function DeferredToolFallback() {
 
 export default function App() {
   const s = useStore();
+  const contactLink = useMemo(() => readContactLink(window.location.search), []);
+  const hasContactLink = Boolean(contactLink.friendCode || contactLink.username);
   // Custom title bar on Windows/Linux desktop only; macOS keeps native chrome.
   const showChrome = isTauri() && !isMac;
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -184,14 +187,20 @@ export default function App() {
         useStore.getState().set({ shareBaseUrl: cfg.shareBaseUrl, servers, dms });
         setShareHost(cfg.shareBaseUrl); // configure Share embed detection for this deployment
 
-        // Restore the last-viewed location so a refresh doesn't dump the user back Home.
-        const saved = loadView();
-        if (saved?.type === 'channel' && servers.some((sv) => sv.id === saved.serverId)) {
-          await selectServer(saved.serverId, saved.channelId);
-        } else if (saved?.type === 'dm' && dms.some((d) => d.id === saved.channelId)) {
-          const dm = dms.find((d) => d.id === saved.channelId)!;
-          const title = dm.recipients.filter((u) => u.id !== user.id).map((u) => u.displayName || u.username).join(', ') || 'Direct Message';
-          openDm(dm.id, title);
+        if (hasContactLink) {
+          setHomeView(true);
+          useStore.getState().set({ activeChannelId: null, activeServerId: null });
+          window.history.replaceState(null, '', clearContactLinkUrl(window.location));
+        } else {
+          // Restore the last-viewed location so a refresh doesn't dump the user back Home.
+          const saved = loadView();
+          if (saved?.type === 'channel' && servers.some((sv) => sv.id === saved.serverId)) {
+            await selectServer(saved.serverId, saved.channelId);
+          } else if (saved?.type === 'dm' && dms.some((d) => d.id === saved.channelId)) {
+            const dm = dms.find((d) => d.id === saved.channelId)!;
+            const title = dm.recipients.filter((u) => u.id !== user.id).map((u) => u.displayName || u.username).join(', ') || 'Direct Message';
+            openDm(dm.id, title);
+          }
         }
       } catch (e: any) {
         if (e?.status === 401) {
@@ -1192,7 +1201,7 @@ export default function App() {
         )}
 
         {showFriends ? (
-          <FriendsView me={s.user} onOpenDm={openDm} reloadKey={s.notifyTick} presenceById={s.presenceById} />
+          <FriendsView me={s.user} onOpenDm={openDm} reloadKey={s.notifyTick} presenceById={s.presenceById} initialFriendCode={contactLink.friendCode} initialUsername={contactLink.username} />
         ) : activeChannel?.type === 'VOICE' && s.activeChannelId ? (
           <CallView
             channelName={activeChannel.name}
