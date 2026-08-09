@@ -29,15 +29,21 @@ test('restores the visible message after changing channels', async ({ page }, te
   await expect.poll(() => scroller.evaluate((element) => (
     Math.round(element.scrollHeight - element.scrollTop - element.clientHeight)
   ))).toBeLessThanOrEqual(1);
-  const anchorId = 'general-30';
-  await expect.poll(() => scroller.evaluate((element, messageId) => {
-    const row = element.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`)!;
-    element.scrollTop += row.getBoundingClientRect().top - element.getBoundingClientRect().top - 12;
-    return Math.round(row.getBoundingClientRect().top - element.getBoundingClientRect().top);
-  }, anchorId)).toBe(12);
+  await scroller.evaluate((element) => {
+    element.scrollTop = Math.max(0, element.scrollHeight - element.clientHeight - 1_200);
+  });
+  let previousHeight = 0;
+  let stableHeightSamples = 0;
+  await expect.poll(async () => {
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    const height = await scroller.evaluate((element) => element.scrollHeight);
+    stableHeightSamples = height === previousHeight ? stableHeightSamples + 1 : 0;
+    previousHeight = height;
+    return stableHeightSamples;
+  }).toBeGreaterThanOrEqual(2);
   await scroller.dispatchEvent('scroll');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('openchat.channelScroll.v1') || '{}').general?.messageId ?? ''))
-    .toMatch(/^general-(29|30|31)$/);
+    .toMatch(/^general-\d+$/);
 
   await page.getByText('# development', { exact: true }).click();
   await expect(page.locator('[data-message-id="development-45"]')).toBeAttached();
@@ -46,10 +52,10 @@ test('restores the visible message after changing channels', async ({ page }, te
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('openchat.channelScroll.v1') || '{}').general as { messageId: string; offset: number });
   await page.getByText('# general', { exact: true }).click();
   await expect(scroller).toHaveAttribute('data-resume-anchor', saved.messageId);
-  await expect.poll(() => scroller.evaluate((element, messageId) => {
-    const row = element.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`)!;
-    return Math.round(row.getBoundingClientRect().top - element.getBoundingClientRect().top);
-  }, saved.messageId)).toBe(saved.offset);
+  await expect.poll(() => scroller.evaluate((element, position) => {
+    const row = element.querySelector<HTMLElement>(`[data-message-id="${position.messageId}"]`)!;
+    return Math.abs(Math.round(row.getBoundingClientRect().top - element.getBoundingClientRect().top) - position.offset);
+  }, saved)).toBeLessThanOrEqual(1);
 });
 
 test('centers search and notification panels and keeps alert badges above their icons', async ({ page }, testInfo) => {

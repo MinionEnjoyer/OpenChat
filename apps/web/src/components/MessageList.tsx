@@ -52,6 +52,17 @@ function MessageListInner(props: MessageListProps) {
   const lastReported = useRef<{ channelId: string; messageId: string } | null>(null);
   const wasLoadingNewer = useRef(false);
   const nearBottom = useRef(true);
+  const restoreFrames = useRef<number[]>([]);
+
+  function cancelRestoreFrames() {
+    for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
+    restoreFrames.current = [];
+  }
+
+  useLayoutEffect(() => () => {
+    for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
+    restoreFrames.current = [];
+  }, []);
 
   function visibleBounds() {
     const el = scrollRef.current;
@@ -146,6 +157,7 @@ function MessageListInner(props: MessageListProps) {
     const newerRequestFinished = wasLoadingNewer.current && !loadingNewer;
     wasLoadingNewer.current = loadingNewer;
     if (prevChannel.current !== channelId) {
+      cancelRestoreFrames();
       prevChannel.current = channelId;
       restoredChannel.current = null;
       lastReported.current = null;
@@ -169,20 +181,36 @@ function MessageListInner(props: MessageListProps) {
       // doing so makes the later anchor row permanently ineffective.
       if (resumePosition?.messageId && !target) return;
       if (target) {
-        const viewport = el.getBoundingClientRect();
-        const rect = target.getBoundingClientRect();
-        if (resumePosition && resumePosition.updatedAt > 0) {
-          el.scrollTop += rect.top - viewport.top - resumePosition.offset;
-        } else {
-          el.scrollTop += rect.bottom - viewport.bottom + 16;
-        }
-        nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        const alignTarget = () => {
+          const viewport = el.getBoundingClientRect();
+          const rect = target.getBoundingClientRect();
+          if (resumePosition && resumePosition.updatedAt > 0) {
+            el.scrollTop += rect.top - viewport.top - resumePosition.offset;
+          } else {
+            el.scrollTop += rect.bottom - viewport.bottom + 16;
+          }
+        };
+        // content-visibility can replace intrinsic row sizes during the next paint.
+        // Re-align over two frames so rows materializing above the anchor cannot move it.
+        cancelRestoreFrames();
+        alignTarget();
+        const firstFrame = requestAnimationFrame(() => {
+          alignTarget();
+          const secondFrame = requestAnimationFrame(() => {
+            alignTarget();
+            restoreFrames.current = [];
+            nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+            reportVisibleReadPosition();
+          });
+          restoreFrames.current = [secondFrame];
+        });
+        restoreFrames.current = [firstFrame];
       } else {
         nearBottom.current = true;
         el.scrollTop = el.scrollHeight;
       }
       restoredChannel.current = channelId;
-      requestAnimationFrame(reportVisibleReadPosition);
+      if (!target) requestAnimationFrame(reportVisibleReadPosition);
       return;
     }
     if (prevScrollHeight.current != null) {
