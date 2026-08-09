@@ -56,4 +56,9 @@ gitignored `.env` file.
 - [Configuration template](https://github.com/MinionEnjoyer/OpenChat/blob/main/.env.example)
 - [Source and issue tracker](https://github.com/MinionEnjoyer/OpenChat)
 
+## Support the project
+
+If OpenChat is useful to you, support its continued development through
+[Buy Me a Coffee](https://buymeacoffee.com/minionenjoyer).
+
 OpenChat is licensed under the MIT License.
