@@ -27,7 +27,13 @@ require_text "$workflow" 'secrets.DOCKERHUB_TOKEN'
 require_text "$workflow" 'docker buildx imagetools create'
 require_text "$workflow" 'dockerhub_repository: openchat-api'
 require_text "$workflow" 'dockerhub_repository: openchat-web'
+require_text "$workflow" 'docs/dockerhub/openchat-api.md'
+require_text "$workflow" 'docs/dockerhub/openchat-web.md'
+require_text "$workflow" 'peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa'
+require_text "$workflow" 'short-description: ${{ matrix.dockerhub_short_description }}'
 require_text "$workflow" "push-to-registry: true"
+require_text "$root/docs/dockerhub/openchat-api.md" "# OpenChat API"
+require_text "$root/docs/dockerhub/openchat-web.md" "# OpenChat Web"
 require_text "$compose" '${OPENCHAT_API_IMAGE:-ghcr.io/minionenjoyer/openchat-api}:${OPENCHAT_VERSION:-latest}'
 require_text "$compose" '${OPENCHAT_WEB_IMAGE:-ghcr.io/minionenjoyer/openchat-web}:${OPENCHAT_VERSION:-latest}'
 require_text "$compose" 'livekit/livekit-server:latest'

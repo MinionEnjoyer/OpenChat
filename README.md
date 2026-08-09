@@ -134,6 +134,9 @@ To use Docker Hub, set `OPENCHAT_API_IMAGE=<namespace>/openchat-api` and
 `OPENCHAT_WEB_IMAGE=<namespace>/openchat-web`. PostgreSQL, Redis, and LiveKit remain standard
 upstream images.
 
+The Docker Hub API and web overview pages are maintained in `docs/dockerhub/` and synchronized by
+the same CI-gated publication workflow, including their short descriptions and deployment guidance.
+
 Full instructions — including OIDC/Share/LiveKit prerequisites, local dev, pushing to git,
 and git-based redeploys — are in **[docs/SETUP.md](docs/SETUP.md)** and
 **[docs/DEPLOY.md](docs/DEPLOY.md)**.
