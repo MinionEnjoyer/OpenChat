@@ -21,9 +21,15 @@ require_text "$workflow" 'ref: ${{ github.event.workflow_run.head_sha }}'
 require_text "$workflow" "platforms: linux/amd64,linux/arm64"
 require_text "$workflow" "ghcr.io/minionenjoyer/openchat-api"
 require_text "$workflow" "ghcr.io/minionenjoyer/openchat-web"
+require_text "$workflow" 'vars.DOCKERHUB_USERNAME'
+require_text "$workflow" 'vars.DOCKERHUB_NAMESPACE'
+require_text "$workflow" 'secrets.DOCKERHUB_TOKEN'
+require_text "$workflow" 'docker buildx imagetools create'
+require_text "$workflow" 'dockerhub_repository: openchat-api'
+require_text "$workflow" 'dockerhub_repository: openchat-web'
 require_text "$workflow" "push-to-registry: true"
-require_text "$compose" 'ghcr.io/minionenjoyer/openchat-api:${OPENCHAT_VERSION:-latest}'
-require_text "$compose" 'ghcr.io/minionenjoyer/openchat-web:${OPENCHAT_VERSION:-latest}'
+require_text "$compose" '${OPENCHAT_API_IMAGE:-ghcr.io/minionenjoyer/openchat-api}:${OPENCHAT_VERSION:-latest}'
+require_text "$compose" '${OPENCHAT_WEB_IMAGE:-ghcr.io/minionenjoyer/openchat-web}:${OPENCHAT_VERSION:-latest}'
 require_text "$compose" 'livekit/livekit-server:latest'
 
 echo "Public container release scaffold is valid."

@@ -94,6 +94,18 @@ published for both OpenChat images after CI passes; `sha-<commit>` tags provide 
 The public Compose stack uses the same `.env`, persistent volumes, LiveKit configuration, ports,
 and reverse-proxy topology as the source-build stack.
 
+When the repository has `DOCKERHUB_USERNAME` and `DOCKERHUB_NAMESPACE` variables plus a
+`DOCKERHUB_TOKEN` secret, the release workflow also mirrors the exact GHCR digest to Docker Hub.
+The token should be a dedicated Docker Hub personal or organization access token with read/write
+permission for `openchat-api` and `openchat-web`. Consumers can select those mirrors without
+editing Compose:
+
+```bash
+OPENCHAT_API_IMAGE=<dockerhub-namespace>/openchat-api \
+OPENCHAT_WEB_IMAGE=<dockerhub-namespace>/openchat-web \
+docker compose -f docker-compose.public.yml pull
+```
+
 The API applies database migrations automatically on start (`prisma migrate deploy`). Check it:
 
 ```bash

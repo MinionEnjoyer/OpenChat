@@ -31,7 +31,7 @@ services:
     networks: [app_net]
 
   api:
-    image: ghcr.io/minionenjoyer/openchat-api:${OPENCHAT_VERSION:-latest}
+    image: ${OPENCHAT_API_IMAGE:-ghcr.io/minionenjoyer/openchat-api}:${OPENCHAT_VERSION:-latest}
     container_name: chat-api
     restart: unless-stopped
     env_file:
@@ -55,7 +55,7 @@ services:
     networks: [app_net]
 
   web:
-    image: ghcr.io/minionenjoyer/openchat-web:${OPENCHAT_VERSION:-latest}
+    image: ${OPENCHAT_WEB_IMAGE:-ghcr.io/minionenjoyer/openchat-web}:${OPENCHAT_VERSION:-latest}
     container_name: chat-web
     restart: unless-stopped
     depends_on:

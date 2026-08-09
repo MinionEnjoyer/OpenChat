@@ -29,11 +29,13 @@ jobs:
           - id: api
             title: OpenChat API
             image: ghcr.io/minionenjoyer/openchat-api
+            dockerhub_repository: openchat-api
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile
           - id: web
             title: OpenChat Web
             image: ghcr.io/minionenjoyer/openchat-web
+            dockerhub_repository: openchat-web
             context: ./apps/web
             dockerfile: ./apps/web/Dockerfile
     steps:
@@ -64,6 +66,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        if: ${{ vars.DOCKERHUB_USERNAME != '' && vars.DOCKERHUB_NAMESPACE != '' }}
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Generate image metadata
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
@@ -93,6 +102,21 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.id }}
           cache-to: type=gha,mode=max,scope=${{ matrix.id }}
+
+      - name: Mirror verified image to Docker Hub
+        if: ${{ vars.DOCKERHUB_USERNAME != '' && vars.DOCKERHUB_NAMESPACE != '' }}
+        env:
+          DOCKERHUB_IMAGE: ${{ vars.DOCKERHUB_NAMESPACE }}/${{ matrix.dockerhub_repository }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          SHORT_SHA: ${{ steps.release.outputs.short_sha }}
+          SOURCE_IMAGE: ${{ matrix.image }}
+          SOURCE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${DOCKERHUB_IMAGE}:latest" \
+            --tag "${DOCKERHUB_IMAGE}:${RELEASE_VERSION}" \
+            --tag "${DOCKERHUB_IMAGE}:sha-${SHORT_SHA}" \
+            "${SOURCE_IMAGE}@${SOURCE_DIGEST}"
 
       - name: Attest image provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
