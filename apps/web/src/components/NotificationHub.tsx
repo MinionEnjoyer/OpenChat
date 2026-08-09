@@ -5,6 +5,7 @@ import { acceptFriendRequest, declineFriendRequest } from '../lib/social';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { HeaderPanel } from './HeaderPanel';
+import { IconAlertBadge } from './IconAlertBadge';
 
 const EMPTY: Notifications = { friendRequests: [], serverInvites: [], count: 0 };
 
@@ -54,20 +55,21 @@ export function NotificationHub({ onServerJoined, reloadKey, onChanged, onToast,
   const decline: React.CSSProperties = { ...btn, background: 'var(--danger)', color: '#fff' };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="notification-hub-trigger" style={{ position: 'relative' }}>
       <button
+        className="notification-icon-button"
         onClick={() => onOpenChange(!open)}
         title="Notifications"
         style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', lineHeight: 1, display: 'flex', alignItems: 'center' }}
       >
         <Icon name="notify" size={20} alt="Notifications" />
         {data.count > 0 && (
-          <span style={{
-            position: 'absolute', top: -6, right: -8, background: 'var(--danger)', color: '#fff',
+          <IconAlertBadge className="notification-count-badge" style={{
+            top: -6, right: -8, background: 'var(--danger)', color: '#fff',
             borderRadius: 10, fontSize: 10, fontWeight: 700, padding: '1px 5px', minWidth: 16, textAlign: 'center',
           }}>
             {data.count}
-          </span>
+          </IconAlertBadge>
         )}
       </button>
 

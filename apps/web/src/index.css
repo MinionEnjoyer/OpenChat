@@ -207,6 +207,18 @@ button:disabled { cursor: default; }
   isolation: isolate;
 }
 .server-rail-item > button { position: relative; z-index: 1; }
+.icon-alert-badge {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+.server-rail-alert-badge { display: flex; }
+.unread-badge { position: relative; z-index: 1; }
+.notification-hub-trigger,
+.notification-icon-button { isolation: isolate; }
+.notification-icon-button { overflow: visible; }
+.notification-icon-button > img { position: relative; z-index: 1; }
+.notification-icon-button > .notification-count-badge { z-index: 3; }
 @property --server-ring-angle {
   syntax: '<angle>';
   initial-value: 0deg;
