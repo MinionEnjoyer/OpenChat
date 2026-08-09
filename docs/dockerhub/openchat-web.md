@@ -1,5 +1,9 @@
 # OpenChat Web
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/MinionEnjoyer/OpenChat/main/apps/web/public/logo.png" alt="OpenChat logo" width="144" height="144" />
+</p>
+
 The official React web client for
 [OpenChat](https://github.com/MinionEnjoyer/OpenChat), a self-hosted communication platform for
 real-time text, voice, video, screen sharing, and watch parties.
