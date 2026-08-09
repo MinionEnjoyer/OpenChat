@@ -10,6 +10,12 @@ import type { ScreenShare, VoiceParticipant } from '../lib/useVoice';
 import '../index.css';
 import './showcase.css';
 
+declare global {
+  interface Window {
+    __openChatShowcaseRoot?: ReturnType<typeof ReactDOM.createRoot>;
+  }
+}
+
 type Scenario = 'public-server' | 'private-call' | 'watch-party' | 'screen-share';
 
 const me: User = { id: 'alex', username: 'alex', displayName: 'alex', avatarUrl: null, status: 'ONLINE' };
@@ -68,7 +74,9 @@ function PublicServerScenario() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setLiveMessages((current) => [...current, message('m4', morgan, 'Upload received. The preview and shared link both render inline.', 15)]);
+      setLiveMessages((current) => current.some((item) => item.id === 'm4')
+        ? current
+        : [...current, message('m4', morgan, 'Upload received. The preview and shared link both render inline.', 15)]);
       setTyping('Sky is typing…');
     }, 1200);
     return () => window.clearTimeout(timer);
@@ -201,4 +209,8 @@ export function FeatureShowcase() {
 }
 
 const root = document.getElementById('root');
-if (root) ReactDOM.createRoot(root).render(<React.StrictMode><FeatureShowcase /></React.StrictMode>);
+if (root) {
+  const showcaseRoot = window.__openChatShowcaseRoot ?? ReactDOM.createRoot(root);
+  window.__openChatShowcaseRoot = showcaseRoot;
+  showcaseRoot.render(<React.StrictMode><FeatureShowcase /></React.StrictMode>);
+}
