@@ -213,31 +213,27 @@ export function CallView({
   });
   const theater = connected && screens.length > 0;
 
-  const btn: React.CSSProperties = { padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8 };
-
   const renderParticipants = (compact: boolean) => participants.length === 0 ? null : (
-    <div style={{ display: 'flex', gap: compact ? 12 : 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+    <div className={compact ? 'call-participant-strip' : 'call-participant-grid'} data-testid="call-participants">
       {participants.map((sp) => {
         const speaking = sp.speaking && sp.micOn;
-        const nameColor = !sp.micOn ? '#a02c2c' : speaking ? '#ffffff' : 'var(--text)';
         const streaming = streamingIds.has(sp.identity);
-        const size = compact ? 34 : 64;
         return (
-          <div key={sp.identity} style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', gap: 6, width: compact ? 'auto' : 96 }}>
-            <div style={{ position: 'relative', borderRadius: '50%', padding: 3, border: `3px solid ${speaking ? 'var(--success)' : 'transparent'}`, transition: 'border-color 0.12s' }}>
-              <Avatar user={{ username: sp.name, displayName: sp.name, avatarUrl: null }} size={size} />
+          <article key={sp.identity} className={`call-participant-card${speaking ? ' is-speaking' : ''}${!sp.micOn ? ' is-muted' : ''}`}>
+            <div className="call-participant-avatar">
+              <Avatar user={{ username: sp.name, displayName: sp.name, avatarUrl: null }} size={compact ? 36 : 92} />
               {streaming && (
-                <span title="Sharing their screen"
-                  style={{ position: 'absolute', bottom: -3, left: '50%', transform: 'translateX(-50%)', background: '#e02424', color: '#fff', fontSize: 9, fontWeight: 800, letterSpacing: 0.5, padding: '1px 5px', borderRadius: 8, border: '2px solid var(--panel)', whiteSpace: 'nowrap' }}>
+                <span className="call-live-badge" title="Sharing their screen">
                   ● LIVE
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 13, color: nameColor, fontWeight: speaking ? 700 : 400, transition: 'color 0.12s', display: 'flex', alignItems: 'center', gap: 4, maxWidth: compact ? 120 : 96, overflow: 'hidden' }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sp.isMe ? 'You' : sp.name}</span>
+            <div className="call-participant-name">
+              <span>{sp.isMe ? 'You' : sp.name}</span>
+              {speaking && <small>Speaking</small>}
               {!sp.micOn && <Icon name="mute" size={14} alt="Muted" />}
             </div>
-          </div>
+          </article>
         );
       })}
     </div>
@@ -258,45 +254,48 @@ export function CallView({
   );
 
   const controls = (
-    <div className="call-controls" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-      <button onClick={onToggleMute} style={{ ...btn, background: muted ? 'var(--danger)' : 'var(--input-bg)', color: muted ? '#fff' : 'var(--text)' }}>
+    <div className="call-controls">
+      <button className={`call-control${muted ? ' is-danger' : ''}`} onClick={onToggleMute}>
         <Icon name={muted ? 'mute' : 'unmute'} size={17} /> {muted ? 'Unmute' : 'Mute'}
       </button>
-      <button onClick={onOpenSoundboard} style={{ ...btn, background: 'var(--input-bg)', color: 'var(--text)' }}>🔊 Soundboard</button>
+      <button className="call-control" onClick={onOpenSoundboard}>🔊 Soundboard</button>
       <button onClick={onShareScreen} title="Share an app window, a browser tab, or an entire monitor"
-        style={{ ...btn, background: 'var(--input-bg)', color: 'var(--text)' }}>
+        className="call-control">
         🖥️ {sharing ? 'Share Another' : 'Share Screen'}
       </button>
       {sharing && (
-        <button onClick={onStopShare} style={{ ...btn, background: 'var(--danger)', color: '#fff' }}>
+        <button className="call-control is-danger" onClick={onStopShare}>
           {myScreenCount > 1 ? 'Stop All Sharing' : 'Stop Sharing'}
         </button>
       )}
       {screens.length > 0 && (
         <button onClick={() => setShowStats((v) => !v)} title="Toggle stream stats"
-          style={{ ...btn, background: showStats ? 'var(--accent)' : 'var(--input-bg)', color: showStats ? 'var(--accent-text)' : 'var(--text)' }}>
+          className={`call-control${showStats ? ' is-active' : ''}`}>
           📊 Stats
         </button>
       )}
       {!party && (
-        <button onClick={onStartWatch} style={{ ...btn, background: 'var(--accent)', color: 'var(--accent-text)' }}>
+        <button className="call-control is-accent" onClick={onStartWatch}>
           <Icon name="watchparty" size={17} /> Start Watch Party
         </button>
       )}
-      <button onClick={onLeave} style={{ ...btn, background: 'var(--danger)', color: '#fff' }}>
+      <button className="call-control is-danger" onClick={onLeave}>
         <Icon name="disconnect" size={17} /> Disconnect
       </button>
     </div>
   );
 
   return (
-    <div className="call-view" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <div className={`call-view${theater ? ' is-theater' : ''}`}>
       {party && (
         <WatchPartyPlayer party={party} isHost={party.hostId === meId} viewers={participants.map((p) => p.name)} onState={onWatchState} onStop={onStopWatch} />
       )}
 
-      <div className="call-view-content" style={{ flex: 1, minHeight: 0, overflowY: theater ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', alignItems: theater ? 'stretch' : 'center', justifyContent: theater ? 'flex-start' : 'center', padding: theater ? 16 : 24, gap: theater ? 14 : 20 }}>
-        <div style={{ fontSize: theater ? 16 : 22, fontWeight: 700, color: 'var(--text-strong)', textAlign: 'center', flexShrink: 0 }}>🔊 {channelName}</div>
+      <div className="call-view-content">
+        <header className="call-stage-heading">
+          <span className="call-stage-icon" aria-hidden="true">◉</span>
+          <div><strong>{channelName}</strong><small>{connected ? 'Voice connected' : 'Voice channel'}</small></div>
+        </header>
 
         {connected ? (
           theater ? (
@@ -308,19 +307,24 @@ export function CallView({
           ) : (
             <>
               {renderParticipants(false)}
+              {participants.length === 0 && <div className="call-empty-state">You are connected. Waiting for someone else to join.</div>}
               {controls}
             </>
           )
         ) : (
-          <button onClick={onJoin} disabled={connecting}
-            style={{ padding: '12px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 15, background: 'var(--success)', color: '#fff' }}>
+          <div className="call-join-card">
+            <div className="call-join-mark" aria-hidden="true">◉</div>
+            <h2>Join {channelName}</h2>
+            <p>Connect to voice, share a screen, or start a watch party.</p>
+            <button className="call-join-button" onClick={onJoin} disabled={connecting}>
             {connecting ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <OpenChatSpinner size={20} label="Connecting to voice" />
                 {status ? `Connecting… (${status})` : 'Connecting…'}
               </span>
             ) : 'Join Voice'}
-          </button>
+            </button>
+          </div>
         )}
       </div>
     </div>
