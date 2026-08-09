@@ -30,12 +30,16 @@ jobs:
             title: OpenChat API
             image: ghcr.io/minionenjoyer/openchat-api
             dockerhub_repository: openchat-api
+            dockerhub_readme: docs/dockerhub/openchat-api.md
+            dockerhub_short_description: Self-hosted OpenChat backend for messaging, presence, media, and voice coordination.
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile
           - id: web
             title: OpenChat Web
             image: ghcr.io/minionenjoyer/openchat-web
             dockerhub_repository: openchat-web
+            dockerhub_readme: docs/dockerhub/openchat-web.md
+            dockerhub_short_description: Web client for self-hosted messaging, voice, video, screen sharing, and watch parties.
             context: ./apps/web
             dockerfile: ./apps/web/Dockerfile
     steps:
@@ -117,6 +121,17 @@ jobs:
             --tag "${DOCKERHUB_IMAGE}:${RELEASE_VERSION}" \
             --tag "${DOCKERHUB_IMAGE}:sha-${SHORT_SHA}" \
             "${SOURCE_IMAGE}@${SOURCE_DIGEST}"
+
+      - name: Update Docker Hub repository overview
+        if: ${{ vars.DOCKERHUB_USERNAME != '' && vars.DOCKERHUB_NAMESPACE != '' }}
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_NAMESPACE }}/${{ matrix.dockerhub_repository }}
+          short-description: ${{ matrix.dockerhub_short_description }}
+          readme-filepath: ${{ matrix.dockerhub_readme }}
+          enable-url-completion: true
 
       - name: Attest image provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
