@@ -22,6 +22,12 @@ Everything environment-specific
 > deployment follows CI-passing `main`, so it can contain newer backend or test-only commits without
 > changing the desktop version.
 
+## Screenshots
+
+| Server voice call | Private conversation |
+|---|---|
+| ![OpenChat server voice call](docs/screenshots/server-call.png) | ![OpenChat private conversation](docs/screenshots/private-chat.png) |
+
 ## Support
 
 If OpenChat is useful to you, project support is available through
