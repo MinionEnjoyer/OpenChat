@@ -1,5 +1,9 @@
 # OpenChat Web
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/MinionEnjoyer/OpenChat/main/apps/web/public/logo.png" alt="OpenChat logo" width="144" height="144" />
+</p>
+
 The official React web client for
 [OpenChat](https://github.com/MinionEnjoyer/OpenChat), a self-hosted communication platform for
 real-time text, voice, video, screen sharing, and watch parties.
@@ -50,5 +54,10 @@ LiveKit; [OpenShare](https://github.com/MinionEnjoyer/OpenShare) enables attachm
 - [Deployment guide](https://github.com/MinionEnjoyer/OpenChat/blob/main/docs/DEPLOY.md)
 - [Configuration template](https://github.com/MinionEnjoyer/OpenChat/blob/main/.env.example)
 - [Source and issue tracker](https://github.com/MinionEnjoyer/OpenChat)
+
+## Support the project
+
+If OpenChat is useful to you, support its continued development through
+[Buy Me a Coffee](https://buymeacoffee.com/minionenjoyer).
 
 OpenChat is licensed under the MIT License.
