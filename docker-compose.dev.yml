@@ -52,7 +52,8 @@ services:
       REDIS_URL: redis://redis:6379
       SESSION_SECRET: dev-dev-dev-dev-16
       JWT_SECRET: dev-jwt-secret-not-for-prod
-      SHARE_BASE_URL: http://openshare:8800
+      # Compose peers use OpenShare's container port; 8800 is host-only.
+      SHARE_BASE_URL: http://openshare:8000
       SHARE_API_KEY: dev-share-key
       OPENCHAT_DEPLOYMENT_TYPE: ${OPENCHAT_DEPLOYMENT_TYPE:-development}
       LIVEKIT_API_KEY: devkey

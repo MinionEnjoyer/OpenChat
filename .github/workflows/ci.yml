@@ -58,6 +58,9 @@ jobs:
       - name: Verify public container release scaffold
         run: bash tools/verify-public-containers.sh
 
+      - name: Verify development Compose service wiring
+        run: bash tools/verify-dev-compose.sh
+
       - name: Install dependencies
         working-directory: apps/api
         run: npm ci
