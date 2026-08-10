@@ -9,7 +9,7 @@ The current public desktop release is **0.8.46**. Desktop tags and installers ar
 web/API deploy: the hosted stack may advance on `main` without changing the desktop version.
 
 For production mobile push credentials and the required Android/iOS acceptance
-test, follow [`PRODUCTION-PUSH-ENABLEMENT.md`](PRODUCTION-PUSH-ENABLEMENT.md).
+test, follow the [production push enablement guide](guides/PRODUCTION-PUSH-ENABLEMENT.md).
 
 > Examples below assume the app lives in `/opt/chat` on your server and you run the commands there.
 > Substitute your own host and paths.

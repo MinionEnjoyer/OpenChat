@@ -108,6 +108,7 @@ describe('FR-SOC-005 — notifications inbox', () => {
       // 4. Bob should now see a notification
       const notifsAfter = await getNotifications(bob.jar);
       expect(notifsAfter.status).toBe(200);
+      expect(notifsAfter.body.count).toBeGreaterThan(initialCount);
       expect(notifsAfter.body.serverInvites.length).toBeGreaterThanOrEqual(1);
       const invite = notifsAfter.body.serverInvites.find(
         (i: any) => i.server.id === serverId,

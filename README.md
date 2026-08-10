@@ -64,7 +64,7 @@ If OpenChat is useful to you, project support is available through
 - **OpenShare contact links** — a contact card in a configured OpenShare companion can open the
   Friends screen with an OpenChat username or 8-digit friend code prefilled. The user still
   confirms the request, and no address-book fields are transferred to OpenChat. See
-  [OpenShare contact links](docs/OPENSHARE_CONTACT_LINKS.md) for configuration and security details.
+  [OpenShare contact links](docs/guides/OPENSHARE_CONTACT_LINKS.md) for configuration and security details.
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
 - **Watch parties** — host-synced **Jellyfin or YouTube** playback inside a voice channel:
@@ -146,8 +146,8 @@ and git-based redeploys — are in **[docs/SETUP.md](docs/SETUP.md)** and
 **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 Optional integrations are documented in
-**[docs/PATREON_INVITES.md](docs/PATREON_INVITES.md)** and
-**[docs/TRUSTED_MIRROR_CLUSTER.md](docs/TRUSTED_MIRROR_CLUSTER.md)**.
+**[Patreon invitations](docs/guides/PATREON_INVITES.md)** and
+**[trusted mirror clusters](docs/guides/TRUSTED_MIRROR_CLUSTER.md)**.
 
 The maintained-document index in **[docs/README.md](docs/README.md)** distinguishes current
 operator guidance from dated audits, signoffs, decisions, and handoff records that intentionally
@@ -158,7 +158,7 @@ describe earlier repository states.
 API tests enforce a 75% global line-coverage floor. The web client has separate Vitest component
 and Playwright browser gates; the browser suite exercises the production React app in desktop and
 mobile Chromium with deterministic service fixtures. See
-**[docs/WEB_BROWSER_TESTING.md](docs/WEB_BROWSER_TESTING.md)** for commands, covered flows, and the
+**[web browser testing guide](docs/guides/WEB_BROWSER_TESTING.md)** for commands, covered flows, and the
 deployment-E2E boundary.
 
 ## Configuration & secrets

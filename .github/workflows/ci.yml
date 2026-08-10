@@ -61,6 +61,9 @@ jobs:
       - name: Verify development Compose service wiring
         run: bash tools/verify-dev-compose.sh
 
+      - name: Verify current documentation
+        run: node tools/docs/verify-current-docs.mjs
+
       - name: Install dependencies
         working-directory: apps/api
         run: npm ci

@@ -180,6 +180,7 @@ describe('P7 — @role mentions (FR-ROLE-007)', () => {
 
     const everyone = list.body.find((r: any) => r.name === '@everyone');
     expect(everyone).toBeDefined();
+    expect(everyone.id).toBe(everyoneRoleId);
     expect(everyone.mentionable).toBe(true);
   });
 

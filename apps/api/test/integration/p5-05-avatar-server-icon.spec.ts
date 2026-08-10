@@ -49,14 +49,12 @@ async function uploadFixture(token: string, filePath: string, filename: string) 
 
 describe('P5-05 — avatar & server icon upload (FR-MED-020)', () => {
   let token: string;
-  let userId: string;
   let avatarUpload: any;
   let serverId: string;
 
   beforeAll(async () => {
     const session = await devLoginBearer('med020-avatar-test');
     token = session.accessToken;
-    userId = session.id;
 
     // Upload the fixture once — it'll be used for both avatar and server icon
     const result = await uploadFixture(token, FIXTURE_PATH, 'avatar-test.png');

@@ -30,10 +30,6 @@ async function devLoginBearer(username: string) {
   };
 }
 
-function bearer(token: string): Record<string, string> {
-  return { authorization: `Bearer ${token}` };
-}
-
 /**
  * Upload files via native fetch (FormData + Blob).
  */

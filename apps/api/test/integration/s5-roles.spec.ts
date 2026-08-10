@@ -41,6 +41,7 @@ beforeAll(async () => {
   // Get @everyone role id
   const roles = await apiFetch(`/servers/${serverId}/roles`, { jar: alice.jar });
   everyoneRoleId = roles.body.find((r: any) => r.name === '@everyone')?.id ?? '';
+  expect(everyoneRoleId).not.toBe('');
 });
 
 describe('S5 — FR-ROLE-001 BigInt round-trip (high bits >2^53)', () => {
