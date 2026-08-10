@@ -65,10 +65,6 @@ If OpenChat is useful to you, project support is available through
   Friends screen with an OpenChat username or 8-digit friend code prefilled. The user still
   confirms the request, and no address-book fields are transferred to OpenChat. See
   [OpenShare contact links](docs/OPENSHARE_CONTACT_LINKS.md) for configuration and security details.
-- **Deployment heartbeat** — each backend reports only a persistent random install ID, product,
-  version, and deployment type at startup and every 24 hours. The protected collector report shows
-  seven-day and thirty-day active installations. See
-  [Deployment heartbeats](docs/DEPLOYMENT_HEARTBEATS.md).
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
 - **Watch parties** — host-synced **Jellyfin or YouTube** playback inside a voice channel:
