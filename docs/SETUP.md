@@ -91,7 +91,7 @@ docker compose -f docker-compose.public.yml up -d
 ```
 
 This defaults to the public `latest` images on `ghcr.io/minionenjoyer`. Set
-`OPENCHAT_VERSION=0.8.47` in the shell or `.env` to pin that release. The same version tag is
+`OPENCHAT_VERSION=0.8.48` in the shell or `.env` to pin that release. The same version tag is
 published for both OpenChat images after CI passes; `sha-<commit>` tags provide immutable pins.
 The public Compose stack uses the same `.env`, persistent volumes, LiveKit configuration, ports,
 and reverse-proxy topology as the source-build stack.

@@ -5,7 +5,7 @@ health boundary, published GitHub release, repository source, CI workflow, and l
 
 ## Current production snapshot
 
-- **Published desktop/web UI release:** `desktop-v0.8.47`; GitHub publishes Windows NSIS, universal
+- **Published desktop/web UI release:** `desktop-v0.8.48`; GitHub publishes Windows NSIS, universal
   macOS DMG/app updater, Linux AppImage/deb, signatures, and `latest.json`.
 - **Hosted web/API:** follows the latest CI-passing `main` through the systemd auto-deployer. Do not
   infer an exact deployed SHA from the client version; verify the deployer journal/active release

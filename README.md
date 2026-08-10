@@ -16,7 +16,7 @@ Jellyfin for watch parties — rather than reinvent them.
 Everything environment-specific
 (domains, IPs, keys, passwords) is supplied through a single local config file — see
 **[docs/SETUP.md](docs/SETUP.md)**.
-> **Current production release:** desktop/web UI **0.8.47**. The current desktop installers
+> **Current production release:** desktop/web UI **0.8.48**. The current desktop installers
 > for macOS, Linux, and Windows are on the
 > [Releases](https://github.com/MinionEnjoyer/OpenChat/releases/latest) page. The hosted web/API
 > deployment follows CI-passing `main`, so it can contain newer backend or test-only commits without
@@ -132,7 +132,7 @@ docker compose -f docker-compose.public.yml up -d
 ```
 
 The Compose file defaults to `ghcr.io/minionenjoyer/openchat-api:latest` and
-`ghcr.io/minionenjoyer/openchat-web:latest`. Set `OPENCHAT_VERSION=0.8.47` to pin the current
+`ghcr.io/minionenjoyer/openchat-web:latest`. Set `OPENCHAT_VERSION=0.8.48` to pin the current
 client-compatible release, or use a published `sha-<commit>` tag for an immutable deployment.
 To use Docker Hub, set `OPENCHAT_API_IMAGE=<namespace>/openchat-api` and
 `OPENCHAT_WEB_IMAGE=<namespace>/openchat-web`. PostgreSQL, Redis, and LiveKit remain standard

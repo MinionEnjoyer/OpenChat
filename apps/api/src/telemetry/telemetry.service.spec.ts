@@ -16,7 +16,7 @@ describe('TelemetryService', () => {
       },
     };
     const values: Record<string, string> = {
-      OPENCHAT_VERSION: '0.8.47',
+      OPENCHAT_VERSION: '0.8.48',
       OPENCHAT_DEPLOYMENT_TYPE: 'docker-compose',
       TELEMETRY_ADMIN_TOKEN: 'a'.repeat(32),
       ...overrides,
@@ -46,7 +46,7 @@ describe('TelemetryService', () => {
     expect(JSON.parse(String(request?.body))).toEqual({
       product: 'openchat',
       installId,
-      version: '0.8.47',
+      version: '0.8.48',
       deploymentType: 'docker-compose',
     });
   });
