@@ -27,6 +27,40 @@ paths:
           description: OK
       x-evidence: stack health check
 
+  # ── Aggregate deployment telemetry ──
+  /telemetry/heartbeat:
+    post:
+      operationId: deploymentHeartbeat
+      summary: Record an OpenChat or OpenShare deployment heartbeat
+      tags: [telemetry]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeploymentHeartbeat'
+      responses:
+        '202':
+          description: Heartbeat accepted
+        '400':
+          description: Invalid or non-minimal heartbeat payload
+      x-evidence: telemetry.controller.spec.ts, provider.spec.ts#Deployment-telemetry
+
+  /telemetry/summary:
+    get:
+      operationId: deploymentTelemetrySummary
+      summary: Read aggregate active-installation counts
+      tags: [telemetry]
+      security:
+        - telemetryAdmin: []
+      responses:
+        '200':
+          description: All-time, seven-day, and thirty-day installation counts
+        '401':
+          description: Missing or invalid telemetry administrator token
+      x-evidence: telemetry.service.spec.ts, provider.spec.ts#Deployment-telemetry
+
   # ── Config ──
   /config:
     get:
@@ -1981,8 +2015,32 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Access token from POST /auth/oauth/token or dev-login (x-added-by P1)
+    telemetryAdmin:
+      type: apiKey
+      in: header
+      name: X-Telemetry-Admin-Token
+      description: Collector-only token for aggregate installation reports
 
   schemas:
+    DeploymentHeartbeat:
+      type: object
+      additionalProperties: false
+      properties:
+        product:
+          type: string
+          enum: [openchat, openshare]
+        installId:
+          type: string
+          format: uuid
+        version:
+          type: string
+          maxLength: 64
+          pattern: '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$'
+        deploymentType:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9._-]{0,63}$'
+      required: [product, installId, version, deploymentType]
+
     DevLoginResponse:
       description: User fields plus bearer tokens (x-added-by P1-02; explicit rather than allOf so exact-key validation holds)
       type: object

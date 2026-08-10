@@ -82,7 +82,7 @@ export default function App() {
     loadingOlder,
     loadNewer,
     loadOlder,
-    resumePositionByChannel,
+    resumePositionForChannel,
     saveReadPosition,
     saveScrollPosition,
   } = useMessageHistory();
@@ -1258,7 +1258,7 @@ export default function App() {
             <MessageList
               messages={messages}
               channelId={s.activeChannelId}
-              resumePosition={resumePositionByChannel[s.activeChannelId]}
+              resumePosition={resumePositionForChannel(s.activeChannelId)}
               hasMore={!!(s.activeChannelId && hasMoreByChannel[s.activeChannelId])}
               hasNewer={!!(s.activeChannelId && hasNewerByChannel[s.activeChannelId])}
               loadingOlder={loadingOlder}

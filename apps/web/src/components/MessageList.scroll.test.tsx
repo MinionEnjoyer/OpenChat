@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Message } from '../lib/types';
 import { MessageList, type MessageListProps } from './MessageList';
@@ -116,6 +116,38 @@ describe('MessageList channel scroll restoration', () => {
     rerender(<MessageList {...initial} resumePosition={null} messages={[message('message-50')]} />);
 
     expect(scroller.scrollTop).toBe(1000);
+  });
+
+  it('re-arms restoration when the same channel starts a fresh load', () => {
+    const resumePosition = { messageId: 'message-40', offset: 18, updatedAt: 1 };
+    const initial = props({ resumePosition, messages: [message('message-40')] });
+    const { container, rerender } = render(<MessageList {...initial} />);
+    const scroller = container.querySelector<HTMLElement>('.msg-scroll')!;
+    expect(scroller.scrollTop).toBe(56);
+
+    scroller.scrollTop = 0;
+    rerender(<MessageList {...initial} resumePosition={undefined} />);
+    expect(scroller.scrollTop).toBe(0);
+
+    rerender(<MessageList {...initial} />);
+    expect(scroller.scrollTop).toBe(56);
+  });
+
+  it('does not load older history from a transient top scroll while restoring', () => {
+    const onLoadOlder = vi.fn();
+    const initial = props({
+      resumePosition: undefined,
+      messages: [message('message-40')],
+      hasMore: true,
+      onLoadOlder,
+    });
+    const { container } = render(<MessageList {...initial} />);
+    const scroller = container.querySelector<HTMLElement>('.msg-scroll')!;
+
+    scroller.scrollTop = 0;
+    fireEvent.scroll(scroller);
+
+    expect(onLoadOlder).not.toHaveBeenCalled();
   });
 
   it('captures the visible anchor synchronously before switching channels', () => {

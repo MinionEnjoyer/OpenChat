@@ -4,13 +4,9 @@
  * @satisfies FR-MED-001
  *
  * Tests the ShareService's Bearer-token upload path.
- * Since OpenShare does NOT yet have POST /api/assets (2026-07-25),
- * these tests characterize the current behavior:
- *  - The service API returns 404 → fallback to cookie-based upload succeeds.
- *  - The fallback produces valid attachment refs (regression test).
- *
- * Once OpenShare implements FR-MED-001, these tests should be updated to
- * assert the Bearer path directly.
+ * Current OpenShare implements POST /api/assets with scoped Bearer service
+ * authentication. The blocking inter-app suite exercises its successful path;
+ * this probationary suite retains direct auth and browser-upload regressions.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -78,7 +74,7 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
     assetId = attachment.shareAssetId;
   });
 
-  // ── FR-MED-001 core: upload succeeds (via fallback today) ─────────
+  // ── FR-MED-001 core: upload succeeds through the service contract ─
 
   // @satisfies FR-MED-001
   it('POST /api/uploads succeeds through the scoped service upload', () => {
@@ -98,14 +94,12 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
   // ── Direct OpenShare calls characterize the current state ─────────
 
   // @satisfies FR-MED-001
-  it('POST /api/assets on OpenShare returns 404 (route not yet built)', async () => {
-    // Characterizes: the Bearer endpoint does not exist yet.
-    // Once OpenShare implements FR-MED-001, this should return 201.
+  it('POST /api/assets on OpenShare rejects an invalid service key', async () => {
     const resp = await fetch('http://localhost:8800/api/assets', {
       method: 'POST',
       headers: { authorization: 'Bearer test-key' },
     });
-    expect(resp.status).toBe(404);
+    expect(resp.status).toBe(401);
   });
 
   // @satisfies FR-MED-001
@@ -142,7 +136,7 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
 
     const uploadResp = await fetch('http://localhost:8800/upload', {
       method: 'POST',
-      headers: { cookie },
+      headers: { cookie, origin: 'http://localhost:8800' },
       body: form,
     });
     expect(uploadResp.status).toBe(200);

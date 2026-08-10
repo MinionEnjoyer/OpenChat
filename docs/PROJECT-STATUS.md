@@ -1,6 +1,6 @@
 # OpenChat — Canonical Project Status
 
-**Canonical product-status document.** Last reconciled: **2026-08-08 PDT** from the production
+**Canonical product-status document.** Last reconciled: **2026-08-09 PDT** from the production
 health boundary, published GitHub release, repository source, CI workflow, and local test receipts.
 
 ## Current production snapshot
@@ -17,12 +17,16 @@ health boundary, published GitHub release, repository source, CI workflow, and l
 - **Recent release behavior:** stickers, server-owned join/leave activity in the default general
   channel, centered option and server-action panels, multi-domain web/desktop switching, native
   YouTube shims, and synchronous per-channel message/offset capture before navigation.
-- **Maintained automated baseline:** API 17 suites / 102 tests and web 19 suites / 45 tests at the
-  last local receipt. CI also runs migration drift, characterization, web build, dependency audits,
-  provider contracts, LiveKit config/credential/ICE probes, and gate self-tests.
+- **Maintained automated baseline:** API 46 suites / 308 tests (74.86% statements / 76.86% lines),
+  web 27 suites / 71 tests, and 11 passing Playwright desktop/mobile Chromium project runs at the
+  last local receipt. CI also runs migration drift, characterization, web build, browser
+  interactions, dependency audits,
+  provider contracts, the blocking OpenChat/OpenShare boundary, LiveKit config/credential/ICE
+  probes, and gate self-tests.
 - **Probation/open evidence:** the Compose-backed API integration suite emits retained JSON but is
-  not yet a trusted blocker; real browser OIDC, public-edge LiveKit, upload-through-real-OpenShare,
-  and full user-level browser/client flows still require deployment or acceptance evidence.
+  not yet a trusted blocker. The deterministic browser harness uses an API/WebSocket test double;
+  real browser OIDC, public-edge LiveKit, real-provider playback, and multi-client realtime flows
+  still require deployment or acceptance evidence.
 
 For maintained operator guidance, start at [docs/README.md](README.md). Update this section when
 the release line, production deployment model, or verification baseline changes.

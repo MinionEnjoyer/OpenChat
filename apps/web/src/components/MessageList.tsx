@@ -52,6 +52,17 @@ function MessageListInner(props: MessageListProps) {
   const lastReported = useRef<{ channelId: string; messageId: string } | null>(null);
   const wasLoadingNewer = useRef(false);
   const nearBottom = useRef(true);
+  const restoreFrames = useRef<number[]>([]);
+
+  function cancelRestoreFrames() {
+    for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
+    restoreFrames.current = [];
+  }
+
+  useLayoutEffect(() => () => {
+    for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
+    restoreFrames.current = [];
+  }, []);
 
   function visibleBounds() {
     const el = scrollRef.current;
@@ -105,9 +116,27 @@ function MessageListInner(props: MessageListProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, props.scrollCaptureRef]);
 
+  // Embeds can acquire their final height after the message page has rendered. Keep users
+  // who were already at the newest edge pinned there; readers higher in history are left
+  // untouched and retain their explicit saved anchor.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (restoredChannel.current === channelId && nearBottom.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    for (const child of Array.from(el.children)) observer.observe(child);
+    return () => observer.disconnect();
+  }, [channelId, messages]);
+
   function onScroll() {
     const el = scrollRef.current;
     if (!el) return;
+    // React can reset the shared scroller to the top while a channel's anchor page is
+    // loading. Do not interpret that transient layout event as a request for older history.
+    if (resumePosition === undefined || restoredChannel.current !== channelId) return;
     nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
     if (el.scrollTop < 120 && hasMore && !loadingOlder) {
       prevScrollHeight.current = el.scrollHeight;
@@ -128,14 +157,22 @@ function MessageListInner(props: MessageListProps) {
     const newerRequestFinished = wasLoadingNewer.current && !loadingNewer;
     wasLoadingNewer.current = loadingNewer;
     if (prevChannel.current !== channelId) {
+      cancelRestoreFrames();
       prevChannel.current = channelId;
       restoredChannel.current = null;
       lastReported.current = null;
+      prevScrollHeight.current = null;
+      holdOnAppend.current = false;
+    }
+    // A same-channel revisit can briefly render with the previous visit's resolved anchor
+    // before the fresh request state commits. Treat every loading sentinel as a hard reset;
+    // otherwise that stale render marks the channel restored and the real anchor is ignored.
+    if (resumePosition === undefined) {
+      restoredChannel.current = null;
+      return;
     }
     if (restoredChannel.current !== channelId) {
-      // undefined means the read-state request is still in flight. null means there
-      // is no marker and the normal newest-message position should be used.
-      if (resumePosition === undefined) return;
+      // null means there is no marker and the normal newest-message position should be used.
       const target = resumePosition?.messageId
         ? el.querySelector<HTMLElement>(`[data-message-id="${resumePosition.messageId}"]`)
         : null;
@@ -144,20 +181,36 @@ function MessageListInner(props: MessageListProps) {
       // doing so makes the later anchor row permanently ineffective.
       if (resumePosition?.messageId && !target) return;
       if (target) {
-        const viewport = el.getBoundingClientRect();
-        const rect = target.getBoundingClientRect();
-        if (resumePosition && resumePosition.updatedAt > 0) {
-          el.scrollTop += rect.top - viewport.top - resumePosition.offset;
-        } else {
-          el.scrollTop += rect.bottom - viewport.bottom + 16;
-        }
-        nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        const alignTarget = () => {
+          const viewport = el.getBoundingClientRect();
+          const rect = target.getBoundingClientRect();
+          if (resumePosition && resumePosition.updatedAt > 0) {
+            el.scrollTop += rect.top - viewport.top - resumePosition.offset;
+          } else {
+            el.scrollTop += rect.bottom - viewport.bottom + 16;
+          }
+        };
+        // content-visibility can replace intrinsic row sizes during the next paint.
+        // Re-align over two frames so rows materializing above the anchor cannot move it.
+        cancelRestoreFrames();
+        alignTarget();
+        const firstFrame = requestAnimationFrame(() => {
+          alignTarget();
+          const secondFrame = requestAnimationFrame(() => {
+            alignTarget();
+            restoreFrames.current = [];
+            nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+            reportVisibleReadPosition();
+          });
+          restoreFrames.current = [secondFrame];
+        });
+        restoreFrames.current = [firstFrame];
       } else {
         nearBottom.current = true;
         el.scrollTop = el.scrollHeight;
       }
       restoredChannel.current = channelId;
-      requestAnimationFrame(reportVisibleReadPosition);
+      if (!target) requestAnimationFrame(reportVisibleReadPosition);
       return;
     }
     if (prevScrollHeight.current != null) {
@@ -175,7 +228,9 @@ function MessageListInner(props: MessageListProps) {
   }, [messages, channelId, resumePosition, loadingNewer]);
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="msg-scroll" style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div ref={scrollRef} onScroll={onScroll} className="msg-scroll"
+      data-resume-anchor={resumePosition === undefined ? 'loading' : (resumePosition?.messageId ?? 'newest')}
+      style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {loadingOlder && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted-2)', fontSize: 12, padding: 4 }}>
           <OpenChatSpinner size={22} label="Loading older messages" />

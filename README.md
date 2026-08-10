@@ -65,6 +65,10 @@ If OpenChat is useful to you, project support is available through
   Friends screen with an OpenChat username or 8-digit friend code prefilled. The user still
   confirms the request, and no address-book fields are transferred to OpenChat. See
   [OpenShare contact links](docs/OPENSHARE_CONTACT_LINKS.md) for configuration and security details.
+- **Deployment heartbeat** — each backend reports only a persistent random install ID, product,
+  version, and deployment type at startup and every 24 hours. The protected collector report shows
+  seven-day and thirty-day active installations. See
+  [Deployment heartbeats](docs/DEPLOYMENT_HEARTBEATS.md).
 - **User-to-user calling** — ring a friend in a DM; incoming-call prompt with accept/decline
   and an in-conversation call banner.
 - **Watch parties** — host-synced **Jellyfin or YouTube** playback inside a voice channel:
@@ -152,6 +156,14 @@ Optional integrations are documented in
 The maintained-document index in **[docs/README.md](docs/README.md)** distinguishes current
 operator guidance from dated audits, signoffs, decisions, and handoff records that intentionally
 describe earlier repository states.
+
+## Verification
+
+API tests enforce a 75% global line-coverage floor. The web client has separate Vitest component
+and Playwright browser gates; the browser suite exercises the production React app in desktop and
+mobile Chromium with deterministic service fixtures. See
+**[docs/WEB_BROWSER_TESTING.md](docs/WEB_BROWSER_TESTING.md)** for commands, covered flows, and the
+deployment-E2E boundary.
 
 ## Configuration & secrets
 

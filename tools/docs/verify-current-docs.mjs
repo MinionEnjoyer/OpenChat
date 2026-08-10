@@ -18,6 +18,7 @@ const maintainedDocs = [
   'docs/DEPLOY.md',
   'docs/ARCHITECTURE.md',
   'docs/PROJECT-STATUS.md',
+  'docs/INTER_APP_TESTING.md',
   'docs/AUTH-PRODUCTION-READINESS.md',
   'docs/PRODUCTION-PUSH-ENABLEMENT.md',
   'docs/ANDROID-INSTALL.md',
@@ -51,6 +52,8 @@ requireText('apps/api/src/config/configuration.ts', /UPLOAD_MAX_FILE_BYTES:[^\n]
 requireText('apps/api/src/share/share.service.ts', /\/api\/assets/, 'OpenShare upload implementation');
 requireText('apps/api/src/share/share.service.ts', /\/api\/media\/\$\{asset\.id\}\/raw/, 'media proxy response path');
 requireText('apps/api/src/uploads/uploads.controller.ts', /@Post\('waveform'\)/, 'waveform broker route');
+requireText('.github/workflows/ci.yml', /jest-interapp\.config\.js/, 'blocking inter-app test command');
+requireText('docker-compose.dev.yml', /SHARE_API_KEY: dev-share-key/, 'shared development upload credential');
 requireText('livekit.yaml.tmpl', /udp_port: 50000/, 'LiveKit UDP port');
 requireText('livekit.yaml.tmpl', /tcp_port: 7881/, 'LiveKit TCP fallback port');
 

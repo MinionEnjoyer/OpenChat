@@ -1,6 +1,6 @@
 {
   "name": "@chat/api",
-  "version": "1.0.0",
+  "version": "0.8.46",
   "description": "Chat API Backend",
   "author": "",
   "private": true,
@@ -97,6 +97,11 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
+    "coverageThreshold": {
+      "global": {
+        "lines": 75
+      }
+    },
     "testEnvironment": "node"
   }
 }

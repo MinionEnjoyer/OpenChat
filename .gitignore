@@ -27,6 +27,8 @@ scripts/generate_*.py
 # runtime
 *.log
 coverage/
+playwright-report/
+test-results/
 .DS_Store
 
 # local data

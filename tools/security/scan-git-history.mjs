@@ -40,6 +40,7 @@ function safeValue(value) {
   // Explicit inert fixtures used by tests and documentation.
   return safeMarkers.test(value)
     || value === '0123456789abcdef'
+    || value === 'dev-telemetry-admin-token-32-characters'
     || /^fcm-.*-sdk$/i.test(value)
     || (value.startsWith('eyJ') && safeJwt(value));
 }

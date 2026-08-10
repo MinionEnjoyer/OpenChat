@@ -58,6 +58,9 @@ jobs:
       - name: Verify public container release scaffold
         run: bash tools/verify-public-containers.sh
 
+      - name: Verify development Compose service wiring
+        run: bash tools/verify-dev-compose.sh
+
       - name: Install dependencies
         working-directory: apps/api
         run: npm ci
@@ -106,6 +109,7 @@ jobs:
           LIVEKIT_API_KEY: devkey
           LIVEKIT_API_SECRET: devsecret
           LIVEKIT_URL: ws://localhost:7880
+          OPENCHAT_DEPLOYMENT_TYPE: ci
           SHARE_BASE_URL: http://localhost:8800
           SHARE_API_KEY: dev-share-key
           CHAR_SKIP_OPENSHARE: '1'
@@ -147,6 +151,12 @@ jobs:
       - name: Unit and component tests
         working-directory: apps/web
         run: npm test
+      - name: Install browser harness runtime
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Browser interaction tests
+        working-directory: apps/web
+        run: npm run test:browser
       - name: Build
         working-directory: apps/web
         run: npm run build
@@ -187,6 +197,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check out OpenShare for the inter-app contract
+        uses: actions/checkout@v4
+        with:
+          repository: MinionEnjoyer/OpenShare
+          path: OpenShare
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -209,20 +225,32 @@ jobs:
         run: cp .env.dev.example .env.dev
 
       - name: Start dev stack
+        env:
+          OPENSHARE_BUILD_CONTEXT: ./OpenShare
+          OPENCHAT_DEPLOYMENT_TYPE: ci
+          OPENSHARE_DEPLOYMENT_TYPE: ci
         run: |
-          # Build and start api + postgres + redis (minimal set for contract tests)
-          docker compose -f docker-compose.dev.yml up -d --build postgres redis api
-          # Wait for health
+          # Build both applications and their state services for provider and
+          # inter-app contracts. OpenChat reaches OpenShare by its Compose name.
+          docker compose -f docker-compose.dev.yml up -d --build postgres redis openshare api
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
-              echo "API healthy"
+            if curl -sf http://localhost:3001/api/health > /dev/null 2>&1 \
+              && curl -sf http://localhost:8800/health > /dev/null 2>&1; then
+              echo "OpenChat and OpenShare healthy"
               break
             fi
-            echo "Waiting for API… ($i/30)"
+            echo "Waiting for OpenChat and OpenShare… ($i/30)"
             sleep 2
           done
-          # One more check — fail if not healthy
-          curl -f http://localhost:3001/api/health || { echo "API failed to start"; exit 1; }
+          if ! curl -f http://localhost:3001/api/health \
+            || ! curl -f http://localhost:8800/health; then
+            echo "OpenChat/OpenShare dev stack failed to become healthy"
+            docker compose -f docker-compose.dev.yml ps
+            # These development services use inert CI credentials. Keep the tail bounded
+            # so startup exceptions are visible without flooding or retaining full logs.
+            docker compose -f docker-compose.dev.yml logs --no-color --tail=300 api openshare postgres redis
+            exit 1
+          fi
 
       - name: Provider contract tests
         working-directory: apps/api
@@ -248,6 +276,15 @@ jobs:
           LIVEKIT_API_URL: http://localhost:7880
           JWT_SECRET: dev-jwt-secret-not-for-prod
         run: npx jest --config jest-contract.config.js --forceExit
+
+      - name: OpenChat and OpenShare inter-app tests
+        working-directory: apps/api
+        env:
+          CHAR_API_BASE: http://localhost:3001/api
+          CHAR_SHARE_BASE: http://localhost:8800
+          SHARE_API_KEY: dev-share-key
+          INTERAPP_EXPECT_MEDIA_PROCESSORS: '1'
+        run: npx jest --config jest-interapp.config.js --forceExit
 
       - name: Seed integration fixtures
         id: integration-seed
@@ -283,6 +320,8 @@ jobs:
 
       - name: Stop dev stack
         if: always()
+        env:
+          OPENSHARE_BUILD_CONTEXT: ./OpenShare
         run: docker compose -f docker-compose.dev.yml down -v
 
   # ── Selftest (deliberately breaks things, asserts gates catch them) ────

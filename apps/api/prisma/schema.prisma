@@ -279,15 +279,15 @@ model ChannelOverwrite {
 }
 
 model Message {
-  id        String    @id @default(uuid())
+  id        String      @id @default(uuid())
   channelId String
   authorId  String
-  content   String    @db.Text
-  createdAt DateTime  @default(now())
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
   editedAt  DateTime?
   deletedAt DateTime?
   replyToId String?
-  pinned    Boolean   @default(false)
+  pinned    Boolean     @default(false)
   kind      MessageKind @default(USER)
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
@@ -305,13 +305,13 @@ model Message {
 }
 
 model FederationEvent {
-  id           String   @id
+  id           String    @id
   originNodeId String
   eventType    String
   aggregateId  String
   payload      Json
   occurredAt   DateTime
-  receivedAt   DateTime @default(now())
+  receivedAt   DateTime  @default(now())
   appliedAt    DateTime?
   applyError   String?
 
@@ -322,11 +322,11 @@ model FederationEvent {
 }
 
 model FederationDelivery {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   eventId       String
   peerNodeId    String
-  attempts      Int      @default(0)
-  nextAttemptAt DateTime @default(now())
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
   deliveredAt   DateTime?
   lastError     String?
 
@@ -557,4 +557,28 @@ model ChannelRecipient {
 
   @@unique([channelId, userId])
   @@index([userId])
+}
+
+// Stable, non-user installation identity used by the deployment heartbeat.
+model DeploymentIdentity {
+  key       String   @id
+  installId String   @unique
+  createdAt DateTime @default(now())
+}
+
+// Aggregate deployment activity received by the public collector. No request
+// metadata, hostnames, user records, or application content is retained.
+model TelemetryInstallation {
+  id             String   @id @default(uuid())
+  product        String
+  installId      String
+  version        String
+  deploymentType String
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  heartbeatCount Int      @default(1)
+
+  @@unique([product, installId])
+  @@index([lastSeenAt])
+  @@index([product, lastSeenAt])
 }

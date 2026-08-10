@@ -52,8 +52,10 @@ services:
       REDIS_URL: redis://redis:6379
       SESSION_SECRET: dev-dev-dev-dev-16
       JWT_SECRET: dev-jwt-secret-not-for-prod
-      SHARE_BASE_URL: http://openshare:8800
+      # Compose peers use OpenShare's container port; 8800 is host-only.
+      SHARE_BASE_URL: http://openshare:8000
       SHARE_API_KEY: dev-share-key
+      OPENCHAT_DEPLOYMENT_TYPE: ${OPENCHAT_DEPLOYMENT_TYPE:-development}
       LIVEKIT_API_KEY: devkey
       LIVEKIT_API_SECRET: secretsecretsecretsecretsecret12
       LIVEKIT_URL: ws://livekit:7880
@@ -109,7 +111,7 @@ services:
 
   openshare:
     build:
-      context: ../OpenShare
+      context: ${OPENSHARE_BUILD_CONTEXT:-../OpenShare}
     container_name: chat-dev-openshare
     restart: unless-stopped
     environment:
@@ -120,10 +122,11 @@ services:
       OIDC_ISSUER: https://auth.example.com/application/o/openshare/
       PUBLIC_URL: http://localhost:8800
       ALLOWED_ORIGINS: http://localhost:3000
+      SHARE_API_KEY: dev-share-key
       STORAGE_ROOT: /srv/openshare
       PORT: "8800"
-      STORAGE_PATH: /tmp/openshare-storage
-      DB_PATH: /tmp/openshare-data
+      DATABASE_FILE: /tmp/openshare-data/gallery.db
+      OPENSHARE_DEPLOYMENT_TYPE: ${OPENSHARE_DEPLOYMENT_TYPE:-development}
     volumes:
       - openshare_storage:/srv/openshare
       - openshare_data:/tmp/openshare-data
