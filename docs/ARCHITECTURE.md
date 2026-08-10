@@ -5,7 +5,7 @@ _As-built architecture of the OpenChat communication platform: a self-hosted, re
 [OpenShare](https://github.com/MinionEnjoyer/OpenShare) for files/media, Jellyfin for watch
 parties) rather than reinventing them._
 
-> Status: **as-built for the 0.8.47 production line**. This document describes what actually runs — not a proposal.
+> Status: **as-built for the 0.8.48 production line**. This document describes what actually runs — not a proposal.
 > Setup and deploy details live in [SETUP.md](SETUP.md) and [DEPLOY.md](DEPLOY.md).
 
 ## Contents

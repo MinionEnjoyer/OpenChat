@@ -64,6 +64,9 @@ requireText('apps/api/src/share/share.service.ts', /\/api\/assets/, 'OpenShare u
 requireText('apps/api/src/share/share.service.ts', /\/api\/media\/\$\{asset\.id\}\/raw/, 'media proxy response path');
 requireText('apps/api/src/uploads/uploads.controller.ts', /@Post\('waveform'\)/, 'waveform broker route');
 requireText('.github/workflows/ci.yml', /jest-interapp\.config\.js/, 'blocking inter-app test command');
+requireText('.github/workflows/desktop-release.yml', /Validate desktop server URL/, 'desktop server URL preflight');
+requireText('.github/workflows/desktop-release.yml', /\^https:\/\//, 'HTTPS-only desktop server URL guard');
+requireText('.github/workflows/desktop-release.yml', /VITE_SERVER_URL: \$\{\{ vars\.SERVER_URL \}\}/, 'desktop server URL injection');
 requireText('docker-compose.dev.yml', /SHARE_API_KEY: dev-share-key/, 'shared development upload credential');
 requireText('livekit.yaml.tmpl', /udp_port: 50000/, 'LiveKit UDP port');
 requireText('livekit.yaml.tmpl', /tcp_port: 7881/, 'LiveKit TCP fallback port');
