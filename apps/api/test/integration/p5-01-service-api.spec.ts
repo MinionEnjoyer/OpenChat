@@ -13,6 +13,7 @@ import * as path from 'path';
 import { apiFetch, createJar } from '../characterization/helpers';
 
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
+const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? 'http://localhost:3000';
 const FIXTURE_PATH = path.join(__dirname, '..', 'fixtures', 'red-1x1.png');
 
 async function devLoginBearer(username: string) {
@@ -114,7 +115,10 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
     // web client's direct upload path.
     const devLoginResp = await fetch('http://localhost:8800/auth/dev-login', {
       method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        origin: WEB_ORIGIN,
+      },
       body: new URLSearchParams({ username: 'test-user' }).toString(),
     });
     expect(devLoginResp.status).toBe(200);
@@ -132,7 +136,7 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
 
     const uploadResp = await fetch('http://localhost:8800/upload', {
       method: 'POST',
-      headers: { cookie, origin: 'http://localhost:8800' },
+      headers: { cookie, origin: WEB_ORIGIN },
       body: form,
     });
     expect(uploadResp.status).toBe(200);
