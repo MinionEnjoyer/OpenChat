@@ -33,13 +33,13 @@ To use the Docker Hub mirrors, set:
 ```dotenv
 OPENCHAT_API_IMAGE=minionenjoyer/openchat-api
 OPENCHAT_WEB_IMAGE=minionenjoyer/openchat-web
-OPENCHAT_VERSION=0.8.46
+OPENCHAT_VERSION=0.8.47
 ```
 
 ## Image tags
 
 - `latest`: newest CI-verified `main` build
-- `0.8.46`: current client-compatible release
+- `0.8.47`: current client-compatible release
 - `sha-<commit>`: immutable build for a verified source commit
 
 Images are published for `linux/amd64` and `linux/arm64`. Docker Hub receives the exact digest

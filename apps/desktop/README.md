@@ -91,12 +91,12 @@ The updater signing keypair lives locally at `~/.tauri/openchat-updater.key` (pr
    `src-tauri/Cargo.toml`, and `../web/package.json` (including its lockfile). The web version
    is shown in Settings for both browser and desktop builds.
 2. Tag + push using the synchronized version, e.g.
-   `git tag desktop-v0.8.46 && git push origin desktop-v0.8.46`.
+   `git tag desktop-v0.8.47 && git push origin desktop-v0.8.47`.
 3. CI builds all three platforms, signs, and publishes a GitHub Release with the installers +
    `latest.json`. Installed clients auto-update on next launch.
 
 The current published production release is
-[`desktop-v0.8.46`](https://github.com/MinionEnjoyer/OpenChat/releases/tag/desktop-v0.8.46).
+[`desktop-v0.8.47`](https://github.com/MinionEnjoyer/OpenChat/releases/tag/desktop-v0.8.47).
 
 ## Local dev
 Needs the Rust toolchain + your OS's Tauri prerequisites. On Linux, install the WebKitGTK/GTK/xdo

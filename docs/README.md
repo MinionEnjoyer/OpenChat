@@ -1,6 +1,6 @@
 # OpenChat documentation
 
-The current public desktop/web UI release is **0.8.46**. The hosted web/API deployment follows
+The current public desktop/web UI release is **0.8.47**. The hosted web/API deployment follows
 CI-passing `main` and may advance without changing the desktop version.
 
 ## Start here
