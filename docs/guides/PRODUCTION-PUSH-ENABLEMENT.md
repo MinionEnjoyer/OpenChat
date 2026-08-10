@@ -2,7 +2,7 @@
 
 This runbook enables remote push delivery for the production OpenChat service at
 `chat.creeger.com`. It is written for the current Docker Compose deployment
-described in [`DEPLOY.md`](DEPLOY.md), where the checkout lives at `/opt/chat`
+described in the [deployment guide](../DEPLOY.md), where the checkout lives at `/opt/chat`
 and exactly one `api` container runs.
 
 ## Release status

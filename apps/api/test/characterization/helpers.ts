@@ -14,7 +14,36 @@ import { WebSocket } from 'ws';
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
 export const WS_BASE = process.env.CHAR_WS_BASE ?? 'ws://localhost:3001/ws';
 const SHARE_BASE = process.env.CHAR_SHARE_BASE ?? 'http://localhost:8800';
-const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? process.env.WEB_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:5173';
+const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? process.env.WEB_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:3000';
+
+function hasHeader(headers: Record<string, string>, name: string): boolean {
+  const normalized = name.toLowerCase();
+  return Object.keys(headers).some((header) => header.toLowerCase() === normalized);
+}
+
+export function prepareApiRequestHeaders(options: {
+  method: string;
+  body?: any;
+  headers?: Record<string, string>;
+  cookie?: string;
+  webOrigin?: string;
+}): Record<string, string> {
+  const headers: Record<string, string> = { ...options.headers };
+  const cookie = options.cookie ?? '';
+  if (cookie) headers.cookie = cookie;
+  if (
+    cookie
+    && options.method !== 'GET'
+    && options.method !== 'HEAD'
+    && !hasHeader(headers, 'origin')
+  ) {
+    headers.origin = options.webOrigin ?? WEB_ORIGIN;
+  }
+  if (!hasHeader(headers, 'content-type') && options.method !== 'GET' && options.body !== undefined) {
+    headers['content-type'] = 'application/json';
+  }
+  return headers;
+}
 
 export interface ApiResponse<T = any> { status: number; headers: Record<string, string>; body: T; }
 
@@ -44,15 +73,15 @@ export async function apiFetch<T = any>(path: string, opts: FetchOptions = {}): 
   const url = new URL(path.startsWith('/') ? `${API_BASE}${path}` : path);
   const method = opts.method ?? 'GET';
   const jar = opts.jar;
-  const headers: Record<string, string> = { ...opts.headers };
-  if (jar && jar.toString()) headers['cookie'] = jar.toString();
   // Cookie-authenticated browser mutations are origin-checked by the API.
   // Model the configured first-party web client unless a test explicitly
   // supplies its own Origin header (for example, a CSRF rejection probe).
-  if (jar?.toString() && method !== 'GET' && method !== 'HEAD' && headers.origin === undefined) {
-    headers.origin = WEB_ORIGIN;
-  }
-  if (!headers['content-type'] && method !== 'GET' && opts.body !== undefined) headers['content-type'] = 'application/json';
+  const headers = prepareApiRequestHeaders({
+    method,
+    body: opts.body,
+    headers: opts.headers,
+    cookie: jar?.toString(),
+  });
   let reqBody: string | undefined;
   if (opts.body !== undefined) {
     reqBody = typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body);

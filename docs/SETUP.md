@@ -39,7 +39,7 @@ You need these services reachable (use your own instances — any equivalents wo
   `https://<your-chat-domain>/api/patreon/callback` as its exact redirect URI. Set
   `PATREON_ENABLED=1`, the client ID and secret, and `PATREON_REDIRECT_URI`. Server owners can then
   configure a campaign and support threshold in Server Settings → Patreon. See
-  [PATREON_INVITES.md](PATREON_INVITES.md) for the security model and complete flow.
+  [Patreon invitations](guides/PATREON_INVITES.md) for the security model and complete flow.
 - **Reverse proxy:** point `chat.<domain>` → the web container's host port (`WEB_PORT`, default
   `8810`), and `livekit.<domain>` → the LiveKit signaling port `7880` (WebSocket upgrade
   enabled). Forward LiveKit media to the host: **UDP 50000** and **TCP 7881**.
@@ -64,8 +64,8 @@ request bodies up to 100 MB; raise that value (and the external proxy's body lim
 should accept larger requests.
 
 Patreon invitations and trusted mirror clustering are also disabled by default. Their credentials
-belong only in `.env`. Follow [PATREON_INVITES.md](PATREON_INVITES.md) or
-[TRUSTED_MIRROR_CLUSTER.md](TRUSTED_MIRROR_CLUSTER.md) before enabling either integration.
+belong only in `.env`. Follow [Patreon invitations](guides/PATREON_INVITES.md) or
+[trusted mirror clusters](guides/TRUSTED_MIRROR_CLUSTER.md) before enabling either integration.
 
 ## 2. Render the LiveKit config
 

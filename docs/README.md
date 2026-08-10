@@ -1,54 +1,41 @@
 # OpenChat documentation
 
-This index separates maintained guidance from evidence that intentionally describes an earlier
-commit or release. The current public desktop/web UI release is **0.8.46**; the web/API production
-deployment follows CI-passing `main`.
+The current public desktop/web UI release is **0.8.46**. The hosted web/API deployment follows
+CI-passing `main` and may advance without changing the desktop version.
 
-## Maintained guides
+## Start here
 
-- [Setup](SETUP.md) — service prerequisites, configuration, networking, and local development.
-- [Deploy and update](DEPLOY.md) — manual and CI-gated production deployment.
-- [Architecture](ARCHITECTURE.md) — the current production design and integration boundaries.
-- [Patreon invitations](PATREON_INVITES.md) — optional membership verification and creator setup.
-- [Trusted mirror cluster](TRUSTED_MIRROR_CLUSTER.md) — private, authenticated host replication.
-- [OpenShare contact links](OPENSHARE_CONTACT_LINKS.md) — privacy-preserving contact-to-Friends
-  handoff and companion configuration.
-- [Deployment heartbeats](DEPLOYMENT_HEARTBEATS.md) — persistent installation identity, exact
-  payload privacy boundary, 24-hour delivery, collector reports, and harness coverage.
-- [OpenChat and OpenShare inter-app testing](INTER_APP_TESTING.md) — blocking service-key, upload,
-  proxy, sticker, and soundboard boundary coverage.
-- [Web browser testing](WEB_BROWSER_TESTING.md) — deterministic Playwright scope, commands,
-  fixtures, CI behavior, and the boundary between browser interaction and deployment E2E.
-- [Project status](PROJECT-STATUS.md) — current release, health, verification, and open risks.
-- [Authentication readiness](AUTH-PRODUCTION-READINESS.md) — web, desktop, and mobile OIDC/PKCE.
-- [Production push enablement](PRODUCTION-PUSH-ENABLEMENT.md) — FCM/APNs server configuration.
-- [Android install](ANDROID-INSTALL.md) and [TestFlight install](TESTFLIGHT-INSTALL.md) — private
-  mobile distribution. Mobile artifacts use their own version line and are not desktop 0.8.46.
+- [Setup](SETUP.md) covers prerequisites, configuration, networking, and local development.
+- [Deployment](DEPLOY.md) covers manual and CI-gated production updates.
+- [Architecture](ARCHITECTURE.md) describes the production design and integration boundaries.
+- [Project status](PROJECT-STATUS.md) records current health, verification, and open risks.
+- [Specialized guides](guides/README.md) contains integrations, testing, mobile distribution, and
+  focused operator runbooks.
 
-Component-specific guides also live at
-[apps/desktop/README.md](../apps/desktop/README.md),
-[tools/devctl-README.md](../tools/devctl-README.md), and
-[tools/probe/README.md](../tools/probe/README.md).
+Component documentation lives alongside the component:
 
-Specialized mobile/operator runbooks (`APPLE-DEV-CHECKLIST.md`, `IOS-PUSH-SETUP.md`,
-`TESTFLIGHT-INTERNAL-TESTERS.md`, `TWO-DEVICE-TESTING.md`, and `DISK-RECLAIM.md`) are scoped to the
-artifact or environment they name. Check their prerequisites before use; they do not define the
-desktop/web release version.
+- [Desktop client](../apps/desktop/README.md)
+- [Development control tool](../tools/devctl-README.md)
+- [Production probes](../tools/probe/README.md)
 
-After changing a maintained guide, run:
+## Repository records
+
+The root-level `BACKLOG.md`, `DRIFT-LOG.md`, `LOG.md`, and `PRIORITIES.md`, along with the
+`audits/`, `capabilities/`, `debug-logs/`, `decisions/`, `release/`, and `signoffs/` directories,
+are inputs to existing repository gates. They stay at their established paths.
+
+Dated handoffs, proposals, completed work orders, and retrospective batches are under
+[archive](archive/README.md). Archived text is a frozen record of the commit or date it names and
+must not be treated as current product documentation.
+
+## Verification
+
+After changing current documentation, run:
 
 ```bash
 node tools/docs/verify-current-docs.mjs
 ```
 
-The check derives the release version and key architecture facts from their producing source files,
-rejects known stale claims, and validates local Markdown links.
-
-## Historical and evidence documents
-
-Files under `audits/`, `signoffs/`, `decisions/`, `retrospective/`, `release/`, and `workorders/`,
-together with `HANDOFF*`, `LOG.md`, `BACKLOG.md`, `PRIORITIES.md`, `DRIFT-*`, `TRACE-TRIAGE.md`,
-`AGENT-*`, `DIAG-SINGLES.md`, and the `UPSTREAM-*` planning reports, are immutable evidence for the
-commit or date named in each file. Their old version numbers, test counts, findings, or `UNBUILT`
-labels must not be read as the current product state. New conclusions belong in a new dated
-artifact or in one of the maintained guides above; do not rewrite signed historical evidence.
+The verifier derives release and architecture facts from their producing source files, rejects
+known stale claims, validates local links, and prevents new Markdown files from accumulating at the
+documentation root without an explicit index decision.

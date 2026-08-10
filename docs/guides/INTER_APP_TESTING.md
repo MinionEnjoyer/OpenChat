@@ -32,6 +32,18 @@ The OpenShare image includes ffmpeg and ffprobe. CI sets `INTERAPP_EXPECT_MEDIA_
 makes waveform and duration assertions mandatory. A source installation without those optional
 executables may omit the flag while testing the rest of the boundary.
 
+## Probationary API integration harness
+
+After the blocking inter-app contract, CI seeds the development API and runs
+`jest-integration.config.js`. This broader suite remains nonblocking while its historical failures
+are triaged, but its JSON result and seed log are retained as workflow artifacts.
+
+The seed process and shared API test helper model the first-party browser boundary. For
+cookie-authenticated mutations they send `CHAR_WEB_ORIGIN`, which must match the API container's
+configured `WEB_ORIGIN`. Read requests do not receive an unnecessary Origin header, and tests can
+provide an explicit Origin when exercising rejection behavior. The Verify job runs isolated header
+contract tests for both request paths before the live stack is built.
+
 ## Local execution
 
 With OpenShare checked out beside OpenChat:
@@ -41,6 +53,7 @@ cp .env.dev.example .env.dev
 docker compose -f docker-compose.dev.yml up -d --build postgres redis openshare api
 cd apps/api
 CHAR_API_BASE=http://localhost:3001/api \
+CHAR_WEB_ORIGIN=http://localhost:3000 \
 CHAR_SHARE_BASE=http://localhost:8800 \
 SHARE_API_KEY=dev-share-key \
 INTERAPP_EXPECT_MEDIA_PROCESSORS=1 \

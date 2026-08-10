@@ -105,8 +105,8 @@ describe('P5-02 — upload broker + media proxy', () => {
     expect(typeof attachment.url).toBe('string');
     expect(attachment.url).toBe(`/api/media/${assetId}/raw`);
     expect(attachment.thumbnailUrl).toBe(`/api/media/${assetId}/thumb`);
-    expect(attachment.width).toBeNull();
-    expect(attachment.height).toBeNull();
+    expect(attachment.width).toBe(1);
+    expect(attachment.height).toBe(1);
     expect(attachment.durationMs).toBeNull();
 
     // Verify exact key set — no extra or missing keys

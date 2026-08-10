@@ -298,13 +298,14 @@ server-side and stream back (with HTTP Range support).
 amount in `PatreonGate`. A public join URL begins Patreon OAuth with a random, ten-minute Redis
 state. The callback performs a live membership lookup, does not persist the Patreon access token,
 and issues an atomic one-use OpenChat invite that expires after one hour. This is initial-access
-verification, not continuous entitlement enforcement. See [PATREON_INVITES.md](PATREON_INVITES.md).
+verification, not continuous entitlement enforcement. See
+[Patreon invitations](guides/PATREON_INVITES.md).
 
 **Trusted mirror cluster.** An operator can explicitly configure private HTTPS peers with a shared
 32-or-more-character cluster secret. Message create/edit/delete events are HMAC-authenticated,
 idempotently persisted in `FederationEvent`, and retried from `FederationDelivery` with bounded
 backoff. This is separate from the local Redis real-time bus and is not public federation. See
-[TRUSTED_MIRROR_CLUSTER.md](TRUSTED_MIRROR_CLUSTER.md).
+[trusted mirror clusters](guides/TRUSTED_MIRROR_CLUSTER.md).
 
 ---
 

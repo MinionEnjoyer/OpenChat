@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,11 +18,22 @@ const maintainedDocs = [
   'docs/DEPLOY.md',
   'docs/ARCHITECTURE.md',
   'docs/PROJECT-STATUS.md',
-  'docs/INTER_APP_TESTING.md',
-  'docs/AUTH-PRODUCTION-READINESS.md',
-  'docs/PRODUCTION-PUSH-ENABLEMENT.md',
-  'docs/ANDROID-INSTALL.md',
-  'docs/TESTFLIGHT-INSTALL.md',
+  'docs/guides/README.md',
+  'docs/guides/ANDROID-INSTALL.md',
+  'docs/guides/APPLE-DEV-CHECKLIST.md',
+  'docs/guides/AUTH-PRODUCTION-READINESS.md',
+  'docs/guides/DISK-RECLAIM.md',
+  'docs/guides/INTER_APP_TESTING.md',
+  'docs/guides/IOS-PUSH-SETUP.md',
+  'docs/guides/OPENSHARE_CONTACT_LINKS.md',
+  'docs/guides/PATREON_INVITES.md',
+  'docs/guides/PRODUCTION-PUSH-ENABLEMENT.md',
+  'docs/guides/TESTFLIGHT-INSTALL.md',
+  'docs/guides/TESTFLIGHT-INTERNAL-TESTERS.md',
+  'docs/guides/TRUSTED_MIRROR_CLUSTER.md',
+  'docs/guides/TWO-DEVICE-TESTING.md',
+  'docs/guides/WEB_BROWSER_TESTING.md',
+  'docs/archive/README.md',
   'apps/desktop/README.md',
   'tools/devctl-README.md',
   'tools/probe/README.md',
@@ -42,7 +53,7 @@ requireText('docs/SETUP.md', /localhost:3000/, 'current Vite development port');
 requireText('docs/ARCHITECTURE.md', /limits are opt-in/, 'operator-controlled upload limits');
 requireText('docs/ARCHITECTURE.md', /\/api\/assets/, 'OpenShare asset contract');
 requireText('docs/ARCHITECTURE.md', /\/api\/media\/<id>\/raw/, 'authenticated media proxy');
-requireText('docs/AUTH-PRODUCTION-READINESS.md', /Production mobile[\s\S]{0,24}code uses `expo-web-browser`/, 'mobile PKCE client');
+requireText('docs/guides/AUTH-PRODUCTION-READINESS.md', /Production mobile[\s\S]{0,24}code uses `expo-web-browser`/, 'mobile PKCE client');
 requireText('tools/probe/README.md', /TCP 7880[\s\S]*7881[\s\S]*UDP media port 50000/, 'LiveKit production ports');
 
 requireText('apps/api/package.json', /"@nestjs\/core": "\^11\./, 'NestJS 11 dependency');
@@ -64,6 +75,28 @@ const staleClaims = [
   /desktop-v0\.8\.2/,
   /not yet implemented in the shipped mobile code/i,
 ];
+
+const allowedRootMarkdown = new Set([
+  'AGENT-FLEET.md',
+  'ARCHITECTURE.md',
+  'BACKLOG.md',
+  'DEPLOY.md',
+  'DRIFT-LOG.md',
+  'LOG.md',
+  'PRIORITIES.md',
+  'PROJECT-STATUS.md',
+  'README.md',
+  'SETUP.md',
+]);
+const unexpectedRootMarkdown = readdirSync(resolve(root, 'docs'), { withFileTypes: true })
+  .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && !allowedRootMarkdown.has(entry.name))
+  .map((entry) => entry.name);
+if (unexpectedRootMarkdown.length > 0) {
+  throw new Error(
+    `docs/: unexpected root Markdown files: ${unexpectedRootMarkdown.join(', ')}; ` +
+      'place current specialist guides in docs/guides or historical records in docs/archive',
+  );
+}
 
 let localLinks = 0;
 for (const file of maintainedDocs) {

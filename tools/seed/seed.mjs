@@ -25,9 +25,11 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { prepareSeedRequestHeaders } from './request-headers.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
+const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? process.env.WEB_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:3000';
 
 // Parse CLI flags
 const args = process.argv.slice(2);
@@ -65,9 +67,13 @@ async function apiFetch(path, opts = {}) {
   const url = new URL(path.startsWith('/') ? `${API_BASE}${path}` : path);
   const method = opts.method ?? 'GET';
   const jar = opts.jar;
-  const headers = { ...(opts.headers ?? {}) };
-  if (jar && jar.toString()) headers['cookie'] = jar.toString();
-  if (!headers['content-type'] && method !== 'GET' && opts.body !== undefined) headers['content-type'] = 'application/json';
+  const headers = prepareSeedRequestHeaders({
+    method,
+    body: opts.body,
+    headers: opts.headers,
+    cookie: jar?.toString(),
+    webOrigin: WEB_ORIGIN,
+  });
   let reqBody;
   if (opts.body !== undefined) {
     reqBody = typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body);
@@ -340,8 +346,15 @@ async function main() {
   if (!friendNames.has('bob') && !friendNames.has('bob-beta')) {
     await apiFetch('/friends/requests', { method: 'POST', body: { username: 'bob' }, jar: alice.jar });
     const bobPending = await apiFetch('/friends/requests', { jar: bob.jar });
-    if (Array.isArray(bobPending.body) && bobPending.body.length > 0) {
-      await apiFetch(`/friends/requests/${bobPending.body[0].id}/accept`, { method: 'POST', jar: bob.jar });
+    const incoming = Array.isArray(bobPending.body?.incoming)
+      ? bobPending.body.incoming
+      : Array.isArray(bobPending.body) ? bobPending.body : [];
+    if (incoming.length === 0) throw new Error('Friend request for bob not found');
+    const accepted = await apiFetch(`/friends/requests/${incoming[0].id}/accept`, {
+      method: 'POST', jar: bob.jar,
+    });
+    if (![200, 201].includes(accepted.status)) {
+      throw new Error(`Friend request acceptance failed (${accepted.status})`);
     }
     console.log('  alice ↔ bob friends (created)');
   } else {
@@ -349,12 +362,18 @@ async function main() {
   }
 
   const existingDms = await apiFetch('/dms', { jar: alice.jar });
-  const dmWithBob = Array.isArray(existingDms.body) ? existingDms.body.find(d => {
+  let dmWithBob = Array.isArray(existingDms.body) ? existingDms.body.find(d => {
     const recipients = d.recipients || d.members || [];
     return recipients.some(r => (r.userId || r.id) === bob.userId);
   }) : null;
   if (!dmWithBob) {
-    await apiFetch('/dms', { method: 'POST', body: { userId: bob.userId }, jar: alice.jar });
+    const openedDm = await apiFetch('/dms', {
+      method: 'POST', body: { userId: bob.userId }, jar: alice.jar,
+    });
+    if (![200, 201].includes(openedDm.status) || !openedDm.body?.id) {
+      throw new Error(`Opening alice → bob DM failed (${openedDm.status})`);
+    }
+    dmWithBob = openedDm.body;
     console.log('  alice → bob DM created');
   } else {
     console.log('  alice → bob DM already exists');
@@ -362,12 +381,7 @@ async function main() {
 
   // ── Block bob + send message in DM (for p4-05-block-collapse) ──
   console.log('[seed] Setting up block + blocked message…');
-  const dmsAfter = await apiFetch('/dms', { jar: alice.jar });
-  const dmBob = Array.isArray(dmsAfter.body) ? dmsAfter.body.find(d => {
-    const recipients = d.recipients || d.members || [];
-    return recipients.some(r => (r.userId || r.id) === bob.userId);
-  }) : null;
-  const dmChannelId = dmBob?.id;
+  const dmChannelId = dmWithBob?.id;
   if (!dmChannelId) throw new Error('DM channel for bob not found');
 
   // Block bob (idempotent)

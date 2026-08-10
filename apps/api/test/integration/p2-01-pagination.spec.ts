@@ -136,7 +136,6 @@ describe('P2-01 — ?before cursor pagination (FR-MSG-001)', () => {
   // @satisfies FR-MSG-001
   it('pages are newest-anchored (strict newest-first within each page)', () => {
     // Re-paginate and verify ordering within each individual page
-    let cursor: string | undefined;
     const PAGE_SIZE = 100;
 
     async function checkPages() {

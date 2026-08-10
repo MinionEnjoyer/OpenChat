@@ -214,7 +214,7 @@ When sources disagree, use this order:
 2. This file for current state, active work, and the next action.
 3. `docs/PRIORITIES.md` for standing owner priorities and scope decisions.
 4. The frozen specifications and accepted decision records.
-5. `docs/HANDOFF.md` and `docs/HANDOFF-P3-P4.md` as historical context only.
+5. `docs/archive/HANDOFF.md` and `docs/archive/HANDOFF-P3-P4.md` as historical context only.
 6. Agent reports and chat summaries as unverified leads.
 
 Evidence labels used here:
@@ -458,7 +458,7 @@ Do these in order:
 
 ## Verification cautions
 
-- The prior `docs/HANDOFF.md` baseline of 30/405 mobile tests is obsolete.
+- The prior `docs/archive/HANDOFF.md` baseline of 30/405 mobile tests is obsolete.
 - A prior Claude report said the merged tree was green at 92 suites / 887 tests,
   but this reconciler did not reproduce that run. Treat it as **REPORTED**, not
   current gate evidence.
