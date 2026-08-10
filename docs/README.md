@@ -13,8 +13,6 @@ deployment follows CI-passing `main`.
 - [Trusted mirror cluster](TRUSTED_MIRROR_CLUSTER.md) — private, authenticated host replication.
 - [OpenShare contact links](OPENSHARE_CONTACT_LINKS.md) — privacy-preserving contact-to-Friends
   handoff and companion configuration.
-- [Deployment heartbeats](DEPLOYMENT_HEARTBEATS.md) — persistent installation identity, exact
-  payload privacy boundary, 24-hour delivery, collector reports, and harness coverage.
 - [OpenChat and OpenShare inter-app testing](INTER_APP_TESTING.md) — blocking service-key, upload,
   proxy, sticker, and soundboard boundary coverage.
 - [Web browser testing](WEB_BROWSER_TESTING.md) — deterministic Playwright scope, commands,

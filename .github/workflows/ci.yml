@@ -87,6 +87,12 @@ jobs:
         working-directory: apps/api
         run: npm test -- --runInBand
 
+      - name: Test harness boundary tests
+        working-directory: apps/api
+        run: |
+          node --test ../../tools/seed/request-headers.test.mjs
+          npx jest --config jest-harness.config.js --runInBand
+
       - name: Production dependency audit
         working-directory: apps/api
         run: npm audit --omit=dev --audit-level=high
@@ -289,6 +295,9 @@ jobs:
       - name: Seed integration fixtures
         id: integration-seed
         continue-on-error: true
+        env:
+          CHAR_API_BASE: http://localhost:3001/api
+          CHAR_WEB_ORIGIN: http://localhost:3000
         run: node tools/seed/seed.mjs 2>&1 | tee integration-seed.log
 
       # This suite existed but was not executed by GitHub CI. Run it on every change and
@@ -298,6 +307,9 @@ jobs:
         if: always()
         continue-on-error: true
         working-directory: apps/api
+        env:
+          CHAR_API_BASE: http://localhost:3001/api
+          CHAR_WEB_ORIGIN: http://localhost:3000
         run: npx jest --config jest-integration.config.js --forceExit --json --outputFile=../../integration-results.json
 
       - name: Upload integration probation results

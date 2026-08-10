@@ -25,9 +25,11 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { prepareSeedRequestHeaders } from './request-headers.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
+const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? process.env.WEB_ORIGIN?.split(',')[0]?.trim() ?? 'http://localhost:3000';
 
 // Parse CLI flags
 const args = process.argv.slice(2);
@@ -65,9 +67,13 @@ async function apiFetch(path, opts = {}) {
   const url = new URL(path.startsWith('/') ? `${API_BASE}${path}` : path);
   const method = opts.method ?? 'GET';
   const jar = opts.jar;
-  const headers = { ...(opts.headers ?? {}) };
-  if (jar && jar.toString()) headers['cookie'] = jar.toString();
-  if (!headers['content-type'] && method !== 'GET' && opts.body !== undefined) headers['content-type'] = 'application/json';
+  const headers = prepareSeedRequestHeaders({
+    method,
+    body: opts.body,
+    headers: opts.headers,
+    cookie: jar?.toString(),
+    webOrigin: WEB_ORIGIN,
+  });
   let reqBody;
   if (opts.body !== undefined) {
     reqBody = typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body);
