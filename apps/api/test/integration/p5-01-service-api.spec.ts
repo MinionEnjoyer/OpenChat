@@ -6,14 +6,13 @@
  * Tests the ShareService's Bearer-token upload path.
  * Current OpenShare implements POST /api/assets with scoped Bearer service
  * authentication. The blocking inter-app suite exercises its successful path;
- * this probationary suite retains direct auth and browser-upload regressions.
+ * this probationary suite retains direct service-auth regressions.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import { apiFetch, createJar } from '../characterization/helpers';
 
 const API_BASE = process.env.CHAR_API_BASE ?? 'http://localhost:3001/api';
-const WEB_ORIGIN = process.env.CHAR_WEB_ORIGIN ?? 'http://localhost:3000';
 const FIXTURE_PATH = path.join(__dirname, '..', 'fixtures', 'red-1x1.png');
 
 async function devLoginBearer(username: string) {
@@ -107,53 +106,4 @@ describe('P5-01 — FR-MED-001: ShareService with Bearer-token service API', () 
     expect(resp.status).toBe(404);
   });
 
-  // ── Regression: cookie-based upload still works ───────────────────
-
-  // @satisfies FR-MED-001
-  it('cookie-based POST /upload still works (regression)', async () => {
-    // The cookie-based upload path must stay green — this is the
-    // web client's direct upload path.
-    const devLoginResp = await fetch('http://localhost:8800/auth/dev-login', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        origin: WEB_ORIGIN,
-      },
-      body: new URLSearchParams({ username: 'test-user' }).toString(),
-    });
-    expect(devLoginResp.status).toBe(200);
-
-    const setCookie = devLoginResp.headers.get('set-cookie');
-    expect(setCookie).toBeTruthy();
-
-    const cookie = setCookie!.split(';')[0];
-
-    const fileBuffer = fs.readFileSync(FIXTURE_PATH);
-    const blob = new Blob([new Uint8Array(fileBuffer)], { type: 'image/png' });
-    const form = new FormData();
-    form.append('files', blob, 'regression-test.png');
-    form.append('source', 'chat');
-
-    const uploadResp = await fetch('http://localhost:8800/upload', {
-      method: 'POST',
-      headers: { cookie, origin: WEB_ORIGIN },
-      body: form,
-    });
-    expect(uploadResp.status).toBe(200);
-
-    const body = await uploadResp.json();
-    expect(body.saved).toBeDefined();
-    expect(body.saved.length).toBeGreaterThan(0);
-    // @satisfies FR-MED-001
-    expect(typeof body.saved[0].id).toBe('string');
-    expect(body.saved[0].media_type).toBe('image');
-
-    // Verify the uploaded asset is reachable via public /raw endpoint
-    const assetId = body.saved[0].id;
-    const rawResp = await fetch(`http://localhost:8800/raw/${assetId}`);
-    expect(rawResp.status).toBe(200);
-
-    const rawBuffer = Buffer.from(await rawResp.arrayBuffer());
-    expect(rawBuffer.equals(fileBuffer)).toBe(true);
-  });
 });

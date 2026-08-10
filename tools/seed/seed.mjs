@@ -346,8 +346,15 @@ async function main() {
   if (!friendNames.has('bob') && !friendNames.has('bob-beta')) {
     await apiFetch('/friends/requests', { method: 'POST', body: { username: 'bob' }, jar: alice.jar });
     const bobPending = await apiFetch('/friends/requests', { jar: bob.jar });
-    if (Array.isArray(bobPending.body) && bobPending.body.length > 0) {
-      await apiFetch(`/friends/requests/${bobPending.body[0].id}/accept`, { method: 'POST', jar: bob.jar });
+    const incoming = Array.isArray(bobPending.body?.incoming)
+      ? bobPending.body.incoming
+      : Array.isArray(bobPending.body) ? bobPending.body : [];
+    if (incoming.length === 0) throw new Error('Friend request for bob not found');
+    const accepted = await apiFetch(`/friends/requests/${incoming[0].id}/accept`, {
+      method: 'POST', jar: bob.jar,
+    });
+    if (![200, 201].includes(accepted.status)) {
+      throw new Error(`Friend request acceptance failed (${accepted.status})`);
     }
     console.log('  alice ↔ bob friends (created)');
   } else {
@@ -355,12 +362,18 @@ async function main() {
   }
 
   const existingDms = await apiFetch('/dms', { jar: alice.jar });
-  const dmWithBob = Array.isArray(existingDms.body) ? existingDms.body.find(d => {
+  let dmWithBob = Array.isArray(existingDms.body) ? existingDms.body.find(d => {
     const recipients = d.recipients || d.members || [];
     return recipients.some(r => (r.userId || r.id) === bob.userId);
   }) : null;
   if (!dmWithBob) {
-    await apiFetch('/dms', { method: 'POST', body: { userId: bob.userId }, jar: alice.jar });
+    const openedDm = await apiFetch('/dms', {
+      method: 'POST', body: { userId: bob.userId }, jar: alice.jar,
+    });
+    if (![200, 201].includes(openedDm.status) || !openedDm.body?.id) {
+      throw new Error(`Opening alice → bob DM failed (${openedDm.status})`);
+    }
+    dmWithBob = openedDm.body;
     console.log('  alice → bob DM created');
   } else {
     console.log('  alice → bob DM already exists');
@@ -368,12 +381,7 @@ async function main() {
 
   // ── Block bob + send message in DM (for p4-05-block-collapse) ──
   console.log('[seed] Setting up block + blocked message…');
-  const dmsAfter = await apiFetch('/dms', { jar: alice.jar });
-  const dmBob = Array.isArray(dmsAfter.body) ? dmsAfter.body.find(d => {
-    const recipients = d.recipients || d.members || [];
-    return recipients.some(r => (r.userId || r.id) === bob.userId);
-  }) : null;
-  const dmChannelId = dmBob?.id;
+  const dmChannelId = dmWithBob?.id;
   if (!dmChannelId) throw new Error('DM channel for bob not found');
 
   // Block bob (idempotent)
