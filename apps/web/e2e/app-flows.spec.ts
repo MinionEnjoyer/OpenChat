@@ -58,6 +58,51 @@ test('restores the visible message after changing channels', async ({ page }, te
   }, saved)).toBeLessThanOrEqual(1);
 });
 
+test('stops following the newest edge when the reader scrolls upward', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop scroll behavior; mobile uses a separate shell');
+  await page.getByTitle('OpenChat Community').click();
+  const scroller = page.locator('.msg-scroll');
+  await expect(page.locator('[data-message-id="general-60"]')).toBeAttached();
+  await expect(scroller).toHaveAttribute('data-resume-anchor', 'newest');
+
+  const readerPosition = await scroller.evaluate((element) => {
+    element.scrollTop = Math.max(0, element.scrollHeight - element.clientHeight - 40);
+    element.dispatchEvent(new Event('scroll'));
+    return element.scrollTop;
+  });
+
+  await page.evaluate(() => {
+    const dispatch = (window as typeof window & {
+      __openChatHarnessDispatchWs?: (payload: unknown) => void;
+    }).__openChatHarnessDispatchWs;
+    dispatch?.({
+      op: 'message.created',
+      d: {
+        message: {
+          id: 'general-61',
+          channelId: 'general',
+          authorId: 'morgan',
+          author: { id: 'morgan', username: 'morgan', displayName: 'Morgan', avatarUrl: null, status: 'ONLINE' },
+          content: 'A live message must not pull a reader away from history.',
+          createdAt: '2026-08-08T19:01:00.000Z',
+          editedAt: null,
+          deletedAt: null,
+          replyToId: null,
+          replyTo: null,
+          pinned: false,
+          kind: 'USER',
+          attachments: [],
+          reactions: [],
+        },
+      },
+    });
+  });
+
+  await expect(page.locator('[data-message-id="general-61"]')).toBeAttached();
+  await expect.poll(() => scroller.evaluate((element) => Math.round(element.scrollTop)))
+    .toBe(Math.round(readerPosition));
+});
+
 test('centers search and notification panels and keeps alert badges above their icons', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith('mobile'), 'Mobile centering is covered by the dedicated mobile-shell flow');
   await page.getByTitle('OpenChat Community').click();

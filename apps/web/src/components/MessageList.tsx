@@ -51,8 +51,14 @@ function MessageListInner(props: MessageListProps) {
   const restoredChannel = useRef<string | null>(null);
   const lastReported = useRef<{ channelId: string; messageId: string } | null>(null);
   const wasLoadingNewer = useRef(false);
-  const nearBottom = useRef(true);
+  const followNewest = useRef(true);
+  const lastScrollTop = useRef(0);
   const restoreFrames = useRef<number[]>([]);
+
+  function scrollToNewest(el: HTMLDivElement) {
+    el.scrollTop = el.scrollHeight;
+    lastScrollTop.current = el.scrollTop;
+  }
 
   function cancelRestoreFrames() {
     for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
@@ -123,8 +129,8 @@ function MessageListInner(props: MessageListProps) {
     const el = scrollRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
-      if (restoredChannel.current === channelId && nearBottom.current) {
-        el.scrollTop = el.scrollHeight;
+      if (restoredChannel.current === channelId && followNewest.current) {
+        scrollToNewest(el);
       }
     });
     for (const child of Array.from(el.children)) observer.observe(child);
@@ -137,11 +143,18 @@ function MessageListInner(props: MessageListProps) {
     // React can reset the shared scroller to the top while a channel's anchor page is
     // loading. Do not interpret that transient layout event as a request for older history.
     if (resumePosition === undefined || restoredChannel.current !== channelId) return;
-    nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const scrolledUp = el.scrollTop < lastScrollTop.current - 1;
+    const distanceFromNewest = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Pagination may prefetch within 120px of an edge, but bottom-follow represents
+    // user intent. Any upward movement releases it immediately; it is re-enabled only
+    // when the reader deliberately returns to the actual newest edge.
+    if (scrolledUp) followNewest.current = false;
+    else if (distanceFromNewest <= 16) followNewest.current = true;
+    lastScrollTop.current = el.scrollTop;
     if (el.scrollTop < 120 && hasMore && !loadingOlder) {
       prevScrollHeight.current = el.scrollHeight;
       onLoadOlder();
-    } else if (nearBottom.current && hasNewer && !loadingNewer) {
+    } else if (!scrolledUp && distanceFromNewest < 120 && hasNewer && !loadingNewer) {
       holdOnAppend.current = true;
       onLoadNewer();
     }
@@ -163,6 +176,8 @@ function MessageListInner(props: MessageListProps) {
       lastReported.current = null;
       prevScrollHeight.current = null;
       holdOnAppend.current = false;
+      followNewest.current = true;
+      lastScrollTop.current = el.scrollTop;
     }
     // A same-channel revisit can briefly render with the previous visit's resolved anchor
     // before the fresh request state commits. Treat every loading sentinel as a hard reset;
@@ -189,6 +204,7 @@ function MessageListInner(props: MessageListProps) {
           } else {
             el.scrollTop += rect.bottom - viewport.bottom + 16;
           }
+          lastScrollTop.current = el.scrollTop;
         };
         // content-visibility can replace intrinsic row sizes during the next paint.
         // Re-align over two frames so rows materializing above the anchor cannot move it.
@@ -199,15 +215,15 @@ function MessageListInner(props: MessageListProps) {
           const secondFrame = requestAnimationFrame(() => {
             alignTarget();
             restoreFrames.current = [];
-            nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+            followNewest.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 16;
             reportVisibleReadPosition();
           });
           restoreFrames.current = [secondFrame];
         });
         restoreFrames.current = [firstFrame];
       } else {
-        nearBottom.current = true;
-        el.scrollTop = el.scrollHeight;
+        followNewest.current = true;
+        scrollToNewest(el);
       }
       restoredChannel.current = channelId;
       if (!target) requestAnimationFrame(reportVisibleReadPosition);
@@ -215,15 +231,16 @@ function MessageListInner(props: MessageListProps) {
     }
     if (prevScrollHeight.current != null) {
       el.scrollTop += el.scrollHeight - prevScrollHeight.current;
+      lastScrollTop.current = el.scrollTop;
       prevScrollHeight.current = null;
       return;
     }
     if (holdOnAppend.current && newerRequestFinished) {
       holdOnAppend.current = false;
-      nearBottom.current = false;
+      followNewest.current = false;
       return;
     }
-    if (nearBottom.current) el.scrollTop = el.scrollHeight;
+    if (followNewest.current) scrollToNewest(el);
     requestAnimationFrame(reportVisibleReadPosition);
   }, [messages, channelId, resumePosition, loadingNewer]);
 
