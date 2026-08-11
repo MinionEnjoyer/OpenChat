@@ -66,8 +66,8 @@ test('stops following the newest edge when the reader scrolls upward', async ({ 
   await expect(scroller).toHaveAttribute('data-resume-anchor', 'newest');
 
   const readerPosition = await scroller.evaluate((element) => {
+    element.dispatchEvent(new WheelEvent('wheel', { deltaY: -40, bubbles: true }));
     element.scrollTop = Math.max(0, element.scrollHeight - element.clientHeight - 40);
-    element.dispatchEvent(new Event('scroll'));
     return element.scrollTop;
   });
 

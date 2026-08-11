@@ -171,6 +171,49 @@ describe('MessageList channel scroll restoration', () => {
     expect(scroller.scrollTop).toBe(760);
   });
 
+  it('releases bottom-follow on upward wheel intent before the scroll event', () => {
+    const initial = props({
+      resumePosition: null,
+      messages: [message('message-40')],
+    });
+    const { container, rerender } = render(<MessageList {...initial} />);
+    const scroller = container.querySelector<HTMLElement>('.msg-scroll')!;
+
+    // Browsers can materialize content-visibility rows and notify ResizeObserver
+    // after wheel input but before dispatching scroll. Bottom-follow must already
+    // be released during that interval.
+    fireEvent.wheel(scroller, { deltaY: -40 });
+    scroller.scrollTop = 760;
+    rerender(<MessageList {...initial} messages={[message('message-40'), message('message-41')]} />);
+
+    expect(scroller.scrollTop).toBe(760);
+  });
+
+  it('releases bottom-follow on upward touch intent before the scroll event', () => {
+    const initial = props({ resumePosition: null, messages: [message('message-40')] });
+    const { container, rerender } = render(<MessageList {...initial} />);
+    const scroller = container.querySelector<HTMLElement>('.msg-scroll')!;
+
+    fireEvent.touchStart(scroller, { touches: [{ clientY: 100 }] });
+    fireEvent.touchMove(scroller, { touches: [{ clientY: 140 }] });
+    scroller.scrollTop = 760;
+    rerender(<MessageList {...initial} messages={[message('message-40'), message('message-41')]} />);
+
+    expect(scroller.scrollTop).toBe(760);
+  });
+
+  it('releases bottom-follow on keyboard history navigation', () => {
+    const initial = props({ resumePosition: null, messages: [message('message-40')] });
+    const { container, rerender } = render(<MessageList {...initial} />);
+    const scroller = container.querySelector<HTMLElement>('.msg-scroll')!;
+
+    fireEvent.keyDown(window, { key: 'PageUp' });
+    scroller.scrollTop = 760;
+    rerender(<MessageList {...initial} messages={[message('message-40'), message('message-41')]} />);
+
+    expect(scroller.scrollTop).toBe(760);
+  });
+
   it('captures the visible anchor synchronously before switching channels', () => {
     const onScrollPosition = vi.fn();
     const scrollCaptureRef = { current: null as (() => void) | null };
