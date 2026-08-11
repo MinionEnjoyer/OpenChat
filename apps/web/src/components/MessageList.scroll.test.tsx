@@ -150,6 +150,27 @@ describe('MessageList channel scroll restoration', () => {
     expect(onLoadOlder).not.toHaveBeenCalled();
   });
 
+  it('releases bottom-follow as soon as the reader scrolls upward', () => {
+    const initial = props({
+      resumePosition: null,
+      messages: [message('message-40')],
+    });
+    const { container, rerender } = render(<MessageList {...initial} />);
+    const scroller = container.querySelector<HTMLElement>('.msg-scroll')!;
+
+    // The reader moves only 40px away from the newest edge. This is still inside
+    // the pagination prefetch threshold, but it must be enough to express intent
+    // to read history and disable automatic bottom-follow.
+    scroller.scrollTop = 800;
+    fireEvent.scroll(scroller);
+    scroller.scrollTop = 760;
+    fireEvent.scroll(scroller);
+
+    rerender(<MessageList {...initial} messages={[message('message-40'), message('message-41')]} />);
+
+    expect(scroller.scrollTop).toBe(760);
+  });
+
   it('captures the visible anchor synchronously before switching channels', () => {
     const onScrollPosition = vi.fn();
     const scrollCaptureRef = { current: null as (() => void) | null };

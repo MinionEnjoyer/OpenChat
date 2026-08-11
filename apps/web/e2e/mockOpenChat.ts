@@ -157,6 +157,12 @@ export async function installOpenChatHarness(page: Page) {
       onmessage: ((event: MessageEvent) => void) | null = null;
       constructor(url: string | URL) {
         this.url = String(url);
+        const target = window as typeof window & {
+          __openChatHarnessDispatchWs?: (payload: unknown) => void;
+        };
+        target.__openChatHarnessDispatchWs = (payload) => {
+          this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(payload) }));
+        };
         setTimeout(() => {
           this.readyState = HarnessWebSocket.OPEN;
           this.onopen?.(new Event('open'));
