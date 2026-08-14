@@ -1300,7 +1300,7 @@ paths:
           format: uuid
     post:
       operationId: addReaction
-      summary: Add reaction to message (characterized: returns 201)
+      summary: "Add reaction to message (characterized: returns 201)"
       tags: [messages]
       requestBody:
         content:
@@ -1404,7 +1404,7 @@ paths:
           format: uuid
     post:
       operationId: votePoll
-      summary: Vote on poll option (characterized: returns 201)
+      summary: "Vote on poll option (characterized: returns 201)"
       tags: [messages]
       responses:
         '201':
@@ -1594,16 +1594,6 @@ paths:
       x-evidence: FR-SOC-007
       x-fr: FR-SOC-007
 
-  /friends/blocked:
-    get:
-      operationId: listBlocked
-      summary: List blocked users
-      tags: [friends]
-      responses:
-        '200':
-          description: Array of blocked user objects
-      x-evidence: Manual verification — FR-SOC-001 blocked tab
-
   /friends/unblock/{userId}:
     parameters:
       - name: userId
@@ -1786,7 +1776,7 @@ paths:
           format: uuid
     post:
       operationId: joinVoice
-      summary: Join voice channel (characterized: returns 201)
+      summary: "Join voice channel (characterized: returns 201)"
       tags: [voice]
       responses:
         '201':
@@ -1818,7 +1808,7 @@ paths:
           format: uuid
     post:
       operationId: leaveVoice
-      summary: Leave voice channel (characterized: returns 201)
+      summary: "Leave voice channel (characterized: returns 201)"
       tags: [voice]
       responses:
         '201':
@@ -1959,6 +1949,62 @@ paths:
       x-unverified: true
       x-note: "Deferred to Phase 7; requires Jellyfin"
 
+  /watchparty/{channelId}/leave:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: leaveWatchParty
+      summary: Exit the active watch party for the current viewer without ending it
+      tags: [watchparty]
+      responses:
+        '201':
+          description: Viewer exited the active party, or no party was active
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                required: [success]
+        '403':
+          description: Host must close the party instead of leaving it
+
+  /watchparty/{channelId}/close:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: closeWatchParty
+      summary: Close the active watch party for every viewer
+      tags: [watchparty]
+      responses:
+        '201':
+          description: Host closed the active party, or no party was active
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                required: [success]
+        '403':
+          description: Only the current party host may close it
+
   # ── Search (FR-MSG-020) ──
   /channels/{id}/messages/search:
     parameters:
@@ -2066,7 +2112,7 @@ components:
       required: [id, username, accessToken, refreshToken, expiresIn]
 
     UploadedAttachment:
-      description: Broker attachment ref matching web Attachment shape (x-added-by: P5)
+      description: "Broker attachment ref matching web Attachment shape (x-added-by: P5)"
       type: object
       properties:
         shareAssetId: { type: string }
@@ -2406,7 +2452,7 @@ components:
             id:
               type: string
               format: uuid
-             username:
+            username:
               type: string
       x-added-by: P7
 

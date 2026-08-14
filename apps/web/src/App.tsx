@@ -494,9 +494,22 @@ export default function App() {
     api.watchpartyState(channelId, positionMs, paused).catch(() => {});
   }
 
-  async function stopWatchParty(channelId: string) {
-    try { await api.watchpartyStop(channelId); } catch { /* ignore */ }
-    setPartyByChannel((prev) => ({ ...prev, [channelId]: null }));
+  async function closeWatchParty(channelId: string) {
+    try {
+      await api.watchpartyClose(channelId);
+      setPartyByChannel((prev) => ({ ...prev, [channelId]: null }));
+    } catch {
+      showToast('Could not close the watch party.');
+    }
+  }
+
+  async function leaveWatchParty(channelId: string) {
+    try {
+      await api.watchpartyLeave(channelId);
+      setPartyByChannel((prev) => ({ ...prev, [channelId]: null }));
+    } catch {
+      showToast('Could not exit the watch party.');
+    }
   }
 
   function openDm(channelId: string, title: string) {
@@ -1217,7 +1230,8 @@ export default function App() {
             meId={s.user.id}
             onStartWatch={() => setWatchPickerOpen(true)}
             onWatchState={(pos, paused) => pushWatchState(activeChannel.id, pos, paused)}
-            onStopWatch={() => stopWatchParty(activeChannel.id)}
+            onCloseWatch={() => closeWatchParty(activeChannel.id)}
+            onLeaveWatch={() => leaveWatchParty(activeChannel.id)}
             onOpenSoundboard={() => setSoundboardOpen(true)}
             screens={voice.channelId === activeChannel.id ? voice.screens : []}
             sharing={voice.channelId === activeChannel.id && voice.sharing}

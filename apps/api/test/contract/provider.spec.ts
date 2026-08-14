@@ -499,6 +499,33 @@ describe('Phase 4 — Voice (contract-validated)', () => {
   });
 });
 
+describe('Watch party lifecycle', () => {
+  it('persists viewer exit separately from the host closing the party', async () => {
+    cookies = [aliceJar];
+    const dm = await api('/dms', {
+      method: 'POST', body: JSON.stringify({ userId: sv.bob.id }),
+    });
+    expect([200, 201]).toContain(dm.status);
+    const partyChannelId = dm.body.id;
+    const started = await api(`/watchparty/${partyChannelId}/start`, {
+      method: 'POST', body: JSON.stringify({ youtubeId: 'dQw4w9WgXcQ' }),
+    });
+    expect([200, 201]).toContain(started.status);
+
+    cookies = [bobJar];
+    expect((await api(`/watchparty/${partyChannelId}`)).body).toMatchObject({ id: started.body.id });
+    const left = await api(`/watchparty/${partyChannelId}/leave`, { method: 'POST' });
+    expect(left).toMatchObject({ status: 201, body: { success: true } });
+    expect((await api(`/watchparty/${partyChannelId}`)).body).toBeNull();
+    expect((await api(`/watchparty/${partyChannelId}/close`, { method: 'POST' })).status).toBe(403);
+
+    cookies = [aliceJar];
+    const closed = await api(`/watchparty/${partyChannelId}/close`, { method: 'POST' });
+    expect(closed).toMatchObject({ status: 201, body: { success: true } });
+    expect((await api(`/watchparty/${partyChannelId}`)).body).toBeNull();
+  });
+});
+
 describe('Health + Config', () => {
   it('GET /health → 200', async () => {
     cookies = [];

@@ -1,5 +1,19 @@
 # Contracts Changelog
 
+## 2026-08-14 — Watch-party viewer exit and host close
+
+- **[ADD] `POST /watchparty/{channelId}/leave`** persistently dismisses the active party for
+  the authenticated viewer without ending playback for the channel. Hosts must use `close`.
+- **[ADD] `POST /watchparty/{channelId}/close`** ends the active party for every viewer and is
+  restricted to the party host. The existing `stop` route remains a compatibility alias.
+- **[ADD] `watchparty.left`** is delivered only to the exiting user's open sockets so another
+  web or desktop client closes immediately. Later `watchparty.sync` frames carry `null` to users
+  who exited, preventing playback updates from reopening the player.
+- **[FIX] `GET /watchparty/{channelId}`** now serializes no active/visible party as JSON `null`
+  rather than an empty response body.
+- Evidence: live provider contract 34/34, watch-party service/controller/gateway regression tests,
+  migration drift check, and Chromium interaction suite.
+
 ## 2026-07-28 — Native-auth consolidation (single standard for non-browser clients)
 - **[STANDARD]** All non-browser clients (desktop + mobile) now authenticate the same way:
   **OAuth Authorization-Code + PKCE → `POST /auth/oauth/token`**, yielding a short-lived

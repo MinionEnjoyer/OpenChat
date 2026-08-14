@@ -121,6 +121,7 @@ async function handleApi(route: Route) {
   }
   if (/^\/api\/channels\/[^/]+\/pins$/.test(path)) return json(route, [message(path.split('/')[3], 4, 'Pinned browser fixture')]);
   if (/^\/api\/watchparty\/[^/]+$/.test(path) && method === 'GET') return json(route, null);
+  if (/^\/api\/watchparty\/[^/]+\/(leave|close|stop)$/.test(path) && method === 'POST') return json(route, { success: true }, 201);
   if (/^\/api\/voice\/[^/]+\/participants$/.test(path)) return json(route, []);
   if (/^\/api\/servers\/[^/]+\/stickers$/.test(path) && method === 'GET') {
     return json(route, [{ id: 'sticker-1', name: 'Wave', url: '/api/media/sticker-1/raw' }]);

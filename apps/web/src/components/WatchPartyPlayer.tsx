@@ -12,13 +12,15 @@ export function WatchPartyPlayer({
   isHost,
   viewers,
   onState,
-  onStop,
+  onClose,
+  onLeave,
 }: {
   party: WatchPartyState;
   isHost: boolean;
   viewers?: string[];
   onState: (positionMs: number, paused: boolean) => void;
-  onStop: () => void;
+  onClose: () => void;
+  onLeave: () => void;
 }) {
   return (
     <div style={{ background: '#000', borderBottom: '1px solid var(--border)' }}>
@@ -35,11 +37,12 @@ export function WatchPartyPlayer({
           </span>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          {isHost && (
-            <button onClick={onStop} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: 'var(--danger)', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>
-              End Party
-            </button>
-          )}
+          <button
+            onClick={isHost ? onClose : onLeave}
+            style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: isHost ? 'var(--danger)' : 'var(--panel-hover)', color: isHost ? '#fff' : 'var(--text-strong)', cursor: 'pointer', fontWeight: 600, fontSize: 12, flexShrink: 0 }}
+          >
+            {isHost ? 'Close Party' : 'Exit Party'}
+          </button>
         </div>
       </div>
       {party.source === 'youtube' && party.youtubeId

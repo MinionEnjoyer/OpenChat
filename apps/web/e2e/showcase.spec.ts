@@ -15,6 +15,7 @@ test('private call, synchronized watch party, and multi-window sharing render in
   await page.getByRole('link', { name: 'Watch party' }).click();
   await expect(page.getByText('Watch party · 4 viewers synchronized')).toBeVisible();
   await expect(page.getByText('OpenChat Release Night')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close Party' })).toBeVisible();
 
   await page.getByRole('link', { name: 'Screen sharing' }).click();
   await expect(page.getByText('alex is sharing 2 windows')).toBeVisible();
