@@ -163,8 +163,16 @@ export class WatchPartyService {
     return this.itemName(id);
   }
 
-  private async publish(channelId: string, state: any | null) {
-    await this.redis.publish('chat:events', { type: 'WATCHPARTY_SYNC', channelId, state });
+  private async publish(channelId: string, state: any | null, partyId?: string) {
+    const exits = state && partyId
+      ? await this.prisma.watchPartyExit.findMany({ where: { partyId }, select: { userId: true } })
+      : [];
+    await this.redis.publish('chat:events', {
+      type: 'WATCHPARTY_SYNC',
+      channelId,
+      state,
+      ...(exits.length ? { excludedUserIds: exits.map((exit) => exit.userId) } : {}),
+    });
   }
 
   async get(channelId: string, userId: string) {
@@ -175,6 +183,13 @@ export class WatchPartyService {
       include: WatchPartyService.HOST_SELECT,
     });
     if (!party) return null;
+    if (party.hostId !== userId) {
+      const exit = await this.prisma.watchPartyExit.findUnique({
+        where: { partyId_userId: { partyId: party.id, userId } },
+        select: { id: true },
+      });
+      if (exit) return null;
+    }
     const state = this.serialize(party, await this.nameFor(party.jellyfinItemId));
     return state;
   }
@@ -197,7 +212,7 @@ export class WatchPartyService {
       include: WatchPartyService.HOST_SELECT,
     });
     const state = this.serialize(party, await this.nameFor(ref));
-    await this.publish(channelId, state);
+    await this.publish(channelId, state, party.id);
     return state;
   }
 
@@ -212,17 +227,41 @@ export class WatchPartyService {
       include: WatchPartyService.HOST_SELECT,
     });
     const state = this.serialize(updated, await this.nameFor(updated.jellyfinItemId));
-    await this.publish(channelId, state);
+    await this.publish(channelId, state, updated.id);
     return state;
   }
 
-  async stop(channelId: string, userId: string) {
+  async leave(channelId: string, userId: string) {
+    await this.assertAccess(channelId, userId);
+    const party = await this.prisma.watchParty.findFirst({
+      where: { channelId, endedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!party) return { success: true };
+    if (party.hostId === userId) throw new ForbiddenException('The host must close the watch party');
+    await this.prisma.watchPartyExit.upsert({
+      where: { partyId_userId: { partyId: party.id, userId } },
+      create: { partyId: party.id, userId },
+      update: {},
+    });
+    await this.redis.publish('chat:events', {
+      type: 'WATCHPARTY_LEFT', channelId, userId,
+    });
+    return { success: true };
+  }
+
+  async close(channelId: string, userId: string) {
     await this.assertAccess(channelId, userId);
     const party = await this.prisma.watchParty.findFirst({ where: { channelId, endedAt: null }, orderBy: { createdAt: 'desc' } });
     if (!party) return { success: true };
-    if (party.hostId !== userId) throw new ForbiddenException('Only the host can stop the watch party');
+    if (party.hostId !== userId) throw new ForbiddenException('Only the host can close the watch party');
     await this.prisma.watchParty.update({ where: { id: party.id }, data: { endedAt: new Date() } });
     await this.publish(channelId, null);
     return { success: true };
+  }
+
+  /** Backward-compatible alias for clients released before the close route. */
+  async stop(channelId: string, userId: string) {
+    return this.close(channelId, userId);
   }
 }

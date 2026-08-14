@@ -45,6 +45,7 @@ channels:
           - $ref: '#/components/messages/mention'
           - $ref: '#/components/messages/callRing'
           - $ref: '#/components/messages/watchpartySync'
+          - $ref: '#/components/messages/watchpartyLeft'
           # ── P3 granular guild-structure events (x-added-by: P3) ──
           - $ref: '#/components/messages/channelCreated'
           - $ref: '#/components/messages/channelDeleted'
@@ -418,11 +419,28 @@ components:
                 format: uuid
               state:
                 type: object
+                nullable: true
             required: [channelId, state]
         required: [op, d]
-      x-evidence: "route exists in controller; no characterization test"
-      x-unverified: true
-      x-note: "Deferred to Phase 7; requires Jellyfin"
+      x-evidence: events.gateway.spec.ts#does-not-reopen-a-party-for-viewers-who-previously-exited-it
+
+    watchpartyLeft:
+      summary: The current viewer exited a watch party on one of their clients
+      payload:
+        type: object
+        properties:
+          op:
+            type: string
+            const: watchparty.left
+          d:
+            type: object
+            properties:
+              channelId:
+                type: string
+                format: uuid
+            required: [channelId]
+        required: [op, d]
+      x-evidence: events.gateway.spec.ts#delivers-a-watch-party-leave-event-only-to-the-exiting-user
 
     # ── P3 granular guild-structure events ──
     # Audience: server members only (not non-members). Delivered to all

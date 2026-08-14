@@ -41,8 +41,14 @@ export class WatchPartyController {
   }
 
   @Get(':channelId')
-  get(@Param('channelId') channelId: string, @CurrentUser() user: User) {
-    return this.wp.get(channelId, user.id);
+  async get(
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: User,
+    @Res() res: Response,
+  ) {
+    // Nest treats a returned null as an empty response body. Send JSON explicitly
+    // so web clients can distinguish "no active party" without res.json() failing.
+    return res.status(200).json(await this.wp.get(channelId, user.id));
   }
 
   @Post(':channelId/start')
@@ -66,5 +72,15 @@ export class WatchPartyController {
   @Post(':channelId/stop')
   stop(@Param('channelId') channelId: string, @CurrentUser() user: User) {
     return this.wp.stop(channelId, user.id);
+  }
+
+  @Post(':channelId/leave')
+  leave(@Param('channelId') channelId: string, @CurrentUser() user: User) {
+    return this.wp.leave(channelId, user.id);
+  }
+
+  @Post(':channelId/close')
+  close(@Param('channelId') channelId: string, @CurrentUser() user: User) {
+    return this.wp.close(channelId, user.id);
   }
 }

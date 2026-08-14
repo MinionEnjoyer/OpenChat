@@ -41,6 +41,11 @@ describe('WatchPartyService', () => {
         create: jest.fn().mockResolvedValue(party()),
         update: jest.fn().mockResolvedValue(party()),
       },
+      watchPartyExit: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn().mockResolvedValue({ id: 'exit-1' }),
+      },
     } as any;
     const redis = { publish: jest.fn().mockResolvedValue(1) } as any;
     return { service: new WatchPartyService(config, prisma, redis), prisma, redis };
@@ -148,6 +153,11 @@ describe('WatchPartyService', () => {
     await expect(active.service.get('channel-1', 'host-1')).resolves.toMatchObject({
       hostName: 'Host Name', source: 'youtube', youtubeId: 'abc12345', itemName: 'YouTube video',
     });
+
+    const exited = makeService();
+    exited.prisma.watchParty.findFirst.mockResolvedValue(party({ jellyfinItemId: 'yt:abc12345' }));
+    exited.prisma.watchPartyExit.findUnique.mockResolvedValue({ id: 'exit-1' });
+    await expect(exited.service.get('channel-1', 'viewer-1')).resolves.toBeNull();
   });
 
   it('allows only the host to update state and clamps invalid positions', async () => {
@@ -164,12 +174,14 @@ describe('WatchPartyService', () => {
     const host = makeService();
     host.prisma.watchParty.findFirst.mockResolvedValue(party());
     host.prisma.watchParty.update.mockResolvedValue(party({ positionMs: 0, paused: false }));
+    host.prisma.watchPartyExit.findMany.mockResolvedValue([{ userId: 'viewer-1' }]);
     await host.service.updateState('channel-1', 'host-1', { positionMs: -12.8, paused: false });
     expect(host.prisma.watchParty.update).toHaveBeenCalledWith(expect.objectContaining({
       data: { positionMs: 0, paused: false },
     }));
     expect(host.redis.publish).toHaveBeenCalledWith('chat:events', expect.objectContaining({
       type: 'WATCHPARTY_SYNC', state: expect.objectContaining({ positionMs: 0, paused: false }),
+      excludedUserIds: ['viewer-1'],
     }));
   });
 
@@ -190,6 +202,28 @@ describe('WatchPartyService', () => {
     });
     expect(host.redis.publish).toHaveBeenCalledWith('chat:events', {
       type: 'WATCHPARTY_SYNC', channelId: 'channel-1', state: null,
+    });
+  });
+
+  it('lets a viewer persistently leave without ending the party for everyone else', async () => {
+    const empty = makeService();
+    await expect(empty.service.leave('channel-1', 'viewer-1')).resolves.toEqual({ success: true });
+    expect(empty.prisma.watchPartyExit.upsert).not.toHaveBeenCalled();
+
+    const host = makeService();
+    host.prisma.watchParty.findFirst.mockResolvedValue(party());
+    await expect(host.service.leave('channel-1', 'host-1')).rejects.toBeInstanceOf(ForbiddenException);
+
+    const viewer = makeService();
+    viewer.prisma.watchParty.findFirst.mockResolvedValue(party());
+    await expect(viewer.service.leave('channel-1', 'viewer-1')).resolves.toEqual({ success: true });
+    expect(viewer.prisma.watchPartyExit.upsert).toHaveBeenCalledWith({
+      where: { partyId_userId: { partyId: 'party-1', userId: 'viewer-1' } },
+      create: { partyId: 'party-1', userId: 'viewer-1' },
+      update: {},
+    });
+    expect(viewer.redis.publish).toHaveBeenCalledWith('chat:events', {
+      type: 'WATCHPARTY_LEFT', channelId: 'channel-1', userId: 'viewer-1',
     });
   });
 

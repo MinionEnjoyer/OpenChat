@@ -25,7 +25,7 @@ const CHANNEL_ID = z.string().uuid();
  *   message.created {message, nonce?}, message.updated {message},
  *   message.deleted {channelId, id}, typing {channelId, userId},
  *   presence {userId, status}, presence.snapshot {users:[{userId,status}]},
- *   watchparty.sync {channelId, state},
+ *   watchparty.sync {channelId, state}, watchparty.left {channelId},
  *   notify, mention {channelId, channelName, authorName}, call.ring {...}
  */
 const PROTOCOL_VERSION = 1;
@@ -43,7 +43,8 @@ type BusEvent =
   | { type: 'MESSAGE_DELETED'; id: string; channelId: string }
   | { type: 'TYPING_START'; channelId: string; userId: string }
   | { type: 'PRESENCE_UPDATE'; userId: string; status: string; platforms?: string[] }
-  | { type: 'WATCHPARTY_SYNC'; channelId: string; state: any | null }
+  | { type: 'WATCHPARTY_SYNC'; channelId: string; state: any | null; excludedUserIds?: string[] }
+  | { type: 'WATCHPARTY_LEFT'; channelId: string; userId: string }
   | { type: 'NOTIFY'; userId: string }
   | { type: 'MENTION'; userId: string; channelId: string; messageId: string; channelName: string; authorName: string; preview: string }
   | { type: 'CALL_RING'; userId: string; channelId: string; callerId: string; callerName: string; callerAvatar: string | null }
@@ -430,6 +431,12 @@ export class EventsGateway implements OnModuleDestroy {
         }
         continue;
       }
+      if (event.type === 'WATCHPARTY_LEFT') {
+        if (client.userId === event.userId) {
+          this.send(client.socket, { op: 'watchparty.left', d: { channelId: event.channelId } });
+        }
+        continue;
+      }
 
       // ── Voice occupancy — server-scoped for server channels, channel-scoped for DMs ──
       if (event.type === 'VOICE_OCCUPANCY_CHANGED') {
@@ -531,7 +538,13 @@ export class EventsGateway implements OnModuleDestroy {
           break;
         }
         case 'WATCHPARTY_SYNC':
-          this.send(client.socket, { op: 'watchparty.sync', d: { channelId: event.channelId, state: event.state } });
+          this.send(client.socket, {
+            op: 'watchparty.sync',
+            d: {
+              channelId: event.channelId,
+              state: event.excludedUserIds?.includes(client.userId) ? null : event.state,
+            },
+          });
           break;
       }
     }

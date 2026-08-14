@@ -1,7 +1,7 @@
 # Install OpenChat on Android
 
 > This guide is for the separately versioned private mobile build (`0.1.0` in the current mobile
-> package), not the desktop/web UI 0.8.48 release. Use the exact filename and fingerprint supplied
+> package), not the desktop/web UI 0.8.49 release. Use the exact filename and fingerprint supplied
 > for the APK you receive.
 
 You do not need a computer, developer account, Android Studio, or any other

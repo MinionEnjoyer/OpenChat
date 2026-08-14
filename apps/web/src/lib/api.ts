@@ -238,6 +238,10 @@ export const watchpartyState = (channelId: string, positionMs: number, paused: b
   request<WatchPartyState>(`/watchparty/${channelId}/state`, { method: 'POST', body: JSON.stringify({ positionMs, paused }) });
 export const watchpartyStop = (channelId: string) =>
   request<{ success: true }>(`/watchparty/${channelId}/stop`, { method: 'POST' });
+export const watchpartyLeave = (channelId: string) =>
+  request<{ success: true }>(`/watchparty/${channelId}/leave`, { method: 'POST' });
+export const watchpartyClose = (channelId: string) =>
+  request<{ success: true }>(`/watchparty/${channelId}/close`, { method: 'POST' });
 export const watchpartySearch = (q: string, type: 'all' | 'movie' | 'show' | 'music' = 'all') =>
   request<LibraryItem[]>(`/watchparty/library?q=${encodeURIComponent(q)}&type=${type}`);
 

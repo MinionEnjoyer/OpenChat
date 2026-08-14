@@ -65,7 +65,7 @@ function UserFooter() {
 
 function PublicServerScenario() {
   const [liveMessages, setLiveMessages] = useState(() => [
-    message('m1', morgan, 'The 0.8.48 web build is live. Realtime delivery looks healthy from the public server.', 12),
+    message('m1', morgan, 'The 0.8.49 web build is live. Realtime delivery looks healthy from the public server.', 12),
     message('m2', sky, 'Confirmed from Firefox and the desktop client. Channel position restored correctly too.', 13),
     message('m3', me, 'Great. I am checking the OpenShare attachment and voice handoff next.', 14),
   ]);
@@ -124,7 +124,7 @@ function PrivateCallScenario() {
   return <CallShell title="Morgan" subtitle="Private call · encrypted transport">
     <CallView channelName="Morgan" connected connecting={false} participants={participants} muted={false}
       onJoin={() => {}} onLeave={() => {}} onToggleMute={() => {}} party={null} meId={me.id}
-      onStartWatch={() => {}} onWatchState={() => {}} onStopWatch={() => {}} onOpenSoundboard={() => {}}
+      onStartWatch={() => {}} onWatchState={() => {}} onCloseWatch={() => {}} onLeaveWatch={() => {}} onOpenSoundboard={() => {}}
       screens={[]} sharing={false} audio={audio} onShareScreen={() => {}} onStopShare={() => {}} onStopScreen={() => {}} />
   </CallShell>;
 }
@@ -144,7 +144,7 @@ function WatchPartyScenario() {
   return <CallShell title="Lounge" subtitle="Watch party · 4 viewers synchronized">
     <CallView channelName="Lounge" connected connecting={false} participants={participants} muted={false}
       onJoin={() => {}} onLeave={() => {}} onToggleMute={() => {}} party={party} meId={me.id}
-      onStartWatch={() => {}} onWatchState={() => {}} onStopWatch={() => {}} onOpenSoundboard={() => {}}
+      onStartWatch={() => {}} onWatchState={() => {}} onCloseWatch={() => {}} onLeaveWatch={() => {}} onOpenSoundboard={() => {}}
       screens={[]} sharing={false} audio={audio} onShareScreen={() => {}} onStopShare={() => {}} onStopScreen={() => {}} />
   </CallShell>;
 }
@@ -188,7 +188,7 @@ function ScreenShareScenario() {
   return <CallShell title="Lounge" subtitle="alex is sharing 2 windows">
     <CallView channelName="Lounge" connected connecting={false} participants={participants} muted={false}
       onJoin={() => {}} onLeave={() => {}} onToggleMute={() => {}} party={null} meId={me.id}
-      onStartWatch={() => {}} onWatchState={() => {}} onStopWatch={() => {}} onOpenSoundboard={() => {}}
+      onStartWatch={() => {}} onWatchState={() => {}} onCloseWatch={() => {}} onLeaveWatch={() => {}} onOpenSoundboard={() => {}}
       screens={screens} sharing audio={audio} onShareScreen={() => {}} onStopShare={() => {}} onStopScreen={() => {}} />
   </CallShell>;
 }

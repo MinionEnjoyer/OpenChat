@@ -64,6 +64,7 @@ model User {
   invites             Invite[]       @relation("InviteInviter")
   voiceSessionsJoined VoiceSession[] @relation("VoiceSessionUser")
   voiceSessionsHosted WatchParty[]   @relation("WatchPartyHost")
+  watchPartyExits     WatchPartyExit[]
   auditLogs           AuditLog[]
   bansReceived        Ban[]          @relation("BanTarget")
   bansIssued          Ban[]          @relation("BanIssuer")
@@ -465,8 +466,24 @@ model WatchParty {
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   host    User    @relation("WatchPartyHost", fields: [hostId], references: [id])
+  exits   WatchPartyExit[]
 
   @@index([channelId])
+}
+
+// A viewer can dismiss one party without ending it for the channel. Keeping this
+// server-side prevents the next playback sync or page refresh from reopening it.
+model WatchPartyExit {
+  id        String   @id @default(uuid())
+  partyId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  party WatchParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId])
+  @@index([userId])
 }
 
 model AuditLog {

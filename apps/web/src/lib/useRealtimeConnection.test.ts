@@ -178,6 +178,10 @@ describe('dispatchRealtimeEvent', () => {
       op: 'watchparty.sync',
       d: { channelId: 'voice-1', state: party },
     }, eventCallbacks, eventServices);
+    dispatchRealtimeEvent({
+      op: 'watchparty.left',
+      d: { channelId: 'voice-2' },
+    }, eventCallbacks, eventServices);
 
     expect(eventCallbacks.onIncomingCall).toHaveBeenCalledWith({
       channelId: 'voice-1',
@@ -187,6 +191,7 @@ describe('dispatchRealtimeEvent', () => {
     });
     expect(eventCallbacks.onTyping).toHaveBeenCalledWith('general', 'other', 6000);
     expect(eventCallbacks.onWatchPartySync).toHaveBeenCalledWith('voice-1', party);
+    expect(eventCallbacks.onWatchPartySync).toHaveBeenCalledWith('voice-2', null);
   });
 });
 

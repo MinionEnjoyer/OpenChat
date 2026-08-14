@@ -114,15 +114,21 @@ describe('HTTP controller request mapping', () => {
     const wp = serviceMock();
     const controller = new WatchPartyController(wp as any);
     const req = { headers: {}, query: {} } as any;
-    const res = {} as any;
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() } as any;
     await Promise.all([
       controller.search({ q: 'movie', type: 'movie' }, user), controller.image('item-1', res),
-      controller.stream('item-1', req, res), controller.get('channel-1', user),
+      controller.stream('item-1', req, res), controller.get('channel-1', user, res),
       controller.start('channel-1', user, { youtubeId: 'abc12345' }),
       controller.state('channel-1', user, { positionMs: 1000, paused: false }),
+      controller.leave('channel-1', user),
+      controller.close('channel-1', user),
       controller.stop('channel-1', user),
     ]);
     expect(wp.proxyStream).toHaveBeenCalledWith('item-1', req, res);
     expect(wp.updateState).toHaveBeenCalledWith('channel-1', 'user-1', { positionMs: 1000, paused: false });
+    expect(wp.leave).toHaveBeenCalledWith('channel-1', 'user-1');
+    expect(wp.close).toHaveBeenCalledWith('channel-1', 'user-1');
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 });

@@ -39,7 +39,7 @@ describe('TelemetryController', () => {
     const payload = {
       product: 'openchat',
       installId: '6b507574-f7ce-4f4f-8897-9244eb8b0090',
-      version: '0.8.48',
+      version: '0.8.49',
       deploymentType: 'docker-compose',
       ...change,
     };

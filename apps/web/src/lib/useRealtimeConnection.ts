@@ -90,6 +90,10 @@ export function dispatchRealtimeEvent(
     callbacks.onWatchPartySync(d.channelId, d.state);
     return;
   }
+  if (op === 'watchparty.left') {
+    callbacks.onWatchPartySync(d.channelId, null);
+    return;
+  }
   if (op === 'notify') {
     state.set({ notifyTick: state.notifyTick + 1 });
     return;

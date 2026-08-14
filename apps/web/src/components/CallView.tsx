@@ -172,7 +172,8 @@ export function CallView({
   meId,
   onStartWatch,
   onWatchState,
-  onStopWatch,
+  onCloseWatch,
+  onLeaveWatch,
   onOpenSoundboard,
   screens,
   sharing,
@@ -194,7 +195,8 @@ export function CallView({
   meId: string;
   onStartWatch: () => void;
   onWatchState: (positionMs: number, paused: boolean) => void;
-  onStopWatch: () => void;
+  onCloseWatch: () => void;
+  onLeaveWatch: () => void;
   onOpenSoundboard: () => void;
   screens: ScreenShare[];
   sharing: boolean;
@@ -289,7 +291,7 @@ export function CallView({
   return (
     <div className={`call-view${theater ? ' is-theater' : ''}${party ? ' has-party' : ''}`}>
       {party && (
-        <WatchPartyPlayer party={party} isHost={party.hostId === meId} viewers={participants.map((p) => p.name)} onState={onWatchState} onStop={onStopWatch} />
+        <WatchPartyPlayer party={party} isHost={party.hostId === meId} viewers={participants.map((p) => p.name)} onState={onWatchState} onClose={onCloseWatch} onLeave={onLeaveWatch} />
       )}
 
       <div className="call-view-content">
