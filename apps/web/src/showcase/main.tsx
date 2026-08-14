@@ -65,7 +65,7 @@ function UserFooter() {
 
 function PublicServerScenario() {
   const [liveMessages, setLiveMessages] = useState(() => [
-    message('m1', morgan, 'The 0.8.48 web build is live. Realtime delivery looks healthy from the public server.', 12),
+    message('m1', morgan, 'The 0.8.49 web build is live. Realtime delivery looks healthy from the public server.', 12),
     message('m2', sky, 'Confirmed from Firefox and the desktop client. Channel position restored correctly too.', 13),
     message('m3', me, 'Great. I am checking the OpenShare attachment and voice handoff next.', 14),
   ]);
