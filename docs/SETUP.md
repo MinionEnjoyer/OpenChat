@@ -59,9 +59,10 @@ openssl rand -hex 32     # use for SESSION_SECRET, POSTGRES_PASSWORD, LIVEKIT_AP
 `.env` is the **only** file with your real values. It is gitignored — it never leaves the host.
 
 Upload limits are operator-controlled. `UPLOAD_MAX_FILES` and `UPLOAD_MAX_FILE_BYTES` are unset by
-default, so the API does not impose a file-count or per-file limit. The bundled nginx config accepts
-request bodies up to 100 MB; raise that value (and the external proxy's body limit) if your instance
-should accept larger requests.
+default, so the API does not impose a file-count or per-file limit. The bundled nginx config also
+leaves request-body sizing unlimited (`client_max_body_size 0`). If you set an application limit,
+configure every external reverse proxy to accept at least that size; otherwise the proxy can return
+`413 Request Entity Too Large` before OpenChat or OpenShare receives the upload.
 
 Patreon invitations and trusted mirror clustering are also disabled by default. Their credentials
 belong only in `.env`. Follow [Patreon invitations](guides/PATREON_INVITES.md) or
