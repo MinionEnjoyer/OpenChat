@@ -1,5 +1,10 @@
 import { memo, useLayoutEffect, useRef } from 'react';
-import type { MutableRefObject, ReactNode } from 'react';
+import type {
+  MutableRefObject,
+  ReactNode,
+  TouchEvent as ReactTouchEvent,
+  WheelEvent as ReactWheelEvent,
+} from 'react';
 import type { Message } from '../lib/types';
 import { MessageRow } from './MessageRow';
 import { OpenChatSpinner } from './OpenChatSpinner';
@@ -53,6 +58,7 @@ function MessageListInner(props: MessageListProps) {
   const wasLoadingNewer = useRef(false);
   const followNewest = useRef(true);
   const lastScrollTop = useRef(0);
+  const lastTouchY = useRef<number | null>(null);
   const restoreFrames = useRef<number[]>([]);
 
   function scrollToNewest(el: HTMLDivElement) {
@@ -65,9 +71,45 @@ function MessageListInner(props: MessageListProps) {
     restoreFrames.current = [];
   }
 
-  useLayoutEffect(() => () => {
-    for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
-    restoreFrames.current = [];
+  function releaseBottomFollow() {
+    followNewest.current = false;
+    cancelRestoreFrames();
+  }
+
+  function onWheelIntent(event: ReactWheelEvent<HTMLDivElement>) {
+    if (event.deltaY < 0) releaseBottomFollow();
+  }
+
+  function onTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
+    lastTouchY.current = event.touches[0]?.clientY ?? null;
+  }
+
+  function onTouchMove(event: ReactTouchEvent<HTMLDivElement>) {
+    const nextY = event.touches[0]?.clientY ?? null;
+    if (nextY != null && lastTouchY.current != null && nextY > lastTouchY.current + 1) {
+      releaseBottomFollow();
+    }
+    lastTouchY.current = nextY;
+  }
+
+  function onTouchEnd() {
+    lastTouchY.current = null;
+  }
+
+  useLayoutEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('input, textarea, [contenteditable="true"]')) return;
+      if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'Home') {
+        releaseBottomFollow();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      for (const frame of restoreFrames.current) cancelAnimationFrame(frame);
+      restoreFrames.current = [];
+    };
   }, []);
 
   function visibleBounds() {
@@ -245,7 +287,9 @@ function MessageListInner(props: MessageListProps) {
   }, [messages, channelId, resumePosition, loadingNewer]);
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="msg-scroll"
+    <div ref={scrollRef} onScroll={onScroll} onWheel={onWheelIntent}
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      className="msg-scroll"
       data-resume-anchor={resumePosition === undefined ? 'loading' : (resumePosition?.messageId ?? 'newest')}
       style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {loadingOlder && (
