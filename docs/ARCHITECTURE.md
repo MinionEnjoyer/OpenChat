@@ -104,8 +104,9 @@ graph TB
 
 **Component breakdown.**
 
-- **`web`** — nginx serving the React SPA; also reverse-proxies `/api` and `/ws` to `api` and sets
-  a `client_max_body_size 100m` so large uploads pass through.
+- **`web`** — nginx serving the React SPA; also reverse-proxies `/api` and `/ws` to `api`. Its
+  `client_max_body_size 0` setting leaves upload policy to the operator-configured API and external
+  ingress rather than imposing a hidden bundled-proxy ceiling.
 - **`api`** — the NestJS monolith. Modules: `auth`, `servers`
   (channels/roles/members/sounds/stickers), `messages` (+reactions/pins/polls/read-state and
   server-owned member activity), `realtime` (the `ws` gateway), `share`/`media` (uploads and proxy),
@@ -275,8 +276,8 @@ The player header shows a host badge and a viewers list (voice-channel participa
 **Uploads (OpenShare).** All uploads — message attachments, avatars, soundboard sounds, stickers,
 and server icons — go through authenticated **`POST /api/uploads`**. API file-count and per-file
 limits are opt-in through `UPLOAD_MAX_FILES` and `UPLOAD_MAX_FILE_BYTES`; unset means unlimited at
-that layer. The bundled nginx still has a 100 MB request-body ceiling unless the operator changes
-it, and an external reverse proxy can impose its own ceiling.
+that layer. The bundled nginx likewise has no request-body ceiling. Operators who enable an API
+limit should configure every upstream reverse proxy to accept at least that body size.
 
 `ShareService.uploadForUser` uploads one asset per server-to-server request to OpenShare's stable
 `/api/assets` contract with `Authorization: Bearer <SHARE_API_KEY>`, `X-Share-User-Sub`, and
@@ -346,9 +347,9 @@ services.
 and routes the chat domain → the `web` container, and the LiveKit domain → the SFU signaling port.
 Forwarded proto is passed through for Secure cookies. `apps/web/nginx.conf` serves the SPA
 (`try_files … /index.html`), proxies `/api` → `api:3001` and `/ws` (with WebSocket upgrade +
-long read timeout), and currently sets `client_max_body_size 100m`. The API itself has no default
-upload limit; adjust this nginx value and the external proxy together when an instance permits
-larger requests.
+long read timeout), and sets `client_max_body_size 0` so it does not create a separate default
+upload limit. The API itself has no default upload limit. Operators can enable API limits and should
+set any external proxy ceiling at or above the chosen application limit.
 
 **LiveKit config** (`livekit.yaml.tmpl`, rendered from `.env` by `scripts/setup.sh`): a
 **single-UDP-port mux** (`rtc.udp_port: 50000`, TCP fallback `7881`, signaling `7880`) for NAT

@@ -60,6 +60,7 @@ requireText('apps/api/package.json', /"@nestjs\/core": "\^11\./, 'NestJS 11 depe
 requireText('apps/web/vite.config.ts', /port: 3000/, 'Vite port source');
 requireText('apps/api/src/config/configuration.ts', /UPLOAD_MAX_FILES:[^\n]+optional\(\)/, 'optional upload-count limit');
 requireText('apps/api/src/config/configuration.ts', /UPLOAD_MAX_FILE_BYTES:[^\n]+optional\(\)/, 'optional upload-size limit');
+requireText('apps/web/nginx.conf', /client_max_body_size 0;/, 'unlimited bundled-proxy upload body size');
 requireText('apps/api/src/share/share.service.ts', /\/api\/assets/, 'OpenShare upload implementation');
 requireText('apps/api/src/share/share.service.ts', /\/api\/media\/\$\{asset\.id\}\/raw/, 'media proxy response path');
 requireText('apps/api/src/uploads/uploads.controller.ts', /@Post\('waveform'\)/, 'waveform broker route');
